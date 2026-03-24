@@ -19,12 +19,15 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_interval
 
+from homeassistant.const import Platform
+
 from .const import (
     DOMAIN,
-    PLATFORMS,
     STORAGE_KEY_AUDIT,
     STORAGE_VERSION,
 )
+
+PLATFORMS: list[Platform] = [Platform.SENSOR]
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 """Constants for the Finance Dashboard integration."""
 
 DOMAIN = "finance_dashboard"
-PLATFORMS = []
+PLATFORMS = ["sensor"]
 
 # Version — must match manifest.json and companion config.yaml
 VERSION = "0.1.0"
