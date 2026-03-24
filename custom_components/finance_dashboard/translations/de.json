@@ -1,0 +1,38 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "GoCardless API Einrichtung",
+        "description": "Gib deine GoCardless/Nordigen API-Zugangsdaten ein.\n\nHol dir deine kostenlosen API-Schlüssel unter [{gocardless_url}]({gocardless_url}).\n\n**Sicherheit:** Deine Zugangsdaten werden verschlüsselt und lokal in Home Assistant gespeichert. Sie werden niemals an Dritte gesendet, außer an GoCardless.",
+        "data": {
+          "secret_id": "Secret ID",
+          "secret_key": "Secret Key"
+        }
+      },
+      "link_bank": {
+        "title": "Bankkonto verknüpfen",
+        "description": "Wähle deine Bank aus, um den Zugriff über Open Banking zu autorisieren.",
+        "data": {
+          "institution_id": "Bank"
+        }
+      }
+    },
+    "error": {
+      "missing_credentials": "Bitte gib sowohl die Secret ID als auch den Secret Key ein.",
+      "invalid_credentials": "Verbindung zu GoCardless fehlgeschlagen. Bitte überprüfe deine API-Zugangsdaten.",
+      "connection_failed": "Verbindung zu GoCardless fehlgeschlagen. Bitte überprüfe deine Internetverbindung."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Finance Dashboard Einstellungen",
+        "data": {
+          "refresh_interval_minutes": "Aktualisierungsintervall (Minuten)",
+          "split_model": "Budget-Aufteilungsmodell",
+          "currency": "Währung"
+        }
+      }
+    }
+  }
+}

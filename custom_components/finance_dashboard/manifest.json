@@ -1,0 +1,19 @@
+{
+  "domain": "finance_dashboard",
+  "name": "Finance Dashboard",
+  "codeowners": ["@Jerry0022"],
+  "config_flow": true,
+  "dependencies": [
+    "persistent_notification",
+    "http",
+    "frontend"
+  ],
+  "integration_type": "service",
+  "documentation": "https://github.com/Jerry0022/homeassistant-finance",
+  "iot_class": "cloud_polling",
+  "requirements": [
+    "nordigen-python==2.1.0",
+    "cryptography>=42.0.0"
+  ],
+  "version": "0.1.0"
+}

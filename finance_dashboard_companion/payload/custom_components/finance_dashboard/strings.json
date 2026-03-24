@@ -1,0 +1,54 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "GoCardless API Setup",
+        "description": "Enter your GoCardless/Nordigen API credentials.\n\nGet your free API keys at [{gocardless_url}]({gocardless_url}).\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant. They are never sent to any third party except GoCardless.",
+        "data": {
+          "secret_id": "Secret ID",
+          "secret_key": "Secret Key"
+        }
+      },
+      "link_bank": {
+        "title": "Link Bank Account",
+        "description": "Select your banking institution to authorize access via Open Banking.",
+        "data": {
+          "institution_id": "Bank"
+        }
+      }
+    },
+    "error": {
+      "missing_credentials": "Please enter both Secret ID and Secret Key.",
+      "invalid_credentials": "Could not connect to GoCardless. Please verify your API credentials.",
+      "connection_failed": "Connection to GoCardless failed. Please check your internet connection."
+    },
+    "abort": {
+      "already_configured": "Finance Dashboard is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Finance Dashboard Settings",
+        "data": {
+          "refresh_interval_minutes": "Refresh interval (minutes)",
+          "split_model": "Budget split model",
+          "currency": "Currency"
+        }
+      }
+    }
+  },
+  "issues": {
+    "restart_required": {
+      "title": "Finance Dashboard Update Available",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Restart Required",
+            "description": "Finance Dashboard has been updated to version {version}. A restart is required to apply the update."
+          }
+        }
+      }
+    }
+  }
+}

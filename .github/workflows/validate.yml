@@ -1,0 +1,49 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    name: Validate code and versions
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Validate Python syntax
+        run: |
+          python -m py_compile custom_components/finance_dashboard/__init__.py
+          python -m py_compile custom_components/finance_dashboard/config_flow.py
+          python -m py_compile custom_components/finance_dashboard/const.py
+          python -m py_compile custom_components/finance_dashboard/manager.py
+          python -m py_compile custom_components/finance_dashboard/credential_manager.py
+          python -m py_compile custom_components/finance_dashboard/gocardless_client.py
+          python -m py_compile custom_components/finance_dashboard/categorizer.py
+          python -m py_compile custom_components/finance_dashboard/api.py
+          python -m py_compile custom_components/finance_dashboard/panel.py
+          python -m py_compile custom_components/finance_dashboard/repairs.py
+
+      - name: Validate JavaScript syntax
+        run: |
+          node --check custom_components/finance_dashboard/frontend/finance-dashboard-panel.js
+          node --check www/community/finance-dashboard/finance-dashboard.js
+
+      - name: Validate version alignment
+        run: python scripts/bump_versions.py --check
+
+      - name: Validate payload sync
+        run: python scripts/sync_addon_payload.py --check

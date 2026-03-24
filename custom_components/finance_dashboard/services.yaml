@@ -1,0 +1,49 @@
+refresh_accounts:
+  name: Refresh Accounts
+  description: Refresh the list of linked bank accounts from GoCardless.
+
+refresh_transactions:
+  name: Refresh Transactions
+  description: Fetch latest transactions for all linked accounts.
+  fields:
+    days:
+      name: Days
+      description: Number of days to fetch (default 30).
+      required: false
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 365
+          mode: box
+
+get_balance:
+  name: Get Balance
+  description: Get current balances for all linked accounts.
+
+get_monthly_summary:
+  name: Get Monthly Summary
+  description: Get spending summary grouped by category for a given month.
+  fields:
+    month:
+      name: Month
+      description: Month number (1-12). Defaults to current month.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 12
+          mode: box
+    year:
+      name: Year
+      description: Year. Defaults to current year.
+      required: false
+      selector:
+        number:
+          min: 2020
+          max: 2030
+          mode: box
+
+categorize_transactions:
+  name: Categorize Transactions
+  description: Re-run auto-categorization on all cached transactions.

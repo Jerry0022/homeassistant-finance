@@ -1,0 +1,20 @@
+name: Finance Dashboard
+version: "0.1.0"
+slug: finance_dashboard_companion
+description: >-
+  Install or update the Finance Dashboard integration for Home Assistant.
+  Provides secure banking data access via GoCardless Open Banking API
+  with auto-categorization, household budget tracking, and more.
+url: "https://github.com/Jerry0022/homeassistant-finance"
+startup: once
+boot: auto
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+map:
+  - type: homeassistant_config
+    read_only: false
+    path: /config
