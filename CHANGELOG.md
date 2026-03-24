@@ -2,6 +2,19 @@
 
 All notable changes to the Finance Dashboard will be documented in this file.
 
+## [0.4.1] — 2026-03-24
+
+### Fixed
+- Companion add-on not showing updates in HA (missing `exec sleep infinity` — container exited immediately)
+- Add-on config missing `stage`, `options`, `schema` fields required by HA Supervisor
+- Wrong API permission field (`auth_api` → `homeassistant_api`)
+- Brand assets using SVGs instead of PNGs (HA ignores SVGs)
+- Missing dark mode icon variants (`dark_icon.png`, `dark_logo.png`)
+
+### Added
+- Procedural branding asset generator (`scripts/generate_branding_assets.py`)
+- bashio logging integration for structured HA log output
+
 ## [0.4.0] — 2026-03-24
 
 ### Added
