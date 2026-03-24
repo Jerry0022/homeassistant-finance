@@ -26,20 +26,11 @@ jobs:
 
       - name: Validate Python syntax
         run: |
-          python -m py_compile custom_components/finance_dashboard/__init__.py
-          python -m py_compile custom_components/finance_dashboard/config_flow.py
-          python -m py_compile custom_components/finance_dashboard/const.py
-          python -m py_compile custom_components/finance_dashboard/manager.py
-          python -m py_compile custom_components/finance_dashboard/credential_manager.py
-          python -m py_compile custom_components/finance_dashboard/gocardless_client.py
-          python -m py_compile custom_components/finance_dashboard/categorizer.py
-          python -m py_compile custom_components/finance_dashboard/api.py
-          python -m py_compile custom_components/finance_dashboard/panel.py
-          python -m py_compile custom_components/finance_dashboard/repairs.py
+          find custom_components/finance_dashboard -name "*.py" -exec python -m py_compile {} +
 
       - name: Validate JavaScript syntax
         run: |
-          node --check custom_components/finance_dashboard/frontend/finance-dashboard-panel.js
+          find custom_components/finance_dashboard/frontend -name "*.js" -exec node --check {} +
           node --check www/community/finance-dashboard/finance-dashboard.js
 
       - name: Validate version alignment

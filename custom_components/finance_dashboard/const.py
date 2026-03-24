@@ -4,7 +4,7 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 # Panel
 PANEL_URL = "/finance-dashboard"
@@ -94,6 +94,8 @@ SERVICE_REFRESH_TRANSACTIONS = "refresh_transactions"
 SERVICE_CATEGORIZE = "categorize_transactions"
 SERVICE_GET_BALANCE = "get_balance"
 SERVICE_GET_SUMMARY = "get_monthly_summary"
+SERVICE_SET_BUDGET_LIMIT = "set_budget_limit"
+SERVICE_EXPORT_CSV = "export_csv"
 
 # Audit log
 AUDIT_EVENT_AUTH = "authentication"
