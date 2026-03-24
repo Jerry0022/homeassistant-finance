@@ -7,9 +7,10 @@ PLATFORMS = ["sensor", "number", "select"]
 VERSION = "0.4.1"
 
 # Panel
-PANEL_URL = "/finance-dashboard"
+PANEL_URL_PATH = "finance-dashboard"
 PANEL_TITLE = "Finance Dashboard"
 PANEL_ICON = "mdi:finance"
+PANEL_COMPONENT_NAME = "finance-dashboard-panel"
 PANEL_MODULE_PATH = (
     f"/api/{DOMAIN}/static/finance-dashboard-panel.js?v={VERSION}"
 )
