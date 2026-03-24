@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    name: Create GitHub Release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate versions
+        run: python scripts/bump_versions.py --check
+
+      - name: Validate payload sync
+        run: python scripts/sync_addon_payload.py --check
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          # Extract the section for this version from CHANGELOG.md
+          version="${{ steps.version.outputs.version }}"
+          changelog=$(sed -n "/## \[$version\]/,/## \[/p" CHANGELOG.md | head -n -1)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$changelog" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "v${{ steps.version.outputs.version }}"
+          body: |
+            ${{ steps.changelog.outputs.changelog }}
+
+            ---
+
+            ## Installation
+
+            ### Via Companion Add-on (Recommended)
+            1. Add this repository to your Home Assistant add-on store
+            2. Install the **Finance Dashboard** add-on
+            3. Start the add-on — it automatically installs the integration
+            4. Restart Home Assistant when prompted
+
+            ### Manual Installation
+            1. Copy `custom_components/finance_dashboard/` to your HA `config/custom_components/` directory
+            2. Restart Home Assistant
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
