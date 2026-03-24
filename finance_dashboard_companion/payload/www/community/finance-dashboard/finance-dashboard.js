@@ -90,6 +90,55 @@ class FinanceDashboardCard extends HTMLElement {
   }
 }
 
+class FinanceDashboardCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = Object.assign({}, config);
+    this._render();
+  }
+
+  _render() {
+    if (!this.innerHTML) {
+      this.innerHTML = `
+        <div style="padding: 16px;">
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; margin-bottom: 4px; font-weight: 500;">
+              Show Transactions
+            </label>
+            <ha-switch id="fd-show-txn"></ha-switch>
+          </div>
+          <div>
+            <label style="display: block; margin-bottom: 4px; font-weight: 500;">
+              Max Transactions
+            </label>
+            <ha-textfield id="fd-max-txn" type="number" min="1" max="50"
+              style="width: 100%;"></ha-textfield>
+          </div>
+        </div>
+      `;
+      this.querySelector("#fd-show-txn").addEventListener("change", (e) => {
+        this._config.show_transactions = e.target.checked;
+        this._dispatch();
+      });
+      this.querySelector("#fd-max-txn").addEventListener("change", (e) => {
+        this._config.max_transactions = parseInt(e.target.value) || 5;
+        this._dispatch();
+      });
+    }
+
+    const toggle = this.querySelector("#fd-show-txn");
+    const input = this.querySelector("#fd-max-txn");
+    if (toggle) toggle.checked = this._config.show_transactions !== false;
+    if (input) input.value = this._config.max_transactions || 5;
+  }
+
+  _dispatch() {
+    this.dispatchEvent(
+      new CustomEvent("config-changed", { detail: { config: this._config } })
+    );
+  }
+}
+
+customElements.define("finance-dashboard-card-editor", FinanceDashboardCardEditor);
 customElements.define("finance-dashboard-card", FinanceDashboardCard);
 
 window.customCards = window.customCards || [];

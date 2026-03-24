@@ -156,9 +156,9 @@ class FinanceDashboardPanel extends HTMLElement {
 
     try {
       const [bal, txn, sum] = await Promise.all([
-        this._api("finance_dashboard/balances"),
-        this._api("finance_dashboard/transactions"),
-        this._api("finance_dashboard/summary"),
+        this._hass.callApi("GET", "finance_dashboard/balances"),
+        this._hass.callApi("GET", "finance_dashboard/transactions"),
+        this._hass.callApi("GET", "finance_dashboard/summary"),
       ]);
       this._draw(c, bal, txn, sum);
     } catch (e) {
@@ -301,9 +301,6 @@ class FinanceDashboardPanel extends HTMLElement {
     el.classList.remove("loading");
   }
 
-  async _api(path) {
-    return await this._hass.callApi("GET", path);
-  }
 }
 
 customElements.define("finance-dashboard-panel", FinanceDashboardPanel);
