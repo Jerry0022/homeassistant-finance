@@ -1,5 +1,17 @@
 # Build Log
 
+## 255c9f2 — 2026-03-24
+Version: 0.4.1
+Branch: claude/confident-neumann
+PR: #19
+Commit: 64e8d3b
+Changes:
+- Fix companion add-on not showing updates (missing sleep infinity)
+- Add missing config.yaml fields (stage, options, schema, homeassistant_api)
+- Replace SVG brand assets with PNGs, add dark mode variants
+- Switch to bashio logging, add post-copy verification
+- Add generate_branding_assets.py script
+
 ## 0.4.0 — 2026-03-24
 Version: 0.4.0
 Branch: main
