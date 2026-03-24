@@ -135,13 +135,14 @@ class FinanceDashboardBalanceView(HomeAssistantView):
         manager = next(iter(entries.values()))
         balances = await manager.async_get_balance()
 
-        # Sanitize output — truncate IBANs for frontend display
+        # Sanitize output — truncate IBANs, add institution info
         sanitized = {}
         for account_id, data in balances.items():
-            iban = data.get("iban", "")
             sanitized[account_id] = {
                 "account_name": data.get("account_name", "Unknown"),
-                "iban_masked": f"****{iban[-4:]}" if len(iban) >= 4 else "****",
+                "iban_masked": data.get("iban_masked", "****"),
+                "institution": data.get("institution", ""),
+                "logo": data.get("logo", ""),
                 "balances": data.get("balances", []),
             }
 
@@ -149,26 +150,54 @@ class FinanceDashboardBalanceView(HomeAssistantView):
 
 
 class FinanceDashboardTransactionsView(HomeAssistantView):
-    """API endpoint for transactions."""
+    """API endpoint for transactions.
+
+    PRIVACY-FIRST: Individual transaction details are only returned
+    to HA admin users. Non-admin users receive only aggregated
+    category summaries — no individual transaction data.
+    """
 
     url = f"/api/{DOMAIN}/transactions"
     name = f"api:{DOMAIN}:transactions"
     requires_auth = True
 
     async def get(self, request: web.Request) -> web.Response:
-        """Get recent transactions."""
+        """Get recent transactions (admin-only detail view)."""
         hass = request.app["hass"]
         entries = hass.data.get(DOMAIN, {})
 
         if not entries:
-            return self.json({"error": "Not configured"}, status_code=404)
+            return self.json(
+                {"error": "Not configured"}, status_code=404
+            )
+
+        # Privacy gate: check if requesting user is HA admin
+        user = request.get("hass_user")
+        is_admin = user and user.is_admin if user else False
 
         manager = next(iter(entries.values()))
-        transactions = await manager.async_refresh_transactions()
 
-        # Sanitize — never expose full account numbers
+        if not is_admin:
+            # Non-admin: only aggregated category data, no transactions
+            summary = await manager.async_get_monthly_summary()
+            return self.json(
+                {
+                    "privacy": "aggregate_only",
+                    "message": "Individual transactions require admin access.",
+                    "categories": summary.get("categories", {}),
+                    "total_income": summary.get("total_income", 0),
+                    "total_expenses": summary.get("total_expenses", 0),
+                    "transaction_count": summary.get(
+                        "transaction_count", 0
+                    ),
+                }
+            )
+
+        # Admin: return individual transactions (sanitized)
+        transactions = manager.get_cached_transactions(limit=100)
+
         sanitized = []
-        for txn in transactions[:100]:  # Limit response size
+        for txn in transactions:
             sanitized.append(
                 {
                     "date": txn.get("bookingDate", ""),
@@ -183,10 +212,14 @@ class FinanceDashboardTransactionsView(HomeAssistantView):
                     ),
                     "creditor": txn.get("creditorName", ""),
                     "category": txn.get("category", "other"),
+                    "status": txn.get("_status", "booked"),
+                    # Never expose: full IBAN, internal IDs, raw account data
                 }
             )
 
-        return self.json({"transactions": sanitized})
+        return self.json(
+            {"privacy": "admin_full", "transactions": sanitized}
+        )
 
 
 class FinanceDashboardSummaryView(HomeAssistantView):
