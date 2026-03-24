@@ -1,4 +1,3 @@
-channel: stable
-maintainer: Jerry0022
 name: Finance Dashboard
-url: https://github.com/Jerry0022/homeassistant-finance
+url: "https://github.com/Jerry0022/homeassistant-finance"
+maintainer: Jerry0022

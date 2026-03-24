@@ -2,6 +2,13 @@
 
 All notable changes to the Finance Dashboard will be documented in this file.
 
+## [0.4.2] — 2026-03-25
+
+### Fixed
+- Sidebar panel not appearing in HA (used wrong API: `async_register_built_in_panel` → `panel_custom.async_register_panel`)
+- Non-standard `channel` field in `repository.yaml` removed
+- Add-on CHANGELOG.md added (required by Supervisor for update display)
+
 ## [0.4.1] — 2026-03-24
 
 ### Fixed
