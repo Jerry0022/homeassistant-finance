@@ -285,6 +285,56 @@ class FinanceDashboardManager:
             ),
         }
 
+    async def async_categorize_transactions(self) -> None:
+        """Re-run auto-categorization on all cached transactions."""
+        if not self._categorizer:
+            return
+        for txn in self._transactions:
+            txn["category"] = self._categorizer.categorize(txn)
+        await self._persist_transactions()
+        _LOGGER.info(
+            "Re-categorized %d transactions", len(self._transactions)
+        )
+
+    async def async_set_budget_limit(
+        self, category: str, limit: float
+    ) -> None:
+        """Set a budget limit for a category via the Number entity."""
+        from .const import DOMAIN
+
+        entity_id = f"number.fd_budget_{category}"
+        state = self._hass.states.get(entity_id)
+        if state is not None:
+            await self._hass.services.async_call(
+                "number",
+                "set_value",
+                {"entity_id": entity_id, "value": limit},
+            )
+            _LOGGER.info(
+                "Budget limit for %s set to %.2f", category, limit
+            )
+        else:
+            _LOGGER.warning(
+                "Budget entity %s not found", entity_id
+            )
+
+    async def async_export_csv(
+        self,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        categories: list[str] | None = None,
+    ) -> str:
+        """Export transactions as CSV file."""
+        from .export import async_export_csv
+
+        return await async_export_csv(
+            self._hass,
+            self._transactions,
+            date_from=date_from,
+            date_to=date_to,
+            categories=categories,
+        )
+
     def get_cached_transactions(
         self, limit: int = 100
     ) -> list[dict[str, Any]]:

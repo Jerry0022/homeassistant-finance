@@ -47,3 +47,41 @@ get_monthly_summary:
 categorize_transactions:
   name: Categorize Transactions
   description: Re-run auto-categorization on all cached transactions.
+
+set_budget_limit:
+  name: Set Budget Limit
+  description: Set a monthly budget limit for a spending category.
+  fields:
+    category:
+      name: Category
+      description: The spending category (e.g., housing, food, transport).
+      required: true
+      selector:
+        text:
+    limit:
+      name: Limit
+      description: Monthly budget limit in EUR.
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: 0.01
+          mode: box
+
+export_csv:
+  name: Export CSV
+  description: Export transactions as a CSV file for local download.
+  fields:
+    date_from:
+      name: From Date
+      description: Start date filter (YYYY-MM-DD). Optional.
+      required: false
+      selector:
+        date:
+    date_to:
+      name: To Date
+      description: End date filter (YYYY-MM-DD). Optional.
+      required: false
+      selector:
+        date:

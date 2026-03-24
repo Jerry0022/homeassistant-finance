@@ -19,8 +19,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_interval
 
-from homeassistant.const import Platform
-
 from .const import (
     DOMAIN,
     STORAGE_KEY_AUDIT,
@@ -133,6 +131,9 @@ async def _async_register_services(
         SERVICE_REFRESH_TRANSACTIONS,
         SERVICE_GET_BALANCE,
         SERVICE_GET_SUMMARY,
+        SERVICE_CATEGORIZE,
+        SERVICE_SET_BUDGET_LIMIT,
+        SERVICE_EXPORT_CSV,
     )
 
     async def handle_refresh_accounts(call) -> None:
@@ -147,6 +148,23 @@ async def _async_register_services(
     async def handle_get_summary(call) -> dict:
         return await manager.async_get_monthly_summary()
 
+    async def handle_categorize(call) -> None:
+        await manager.async_categorize_transactions()
+
+    async def handle_set_budget_limit(call) -> None:
+        category = call.data.get("category")
+        limit = call.data.get("limit")
+        if category and limit is not None:
+            await manager.async_set_budget_limit(category, float(limit))
+
+    async def handle_export_csv(call) -> dict:
+        path = await manager.async_export_csv(
+            date_from=call.data.get("date_from"),
+            date_to=call.data.get("date_to"),
+            categories=call.data.get("categories"),
+        )
+        return {"path": path}
+
     hass.services.async_register(
         DOMAIN, SERVICE_REFRESH_ACCOUNTS, handle_refresh_accounts
     )
@@ -158,4 +176,13 @@ async def _async_register_services(
     )
     hass.services.async_register(
         DOMAIN, SERVICE_GET_SUMMARY, handle_get_summary
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_CATEGORIZE, handle_categorize
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_SET_BUDGET_LIMIT, handle_set_budget_limit
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_EXPORT_CSV, handle_export_csv
     )

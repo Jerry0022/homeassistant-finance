@@ -33,6 +33,43 @@ jobs:
           find custom_components/finance_dashboard/frontend -name "*.js" -exec node --check {} +
           node --check www/community/finance-dashboard/finance-dashboard.js
 
+      - name: Validate YAML files
+        run: |
+          python -c "
+          import yaml, sys
+          files = [
+              'custom_components/finance_dashboard/services.yaml',
+              'finance_dashboard_companion/config.yaml',
+              'finance_dashboard_companion/build.yaml',
+          ]
+          for f in files:
+              try:
+                  with open(f) as fh:
+                      yaml.safe_load(fh)
+                  print(f'  ✓ {f}')
+              except Exception as e:
+                  print(f'  ✗ {f}: {e}', file=sys.stderr)
+                  sys.exit(1)
+          "
+
+      - name: Validate JSON files
+        run: |
+          python -c "
+          import json, sys, glob
+          files = [
+              'custom_components/finance_dashboard/manifest.json',
+              'custom_components/finance_dashboard/strings.json',
+          ] + glob.glob('custom_components/finance_dashboard/translations/*.json')
+          for f in files:
+              try:
+                  with open(f) as fh:
+                      json.load(fh)
+                  print(f'  ✓ {f}')
+              except Exception as e:
+                  print(f'  ✗ {f}: {e}', file=sys.stderr)
+                  sys.exit(1)
+          "
+
       - name: Validate version alignment
         run: python scripts/bump_versions.py --check
 

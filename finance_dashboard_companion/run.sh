@@ -87,7 +87,7 @@ mkdir -p "$(dirname "$LOVELACE_TARGET")"
 
 # Copy integration files
 echo "[Finance Dashboard] Copying integration files..."
-cp -r "$INTEGRATION_SOURCE/"* "$INTEGRATION_TARGET/"
+cp -r "$INTEGRATION_SOURCE/." "$INTEGRATION_TARGET/"
 
 # Verify copy
 if has_diagnostics_marker "$INTEGRATION_TARGET/__init__.py"; then
@@ -100,7 +100,7 @@ fi
 if [ -d "$LOVELACE_SOURCE" ]; then
     echo "[Finance Dashboard] Copying Lovelace assets..."
     mkdir -p "$LOVELACE_TARGET"
-    cp -r "$LOVELACE_SOURCE/"* "$LOVELACE_TARGET/"
+    cp -r "$LOVELACE_SOURCE/." "$LOVELACE_TARGET/"
     echo "[Finance Dashboard] Lovelace assets copied."
 fi
 

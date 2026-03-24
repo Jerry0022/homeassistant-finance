@@ -35,6 +35,9 @@
       "authorization_expired": "The authorization has expired. Please start over.",
       "authorization_pending": "Authorization not yet complete. Please finish at your bank and try again.",
       "no_accounts_linked": "No accounts were linked. Please try the authorization again."
+    },
+    "abort": {
+      "already_configured": "Finance Dashboard is already configured."
     }
   },
   "options": {
@@ -47,6 +50,19 @@
           "currency": "Currency",
           "enable_total_balance_sensor": "Enable total balance sensor",
           "enable_dashboard_panel": "Show sidebar panel"
+        }
+      }
+    }
+  },
+  "issues": {
+    "restart_required": {
+      "title": "Finance Dashboard Update Available",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Restart Required",
+            "description": "Finance Dashboard has been updated to version {version}. A restart is required to apply the update."
+          }
         }
       }
     }
