@@ -3,24 +3,38 @@
     "step": {
       "user": {
         "title": "GoCardless API Setup",
-        "description": "Enter your GoCardless/Nordigen API credentials.\n\nGet your free API keys at [{gocardless_url}]({gocardless_url}).\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant. They are never sent to any third party except GoCardless.",
+        "description": "Enter your GoCardless/Nordigen API credentials.\n\nGet your free API keys at [{gocardless_url}]({gocardless_url}).\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant.",
         "data": {
           "secret_id": "Secret ID",
           "secret_key": "Secret Key"
         }
       },
-      "link_bank": {
-        "title": "Link Bank Account",
-        "description": "Select your banking institution to authorize access via Open Banking.",
+      "select_bank": {
+        "title": "Select Your Bank",
+        "description": "Choose your banking institution from {bank_count} available German banks.",
         "data": {
           "institution_id": "Bank"
         }
+      },
+      "authorize": {
+        "title": "Authorize Bank Access",
+        "description": "Click the link below to authorize access to your bank account at **{bank_name}**.\n\n[Open Bank Authorization]({auth_url})\n\nAfter completing the authorization at your bank, return here and click **Submit**."
+      },
+      "assign_accounts": {
+        "title": "Assign Accounts",
+        "description": "Found {account_count} accounts: {account_list}\n\nFor each account, choose whether it is **personal** or **shared**."
       }
     },
     "error": {
       "missing_credentials": "Please enter both Secret ID and Secret Key.",
       "invalid_credentials": "Could not connect to GoCardless. Please verify your API credentials.",
-      "connection_failed": "Connection to GoCardless failed. Please check your internet connection."
+      "no_institutions": "No banking institutions found for Germany.",
+      "invalid_institution": "Please select a valid bank.",
+      "connection_failed": "Connection to GoCardless failed. Please check your internet connection.",
+      "bank_rejected": "Your bank rejected the authorization. Please try again.",
+      "authorization_expired": "The authorization has expired. Please start over.",
+      "authorization_pending": "Authorization not yet complete. Please finish at your bank and try again.",
+      "no_accounts_linked": "No accounts were linked. Please try the authorization again."
     }
   },
   "options": {
@@ -30,7 +44,9 @@
         "data": {
           "refresh_interval_minutes": "Refresh interval (minutes)",
           "split_model": "Budget split model",
-          "currency": "Currency"
+          "currency": "Currency",
+          "enable_total_balance_sensor": "Enable total balance sensor",
+          "enable_dashboard_panel": "Show sidebar panel"
         }
       }
     }

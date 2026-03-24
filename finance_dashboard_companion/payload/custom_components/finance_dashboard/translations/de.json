@@ -3,24 +3,38 @@
     "step": {
       "user": {
         "title": "GoCardless API Einrichtung",
-        "description": "Gib deine GoCardless/Nordigen API-Zugangsdaten ein.\n\nHol dir deine kostenlosen API-Schlüssel unter [{gocardless_url}]({gocardless_url}).\n\n**Sicherheit:** Deine Zugangsdaten werden verschlüsselt und lokal in Home Assistant gespeichert. Sie werden niemals an Dritte gesendet, außer an GoCardless.",
+        "description": "Gib deine GoCardless/Nordigen API-Zugangsdaten ein.\n\nHol dir deine kostenlosen API-Schlüssel unter [{gocardless_url}]({gocardless_url}).\n\n**Sicherheit:** Deine Zugangsdaten werden verschlüsselt und lokal in Home Assistant gespeichert.",
         "data": {
           "secret_id": "Secret ID",
           "secret_key": "Secret Key"
         }
       },
-      "link_bank": {
-        "title": "Bankkonto verknüpfen",
-        "description": "Wähle deine Bank aus, um den Zugriff über Open Banking zu autorisieren.",
+      "select_bank": {
+        "title": "Bank auswählen",
+        "description": "Wähle deine Bank aus {bank_count} verfügbaren deutschen Banken.",
         "data": {
           "institution_id": "Bank"
         }
+      },
+      "authorize": {
+        "title": "Bankzugang autorisieren",
+        "description": "Klicke den Link unten um den Zugriff auf dein Bankkonto bei **{bank_name}** zu autorisieren.\n\n[Bank-Autorisierung öffnen]({auth_url})\n\nNach Abschluss der Autorisierung bei deiner Bank, kehre hierher zurück und klicke **Absenden**."
+      },
+      "assign_accounts": {
+        "title": "Konten zuordnen",
+        "description": "{account_count} Konten gefunden: {account_list}\n\nWähle für jedes Konto ob es **persönlich** (gehört einer Person) oder **geteilt** (Haushaltskonto) ist."
       }
     },
     "error": {
       "missing_credentials": "Bitte gib sowohl die Secret ID als auch den Secret Key ein.",
       "invalid_credentials": "Verbindung zu GoCardless fehlgeschlagen. Bitte überprüfe deine API-Zugangsdaten.",
-      "connection_failed": "Verbindung zu GoCardless fehlgeschlagen. Bitte überprüfe deine Internetverbindung."
+      "no_institutions": "Keine Banken für Deutschland gefunden.",
+      "invalid_institution": "Bitte wähle eine gültige Bank aus.",
+      "connection_failed": "Verbindung zu GoCardless fehlgeschlagen. Bitte überprüfe deine Internetverbindung.",
+      "bank_rejected": "Deine Bank hat die Autorisierung abgelehnt. Bitte versuche es erneut.",
+      "authorization_expired": "Die Autorisierung ist abgelaufen. Bitte starte den Vorgang erneut.",
+      "authorization_pending": "Autorisierung noch nicht abgeschlossen. Bitte schließe den Vorgang bei deiner Bank ab.",
+      "no_accounts_linked": "Keine Konten wurden verknüpft. Bitte versuche die Autorisierung erneut."
     }
   },
   "options": {
@@ -30,7 +44,9 @@
         "data": {
           "refresh_interval_minutes": "Aktualisierungsintervall (Minuten)",
           "split_model": "Budget-Aufteilungsmodell",
-          "currency": "Währung"
+          "currency": "Währung",
+          "enable_total_balance_sensor": "Gesamtsaldo-Sensor aktivieren",
+          "enable_dashboard_panel": "Sidebar-Panel anzeigen"
         }
       }
     }

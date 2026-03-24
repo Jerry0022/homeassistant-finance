@@ -26,11 +26,57 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_register_api(hass: HomeAssistant) -> None:
     """Register HTTP API endpoints."""
+    hass.http.register_view(FinanceDashboardOAuthCallbackView())
     hass.http.register_view(FinanceDashboardStaticView())
     hass.http.register_view(FinanceDashboardBalanceView())
     hass.http.register_view(FinanceDashboardTransactionsView())
     hass.http.register_view(FinanceDashboardSummaryView())
     _LOGGER.debug("Finance Dashboard API endpoints registered")
+
+
+class FinanceDashboardOAuthCallbackView(HomeAssistantView):
+    """Handle OAuth callback from GoCardless bank authorization.
+
+    After the user authorizes at their bank, GoCardless redirects here.
+    We show a simple HTML page that tells the user to go back to HA
+    and continue the config flow.
+    """
+
+    url = f"/api/{DOMAIN}/oauth/callback"
+    name = f"api:{DOMAIN}:oauth_callback"
+    requires_auth = False  # Bank redirect — no HA auth header
+
+    async def get(self, request: web.Request) -> web.Response:
+        """Handle GET redirect from bank after authorization."""
+        hass = request.app["hass"]
+
+        # The config flow polls the requisition status independently.
+        # This callback just shows a "go back to HA" message.
+        html = """<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Finance Dashboard</title>
+<style>
+body { font-family: -apple-system, sans-serif; background: #0a0a0f;
+  color: #e8e8ed; display: flex; justify-content: center;
+  align-items: center; min-height: 100vh; margin: 0; }
+.card { background: #12121a; border-radius: 16px; padding: 48px;
+  text-align: center; max-width: 400px; border: 1px solid rgba(255,255,255,0.06); }
+h1 { color: #4ecca3; font-size: 24px; margin: 0 0 12px; }
+p { color: #9898a8; font-size: 14px; line-height: 1.6; }
+.icon { font-size: 48px; margin-bottom: 16px; }
+</style></head><body>
+<div class="card">
+  <div class="icon">&#9989;</div>
+  <h1>Bank Authorization Complete</h1>
+  <p>Your bank account has been linked successfully.<br>
+  Please return to Home Assistant and click <strong>Submit</strong>
+  to continue the setup.</p>
+</div>
+</body></html>"""
+
+        _LOGGER.info("OAuth callback received from bank redirect")
+        return web.Response(
+            text=html, content_type="text/html", status=200
+        )
 
 
 class FinanceDashboardStaticView(HomeAssistantView):
