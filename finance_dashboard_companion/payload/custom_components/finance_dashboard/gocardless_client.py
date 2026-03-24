@@ -47,18 +47,62 @@ class GoCardlessClient:
             "GET", f"/institutions/?country={country}"
         )
 
-    async def async_create_requisition(
-        self, institution_id: str, redirect_url: str
+    async def async_create_agreement(
+        self,
+        institution_id: str,
+        max_historical_days: int = 90,
+        access_valid_for_days: int = 90,
     ) -> dict[str, Any]:
-        """Create a bank link requisition (user authorization flow)."""
+        """Create an end-user agreement defining data access scope."""
+        return await self._async_request(
+            "POST",
+            "/agreements/enduser/",
+            json={
+                "institution_id": institution_id,
+                "max_historical_days": max_historical_days,
+                "access_valid_for_days": access_valid_for_days,
+                "access_scope": ["details", "balances", "transactions"],
+            },
+        )
+
+    async def async_create_requisition(
+        self,
+        institution_id: str,
+        redirect_url: str,
+        agreement_id: str | None = None,
+        reference: str | None = None,
+    ) -> dict[str, Any]:
+        """Create a bank link requisition (user authorization flow).
+
+        Returns dict with 'id', 'link' (authorization URL), 'status', etc.
+        """
+        payload: dict[str, Any] = {
+            "institution_id": institution_id,
+            "redirect": redirect_url,
+            "user_language": "de",
+        }
+        if agreement_id:
+            payload["agreement"] = agreement_id
+        if reference:
+            payload["reference"] = reference
+
         return await self._async_request(
             "POST",
             "/requisitions/",
-            json={
-                "institution_id": institution_id,
-                "redirect": redirect_url,
-            },
+            json=payload,
         )
+
+    async def async_delete_requisition(
+        self, requisition_id: str
+    ) -> bool:
+        """Delete a requisition (cleanup after errors)."""
+        try:
+            await self._async_request(
+                "DELETE", f"/requisitions/{requisition_id}/"
+            )
+            return True
+        except Exception:
+            return False
 
     async def async_get_requisition(
         self, requisition_id: str

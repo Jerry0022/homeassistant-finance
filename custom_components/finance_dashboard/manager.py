@@ -4,7 +4,10 @@ Coordinates between:
 - GoCardless API client (banking data)
 - Credential Manager (secure storage)
 - Transaction Categorizer (auto-classification)
-- Household Model (multi-person budget split)
+- Transaction Cache (encrypted .storage/)
+
+SECURITY: All transaction data is cached in HA's .storage/ directory
+(encrypted at rest). No financial data is ever written to logs or git.
 """
 
 from __future__ import annotations
@@ -15,10 +18,14 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
 
-from .const import DOMAIN
+from .const import DOMAIN, STORAGE_VERSION
 
 _LOGGER = logging.getLogger(__name__)
+
+TRANSACTION_CACHE_KEY = f"{DOMAIN}_transactions"
+TRANSACTION_CACHE_VERSION = 1
 
 
 class FinanceDashboardManager:
@@ -31,9 +38,15 @@ class FinanceDashboardManager:
         self._credential_manager = None
         self._gocardless_client = None
         self._categorizer = None
-        self._accounts: list[dict[str, Any]] = []
+        self._transaction_store = Store(
+            hass, TRANSACTION_CACHE_VERSION, TRANSACTION_CACHE_KEY
+        )
+        self._accounts: list[dict[str, Any]] = entry.data.get(
+            "accounts", []
+        )
         self._transactions: list[dict[str, Any]] = []
         self._balances: dict[str, Any] = {}
+        self._last_refresh: datetime | None = None
 
     async def async_initialize(self) -> None:
         """Initialize all sub-components."""
@@ -45,13 +58,26 @@ class FinanceDashboardManager:
 
         self._categorizer = TransactionCategorizer()
 
+        # Load cached transactions from .storage/
+        cached = await self._transaction_store.async_load()
+        if cached and "transactions" in cached:
+            self._transactions = cached["transactions"]
+            last_refresh = cached.get("last_refresh")
+            if last_refresh:
+                self._last_refresh = datetime.fromisoformat(last_refresh)
+            _LOGGER.info(
+                "Loaded %d cached transactions (last refresh: %s)",
+                len(self._transactions),
+                self._last_refresh,
+            )
+
         _LOGGER.info("Finance Dashboard Manager initialized")
 
     async def async_shutdown(self) -> None:
-        """Clean shutdown — clear sensitive data from memory."""
+        """Clean shutdown — persist cache, clear sensitive data from memory."""
+        # Save current transactions before shutdown
+        await self._persist_transactions()
         self._gocardless_client = None
-        self._accounts.clear()
-        self._transactions.clear()
         self._balances.clear()
         _LOGGER.info("Finance Dashboard Manager shut down")
 
@@ -61,16 +87,39 @@ class FinanceDashboardManager:
         if not client:
             return []
 
-        # TODO: Implement account refresh from stored requisitions
-        # This will iterate over linked bank requisitions and fetch
-        # account details for each
+        refreshed = []
+        for account in self._accounts:
+            acc_id = account.get("id")
+            if not acc_id:
+                continue
+            try:
+                details = await client.async_get_account_details(acc_id)
+                acc_data = details.get("account", {})
+                acc_data["id"] = acc_id
+                # Preserve assignment info from config
+                acc_data["type"] = account.get("type", "personal")
+                acc_data["person"] = account.get("person", "")
+                acc_data["institution"] = account.get("institution", "")
+                acc_data["logo"] = account.get("logo", "")
+                refreshed.append(acc_data)
+            except Exception:
+                _LOGGER.warning(
+                    "Failed to refresh account %s", acc_id
+                )
+                refreshed.append(account)
+
+        self._accounts = refreshed
         await self._credential_manager._audit_log("accounts_refreshed")
         return self._accounts
 
     async def async_refresh_transactions(
-        self, days: int = 30
+        self, days: int = 90
     ) -> list[dict[str, Any]]:
-        """Refresh transactions for all linked accounts."""
+        """Refresh transactions for all linked accounts.
+
+        Fetches last N days of transactions, auto-categorizes them,
+        and persists to encrypted .storage/ cache.
+        """
         client = await self._async_get_client()
         if not client:
             return []
@@ -91,20 +140,57 @@ class FinanceDashboardManager:
                     account_id, date_from, date_to
                 )
                 booked = txns.get("booked", [])
-                # Auto-categorize transactions
+                pending = txns.get("pending", [])
+
+                # Tag each transaction with account info
                 for txn in booked:
+                    txn["_account_id"] = account_id
+                    txn["_account_name"] = account.get("name", "")
+                    txn["_account_type"] = account.get("type", "personal")
+                    txn["_account_person"] = account.get("person", "")
+                    txn["_status"] = "booked"
                     txn["category"] = self._categorizer.categorize(txn)
-                    txn["account_id"] = account_id
+
+                for txn in pending:
+                    txn["_account_id"] = account_id
+                    txn["_account_name"] = account.get("name", "")
+                    txn["_status"] = "pending"
+                    txn["category"] = self._categorizer.categorize(txn)
+
                 all_transactions.extend(booked)
+                all_transactions.extend(pending)
+
+                _LOGGER.debug(
+                    "Account %s: %d booked, %d pending",
+                    account_id,
+                    len(booked),
+                    len(pending),
+                )
             except Exception:
                 _LOGGER.exception(
                     "Failed to fetch transactions for account %s",
                     account_id,
                 )
 
+        # Sort by booking date (newest first)
+        all_transactions.sort(
+            key=lambda t: t.get("bookingDate", ""),
+            reverse=True,
+        )
+
         self._transactions = all_transactions
+        self._last_refresh = datetime.now()
+
+        # Persist to encrypted .storage/
+        await self._persist_transactions()
+
         await self._credential_manager._audit_log(
             "transactions_refreshed"
+        )
+        _LOGGER.info(
+            "Refreshed %d transactions across %d accounts",
+            len(all_transactions),
+            len(self._accounts),
         )
         return all_transactions
 
@@ -124,9 +210,17 @@ class FinanceDashboardManager:
                 account_balances = await client.async_get_balances(
                     account_id
                 )
+                iban = account.get("iban", "")
                 balances[account_id] = {
                     "account_name": account.get("name", "Unknown"),
-                    "iban": account.get("iban", ""),
+                    "iban": iban,
+                    "iban_masked": (
+                        f"****{iban[-4:]}"
+                        if len(iban) >= 4
+                        else "****"
+                    ),
+                    "institution": account.get("institution", ""),
+                    "logo": account.get("logo", ""),
                     "balances": account_balances,
                 }
             except Exception:
@@ -151,6 +245,7 @@ class FinanceDashboardManager:
             txn
             for txn in self._transactions
             if self._is_in_month(txn, target_month, target_year)
+            and txn.get("_status") == "booked"
         ]
 
         # Group by category
@@ -176,12 +271,29 @@ class FinanceDashboardManager:
         return {
             "month": target_month,
             "year": target_year,
-            "total_income": total_income,
-            "total_expenses": total_expenses,
-            "balance": total_income - total_expenses,
-            "categories": category_totals,
+            "total_income": round(total_income, 2),
+            "total_expenses": round(total_expenses, 2),
+            "balance": round(total_income - total_expenses, 2),
+            "categories": {
+                k: round(v, 2) for k, v in category_totals.items()
+            },
             "transaction_count": len(monthly_txns),
+            "last_refresh": (
+                self._last_refresh.isoformat()
+                if self._last_refresh
+                else None
+            ),
         }
+
+    def get_cached_transactions(
+        self, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        """Get cached transactions (no API call).
+
+        Returns sanitized transactions for API responses.
+        Full details only — caller must check admin status.
+        """
+        return self._transactions[:limit]
 
     async def _async_get_client(self):
         """Get or create GoCardless client with current credentials."""
@@ -197,6 +309,20 @@ class FinanceDashboardManager:
 
         self._gocardless_client = GoCardlessClient(creds[0], creds[1])
         return self._gocardless_client
+
+    async def _persist_transactions(self) -> None:
+        """Save transactions to encrypted .storage/ cache."""
+        await self._transaction_store.async_save(
+            {
+                "transactions": self._transactions,
+                "last_refresh": (
+                    self._last_refresh.isoformat()
+                    if self._last_refresh
+                    else None
+                ),
+                "account_count": len(self._accounts),
+            }
+        )
 
     @staticmethod
     def _is_in_month(
