@@ -88,7 +88,41 @@ The add-on is a thin installer — it copies the integration code into HA's `cus
 Three-step flow: `user` (API credentials) → `link_bank` (bank authorization) → `options` (settings). Real-time validation with GoCardless API call during setup.
 
 ### Service API
-Services exposed: `refresh_accounts`, `refresh_transactions`, `get_balance`, `get_monthly_summary`, `categorize_transactions`. All callable from HA automations.
+7 Services: `refresh_accounts`, `refresh_transactions`, `get_balance`, `get_monthly_summary`, `categorize_transactions`, `set_budget_limit`, `export_csv`. All callable from HA automations.
+
+### Entity Architecture
+- **Sensor** (per account): `sensor.fd_{bank}_{account}` — balance with bank logo, IBAN masked
+- **Sensor** (aggregate, optional off): `sensor.fd_total_balance` — sum of all accounts
+- **Sensor** (monthly): `sensor.fd_monthly_summary` — income, expenses, categories
+- **Sensor** (per person): `sensor.fd_budget_{person}` — Spielgeld after split
+- **Number** (per category): `number.fd_budget_{category}` — budget limit, dashboard-steuerbar
+- **Select**: `select.fd_split_model` — equal / proportional / custom
+- **Events**: `fd_transaction_new`, `fd_balance_changed`, `fd_budget_exceeded`, `fd_recurring_detected`
+
+### Privacy-First Display
+- Default: only aggregated data visible (categories, sums, trends)
+- Individual transactions: **HA-Admin only** — normal users see only pre-built summaries
+- No financial data in URL parameters, logs, or git
+
+### Month Cycle Logic
+- Configurable per person: **calendar month** OR **salary-based cycle**
+- Recurring transactions assigned to their **logical month** (bank day correction: rent on Feb 28 due to weekend → counts as March)
+- Salary tolerance window: ±5 days for income detection
+
+### Bonus Detection
+- Income ≥15% above 3-month average → HA notification for confirmation
+- Threshold configurable in settings
+- Confirmed bonus → goes to Spielgeld, NOT into monthly balance/split calculation
+
+### Split Model
+Three modes for cost distribution:
+- **Equal**: 50/50 (2P), 33/33/33 (3P), etc.
+- **Proportional**: based on net income ratio
+- **Custom**: user sets percentages manually per person
+
+Additional:
+- **Remainder split**: choosable — "no split" (each keeps their rest) OR "equal distribution"
+- **Category-level override**: optional — global split default, overridable per cost category
 
 ## Commands
 
@@ -112,26 +146,40 @@ node --check custom_components/finance_dashboard/frontend/finance-dashboard-pane
 - [x] Repository structure mirroring YouTube Music Connector golden sample
 - [x] GoCardless API client skeleton
 - [x] Credential manager with encryption + audit
-- [x] Transaction categorizer (rule-based)
+- [x] Transaction categorizer (rule-based, 9 categories from household sheet)
 - [x] Companion add-on with smart installer
 - [x] Sidebar panel + Lovelace card
 - [x] CI/CD pipeline
-- [ ] End-to-end GoCardless OAuth flow
+- [x] Branding (dual-tone coin icon)
+- [x] Design sprint (requirements, architecture, UI mockups)
+- [ ] End-to-end GoCardless OAuth flow (DE banks only)
+- [ ] Account balance sensors (1 per account, bank logo, optional aggregate)
+- [ ] Monthly summary sensor
+- [ ] Privacy-first API responses (IBAN masking, admin-only details)
 - [ ] Live data integration testing
 
 ### Phase 2 — Household Budget
-- [ ] Multi-person model (N persons, configurable split)
-- [ ] Auto-detection of recurring transactions (Fixkosten)
-- [ ] Income recognition and split ratio calculation
-- [ ] Budget split UI (Lovelace component)
-- [ ] Historical comparison (month-over-month)
+- [ ] N-person model with configurable split (equal/proportional/custom)
+- [ ] Personal vs. shared account assignment (at link + in options)
+- [ ] Auto-detection of recurring transactions
+- [ ] Income recognition with ±5d tolerance window
+- [ ] Bonus detection (≥15%, notification + confirmation → Spielgeld)
+- [ ] Month cycle logic (calendar vs. salary-based, per person)
+- [ ] Logical month assignment for recurring costs (bank day correction)
+- [ ] Remainder split (no split / equal distribution)
+- [ ] Category-level split override (optional)
+- [ ] Budget limits as Number entities (per category)
+- [ ] Split model as Select entity (dashboard-steuerbar)
+- [ ] Budget Config Lovelace Card (slider, dropdown, live preview)
+- [ ] 4 automation events (transaction_new, balance_changed, budget_exceeded, recurring_detected)
+- [ ] 6-month trend chart
 
-### Phase 3 — Analytics
+### Phase 3 — Analytics + Polish
+- [ ] Benchmark auto-crawl (Destatis, Bundesbank) with source attribution (text, no gauges)
+- [ ] Drag & drop transaction categorization (system learns)
 - [ ] Spending trend analysis
-- [ ] Category benchmarking (vs. German national averages)
-- [ ] Savings goal tracking
-- [ ] Recurring payment detection and alerts
-- [ ] Export (CSV/PDF) — no financial data in git, only user-triggered downloads
+- [ ] CSV export service (local download, no git)
+- [ ] set_budget_limit service + automation trigger
 
 ## Labels
 
