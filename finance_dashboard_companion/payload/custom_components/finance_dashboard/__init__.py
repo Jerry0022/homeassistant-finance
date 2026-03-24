@@ -27,7 +27,11 @@ from .const import (
     STORAGE_VERSION,
 )
 
-PLATFORMS: list[Platform] = [Platform.SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.SENSOR,
+    Platform.NUMBER,
+    Platform.SELECT,
+]
 
 _LOGGER = logging.getLogger(__name__)
 
