@@ -4,7 +4,7 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 # Panel
 PANEL_URL = "/finance-dashboard"
