@@ -1,5 +1,5 @@
 name: Finance Dashboard
-version: "0.4.0"
+version: "0.4.1"
 slug: finance_dashboard_companion
 description: >-
   Install or update the Finance Dashboard integration for Home Assistant.
@@ -9,16 +9,18 @@ url: "https://github.com/Jerry0022/homeassistant-finance"
 startup: once
 boot: auto
 init: false
-homeassistant: "2024.1.0"
+homeassistant_api: true
 hassio_api: true
-auth_api: true
 arch:
   - aarch64
   - amd64
   - armhf
   - armv7
   - i386
+stage: experimental
 map:
   - type: homeassistant_config
     read_only: false
     path: /config
+options: {}
+schema: {}
