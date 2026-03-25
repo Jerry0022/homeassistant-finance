@@ -3,27 +3,11 @@
     "step": {
       "user": {
         "title": "Enable Banking Setup",
-        "description": "Enter your Enable Banking API credentials.\n\n**How to get your credentials:**\n1. Go to [{enablebanking_url}/cp/applications]({enablebanking_url}/cp/applications)\n2. Choose **Sandbox** (for testing) or **Production**\n3. Select **Generate in the browser** for the key\n4. Enter an application name (e.g. \"Home Assistant Finance\")\n5. Add your HA redirect URL: `{redirect_url}`\n6. Click **Register** — your private key will download automatically\n7. Copy the **Application ID** from the confirmation page\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant.",
+        "description": "Enter your Enable Banking API credentials.\n\n**How to get your credentials:**\n1. Go to [{enablebanking_url}/cp/applications]({enablebanking_url}/cp/applications)\n2. Choose **Sandbox** (for testing) or **Production**\n3. Select **Generate in the browser** for the key\n4. Enter an application name (e.g. \"Home Assistant Finance\")\n5. Add your HA redirect URL: `{redirect_url}`\n6. Click **Register** — your private key will download automatically\n7. Copy the **Application ID** from the confirmation page\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant.\n\nAfter setup, open the **Finance Dashboard** sidebar panel to connect your bank.",
         "data": {
           "application_id": "Application ID",
           "private_key_pem": "Private Key (PEM)"
         }
-      },
-      "select_bank": {
-        "title": "Select Your Bank",
-        "description": "Choose your banking institution from {bank_count} available German banks.",
-        "data": {
-          "institution_id": "Bank"
-        }
-      },
-      "authorize": {
-        "title": "Authorize Bank Access",
-        "description": "You will be redirected to **{bank_name}** to authorize access to your bank account. After completing the authorization, you will be returned here automatically."
-      },
-      "assign_accounts": {
-        "title": "Assign Accounts",
-        "description": "Found {account_count} accounts: {account_list}\n\nFor each account, choose whether it is **personal** (belongs to one person) or **shared** (household account). Enter the person's name for personal accounts.",
-        "data": {}
       }
     },
     "error": {
@@ -31,18 +15,10 @@
       "invalid_key_format": "The private key could not be loaded. Make sure you paste the complete PEM content including the -----BEGIN/END PRIVATE KEY----- lines.",
       "invalid_credentials": "Enable Banking rejected the credentials (HTTP 401/403). Verify that your Application ID matches the private key and the application is activated.",
       "no_institutions": "No banking institutions found for Germany.",
-      "invalid_institution": "Please select a valid bank.",
-      "connection_failed": "Connection to Enable Banking failed. Please check your internet connection.",
-      "bank_rejected": "Your bank rejected the authorization. Please try again.",
-      "authorization_expired": "The authorization has expired. Please start over.",
-      "authorization_pending": "Authorization not yet complete. Please finish at your bank and try again.",
-      "no_accounts_linked": "No accounts were linked. Please try the authorization again."
+      "connection_failed": "Connection to Enable Banking failed. Please check your internet connection."
     },
     "abort": {
-      "already_configured": "Finance is already configured.",
-      "connection_failed": "Connection to Enable Banking failed. Please try again.",
-      "authorization_pending": "Bank authorization was not completed. Please try again.",
-      "no_accounts_linked": "No accounts were linked during authorization. Please try again."
+      "already_configured": "Finance is already configured."
     }
   },
   "options": {

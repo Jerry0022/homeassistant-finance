@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components import frontend, panel_custom
+from homeassistant.components import panel_custom
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
@@ -42,7 +42,7 @@ async def async_register_panel(hass: HomeAssistant) -> None:
                     hass.config.path(
                         "custom_components", DOMAIN, "frontend"
                     ),
-                    False,
+                    True,  # Enable caching (matches YouTube Music Connector)
                 )
             ]
         )
@@ -73,6 +73,6 @@ async def async_register_panel(hass: HomeAssistant) -> None:
 async def async_unregister_panel(hass: HomeAssistant) -> None:
     """Unregister custom sidebar panel."""
     try:
-        frontend.async_remove_panel(hass, PANEL_URL_PATH)
+        panel_custom.async_unregister_panel(hass, PANEL_URL_PATH)
     except Exception:
         _LOGGER.debug("Panel was not registered, nothing to remove")

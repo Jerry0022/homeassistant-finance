@@ -3,26 +3,11 @@
     "step": {
       "user": {
         "title": "Enable Banking Einrichtung",
-        "description": "Gib deine Enable Banking API-Zugangsdaten ein.\n\n**So erhältst du die Zugangsdaten:**\n1. Öffne [{enablebanking_url}/cp/applications]({enablebanking_url}/cp/applications)\n2. Wähle **Sandbox** (zum Testen) oder **Production**\n3. Wähle **Generate in the browser** für den Schlüssel\n4. Trage einen App-Namen ein (z.B. \"Home Assistant Finance\")\n5. Füge deine HA Redirect-URL ein: `{redirect_url}`\n6. Klicke **Register** — der private Schlüssel wird automatisch heruntergeladen\n7. Kopiere die **Application ID** von der Bestätigungsseite\n\n**Sicherheit:** Deine Zugangsdaten werden verschlüsselt und lokal in Home Assistant gespeichert.",
+        "description": "Gib deine Enable Banking API-Zugangsdaten ein.\n\n**So erhältst du die Zugangsdaten:**\n1. Öffne [{enablebanking_url}/cp/applications]({enablebanking_url}/cp/applications)\n2. Wähle **Sandbox** (zum Testen) oder **Production**\n3. Wähle **Generate in the browser** für den Schlüssel\n4. Trage einen App-Namen ein (z.B. \"Home Assistant Finance\")\n5. Füge deine HA Redirect-URL ein: `{redirect_url}`\n6. Klicke **Register** — der private Schlüssel wird automatisch heruntergeladen\n7. Kopiere die **Application ID** von der Bestätigungsseite\n\n**Sicherheit:** Deine Zugangsdaten werden verschlüsselt und lokal in Home Assistant gespeichert.\n\nNach der Einrichtung öffne das **Finance Dashboard** in der Sidebar, um deine Bank zu verbinden.",
         "data": {
           "application_id": "Application ID",
           "private_key_pem": "Privater Schlüssel (PEM)"
         }
-      },
-      "select_bank": {
-        "title": "Bank auswählen",
-        "description": "Wähle deine Bank aus {bank_count} verfügbaren deutschen Banken.",
-        "data": {
-          "institution_id": "Bank"
-        }
-      },
-      "authorize": {
-        "title": "Bankzugang autorisieren",
-        "description": "Du wirst zu **{bank_name}** weitergeleitet, um den Zugriff auf dein Bankkonto zu autorisieren. Nach Abschluss kehrst du automatisch hierher zurück."
-      },
-      "assign_accounts": {
-        "title": "Konten zuordnen",
-        "description": "{account_count} Konten gefunden: {account_list}\n\nWähle für jedes Konto ob es **persönlich** (gehört einer Person) oder **geteilt** (Haushaltskonto) ist."
       }
     },
     "error": {
@@ -30,18 +15,10 @@
       "invalid_key_format": "Der private Schlüssel konnte nicht geladen werden. Stelle sicher, dass du den kompletten PEM-Inhalt inklusive der -----BEGIN/END PRIVATE KEY----- Zeilen einfügst.",
       "invalid_credentials": "Enable Banking hat die Zugangsdaten abgelehnt (HTTP 401/403). Überprüfe ob die Application ID zum privaten Schlüssel passt und die Anwendung aktiviert ist.",
       "no_institutions": "Keine Banken für Deutschland gefunden.",
-      "invalid_institution": "Bitte wähle eine gültige Bank aus.",
-      "connection_failed": "Verbindung zu Enable Banking fehlgeschlagen. Bitte überprüfe deine Internetverbindung.",
-      "bank_rejected": "Deine Bank hat die Autorisierung abgelehnt. Bitte versuche es erneut.",
-      "authorization_expired": "Die Autorisierung ist abgelaufen. Bitte starte den Vorgang erneut.",
-      "authorization_pending": "Autorisierung noch nicht abgeschlossen. Bitte schließe den Vorgang bei deiner Bank ab.",
-      "no_accounts_linked": "Keine Konten wurden verknüpft. Bitte versuche die Autorisierung erneut."
+      "connection_failed": "Verbindung zu Enable Banking fehlgeschlagen. Bitte überprüfe deine Internetverbindung."
     },
     "abort": {
-      "already_configured": "Finance ist bereits konfiguriert.",
-      "connection_failed": "Verbindung zu Enable Banking fehlgeschlagen. Bitte versuche es erneut.",
-      "authorization_pending": "Bank-Autorisierung wurde nicht abgeschlossen. Bitte versuche es erneut.",
-      "no_accounts_linked": "Keine Konten wurden bei der Autorisierung verknüpft. Bitte versuche es erneut."
+      "already_configured": "Finance ist bereits konfiguriert."
     }
   },
   "options": {
