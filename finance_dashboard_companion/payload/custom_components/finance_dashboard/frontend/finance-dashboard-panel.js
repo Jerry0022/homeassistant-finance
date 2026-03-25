@@ -565,7 +565,19 @@ class FinanceDashboardPanel extends HTMLElement {
         if (errEl) errEl.textContent = result.error || "Autorisierung fehlgeschlagen.";
       }
     } catch (e) {
-      if (errEl) errEl.textContent = "Verbindungsfehler bei der Bankfreigabe.";
+      console.error("Authorization failed:", e);
+      let msg = "Verbindungsfehler bei der Bankfreigabe.";
+      // Try to extract error detail from response body
+      if (e.message) {
+        try {
+          const bodyMatch = e.message.match(/\{.*\}/s);
+          if (bodyMatch) {
+            const parsed = JSON.parse(bodyMatch[0]);
+            if (parsed.error) msg = parsed.error;
+          }
+        } catch (_) { /* not JSON */ }
+      }
+      if (errEl) errEl.textContent = msg;
     }
   }
 

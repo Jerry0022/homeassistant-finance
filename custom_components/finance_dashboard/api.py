@@ -164,22 +164,20 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
     requires_auth = True
 
     async def post(self, request: web.Request) -> web.Response:
-        """Start bank auth and return the authorization URL."""
+        """Start bank auth and return the authorization URL.
+
+        Always returns HTTP 200 so the frontend can read error details.
+        """
         hass = request.app["hass"]
 
         try:
             body = await request.json()
         except Exception:
-            return self.json(
-                {"error": "Invalid JSON body"}, status_code=400
-            )
+            return self.json({"error": "Invalid JSON body"})
 
         institution_name = body.get("institution_name", "")
         if not institution_name:
-            return self.json(
-                {"error": "institution_name required"},
-                status_code=400,
-            )
+            return self.json({"error": "institution_name required"})
 
         try:
             from .credential_manager import CredentialManager
@@ -190,8 +188,7 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
 
             if not credentials:
                 return self.json(
-                    {"error": "No API credentials stored"},
-                    status_code=400,
+                    {"error": "No API credentials stored"}
                 )
 
             from .enablebanking_client import EnableBankingClient
@@ -201,9 +198,17 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
                 credentials["private_key_pem"],
             )
 
+            base_url = (
+                hass.config.external_url or hass.config.internal_url
+            )
             callback_url = (
-                f"{hass.config.external_url or hass.config.internal_url}"
-                f"/api/{DOMAIN}/oauth/callback"
+                f"{base_url}/api/{DOMAIN}/oauth/callback"
+            )
+            _LOGGER.debug(
+                "Auth callback URL: %s (external=%s, internal=%s)",
+                callback_url,
+                hass.config.external_url,
+                hass.config.internal_url,
             )
 
             valid_until = (
@@ -228,8 +233,7 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
                     auth_data,
                 )
                 return self.json(
-                    {"error": "No authorization URL received"},
-                    status_code=502,
+                    {"error": "No authorization URL received"}
                 )
 
             # Store pending auth for panel flow (not config flow)
@@ -248,12 +252,17 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
 
             return self.json({"auth_url": auth_url})
 
-        except Exception:
+        except Exception as exc:
             _LOGGER.exception("Failed to create bank authorization")
-            return self.json(
-                {"error": "Authorization failed"},
-                status_code=502,
-            )
+            exc_msg = str(exc)
+            error_detail = f"Authorization failed: {exc_msg[:200]}"
+            if "redirect" in exc_msg.lower():
+                error_detail = (
+                    f"Redirect URL mismatch — the callback URL "
+                    f"'{callback_url}' is not registered in Enable Banking. "
+                    f"Check your HA external URL configuration."
+                )
+            return self.json({"error": error_detail})
 
 
 class FinanceDashboardSetupCompleteView(HomeAssistantView):
