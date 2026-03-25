@@ -1,5 +1,14 @@
 # Build Log
 
+## 3a525f7 — 2026-03-25
+Branch: claude/nostalgic-poitras
+PR: #23
+Commit: 3c4a832
+Changes:
+- Add step-by-step Enable Banking setup instructions to config flow
+- Show dynamic redirect URL in setup dialog
+- Updated EN + DE translations
+
 ## eb7ef69 — 2026-03-25
 Version: 0.5.0
 Branch: claude/wonderful-leakey
