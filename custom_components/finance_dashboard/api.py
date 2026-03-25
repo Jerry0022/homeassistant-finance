@@ -653,6 +653,23 @@ class FinanceDashboardStaticView(HomeAssistantView):
         )
 
 
+def _get_manager(hass):
+    """Find the FinanceDashboardManager in hass.data."""
+    domain_data = hass.data.get(DOMAIN, {})
+    entry = domain_data.get("entry")
+    if entry:
+        mgr = domain_data.get(entry.entry_id)
+        if mgr is not None:
+            return mgr
+    # Fallback: scan for manager by type
+    from .manager import FinanceDashboardManager
+
+    for val in domain_data.values():
+        if isinstance(val, FinanceDashboardManager):
+            return val
+    return None
+
+
 class FinanceDashboardBalanceView(HomeAssistantView):
     """API endpoint for account balances."""
 
@@ -663,16 +680,7 @@ class FinanceDashboardBalanceView(HomeAssistantView):
     async def get(self, request: web.Request) -> web.Response:
         """Get balances for all linked accounts."""
         hass = request.app["hass"]
-        domain_data = hass.data.get(DOMAIN, {})
-
-        # Find the manager (stored by entry_id)
-        manager = None
-        for key, val in domain_data.items():
-            if key not in ("entry", "pending_auth_code",
-                           "pending_setup_auth", "pending_accounts",
-                           "pending_session_id"):
-                manager = val
-                break
+        manager = _get_manager(hass)
 
         if not manager:
             return self.json(
@@ -709,15 +717,7 @@ class FinanceDashboardTransactionsView(HomeAssistantView):
     async def get(self, request: web.Request) -> web.Response:
         """Get recent transactions (admin-only detail view)."""
         hass = request.app["hass"]
-        domain_data = hass.data.get(DOMAIN, {})
-
-        manager = None
-        for key, val in domain_data.items():
-            if key not in ("entry", "pending_auth_code",
-                           "pending_setup_auth", "pending_accounts",
-                           "pending_session_id"):
-                manager = val
-                break
+        manager = _get_manager(hass)
 
         if not manager:
             return self.json(
@@ -781,15 +781,7 @@ class FinanceDashboardSummaryView(HomeAssistantView):
     async def get(self, request: web.Request) -> web.Response:
         """Get monthly spending summary."""
         hass = request.app["hass"]
-        domain_data = hass.data.get(DOMAIN, {})
-
-        manager = None
-        for key, val in domain_data.items():
-            if key not in ("entry", "pending_auth_code",
-                           "pending_setup_auth", "pending_accounts",
-                           "pending_session_id"):
-                manager = val
-                break
+        manager = _get_manager(hass)
 
         if not manager:
             return self.json(
