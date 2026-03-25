@@ -1,23 +1,8 @@
 /**
  * Finance Dashboard — Sidebar Panel (Phase 2)
  *
- * Full monthly overview using Lovelace card components as building blocks.
+ * Full monthly overview with integrated setup wizard overlay.
  * Privacy-first: only aggregated data shown by default.
- *
- * CHECKLIST (from design sprint):
- * [x] Total income, total expenses, monthly balance (Must)
- * [x] Category breakdown donut chart (Must)
- * [x] Category bars - percentage of total (Should)
- * [x] Spielgeld per person (Must)
- * [x] Income ratio (Must)
- * [x] Shared fixed costs bar (Must)
- * [x] Month-over-month comparison Δ% (Should)
- * [x] Top-3 cost drivers (Should)
- * [x] Fixed vs variable costs split (Should)
- * [ ] 6-month trend chart (Should — Phase 2.1)
- * [x] Privacy-first: only aggregates (Must)
- * [x] Admin-only transaction details (Must)
- * [x] Dashboard deactivatable in config (Must via Options)
  */
 
 class FinanceDashboardPanel extends HTMLElement {
@@ -26,6 +11,7 @@ class FinanceDashboardPanel extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._hass = null;
     this._panel = null;
+    this._configured = null; // null = unknown, true/false after status check
   }
 
   set hass(hass) {
@@ -137,6 +123,80 @@ class FinanceDashboardPanel extends HTMLElement {
 .fv-bar { height:8px; border-radius:4px; overflow:hidden; background:var(--sf2); margin:8px 0; }
 
 .loading { text-align:center; padding:60px; color:var(--tx2); }
+
+/* ============ Setup Wizard Overlay ============ */
+.overlay {
+  position:fixed; top:0; left:0; right:0; bottom:0; z-index:999;
+  background:rgba(0,0,0,0.75); display:flex; justify-content:center; align-items:center;
+}
+.wizard {
+  background:var(--sf); border:1px solid var(--bd); border-radius:16px;
+  max-width:560px; width:calc(100% - 32px); max-height:calc(100vh - 64px);
+  overflow-y:auto; padding:0;
+}
+.wiz-header {
+  padding:24px 28px 0; text-align:center;
+}
+.wiz-header h2 { font-size:20px; font-weight:700; margin:0 0 4px; }
+.wiz-header p { font-size:13px; color:var(--tx2); margin:0; }
+
+/* Step indicator */
+.steps { display:flex; justify-content:center; gap:8px; padding:16px 0 20px; }
+.step-dot { width:10px; height:10px; border-radius:50%; background:var(--sf2); border:2px solid var(--bd); transition:all .2s; }
+.step-dot.active { background:var(--ac); border-color:var(--ac); }
+.step-dot.done { background:var(--ac); border-color:var(--ac); opacity:.5; }
+
+.wiz-body { padding:0 28px 24px; }
+
+/* Bank search */
+.search-input {
+  width:100%; padding:10px 14px; border-radius:10px; border:1px solid var(--bd);
+  background:var(--sf2); color:var(--tx); font-size:14px; margin-bottom:12px;
+  box-sizing:border-box; outline:none;
+}
+.search-input:focus { border-color:var(--ac); }
+.search-input::placeholder { color:var(--tx2); }
+.bank-list { max-height:320px; overflow-y:auto; }
+.bank-item {
+  display:flex; align-items:center; gap:12px; padding:10px 14px;
+  border-radius:10px; cursor:pointer; transition:background .15s;
+}
+.bank-item:hover { background:var(--sf2); }
+.bank-item.selected { background:var(--sf2); border:1px solid var(--ac); }
+.bank-logo { width:32px; height:32px; border-radius:6px; object-fit:contain; background:#fff; flex-shrink:0; }
+.bank-logo-placeholder { width:32px; height:32px; border-radius:6px; background:var(--sf2);
+  display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:700; color:var(--tx2); flex-shrink:0; }
+.bank-name { font-size:14px; font-weight:500; }
+.bank-bic { font-size:11px; color:var(--tx2); }
+
+/* Waiting state */
+.wait-center { text-align:center; padding:32px 0; }
+.spinner { width:40px; height:40px; border:3px solid var(--bd); border-top-color:var(--ac);
+  border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 16px; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* Account assignment */
+.acc-item { background:var(--sf2); border-radius:10px; padding:14px; margin-bottom:10px; }
+.acc-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.acc-name { font-size:14px; font-weight:600; }
+.acc-iban { font-size:12px; color:var(--tx2); }
+.acc-fields { display:flex; gap:10px; }
+.acc-fields select, .acc-fields input {
+  padding:7px 10px; border-radius:8px; border:1px solid var(--bd);
+  background:var(--sf); color:var(--tx); font-size:13px; flex:1;
+}
+
+/* Buttons */
+.wiz-actions { display:flex; justify-content:flex-end; gap:8px; padding-top:16px; }
+.wiz-btn { padding:10px 20px; border-radius:10px; border:none; font-size:14px;
+  font-weight:600; cursor:pointer; transition:opacity .15s; }
+.wiz-btn:hover { opacity:.9; }
+.wiz-btn:disabled { opacity:.4; cursor:default; }
+.wiz-btn-primary { background:var(--ac); color:#0a0a0f; }
+.wiz-btn-secondary { background:var(--sf2); color:var(--tx); border:1px solid var(--bd); }
+
+.error-msg { color:var(--dg); font-size:13px; padding:8px 0; }
+.bank-count { font-size:12px; color:var(--tx2); margin-bottom:8px; }
 </style>
 
 <div class="fd">
@@ -148,6 +208,7 @@ class FinanceDashboardPanel extends HTMLElement {
     </div>
   </div>
   <div id="content" class="loading">Lade Finanzdaten...</div>
+  <div id="overlay-container"></div>
 </div>`;
 
     this.shadowRoot.getElementById("refreshBtn")
@@ -159,6 +220,26 @@ class FinanceDashboardPanel extends HTMLElement {
     const c = this.shadowRoot.getElementById("content");
     if (!c) return;
 
+    // Check setup status first
+    try {
+      const status = await this._hass.callApi("GET", "finance_dashboard/setup/status");
+      this._configured = status.configured;
+
+      if (!status.configured) {
+        c.innerHTML = this._renderEmptyDashboard();
+        this._showSetupWizard();
+        return;
+      }
+    } catch (e) {
+      // Status endpoint failed — show empty state
+      c.innerHTML = `<div class="loading">Lade...</div>`;
+      return;
+    }
+
+    // Hide wizard if configured
+    this._hideSetupWizard();
+
+    // Load dashboard data
     try {
       const [bal, txn, sum] = await Promise.all([
         this._hass.callApi("GET", "finance_dashboard/balances"),
@@ -167,9 +248,322 @@ class FinanceDashboardPanel extends HTMLElement {
       ]);
       this._draw(c, bal, txn, sum);
     } catch (e) {
-      c.innerHTML = `<div class="loading">Verbinde dein Bankkonto unter Einstellungen.</div>`;
+      c.innerHTML = this._renderEmptyDashboard();
     }
   }
+
+  _renderEmptyDashboard() {
+    const eur = () => new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(0);
+    return `
+      <div class="stats">
+        <div class="stat"><div class="stat-l">Gesamtsaldo</div>
+          <div class="stat-v neu">${eur()}</div>
+          <div class="stat-d neu">Keine Daten</div></div>
+        <div class="stat"><div class="stat-l">Ausgaben</div>
+          <div class="stat-v neu">${eur()}</div>
+          <div class="stat-d neu">—</div></div>
+        <div class="stat"><div class="stat-l">Einnahmen</div>
+          <div class="stat-v neu">${eur()}</div>
+          <div class="stat-d neu">—</div></div>
+        <div class="stat"><div class="stat-l">Sparquote</div>
+          <div class="stat-v neu">—</div>
+          <div class="stat-d neu">—</div></div>
+      </div>
+      <div class="card" style="padding:40px;text-align:center">
+        <div style="font-size:36px;margin-bottom:12px">&#127974;</div>
+        <div style="font-size:16px;font-weight:600;margin-bottom:6px">Bank verbinden</div>
+        <div style="font-size:13px;color:var(--tx2)">Verbinde dein Bankkonto um deine Finanzen zu sehen.</div>
+      </div>`;
+  }
+
+  // ==================== Setup Wizard ====================
+
+  _showSetupWizard() {
+    const container = this.shadowRoot.getElementById("overlay-container");
+    if (!container || container.querySelector(".overlay")) return;
+
+    this._wizardStep = 1;
+    this._wizardInstitutions = [];
+    this._wizardSelectedBank = null;
+    this._wizardAccounts = [];
+    this._wizardPollTimer = null;
+
+    container.innerHTML = `<div class="overlay"><div class="wizard" id="wizard"></div></div>`;
+    this._renderWizardStep();
+    this._loadInstitutions();
+  }
+
+  _hideSetupWizard() {
+    const container = this.shadowRoot.getElementById("overlay-container");
+    if (container) container.innerHTML = "";
+    if (this._wizardPollTimer) {
+      clearInterval(this._wizardPollTimer);
+      this._wizardPollTimer = null;
+    }
+  }
+
+  _renderWizardStep() {
+    const wiz = this.shadowRoot.getElementById("wizard");
+    if (!wiz) return;
+
+    const stepDots = [1,2,3].map(s => {
+      let cls = "step-dot";
+      if (s === this._wizardStep) cls += " active";
+      else if (s < this._wizardStep) cls += " done";
+      return `<div class="${cls}"></div>`;
+    }).join("");
+
+    const titles = {
+      1: { h: "Bank verbinden", p: "Wähle deine Bank aus der Liste" },
+      2: { h: "Bankfreigabe", p: "Autorisiere den Zugriff bei deiner Bank" },
+      3: { h: "Konten zuweisen", p: "Ordne deine Konten Personen zu" },
+    };
+
+    const t = titles[this._wizardStep];
+
+    let body = "";
+    if (this._wizardStep === 1) body = this._renderStep1();
+    else if (this._wizardStep === 2) body = this._renderStep2();
+    else if (this._wizardStep === 3) body = this._renderStep3();
+
+    wiz.innerHTML = `
+      <div class="wiz-header">
+        <h2>${t.h}</h2>
+        <p>${t.p}</p>
+        <div class="steps">${stepDots}</div>
+      </div>
+      <div class="wiz-body">${body}</div>`;
+
+    this._attachWizardListeners();
+  }
+
+  _renderStep1() {
+    if (!this._wizardInstitutions.length) {
+      return `<div class="wait-center"><div class="spinner"></div><p>Lade Bankliste...</p></div>`;
+    }
+
+    const bankItems = this._wizardInstitutions.map(inst => {
+      const selected = this._wizardSelectedBank?.id === inst.id ? " selected" : "";
+      const logo = inst.logo
+        ? `<img class="bank-logo" src="${inst.logo}" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : "";
+      const placeholder = `<div class="bank-logo-placeholder" ${inst.logo ? 'style="display:none"' : ""}>${inst.name.charAt(0)}</div>`;
+      return `<div class="bank-item${selected}" data-id="${inst.id}" data-name="${inst.name}" data-logo="${inst.logo||""}" data-bic="${inst.bic||""}">
+        ${logo}${placeholder}
+        <div><div class="bank-name">${inst.name}</div><div class="bank-bic">${inst.bic||""}</div></div>
+      </div>`;
+    }).join("");
+
+    return `
+      <input class="search-input" id="bankSearch" type="text" placeholder="Bank suchen..." autocomplete="off">
+      <div class="bank-count" id="bankCount">${this._wizardInstitutions.length} Banken verfügbar</div>
+      <div class="bank-list" id="bankList">${bankItems}</div>
+      <div id="wizError" class="error-msg"></div>
+      <div class="wiz-actions">
+        <button class="wiz-btn wiz-btn-primary" id="wizNext1" ${this._wizardSelectedBank ? "" : "disabled"}>Weiter</button>
+      </div>`;
+  }
+
+  _renderStep2() {
+    return `
+      <div class="wait-center">
+        <div class="spinner"></div>
+        <p style="font-size:15px;font-weight:600;margin-bottom:4px">Warte auf Bankfreigabe...</p>
+        <p style="font-size:13px;color:var(--tx2)">Ein neuer Tab wurde geöffnet. Autorisiere dort den Zugriff bei <strong>${this._wizardSelectedBank?.name||"deiner Bank"}</strong>.</p>
+        <p style="font-size:12px;color:var(--tx2);margin-top:12px">Dieses Fenster aktualisiert sich automatisch.</p>
+      </div>
+      <div id="wizError" class="error-msg"></div>`;
+  }
+
+  _renderStep3() {
+    if (!this._wizardAccounts.length) {
+      return `<div class="wait-center"><div class="spinner"></div><p>Lade Kontodaten...</p></div>`;
+    }
+
+    const accItems = this._wizardAccounts.map(acc => {
+      const iban = acc.iban ? `****${acc.iban.slice(-4)}` : "****";
+      const name = acc.name || "Konto";
+      return `<div class="acc-item" data-acc-id="${acc.id}">
+        <div class="acc-header">
+          <span class="acc-name">${name}</span>
+          <span class="acc-iban">${iban}</span>
+        </div>
+        <div class="acc-fields">
+          <select data-field="type">
+            <option value="personal">Persönlich</option>
+            <option value="shared">Gemeinsam</option>
+          </select>
+          <input data-field="person" type="text" placeholder="Person (optional)">
+        </div>
+      </div>`;
+    }).join("");
+
+    return `
+      ${accItems}
+      <div id="wizError" class="error-msg"></div>
+      <div class="wiz-actions">
+        <button class="wiz-btn wiz-btn-primary" id="wizComplete">Fertig</button>
+      </div>`;
+  }
+
+  _attachWizardListeners() {
+    if (this._wizardStep === 1) {
+      // Search filter
+      const searchInput = this.shadowRoot.getElementById("bankSearch");
+      if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+          const q = e.target.value.toLowerCase();
+          const items = this.shadowRoot.querySelectorAll(".bank-item");
+          let visible = 0;
+          items.forEach(item => {
+            const name = item.dataset.name.toLowerCase();
+            const bic = item.dataset.bic.toLowerCase();
+            const show = name.includes(q) || bic.includes(q);
+            item.style.display = show ? "" : "none";
+            if (show) visible++;
+          });
+          const countEl = this.shadowRoot.getElementById("bankCount");
+          if (countEl) countEl.textContent = `${visible} Banken gefunden`;
+        });
+        searchInput.focus();
+      }
+
+      // Bank selection
+      const bankList = this.shadowRoot.getElementById("bankList");
+      if (bankList) {
+        bankList.addEventListener("click", (e) => {
+          const item = e.target.closest(".bank-item");
+          if (!item) return;
+          this.shadowRoot.querySelectorAll(".bank-item.selected").forEach(el => el.classList.remove("selected"));
+          item.classList.add("selected");
+          this._wizardSelectedBank = {
+            id: item.dataset.id,
+            name: item.dataset.name,
+            logo: item.dataset.logo,
+            bic: item.dataset.bic,
+          };
+          const btn = this.shadowRoot.getElementById("wizNext1");
+          if (btn) btn.disabled = false;
+        });
+      }
+
+      // Next button
+      const nextBtn = this.shadowRoot.getElementById("wizNext1");
+      if (nextBtn) {
+        nextBtn.addEventListener("click", () => this._startAuthorization());
+      }
+    }
+
+    if (this._wizardStep === 3) {
+      const completeBtn = this.shadowRoot.getElementById("wizComplete");
+      if (completeBtn) {
+        completeBtn.addEventListener("click", () => this._completeSetup());
+      }
+    }
+  }
+
+  async _loadInstitutions() {
+    try {
+      const result = await this._hass.callApi("GET", "finance_dashboard/setup/institutions");
+      this._wizardInstitutions = (result.institutions || []).sort((a,b) => a.name.localeCompare(b.name));
+      this._renderWizardStep();
+    } catch (e) {
+      const err = this.shadowRoot.getElementById("wizError");
+      if (err) err.textContent = "Fehler beim Laden der Bankliste.";
+    }
+  }
+
+  async _startAuthorization() {
+    if (!this._wizardSelectedBank) return;
+
+    const errEl = this.shadowRoot.getElementById("wizError");
+
+    try {
+      const result = await this._hass.callApi("POST", "finance_dashboard/setup/authorize", {
+        institution_name: this._wizardSelectedBank.name,
+        institution_id: this._wizardSelectedBank.id,
+        institution_logo: this._wizardSelectedBank.logo,
+      });
+
+      if (result.auth_url) {
+        // Open bank auth in new tab
+        window.open(result.auth_url, "_blank");
+
+        // Advance to step 2
+        this._wizardStep = 2;
+        this._renderWizardStep();
+
+        // Start polling for auth completion
+        this._startAuthPolling();
+      } else {
+        if (errEl) errEl.textContent = result.error || "Autorisierung fehlgeschlagen.";
+      }
+    } catch (e) {
+      if (errEl) errEl.textContent = "Verbindungsfehler bei der Bankfreigabe.";
+    }
+  }
+
+  _startAuthPolling() {
+    if (this._wizardPollTimer) clearInterval(this._wizardPollTimer);
+
+    this._wizardPollTimer = setInterval(async () => {
+      try {
+        const status = await this._hass.callApi("GET", "finance_dashboard/setup/status");
+        if (status.pending_auth_code && status.pending_accounts?.length) {
+          clearInterval(this._wizardPollTimer);
+          this._wizardPollTimer = null;
+          this._wizardAccounts = status.pending_accounts;
+          this._wizardStep = 3;
+          this._renderWizardStep();
+        }
+      } catch (e) {
+        // Continue polling on error
+      }
+    }, 2000);
+  }
+
+  async _completeSetup() {
+    const completeBtn = this.shadowRoot.getElementById("wizComplete");
+    if (completeBtn) {
+      completeBtn.disabled = true;
+      completeBtn.textContent = "Wird eingerichtet...";
+    }
+
+    // Collect account assignments
+    const accounts = [];
+    const accItems = this.shadowRoot.querySelectorAll(".acc-item");
+    accItems.forEach(item => {
+      const id = item.dataset.accId;
+      const type = item.querySelector('[data-field="type"]')?.value || "personal";
+      const person = item.querySelector('[data-field="person"]')?.value || "";
+      accounts.push({ id, type, person });
+    });
+
+    try {
+      const result = await this._hass.callApi("POST", "finance_dashboard/setup/complete", { accounts });
+      if (result.success) {
+        this._hideSetupWizard();
+        // Wait for entry reload, then refresh
+        setTimeout(() => this._refresh(), 2000);
+      } else {
+        const errEl = this.shadowRoot.getElementById("wizError");
+        if (errEl) errEl.textContent = result.error || "Einrichtung fehlgeschlagen.";
+        if (completeBtn) {
+          completeBtn.disabled = false;
+          completeBtn.textContent = "Fertig";
+        }
+      }
+    } catch (e) {
+      const errEl = this.shadowRoot.getElementById("wizError");
+      if (errEl) errEl.textContent = "Verbindungsfehler bei der Einrichtung.";
+      if (completeBtn) {
+        completeBtn.disabled = false;
+        completeBtn.textContent = "Fertig";
+      }
+    }
+  }
+
+  // ==================== Dashboard Drawing ====================
 
   _draw(el, balances, txnData, summary) {
     const eur = (v) => new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v);
@@ -236,7 +630,7 @@ class FinanceDashboardPanel extends HTMLElement {
       `<div class="cost-legend-item"><div class="cost-legend-dot" style="background:${catColors[cat]||"#6b7280"}"></div>${cat} ${eur(Math.abs(amt))}</div>`
     ).join("");
 
-    // Fixed vs variable (heuristic: housing+loans+utilities+insurance = fixed)
+    // Fixed vs variable
     const fixedCats = ["housing","loans","utilities","insurance"];
     const fixedTotal = sorted.filter(([c])=>fixedCats.includes(c)).reduce((s,[,a])=>s+Math.abs(a),0);
     const varTotal = totalExp - fixedTotal;

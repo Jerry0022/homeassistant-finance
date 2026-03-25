@@ -20,6 +20,8 @@ import logging
 import time
 from typing import Any
 
+import uuid
+
 import aiohttp
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -118,7 +120,7 @@ class EnableBankingClient:
             },
             "redirect_url": redirect_url,
             "psu_type": psu_type,
-            "state": state or "ha-finance",
+            "state": state or str(uuid.uuid4()),
         }
         if valid_until:
             payload["access"] = {"valid_until": valid_until}
@@ -128,7 +130,9 @@ class EnableBankingClient:
         )
         return {
             "url": result.get("url", ""),
-            "auth_id": result.get("auth_id", result.get("id", "")),
+            "auth_id": result.get(
+                "authorization_id", result.get("auth_id", "")
+            ),
         }
 
     async def async_create_session(
@@ -153,9 +157,16 @@ class EnableBankingClient:
 
         accounts = []
         for acct in raw_accounts:
+            # IBAN can be nested in account_id object or flat
+            account_id_obj = acct.get("account_id", {})
+            iban = (
+                account_id_obj.get("iban", "")
+                if isinstance(account_id_obj, dict)
+                else acct.get("iban", "")
+            )
             accounts.append({
                 "id": acct.get("uid", acct.get("id", "")),
-                "iban": acct.get("iban", ""),
+                "iban": iban,
                 "name": acct.get("account_name", acct.get("name", "")),
                 "currency": acct.get("currency", "EUR"),
             })

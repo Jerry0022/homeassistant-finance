@@ -19,11 +19,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_interval
 
-from .const import (
-    DOMAIN,
-    STORAGE_KEY_AUDIT,
-    STORAGE_VERSION,
-)
+from .const import DOMAIN
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -45,25 +41,21 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 async def async_migrate_entry(
     hass: HomeAssistant, config_entry: FinanceDashboardConfigEntry
 ) -> bool:
-    """Migrate old config entries from GoCardless (v1) to Enable Banking (v2)."""
+    """Migrate old config entries to current version."""
     if config_entry.version < 2:
         _LOGGER.info(
-            "Migrating Finance Dashboard config entry from v%d to v2 "
-            "(GoCardless -> Enable Banking)",
+            "Migrating Finance Dashboard config entry from v%d to v3 "
+            "(GoCardless -> Enable Banking panel-driven setup)",
             config_entry.version,
         )
-        # Remove GoCardless-specific fields, keep accounts + institution info
         new_data = {**config_entry.data}
         new_data.pop("requisition_id", None)
         new_data.pop("agreement_id", None)
-        new_data["session_id"] = None  # Needs re-setup
-        new_data["configured"] = False  # Mark as needing reconfiguration
-
+        new_data["session_id"] = None
+        new_data["configured"] = False
         hass.config_entries.async_update_entry(
-            config_entry, data=new_data, version=2
+            config_entry, data=new_data, version=3
         )
-
-        # Create repair issue to inform user
         ir.async_create_issue(
             hass,
             DOMAIN,
@@ -72,7 +64,22 @@ async def async_migrate_entry(
             severity=ir.IssueSeverity.WARNING,
             translation_key="reconfigure_required",
         )
-        _LOGGER.info("Migration to v2 complete — user must reconfigure")
+        _LOGGER.info("Migration to v3 complete — user must set up bank in panel")
+
+    elif config_entry.version == 2:
+        _LOGGER.info(
+            "Migrating Finance Dashboard config entry from v2 to v3 "
+            "(panel-driven bank setup)"
+        )
+        new_data = {**config_entry.data}
+        # Keep existing configured state — if bank was connected, it stays
+        if not new_data.get("configured"):
+            new_data["configured"] = False
+        hass.config_entries.async_update_entry(
+            config_entry, data=new_data, version=3
+        )
+        _LOGGER.info("Migration to v3 complete")
+
     return True
 
 
@@ -80,65 +87,81 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: FinanceDashboardConfigEntry
 ) -> bool:
     """Set up Finance Dashboard from a config entry."""
-    # Clean up stale restart issues from previous sessions
     ir.async_delete_issue(hass, DOMAIN, "restart_required")
 
-    # Initialize the manager (core business logic)
-    from .manager import FinanceDashboardManager
+    # Store entry reference for setup API endpoints
+    hass.data[DOMAIN]["entry"] = entry
 
-    manager = FinanceDashboardManager(hass, entry)
-    await manager.async_initialize()
-
-    hass.data[DOMAIN][entry.entry_id] = manager
-
-    # Register services
-    await _async_register_services(hass, manager)
-
-    # Register sidebar panel
+    # Register sidebar panel (always — even before bank is connected)
     from .panel import async_register_panel
 
     await async_register_panel(hass)
 
-    # Register HTTP endpoints
+    # Register HTTP endpoints (always — includes setup endpoints)
     from .api import async_register_api
 
     await async_register_api(hass)
 
-    # Poll for add-on restart marker (every 60 seconds)
-    async def _poll_restart_marker(_now) -> None:
-        marker_path = Path(
-            hass.config.path(".storage/finance_dashboard_restart_needed.json")
-        )
-        if marker_path.exists():
-            import json
+    is_configured = entry.data.get("configured", False)
 
-            try:
-                data = json.loads(marker_path.read_text())
-                marker_path.unlink()
-                ir.async_create_issue(
-                    hass,
-                    DOMAIN,
-                    "restart_required",
-                    is_fixable=True,
-                    severity=ir.IssueSeverity.WARNING,
-                    translation_key="restart_required",
-                    translation_placeholders={
-                        "version": data.get("version", "unknown")
-                    },
+    if is_configured:
+        # Full initialization: manager, services, sensors
+        from .manager import FinanceDashboardManager
+
+        manager = FinanceDashboardManager(hass, entry)
+        await manager.async_initialize()
+        hass.data[DOMAIN][entry.entry_id] = manager
+
+        await _async_register_services(hass, manager)
+
+        # Poll for add-on restart marker
+        async def _poll_restart_marker(_now) -> None:
+            marker_path = Path(
+                hass.config.path(
+                    ".storage/finance_dashboard_restart_needed.json"
                 )
-            except Exception:
-                _LOGGER.exception("Failed to process restart marker")
+            )
+            if marker_path.exists():
+                import json
 
-    entry.async_on_unload(
-        async_track_time_interval(
-            hass, _poll_restart_marker, timedelta(seconds=60)
+                try:
+                    data = json.loads(marker_path.read_text())
+                    marker_path.unlink()
+                    ir.async_create_issue(
+                        hass,
+                        DOMAIN,
+                        "restart_required",
+                        is_fixable=True,
+                        severity=ir.IssueSeverity.WARNING,
+                        translation_key="restart_required",
+                        translation_placeholders={
+                            "version": data.get("version", "unknown")
+                        },
+                    )
+                except Exception:
+                    _LOGGER.exception(
+                        "Failed to process restart marker"
+                    )
+
+        entry.async_on_unload(
+            async_track_time_interval(
+                hass, _poll_restart_marker, timedelta(seconds=60)
+            )
         )
-    )
 
-    # Forward platform setup
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        # Forward platform setup
+        await hass.config_entries.async_forward_entry_setups(
+            entry, PLATFORMS
+        )
 
-    _LOGGER.info("Finance Dashboard v%s loaded", entry.version)
+        _LOGGER.info(
+            "Finance Dashboard fully loaded (bank connected)"
+        )
+    else:
+        _LOGGER.info(
+            "Finance Dashboard loaded — awaiting bank setup in panel"
+        )
+
     return True
 
 
@@ -146,13 +169,25 @@ async def async_unload_entry(
     hass: HomeAssistant, entry: FinanceDashboardConfigEntry
 ) -> bool:
     """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(
-        entry, PLATFORMS
-    )
-    if unload_ok:
-        manager = hass.data[DOMAIN].pop(entry.entry_id, None)
-        if manager:
-            await manager.async_shutdown()
+    is_configured = entry.data.get("configured", False)
+
+    if is_configured:
+        unload_ok = await hass.config_entries.async_unload_platforms(
+            entry, PLATFORMS
+        )
+        if unload_ok:
+            manager = hass.data[DOMAIN].pop(entry.entry_id, None)
+            if manager:
+                await manager.async_shutdown()
+    else:
+        unload_ok = True
+
+    hass.data[DOMAIN].pop("entry", None)
+
+    from .panel import async_unregister_panel
+
+    await async_unregister_panel(hass)
+
     return unload_ok
 
 
@@ -189,7 +224,9 @@ async def _async_register_services(
         category = call.data.get("category")
         limit = call.data.get("limit")
         if category and limit is not None:
-            await manager.async_set_budget_limit(category, float(limit))
+            await manager.async_set_budget_limit(
+                category, float(limit)
+            )
 
     async def handle_export_csv(call) -> dict:
         path = await manager.async_export_csv(
@@ -203,7 +240,9 @@ async def _async_register_services(
         DOMAIN, SERVICE_REFRESH_ACCOUNTS, handle_refresh_accounts
     )
     hass.services.async_register(
-        DOMAIN, SERVICE_REFRESH_TRANSACTIONS, handle_refresh_transactions
+        DOMAIN,
+        SERVICE_REFRESH_TRANSACTIONS,
+        handle_refresh_transactions,
     )
     hass.services.async_register(
         DOMAIN, SERVICE_GET_BALANCE, handle_get_balance

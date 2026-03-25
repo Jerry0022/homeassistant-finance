@@ -3,40 +3,18 @@
     "step": {
       "user": {
         "title": "Enable Banking Setup",
-        "description": "Enter your Enable Banking API credentials.\n\nCreate your application at [{enablebanking_url}]({enablebanking_url}) and download the private key.\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant. They are never sent to any third party except Enable Banking.",
+        "description": "Enter your Enable Banking API credentials.\n\nCreate your application at [{enablebanking_url}]({enablebanking_url}) and download the private key.\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant. They are never sent to any third party except Enable Banking.\n\nAfter setup, open the **Finance Dashboard** sidebar panel to connect your bank.",
         "data": {
           "application_id": "Application ID",
           "private_key_pem": "Private Key (PEM)"
         }
-      },
-      "select_bank": {
-        "title": "Select Your Bank",
-        "description": "Choose your banking institution from {bank_count} available German banks.",
-        "data": {
-          "institution_id": "Bank"
-        }
-      },
-      "authorize": {
-        "title": "Authorize Bank Access",
-        "description": "Click the link below to authorize access to your bank account at **{bank_name}**.\n\n[Open Bank Authorization]({auth_url})\n\nAfter completing the authorization at your bank, return here and click **Submit**.",
-        "data": {}
-      },
-      "assign_accounts": {
-        "title": "Assign Accounts",
-        "description": "Found {account_count} accounts: {account_list}\n\nFor each account, choose whether it is **personal** (belongs to one person) or **shared** (household account). Enter the person's name for personal accounts.",
-        "data": {}
       }
     },
     "error": {
       "missing_credentials": "Please enter both Application ID and Private Key.",
       "invalid_credentials": "Could not connect to Enable Banking. Please verify your API credentials.",
       "no_institutions": "No banking institutions found for Germany.",
-      "invalid_institution": "Please select a valid bank.",
-      "connection_failed": "Connection to Enable Banking failed. Please check your internet connection.",
-      "bank_rejected": "Your bank rejected the authorization. Please try again.",
-      "authorization_expired": "The authorization has expired. Please start over.",
-      "authorization_pending": "Authorization not yet complete. Please finish at your bank and try again.",
-      "no_accounts_linked": "No accounts were linked. Please try the authorization again."
+      "connection_failed": "Connection to Enable Banking failed. Please check your internet connection."
     },
     "abort": {
       "already_configured": "Finance Dashboard is already configured."
