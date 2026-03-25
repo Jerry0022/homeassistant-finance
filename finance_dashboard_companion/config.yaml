@@ -1,5 +1,5 @@
 name: Finance
-version: "0.6.9"
+version: "0.6.10"
 slug: finance_dashboard_companion
 description: >-
   Install or update the Finance integration for Home Assistant.
