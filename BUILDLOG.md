@@ -1,5 +1,10 @@
 # Build Log
 
+## v0.6.2 — 2026-03-25
+- **Build:** `77a8500`
+- **Scope:** Fix restart repair notification not appearing
+- fix(repairs): move restart marker poll outside is_configured, check on startup, remove persistent notification fallback
+
 ## v0.6.1 — 2026-03-25
 - **Build:** `b48cbc3`
 - **Scope:** Fix infinite spinner in bank setup wizard + branding rename
