@@ -1,5 +1,13 @@
 # Build Log
 
+## v0.6.14 — 2026-03-26
+- **Build:** `98bfa58`
+- **Scope:** Dashboard loading UX and mobile responsiveness
+- feat(frontend): shimmer skeleton loaders replacing plain loading text
+- feat(frontend): async refresh indicator (pulsing dot + timestamp) — old data stays visible
+- feat(frontend): responsive breakpoints for tablet (≤900px) and mobile (≤480px)
+- feat(frontend): improved empty state with SVG icon and descriptive text
+
 ## v0.6.12 — 2026-03-26
 - **Build:** `86c41b8`
 - **Scope:** HA user assignment and custom account names in setup wizard
