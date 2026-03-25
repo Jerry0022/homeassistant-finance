@@ -15,7 +15,9 @@ class RestartRequiredRepairFlow(RepairsFlow):
     ) -> data_entry_flow.FlowResult:
         """Handle the repair flow."""
         if user_input is not None:
-            # User clicked "Restart" — HA handles restart
+            await self.hass.services.async_call(
+                "homeassistant", "restart"
+            )
             return self.async_create_entry(data={}, title="")
         return self.async_show_form(step_id="init")
 

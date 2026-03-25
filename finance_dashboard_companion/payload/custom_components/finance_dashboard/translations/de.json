@@ -37,12 +37,12 @@
   },
   "issues": {
     "restart_required": {
-      "title": "Finance Update verfügbar",
+      "title": "Finance Update — Neustart erforderlich",
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Neustart erforderlich",
-            "description": "Finance wurde auf Version {version} aktualisiert. Ein Neustart ist erforderlich."
+            "title": "Home Assistant neustarten",
+            "description": "Finance wurde auf Version {version} aktualisiert. Home Assistant muss neu gestartet werden, um das Update zu aktivieren.\n\nKlicke auf **Absenden**, um jetzt neu zu starten."
           }
         }
       }
