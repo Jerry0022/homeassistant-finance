@@ -1,5 +1,13 @@
 # Build Log
 
+## v0.6.12 — 2026-03-26
+- **Build:** `86c41b8`
+- **Scope:** HA user assignment and custom account names in setup wizard
+- feat(setup): Step 3 offers HA user multi-select chips (n:m) instead of free-text person field
+- feat(setup): custom display name field per account
+- feat(api): new `GET /api/finance_dashboard/setup/users` endpoint for HA user list
+- feat(sensor): new fields propagated through manager, sensor attributes, and transaction tagging
+
 ## v0.6.9 — 2026-03-26
 - **Build:** `94a283c`
 - **Scope:** Repair flow now triggers actual HA restart
