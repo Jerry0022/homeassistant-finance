@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Enable Banking Setup",
-        "description": "Enter your Enable Banking API credentials.\n\nCreate your application at [{enablebanking_url}]({enablebanking_url}) and download the private key.\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant. They are never sent to any third party except Enable Banking.",
+        "description": "Enter your Enable Banking API credentials.\n\n**How to get your credentials:**\n1. Go to [{enablebanking_url}/cp/applications]({enablebanking_url}/cp/applications)\n2. Choose **Sandbox** (for testing) or **Production**\n3. Select **Generate in the browser** for the key\n4. Enter an application name (e.g. \"Home Assistant Finance\")\n5. Add your HA redirect URL: `{redirect_url}`\n6. Click **Register** — your private key will download automatically\n7. Copy the **Application ID** from the confirmation page\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant.",
         "data": {
           "application_id": "Application ID",
           "private_key_pem": "Private Key (PEM)"

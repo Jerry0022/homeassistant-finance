@@ -95,6 +95,10 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
             description_placeholders={
                 "enablebanking_url": "https://enablebanking.com",
+                "redirect_url": (
+                    f"{self.hass.config.external_url or self.hass.config.internal_url}"
+                    f"/api/{DOMAIN}/oauth/callback"
+                ),
             },
         )
 
