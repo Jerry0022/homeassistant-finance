@@ -1,5 +1,12 @@
 # Build Log
 
+## v0.6.9 — 2026-03-26
+- **Build:** `94a283c`
+- **Scope:** Repair flow now triggers actual HA restart
+- fix(addon): RepairsFlow calls `homeassistant.restart` service when user confirms
+- fix(addon): repair notification title says "Restart Required" instead of "Update Available"
+- fix(addon): updated EN and DE translations for restart repair flow
+
 ## v0.6.5 — 2026-03-25
 - **Build:** `35a8905`
 - **Scope:** Fix bank list loading error in setup wizard
