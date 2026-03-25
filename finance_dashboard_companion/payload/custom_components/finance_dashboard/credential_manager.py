@@ -92,7 +92,7 @@ class CredentialManager:
 
         await self._audit_log("api_credentials_stored")
 
-    async def async_get_api_credentials(self) -> tuple[str, str] | None:
+    async def async_get_api_credentials(self) -> dict[str, str] | None:
         """Retrieve decrypted Enable Banking API credentials."""
         self._ensure_initialized()
         self._check_session_timeout()
@@ -118,7 +118,10 @@ class CredentialManager:
             private_key_pem = self._fernet.decrypt(encrypted_key.encode()).decode()
             self._touch_session()
             await self._audit_log("api_credentials_accessed")
-            return application_id, private_key_pem
+            return {
+                "application_id": application_id,
+                "private_key_pem": private_key_pem,
+            }
         except Exception:
             _LOGGER.error("Failed to decrypt API credentials")
             await self._audit_log("api_credentials_decrypt_failed")

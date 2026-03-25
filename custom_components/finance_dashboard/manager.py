@@ -357,7 +357,9 @@ class FinanceDashboardManager:
 
         from .enablebanking_client import EnableBankingClient
 
-        self._banking_client = EnableBankingClient(creds[0], creds[1])
+        self._banking_client = EnableBankingClient(
+            creds["application_id"], creds["private_key_pem"]
+        )
         return self._banking_client
 
     async def _persist_transactions(self) -> None:
