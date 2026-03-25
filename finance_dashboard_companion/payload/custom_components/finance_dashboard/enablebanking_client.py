@@ -96,6 +96,7 @@ class EnableBankingClient:
         redirect_url: str,
         valid_until: str | None = None,
         psu_type: str = "personal",
+        state: str = "",
     ) -> dict[str, Any]:
         """Initiate bank authorization (PSU redirect flow).
 
@@ -103,8 +104,9 @@ class EnableBankingClient:
             aspsp_name: Bank name as returned by async_get_institutions.
             aspsp_country: ISO 3166-1 alpha-2 country code.
             redirect_url: URL to redirect the user back to after auth.
-            valid_until: ISO 8601 datetime for access validity (optional).
+            valid_until: RFC3339 datetime with timezone for access validity.
             psu_type: Payment service user type (default: personal).
+            state: Arbitrary string for request tracking (required by API).
 
         Returns:
             Dict with keys: url (authorization URL), auth_id.
@@ -116,6 +118,7 @@ class EnableBankingClient:
             },
             "redirect_url": redirect_url,
             "psu_type": psu_type,
+            "state": state or "ha-finance",
         }
         if valid_until:
             payload["access"] = {"valid_until": valid_until}

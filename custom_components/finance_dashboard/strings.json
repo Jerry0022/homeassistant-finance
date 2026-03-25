@@ -39,7 +39,7 @@
       "no_accounts_linked": "No accounts were linked. Please try the authorization again."
     },
     "abort": {
-      "already_configured": "Finance Dashboard is already configured.",
+      "already_configured": "Finance is already configured.",
       "connection_failed": "Connection to Enable Banking failed. Please try again.",
       "authorization_pending": "Bank authorization was not completed. Please try again.",
       "no_accounts_linked": "No accounts were linked during authorization. Please try again."
@@ -48,7 +48,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "Finance Dashboard Settings",
+        "title": "Finance Settings",
         "data": {
           "refresh_interval_minutes": "Refresh interval (minutes)",
           "split_model": "Budget split model",
@@ -61,19 +61,19 @@
   },
   "issues": {
     "restart_required": {
-      "title": "Finance Dashboard Update Available",
+      "title": "Finance Update Available",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Restart Required",
-            "description": "Finance Dashboard has been updated to version {version}. A restart is required to apply the update."
+            "description": "Finance has been updated to version {version}. A restart is required to apply the update."
           }
         }
       }
     },
     "reconfigure_required": {
-      "title": "Finance Dashboard: Reconfiguration Required",
-      "description": "Finance Dashboard has switched from GoCardless to Enable Banking. Please reconfigure with your Enable Banking credentials via Settings > Integrations."
+      "title": "Finance: Reconfiguration Required",
+      "description": "Finance has switched from GoCardless to Enable Banking. Please reconfigure with your Enable Banking credentials via Settings > Integrations."
     }
   }
 }

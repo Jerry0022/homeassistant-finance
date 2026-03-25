@@ -11,7 +11,8 @@ Multi-step flow:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import aiohttp
@@ -211,17 +212,20 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                 f"/api/{DOMAIN}/oauth/callback"
             )
 
-            # Calculate session validity
+            # Calculate session validity (RFC3339 with timezone)
             valid_until = (
-                datetime.now() + timedelta(days=SESSION_MAX_DAYS)
+                datetime.now(timezone.utc)
+                + timedelta(days=SESSION_MAX_DAYS)
             ).isoformat()
 
             # Create authorization
+            state = str(uuid.uuid4())
             auth_data = await client.async_create_auth(
                 aspsp_name=self._selected_institution["name"],
                 aspsp_country="DE",
                 redirect_url=callback_url,
                 valid_until=valid_until,
+                state=state,
             )
             self._auth_url = auth_data.get("url", "")
             self._auth_id = auth_data.get("auth_id", "")
@@ -233,6 +237,16 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                 "flow_id": self.flow_id,
             }
 
+        except aiohttp.ClientResponseError as exc:
+            _LOGGER.error(
+                "Enable Banking auth request rejected: HTTP %s — %s "
+                "(bank: %s, redirect: %s)",
+                exc.status,
+                exc.message,
+                self._selected_institution.get("name", "?"),
+                callback_url,
+            )
+            return self.async_abort(reason="connection_failed")
         except Exception:
             _LOGGER.exception(
                 "Failed to create Enable Banking authorization"
