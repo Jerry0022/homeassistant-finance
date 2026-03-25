@@ -122,7 +122,71 @@ class FinanceDashboardPanel extends HTMLElement {
 .fv-block .l { font-size:11px; color:var(--tx2); }
 .fv-bar { height:8px; border-radius:4px; overflow:hidden; background:var(--sf2); margin:8px 0; }
 
+/* Empty state */
+.empty-state { background:var(--sf); border:1px solid var(--bd); border-radius:var(--r);
+  padding:48px 24px; text-align:center; }
+.empty-icon { margin-bottom:16px; opacity:.8; }
+.empty-title { font-size:18px; font-weight:600; margin-bottom:8px; }
+.empty-desc { font-size:14px; color:var(--tx2); max-width:360px; margin:0 auto; line-height:1.5; }
+
+/* Refresh indicator */
+.refresh-indicator { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--tx2); }
+.refresh-indicator .ts { opacity:.7; }
+@keyframes pulse-dot { 0%,100% { opacity:.4; } 50% { opacity:1; } }
+.refresh-dot { width:6px; height:6px; border-radius:50%; background:var(--ac); display:none; }
+.refresh-dot.active { display:inline-block; animation:pulse-dot 1s ease-in-out infinite; }
+
 .loading { text-align:center; padding:60px; color:var(--tx2); }
+
+/* Skeleton loading */
+@keyframes shimmer {
+  0% { background-position:-400px 0; }
+  100% { background-position:400px 0; }
+}
+.skel { border-radius:var(--r); background:linear-gradient(90deg,var(--sf) 25%,var(--sf2) 50%,var(--sf) 75%);
+  background-size:800px 100%; animation:shimmer 1.8s infinite ease-in-out; }
+.skel-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+.skel-stat { height:100px; }
+.skel-grid { display:grid; grid-template-columns:1fr 340px; gap:16px; margin-bottom:20px; }
+.skel-card-lg { height:260px; }
+.skel-card-sm { height:120px; margin-bottom:14px; }
+.skel-card-sm2 { height:126px; }
+.skel-bar { height:80px; margin-bottom:20px; }
+
+/* Responsive */
+@media(max-width:900px) {
+  .fd { padding:16px; }
+  .stats { grid-template-columns:repeat(2,1fr); gap:10px; }
+  .grid { grid-template-columns:1fr; }
+  .skel-stats { grid-template-columns:repeat(2,1fr); }
+  .skel-grid { grid-template-columns:1fr; }
+  .donut-wrap { flex-direction:column; align-items:stretch; }
+  .donut { margin:0 auto; }
+  .fv { flex-direction:column; gap:12px; }
+  .persons { grid-template-columns:1fr !important; }
+}
+@media(max-width:480px) {
+  .fd { padding:12px; }
+  .hdr h1 { font-size:20px; }
+  .stats { grid-template-columns:1fr 1fr; gap:8px; }
+  .stat { padding:14px; }
+  .stat-v { font-size:20px; }
+  .stat-l { font-size:10px; }
+  .btn { padding:6px 10px; font-size:12px; }
+  .card-h { padding:12px 14px; font-size:13px; }
+  .donut { width:130px; height:130px; }
+  .donut-c .v { font-size:15px; }
+  .cat-item { font-size:12px; }
+  .top-item { font-size:12px; }
+  .cost-legend { padding:0 14px 12px; gap:8px; font-size:10px; }
+  .person { padding:16px; }
+  .person-saldo .v { font-size:18px; }
+  .wizard { border-radius:12px; }
+  .wiz-header { padding:20px 20px 0; }
+  .wiz-body { padding:0 20px 20px; }
+  .skel-stats { grid-template-columns:1fr 1fr; gap:8px; }
+  .skel-stat { height:80px; }
+}
 
 /* ============ Setup Wizard Overlay ============ */
 .overlay {
@@ -210,23 +274,77 @@ class FinanceDashboardPanel extends HTMLElement {
 <div class="fd">
   <div class="hdr">
     <h1>Finance</h1>
-    <div style="display:flex;gap:6px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="refresh-indicator">
+        <span class="refresh-dot" id="refreshDot"></span>
+        <span class="ts" id="lastUpdate"></span>
+      </div>
       <button class="btn" id="monthBtn"></button>
       <button class="btn btn-p" id="refreshBtn">Aktualisieren</button>
     </div>
   </div>
-  <div id="content" class="loading">Lade Finanzdaten...</div>
+  <div id="content"></div>
   <div id="overlay-container"></div>
 </div>`;
 
     this.shadowRoot.getElementById("refreshBtn")
       .addEventListener("click", () => this._refresh());
+    // Show skeleton immediately
+    const c = this.shadowRoot.getElementById("content");
+    if (c) c.innerHTML = this._renderSkeleton();
+  }
+
+  _renderSkeleton() {
+    return `
+      <div class="skel-stats">
+        <div class="skel skel-stat"></div>
+        <div class="skel skel-stat"></div>
+        <div class="skel skel-stat"></div>
+        <div class="skel skel-stat"></div>
+      </div>
+      <div class="skel-grid">
+        <div class="skel skel-card-lg"></div>
+        <div>
+          <div class="skel skel-card-sm"></div>
+          <div class="skel skel-card-sm2"></div>
+        </div>
+      </div>
+      <div class="skel skel-bar"></div>`;
+  }
+
+  _setRefreshing(active) {
+    const dot = this.shadowRoot.getElementById("refreshDot");
+    const btn = this.shadowRoot.getElementById("refreshBtn");
+    if (dot) dot.classList.toggle("active", active);
+    if (btn) {
+      btn.disabled = active;
+      btn.textContent = active ? "Wird geladen..." : "Aktualisieren";
+    }
+  }
+
+  _updateTimestamp() {
+    const el = this.shadowRoot.getElementById("lastUpdate");
+    if (!el) return;
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, "0");
+    const mm = String(now.getMinutes()).padStart(2, "0");
+    el.textContent = `Stand ${hh}:${mm}`;
+    this._lastUpdateTime = now;
   }
 
   async _refresh() {
     if (!this._hass) return;
     const c = this.shadowRoot.getElementById("content");
     if (!c) return;
+
+    // Show skeleton on first load, keep last data visible on subsequent refreshes
+    const hasData = c.querySelector(".stats");
+    if (!hasData) {
+      c.innerHTML = this._renderSkeleton();
+    }
+
+    // Show async refresh indicator
+    this._setRefreshing(true);
 
     // Check setup status first
     try {
@@ -235,12 +353,14 @@ class FinanceDashboardPanel extends HTMLElement {
 
       if (!status.configured) {
         c.innerHTML = this._renderEmptyDashboard();
+        this._setRefreshing(false);
         this._showSetupWizard();
         return;
       }
     } catch (e) {
       // Status endpoint failed — show empty state
-      c.innerHTML = `<div class="loading">Lade...</div>`;
+      if (!hasData) c.innerHTML = this._renderEmptyDashboard();
+      this._setRefreshing(false);
       return;
     }
 
@@ -255,8 +375,11 @@ class FinanceDashboardPanel extends HTMLElement {
         this._hass.callApi("GET", "finance_dashboard/summary"),
       ]);
       this._draw(c, bal, txn, sum);
+      this._updateTimestamp();
     } catch (e) {
-      c.innerHTML = this._renderEmptyDashboard();
+      if (!hasData) c.innerHTML = this._renderEmptyDashboard();
+    } finally {
+      this._setRefreshing(false);
     }
   }
 
@@ -277,10 +400,15 @@ class FinanceDashboardPanel extends HTMLElement {
           <div class="stat-v neu">—</div>
           <div class="stat-d neu">—</div></div>
       </div>
-      <div class="card" style="padding:40px;text-align:center">
-        <div style="font-size:36px;margin-bottom:12px">&#127974;</div>
-        <div style="font-size:16px;font-weight:600;margin-bottom:6px">Bank verbinden</div>
-        <div style="font-size:13px;color:var(--tx2)">Verbinde dein Bankkonto um deine Finanzen zu sehen.</div>
+      <div class="empty-state">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ac)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="5" width="20" height="14" rx="2"/>
+            <path d="M2 10h20"/>
+          </svg>
+        </div>
+        <div class="empty-title">Bank verbinden</div>
+        <div class="empty-desc">Verbinde dein Bankkonto, um Salden, Ausgaben und Budget-Analysen live zu sehen.</div>
       </div>`;
   }
 
