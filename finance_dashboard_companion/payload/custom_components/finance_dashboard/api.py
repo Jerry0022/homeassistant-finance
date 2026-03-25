@@ -35,11 +35,11 @@ async def async_register_api(hass: HomeAssistant) -> None:
 
 
 class FinanceDashboardOAuthCallbackView(HomeAssistantView):
-    """Handle OAuth callback from GoCardless bank authorization.
+    """Handle OAuth callback from Enable Banking bank authorization.
 
-    After the user authorizes at their bank, GoCardless redirects here.
-    We show a simple HTML page that tells the user to go back to HA
-    and continue the config flow.
+    After the user authorizes at their bank, Enable Banking redirects here
+    with a `code` parameter. We store the code for the config flow to pick up
+    and show a "go back to HA" message.
     """
 
     url = f"/api/{DOMAIN}/oauth/callback"
@@ -50,8 +50,19 @@ class FinanceDashboardOAuthCallbackView(HomeAssistantView):
         """Handle GET redirect from bank after authorization."""
         hass = request.app["hass"]
 
-        # The config flow polls the requisition status independently.
-        # This callback just shows a "go back to HA" message.
+        # Extract authorization code from Enable Banking redirect
+        code = request.query.get("code")
+        if code:
+            hass.data.setdefault(DOMAIN, {})
+            hass.data[DOMAIN]["pending_auth_code"] = code
+            _LOGGER.info(
+                "OAuth callback received with authorization code"
+            )
+        else:
+            _LOGGER.warning(
+                "OAuth callback received without authorization code"
+            )
+
         html = """<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Finance Dashboard</title>
 <style>
@@ -73,7 +84,6 @@ p { color: #9898a8; font-size: 14px; line-height: 1.6; }
 </div>
 </body></html>"""
 
-        _LOGGER.info("OAuth callback received from bank redirect")
         return web.Response(
             text=html, content_type="text/html", status=200
         )

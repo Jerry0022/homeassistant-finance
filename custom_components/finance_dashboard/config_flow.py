@@ -1,7 +1,7 @@
 """Config flow for Finance Dashboard integration.
 
 Multi-step flow:
-1. user         — Enter GoCardless API credentials (secret_id + secret_key)
+1. user         — Enter Enable Banking API credentials (application_id + private_key_pem)
 2. select_bank  — Choose bank from DE institution list
 3. authorize    — User redirected to bank for PSD2 authorization
 4. accounts     — Assign linked accounts (personal/shared, person)
@@ -11,7 +11,7 @@ Multi-step flow:
 from __future__ import annotations
 
 import logging
-import uuid
+from datetime import datetime, timedelta
 from typing import Any
 
 import voluptuous as vol
@@ -23,56 +23,49 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.core import callback
-from homeassistant.helpers import config_entry_flow
 
-from .const import DOMAIN
+from .const import DOMAIN, SESSION_MAX_DAYS
 
 _LOGGER = logging.getLogger(__name__)
-
-# Requisition status constants
-STATUS_LINKED = "LN"
-STATUS_REJECTED = "RJ"
-STATUS_EXPIRED = "EX"
 
 
 class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Finance Dashboard."""
 
-    VERSION = 1
+    VERSION = 2  # Bumped from 1 (GoCardless) to 2 (Enable Banking)
 
     def __init__(self) -> None:
         """Initialize the config flow."""
-        self._secret_id: str = ""
-        self._secret_key: str = ""
+        self._application_id: str = ""
+        self._private_key_pem: str = ""
         self._institutions: list[dict[str, Any]] = []
         self._selected_institution: dict[str, Any] = {}
-        self._agreement_id: str | None = None
-        self._requisition_id: str | None = None
-        self._requisition_link: str = ""
-        self._linked_accounts: list[str] = []
+        self._auth_url: str = ""
+        self._auth_id: str = ""
+        self._session_id: str | None = None
+        self._linked_accounts: list[dict[str, Any]] = []
         self._account_details: list[dict[str, Any]] = []
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 1: Enter GoCardless API credentials."""
+        """Step 1: Enter Enable Banking API credentials."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            self._secret_id = user_input["secret_id"].strip()
-            self._secret_key = user_input["secret_key"].strip()
+            self._application_id = user_input["application_id"].strip()
+            self._private_key_pem = user_input["private_key_pem"].strip()
 
-            if not self._secret_id or not self._secret_key:
+            if not self._application_id or not self._private_key_pem:
                 errors["base"] = "missing_credentials"
             else:
-                # Test connection + fetch DE institutions in one go
+                # Test connection + fetch DE institutions
                 try:
-                    from .gocardless_client import GoCardlessClient
+                    from .enablebanking_client import EnableBankingClient
 
-                    client = GoCardlessClient(
-                        self._secret_id, self._secret_key
+                    client = EnableBankingClient(
+                        self._application_id, self._private_key_pem
                     )
-                    # This also validates credentials (gets token first)
                     self._institutions = (
                         await client.async_get_institutions("DE")
                     )
@@ -83,27 +76,25 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                         cred_mgr = CredentialManager(self.hass)
                         await cred_mgr.async_initialize()
                         await cred_mgr.async_store_api_credentials(
-                            self._secret_id, self._secret_key
+                            self._application_id, self._private_key_pem
                         )
                         return await self.async_step_select_bank()
                     errors["base"] = "no_institutions"
                 except Exception:
-                    _LOGGER.exception("GoCardless connection failed")
+                    _LOGGER.exception("Enable Banking connection failed")
                     errors["base"] = "invalid_credentials"
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required("secret_id"): str,
-                    vol.Required("secret_key"): str,
+                    vol.Required("application_id"): str,
+                    vol.Required("private_key_pem"): str,
                 }
             ),
             errors=errors,
             description_placeholders={
-                "gocardless_url": (
-                    "https://bankaccountdata.gocardless.com"
-                ),
+                "enablebanking_url": "https://enablebanking.com",
             },
         )
 
@@ -151,57 +142,55 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_authorize(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 3: Create requisition and redirect user to bank."""
+        """Step 3: Initiate Enable Banking authorization and redirect user."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            # User came back from bank — check requisition status
-            if self._requisition_id:
+            # User came back from bank — check for auth code
+            pending_code = self.hass.data.get(DOMAIN, {}).get(
+                "pending_auth_code"
+            )
+
+            if pending_code:
                 try:
-                    from .gocardless_client import GoCardlessClient
+                    from .enablebanking_client import EnableBankingClient
 
-                    client = GoCardlessClient(
-                        self._secret_id, self._secret_key
+                    client = EnableBankingClient(
+                        self._application_id, self._private_key_pem
                     )
-                    requisition = await client.async_get_requisition(
-                        self._requisition_id
-                    )
-                    status = requisition.get("status", "")
 
-                    if status == STATUS_LINKED:
-                        self._linked_accounts = requisition.get(
-                            "accounts", []
-                        )
-                        if self._linked_accounts:
-                            # Fetch account details for assignment step
-                            await self._fetch_account_details(client)
-                            return await self.async_step_assign_accounts()
-                        errors["base"] = "no_accounts_linked"
-                    elif status == STATUS_REJECTED:
-                        errors["base"] = "bank_rejected"
-                    elif status == STATUS_EXPIRED:
-                        errors["base"] = "authorization_expired"
-                    else:
-                        errors["base"] = "authorization_pending"
+                    # Exchange code for session
+                    session_data = await client.async_create_session(
+                        pending_code
+                    )
+                    self._session_id = session_data.get("session_id")
+                    accounts = session_data.get("accounts", [])
+
+                    # Clear pending code
+                    self.hass.data[DOMAIN].pop("pending_auth_code", None)
+
+                    if accounts:
+                        self._linked_accounts = accounts
+                        # Fetch full account details
+                        await self._fetch_account_details(client)
+                        return await self.async_step_assign_accounts()
+                    errors["base"] = "no_accounts_linked"
+
                 except Exception:
-                    _LOGGER.exception("Failed to check requisition")
+                    _LOGGER.exception(
+                        "Failed to create Enable Banking session"
+                    )
                     errors["base"] = "connection_failed"
+            else:
+                errors["base"] = "authorization_pending"
         else:
-            # First visit — create requisition
+            # First visit — create auth request
             try:
-                from .gocardless_client import GoCardlessClient
+                from .enablebanking_client import EnableBankingClient
 
-                client = GoCardlessClient(
-                    self._secret_id, self._secret_key
+                client = EnableBankingClient(
+                    self._application_id, self._private_key_pem
                 )
-
-                # Create end-user agreement
-                agreement = await client.async_create_agreement(
-                    institution_id=self._selected_institution["id"],
-                    max_historical_days=90,
-                    access_valid_for_days=90,
-                )
-                self._agreement_id = agreement["id"]
 
                 # Build callback URL
                 callback_url = (
@@ -209,25 +198,32 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                     f"/api/{DOMAIN}/oauth/callback"
                 )
 
-                # Create requisition
-                requisition = await client.async_create_requisition(
-                    institution_id=self._selected_institution["id"],
-                    redirect_url=callback_url,
-                    agreement_id=self._agreement_id,
-                    reference=str(uuid.uuid4()),
-                )
-                self._requisition_id = requisition["id"]
-                self._requisition_link = requisition.get("link", "")
+                # Calculate session validity
+                valid_until = (
+                    datetime.now() + timedelta(days=SESSION_MAX_DAYS)
+                ).isoformat()
 
-                # Store requisition ID for the OAuth callback handler
+                # Create authorization
+                auth_data = await client.async_create_auth(
+                    aspsp_name=self._selected_institution["name"],
+                    aspsp_country="DE",
+                    redirect_url=callback_url,
+                    valid_until=valid_until,
+                )
+                self._auth_url = auth_data.get("url", "")
+                self._auth_id = auth_data.get("auth_id", "")
+
+                # Store pending auth for the OAuth callback handler
                 self.hass.data.setdefault(DOMAIN, {})
-                self.hass.data[DOMAIN]["pending_requisition"] = {
-                    "id": self._requisition_id,
+                self.hass.data[DOMAIN]["pending_auth"] = {
+                    "auth_id": self._auth_id,
                     "flow_id": self.flow_id,
                 }
 
             except Exception:
-                _LOGGER.exception("Failed to create requisition")
+                _LOGGER.exception(
+                    "Failed to create Enable Banking authorization"
+                )
                 errors["base"] = "connection_failed"
 
         bank_name = self._selected_institution.get("name", "your bank")
@@ -238,7 +234,7 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
             errors=errors,
             description_placeholders={
                 "bank_name": bank_name,
-                "auth_url": self._requisition_link,
+                "auth_url": self._auth_url,
             },
         )
 
@@ -280,6 +276,19 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                     }
                 )
 
+            # Store session in credential manager
+            from .credential_manager import CredentialManager
+
+            cred_mgr = CredentialManager(self.hass)
+            await cred_mgr.async_initialize()
+            valid_until = (
+                datetime.now() + timedelta(days=SESSION_MAX_DAYS)
+            ).isoformat()
+            if self._session_id:
+                await cred_mgr.async_store_session(
+                    self._session_id, valid_until
+                )
+
             return self.async_create_entry(
                 title=f"Finance Dashboard ({self._selected_institution.get('name', '')})",
                 data={
@@ -293,8 +302,7 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                     "institution_logo": self._selected_institution.get(
                         "logo", ""
                     ),
-                    "requisition_id": self._requisition_id,
-                    "agreement_id": self._agreement_id,
+                    "session_id": self._session_id,
                     "accounts": account_config,
                     # Credentials are NOT stored here — they're in
                     # credential_manager's encrypted .storage/
@@ -337,7 +345,10 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
     async def _fetch_account_details(self, client) -> None:
         """Fetch details for all linked accounts."""
         self._account_details = []
-        for account_id in self._linked_accounts:
+        for account in self._linked_accounts:
+            account_id = account.get("id", account) if isinstance(
+                account, dict
+            ) else account
             try:
                 details = await client.async_get_account_details(
                     account_id

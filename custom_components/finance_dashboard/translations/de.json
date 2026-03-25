@@ -2,11 +2,11 @@
   "config": {
     "step": {
       "user": {
-        "title": "GoCardless API Einrichtung",
-        "description": "Gib deine GoCardless/Nordigen API-Zugangsdaten ein.\n\nHol dir deine kostenlosen API-Schlüssel unter [{gocardless_url}]({gocardless_url}).\n\n**Sicherheit:** Deine Zugangsdaten werden verschlüsselt und lokal in Home Assistant gespeichert.",
+        "title": "Enable Banking Einrichtung",
+        "description": "Gib deine Enable Banking API-Zugangsdaten ein.\n\nErstelle deine Anwendung unter [{enablebanking_url}]({enablebanking_url}) und lade den privaten Schlüssel herunter.\n\n**Sicherheit:** Deine Zugangsdaten werden verschlüsselt und lokal in Home Assistant gespeichert.",
         "data": {
-          "secret_id": "Secret ID",
-          "secret_key": "Secret Key"
+          "application_id": "Application ID",
+          "private_key_pem": "Privater Schlüssel (PEM)"
         }
       },
       "select_bank": {
@@ -26,11 +26,11 @@
       }
     },
     "error": {
-      "missing_credentials": "Bitte gib sowohl die Secret ID als auch den Secret Key ein.",
-      "invalid_credentials": "Verbindung zu GoCardless fehlgeschlagen. Bitte überprüfe deine API-Zugangsdaten.",
+      "missing_credentials": "Bitte gib sowohl die Application ID als auch den privaten Schlüssel ein.",
+      "invalid_credentials": "Verbindung zu Enable Banking fehlgeschlagen. Bitte überprüfe deine API-Zugangsdaten.",
       "no_institutions": "Keine Banken für Deutschland gefunden.",
       "invalid_institution": "Bitte wähle eine gültige Bank aus.",
-      "connection_failed": "Verbindung zu GoCardless fehlgeschlagen. Bitte überprüfe deine Internetverbindung.",
+      "connection_failed": "Verbindung zu Enable Banking fehlgeschlagen. Bitte überprüfe deine Internetverbindung.",
       "bank_rejected": "Deine Bank hat die Autorisierung abgelehnt. Bitte versuche es erneut.",
       "authorization_expired": "Die Autorisierung ist abgelaufen. Bitte starte den Vorgang erneut.",
       "authorization_pending": "Autorisierung noch nicht abgeschlossen. Bitte schließe den Vorgang bei deiner Bank ab.",
@@ -49,6 +49,23 @@
           "enable_dashboard_panel": "Sidebar-Panel anzeigen"
         }
       }
+    }
+  },
+  "issues": {
+    "restart_required": {
+      "title": "Finance Dashboard Update verfügbar",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Neustart erforderlich",
+            "description": "Finance Dashboard wurde auf Version {version} aktualisiert. Ein Neustart ist erforderlich."
+          }
+        }
+      }
+    },
+    "reconfigure_required": {
+      "title": "Finance Dashboard: Neukonfiguration erforderlich",
+      "description": "Finance Dashboard hat von GoCardless zu Enable Banking gewechselt. Bitte konfiguriere die Integration unter Einstellungen > Integrationen neu."
     }
   }
 }
