@@ -1,4 +1,4 @@
-"""Repair flows for Finance Dashboard."""
+"""Repair flows for Finance."""
 
 from __future__ import annotations
 

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Finance Dashboard will be documented in this file.
+All notable changes to the Finance will be documented in this file.
 
 ## [0.5.5] — 2026-03-25
 

@@ -1,4 +1,4 @@
-# Finance Dashboard for Home Assistant
+# Finance for Home Assistant
 
 **Your personal finance command center — right inside Home Assistant.**
 
@@ -10,7 +10,7 @@
 
 **Version: 0.5.5**
 
-<!-- TODO: Add screenshot of the Finance Dashboard sidebar panel -->
+<!-- TODO: Add screenshot of the Finance sidebar panel -->
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@
 
 ## 💡 What is this?
 
-Finance Dashboard connects your bank accounts to Home Assistant via [Enable Banking](https://enablebanking.com) Open Banking API, giving you a real-time overview of balances, transactions, and household budgets. Track spending across multiple people, auto-categorize transactions, and see where your money goes — all from your HA dashboard, with banking-grade security.
+Finance connects your bank accounts to Home Assistant via [Enable Banking](https://enablebanking.com) Open Banking API, giving you a real-time overview of balances, transactions, and household budgets. Track spending across multiple people, auto-categorize transactions, and see where your money goes — all from your HA dashboard, with banking-grade security.
 
 ## ✨ Features
 
@@ -52,13 +52,13 @@ Finance Dashboard connects your bank accounts to Home Assistant via [Enable Bank
 1. Open HACS in Home Assistant
 2. Go to **Integrations** → **Custom Repositories**
 3. Add `https://github.com/Jerry0022/homeassistant-finance` as an **Integration**
-4. Install **Finance Dashboard**
+4. Install **Finance**
 5. Restart Home Assistant
 
 ### Installation via Companion Add-on
 
 1. Add this repository URL to your Home Assistant add-on store
-2. Install the **Finance Dashboard** add-on
+2. Install the **Finance** add-on
 3. Start the add-on — it automatically installs the integration
 4. Restart Home Assistant when prompted
 
@@ -83,13 +83,13 @@ Finance Dashboard connects your bank accounts to Home Assistant via [Enable Bank
 ### 2. Configure the Integration
 
 1. Go to **Settings** → **Devices & Services** → **Add Integration**
-2. Search for **Finance Dashboard**
+2. Search for **Finance**
 3. Enter your **Application ID** and paste the **Private Key (PEM)** content
 4. Follow the prompts to select your bank and authorize access
 
 ### 3. View Your Finances
 
-- **Sidebar**: Click the Finance Dashboard icon in the HA sidebar for the full overview
+- **Sidebar**: Click the Finance icon in the HA sidebar for the full overview
 - **Lovelace Card**: Add a `custom:finance-dashboard-card` to any dashboard
 
 ```yaml
@@ -123,7 +123,7 @@ automation:
 │  └──────┬───────┘  └──────────┬──────────────┘  │
 │         │     HTTP API         │                 │
 │  ┌──────┴──────────────────────┴──────────────┐  │
-│  │         Finance Dashboard Integration       │  │
+│  │         Finance Integration       │  │
 │  │  ┌──────────┐ ┌────────────┐ ┌──────────┐  │  │
 │  │  │ Manager  │ │ Categorizer│ │ Cred Mgr │  │  │
 │  │  └────┬─────┘ └────────────┘ └──┬───────┘  │  │
@@ -150,7 +150,7 @@ automation:
 
 ## 🔒 Security
 
-Finance Dashboard follows banking-grade security practices:
+Finance follows banking-grade security practices:
 
 | Layer | Protection |
 |-------|-----------|

@@ -1,5 +1,5 @@
 /**
- * Finance Dashboard — Lovelace Card
+ * Finance — Lovelace Card
  *
  * A compact Lovelace card showing account balance and recent transactions.
  * Can be added to any HA dashboard via the card picker.
@@ -14,7 +14,7 @@ class FinanceDashboardCard extends HTMLElement {
   set hass(hass) {
     if (!this.content) {
       this.innerHTML = `
-        <ha-card header="Finance Dashboard">
+        <ha-card header="Finance">
           <div class="card-content" id="fd-card-content">
             <p style="color: var(--secondary-text-color);">Loading...</p>
           </div>
@@ -144,6 +144,6 @@ customElements.define("finance-dashboard-card", FinanceDashboardCard);
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "finance-dashboard-card",
-  name: "Finance Dashboard",
+  name: "Finance",
   description: "Display banking balances and recent transactions.",
 });

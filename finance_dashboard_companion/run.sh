@@ -91,8 +91,8 @@ verify_install() {
 send_restart_notification() {
     local version="$1"
     local notification_id="finance_dashboard_restart_required"
-    local title="Finance Dashboard updated to v${version}"
-    local message="The Finance Dashboard integration has been updated. **Please restart Home Assistant** to activate the new version."
+    local title="Finance updated to v${version}"
+    local message="The Finance integration has been updated. **Please restart Home Assistant** to activate the new version."
 
     # Write marker file — the running integration polls for this every 60s
     # and creates a Repairs issue (Settings > System > Repairs) with a restart button.

@@ -1,7 +1,7 @@
 <!-- Inherits from ~/.claude/CLAUDE.md — do not duplicate global rules here -->
 <!-- global-sync: 2026-03-24 -->
 
-# Finance Dashboard — Home Assistant Integration
+# Finance — Home Assistant Integration
 
 ## Project Overview
 

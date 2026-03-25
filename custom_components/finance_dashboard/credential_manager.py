@@ -1,4 +1,4 @@
-"""Secure credential management for Finance Dashboard.
+"""Secure credential management for Finance.
 
 SECURITY ARCHITECTURE:
 - All credentials stored in HA's .storage/ directory (encrypted at rest)

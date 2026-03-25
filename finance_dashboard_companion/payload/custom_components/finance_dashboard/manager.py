@@ -1,4 +1,4 @@
-"""Finance Dashboard Manager — core business logic orchestrator.
+"""Finance Manager — core business logic orchestrator.
 
 Coordinates between:
 - Enable Banking API client (banking data via PSD2)
@@ -29,7 +29,7 @@ TRANSACTION_CACHE_VERSION = 1
 
 
 class FinanceDashboardManager:
-    """Central orchestrator for the Finance Dashboard integration."""
+    """Central orchestrator for the Finance integration."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize the manager."""
@@ -71,7 +71,7 @@ class FinanceDashboardManager:
                 self._last_refresh,
             )
 
-        _LOGGER.info("Finance Dashboard Manager initialized")
+        _LOGGER.info("Finance Manager initialized")
 
     async def async_shutdown(self) -> None:
         """Clean shutdown — persist cache, clear sensitive data from memory."""
@@ -79,7 +79,7 @@ class FinanceDashboardManager:
         await self._persist_transactions()
         self._banking_client = None
         self._balances.clear()
-        _LOGGER.info("Finance Dashboard Manager shut down")
+        _LOGGER.info("Finance Manager shut down")
 
     async def async_refresh_accounts(self) -> list[dict[str, Any]]:
         """Refresh account list from Enable Banking."""

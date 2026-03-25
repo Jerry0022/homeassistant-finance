@@ -1,5 +1,5 @@
 /**
- * Finance Dashboard — Sidebar Panel (Phase 2)
+ * Finance — Sidebar Panel (Phase 2)
  *
  * Full monthly overview with integrated setup wizard overlay.
  * Privacy-first: only aggregated data shown by default.
@@ -201,7 +201,7 @@ class FinanceDashboardPanel extends HTMLElement {
 
 <div class="fd">
   <div class="hdr">
-    <h1>Finance Dashboard</h1>
+    <h1>Finance</h1>
     <div style="display:flex;gap:6px">
       <button class="btn" id="monthBtn"></button>
       <button class="btn btn-p" id="refreshBtn">Aktualisieren</button>
