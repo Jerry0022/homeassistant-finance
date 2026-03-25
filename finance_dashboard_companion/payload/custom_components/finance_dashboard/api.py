@@ -440,8 +440,22 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
             hass.data[DOMAIN].pop("pending_setup_auth", None)
             hass.data[DOMAIN].pop("pending_accounts", None)
 
-            # Reload entry to trigger full initialization
-            await hass.config_entries.async_reload(entry.entry_id)
+            # Schedule entry reload in the background so the
+            # response reaches the frontend before unload kills
+            # the HTTP endpoints.  The frontend polls /setup/status
+            # until configured=true after the reload completes.
+            async def _deferred_reload() -> None:
+                import asyncio as _aio
+
+                await _aio.sleep(1)
+                try:
+                    await hass.config_entries.async_reload(
+                        entry.entry_id
+                    )
+                except Exception:
+                    _LOGGER.exception("Deferred entry reload failed")
+
+            hass.async_create_task(_deferred_reload())
 
             return self.json(
                 {
@@ -452,10 +466,7 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
 
         except Exception:
             _LOGGER.exception("Failed to complete bank setup")
-            return self.json(
-                {"error": "Setup completion failed"},
-                status_code=502,
-            )
+            return self.json({"error": "Setup completion failed"})
 
 
 # ------------------------------------------------------------------

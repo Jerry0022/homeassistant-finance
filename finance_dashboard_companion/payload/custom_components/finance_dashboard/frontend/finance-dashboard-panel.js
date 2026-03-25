@@ -635,8 +635,9 @@ class FinanceDashboardPanel extends HTMLElement {
       const result = await this._hass.callApi("POST", "finance_dashboard/setup/complete", { accounts });
       if (result.success) {
         this._hideSetupWizard();
-        // Wait for entry reload, then refresh
-        setTimeout(() => this._refresh(), 2000);
+        // Poll until the entry reload completes and configured=true
+        await this._waitForConfigured();
+        this._refresh();
       } else {
         const errEl = this.shadowRoot.getElementById("wizError");
         if (errEl) errEl.textContent = result.error || "Einrichtung fehlgeschlagen.";
@@ -652,6 +653,16 @@ class FinanceDashboardPanel extends HTMLElement {
         completeBtn.disabled = false;
         completeBtn.textContent = "Fertig";
       }
+    }
+  }
+
+  async _waitForConfigured(maxAttempts = 15) {
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      try {
+        const status = await this._hass.callApi("GET", "finance_dashboard/setup/status");
+        if (status.configured) return;
+      } catch (_) { /* endpoint may be briefly unavailable during reload */ }
     }
   }
 
