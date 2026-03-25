@@ -37,12 +37,12 @@
   },
   "issues": {
     "restart_required": {
-      "title": "Finance Update Available",
+      "title": "Finance Update — Restart Required",
       "fix_flow": {
         "step": {
           "init": {
-            "title": "Restart Required",
-            "description": "Finance has been updated to version {version}. A restart is required to apply the update."
+            "title": "Restart Home Assistant",
+            "description": "Finance has been updated to version {version}. Home Assistant must be restarted to apply the update.\n\nClick **Submit** to restart now."
           }
         }
       }
