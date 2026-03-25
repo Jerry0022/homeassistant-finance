@@ -1,5 +1,24 @@
 # Build Log
 
+## c4851d1 — 2026-03-25
+Version: 0.4.3
+Branch: claude/vibrant-swirles
+PR: #21
+Commit: 0edd268
+Changes:
+- Remove unused nordigen-python==2.1.0 dependency from manifest.json
+- Fix 500 Internal Server Error when adding integration via config flow
+
+## f83c141 — 2026-03-25
+Version: 0.4.2
+Branch: claude/determined-goldwasser
+PR: #20
+Commit: f83c141
+Changes:
+- Fix sidebar panel not appearing after installation (use panel_custom API)
+- Fix repository.yaml format (remove non-standard channel field)
+- Add addon CHANGELOG.md
+
 ## 255c9f2 — 2026-03-24
 Version: 0.4.1
 Branch: claude/confident-neumann
