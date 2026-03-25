@@ -255,12 +255,35 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
         except Exception as exc:
             _LOGGER.exception("Failed to create bank authorization")
             exc_msg = str(exc)
-            error_detail = f"Authorization failed: {exc_msg[:200]}"
+            error_detail = f"Authorization failed: {exc_msg[:300]}"
+
+            # Try to extract structured error from Enable Banking
+            import json as _json
+
+            try:
+                api_err = _json.loads(exc_msg)
+                detail = api_err.get("detail", [])
+                if detail:
+                    fields = ", ".join(
+                        d.get("msg", "") for d in detail
+                    )
+                    error_detail = (
+                        f"Enable Banking: {api_err.get('message', exc_msg)} "
+                        f"— {fields}"
+                    )
+                elif api_err.get("error"):
+                    error_detail = (
+                        f"Enable Banking: {api_err['error']} "
+                        f"— {api_err.get('message', '')}"
+                    )
+            except (ValueError, TypeError):
+                pass
+
             if "redirect" in exc_msg.lower():
                 error_detail = (
-                    f"Redirect URL mismatch — the callback URL "
-                    f"'{callback_url}' is not registered in Enable Banking. "
-                    f"Check your HA external URL configuration."
+                    f"Redirect URL nicht registriert — die Callback-URL "
+                    f"'{callback_url}' ist nicht bei Enable Banking "
+                    f"hinterlegt."
                 )
             return self.json({"error": error_detail})
 

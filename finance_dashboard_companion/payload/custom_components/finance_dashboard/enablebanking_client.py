@@ -435,5 +435,12 @@ class EnableBankingClient:
                         resp.status,
                         body[:500],
                     )
-                resp.raise_for_status()
+                    # Include the API error body in the exception
+                    # so callers can surface it to the user
+                    raise aiohttp.ClientResponseError(
+                        resp.request_info,
+                        resp.history,
+                        status=resp.status,
+                        message=body[:500],
+                    )
                 return await resp.json()
