@@ -38,7 +38,7 @@
       "no_accounts_linked": "Keine Konten wurden verknüpft. Bitte versuche die Autorisierung erneut."
     },
     "abort": {
-      "already_configured": "Finance Dashboard ist bereits konfiguriert.",
+      "already_configured": "Finance ist bereits konfiguriert.",
       "connection_failed": "Verbindung zu Enable Banking fehlgeschlagen. Bitte versuche es erneut.",
       "authorization_pending": "Bank-Autorisierung wurde nicht abgeschlossen. Bitte versuche es erneut.",
       "no_accounts_linked": "Keine Konten wurden bei der Autorisierung verknüpft. Bitte versuche es erneut."
@@ -47,7 +47,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "Finance Dashboard Einstellungen",
+        "title": "Finance Einstellungen",
         "data": {
           "refresh_interval_minutes": "Aktualisierungsintervall (Minuten)",
           "split_model": "Budget-Aufteilungsmodell",
@@ -60,19 +60,19 @@
   },
   "issues": {
     "restart_required": {
-      "title": "Finance Dashboard Update verfügbar",
+      "title": "Finance Update verfügbar",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Neustart erforderlich",
-            "description": "Finance Dashboard wurde auf Version {version} aktualisiert. Ein Neustart ist erforderlich."
+            "description": "Finance wurde auf Version {version} aktualisiert. Ein Neustart ist erforderlich."
           }
         }
       }
     },
     "reconfigure_required": {
-      "title": "Finance Dashboard: Neukonfiguration erforderlich",
-      "description": "Finance Dashboard hat von GoCardless zu Enable Banking gewechselt. Bitte konfiguriere die Integration unter Einstellungen > Integrationen neu."
+      "title": "Finance: Neukonfiguration erforderlich",
+      "description": "Finance hat von GoCardless zu Enable Banking gewechselt. Bitte konfiguriere die Integration unter Einstellungen > Integrationen neu."
     }
   }
 }
