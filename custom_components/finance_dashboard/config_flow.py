@@ -23,6 +23,11 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.core import callback
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
 from .const import DOMAIN, SESSION_MAX_DAYS
 
@@ -88,8 +93,15 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=vol.Schema(
                 {
-                    vol.Required("application_id"): str,
-                    vol.Required("private_key_pem"): str,
+                    vol.Required("application_id"): TextSelector(
+                        TextSelectorConfig(type=TextSelectorType.TEXT)
+                    ),
+                    vol.Required("private_key_pem"): TextSelector(
+                        TextSelectorConfig(
+                            type=TextSelectorType.TEXT,
+                            multiline=True,
+                        )
+                    ),
                 }
             ),
             errors=errors,
