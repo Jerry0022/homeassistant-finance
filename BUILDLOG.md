@@ -1,5 +1,8 @@
 # Build Log
 
+## [v0.5.5] 2026-03-25 — 000de4a
+- fix(logging): granular Enable Banking API debug logging
+
 ## d66a1c2 — 2026-03-25
 Branch: fix/config-flow-pem-multiline
 PR: #25
