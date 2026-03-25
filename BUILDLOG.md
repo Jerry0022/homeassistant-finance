@@ -1,5 +1,13 @@
 # Build Log
 
+## d66a1c2 — 2026-03-25
+Branch: fix/config-flow-pem-multiline
+PR: #25
+Commit: 504e942
+Changes:
+- Use multiline TextSelector for PEM private key field in config flow
+- Synced addon payload with latest config_flow and translation changes
+
 ## 456ec0c — 2026-03-25
 Branch: fix/addon-deprecated-arch
 PR: #24
