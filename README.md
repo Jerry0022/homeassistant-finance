@@ -2,13 +2,13 @@
 
 **Your personal finance command center — right inside Home Assistant.**
 
-[![Version](https://img.shields.io/badge/version-0.5.2-blue?style=flat-square)](https://github.com/Jerry0022/homeassistant-finance/releases)
+[![Version](https://img.shields.io/badge/version-0.5.5-blue?style=flat-square)](https://github.com/Jerry0022/homeassistant-finance/releases)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![HACS](https://img.shields.io/badge/HACS-compatible-orange?style=flat-square)](https://hacs.xyz)
 [![CI](https://img.shields.io/github/actions/workflow/status/Jerry0022/homeassistant-finance/validate.yml?style=flat-square&label=CI)](https://github.com/Jerry0022/homeassistant-finance/actions)
 [![HA](https://img.shields.io/badge/Home%20Assistant-2024.1+-41BDF5?style=flat-square&logo=homeassistant&logoColor=white)](https://www.home-assistant.io)
 
-**Version: 0.5.2**
+**Version: 0.5.5**
 
 <!-- TODO: Add screenshot of the Finance Dashboard sidebar panel -->
 

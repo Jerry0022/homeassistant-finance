@@ -211,6 +211,11 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                 f"{self.hass.config.external_url or self.hass.config.internal_url}"
                 f"/api/{DOMAIN}/oauth/callback"
             )
+            _LOGGER.debug(
+                "Starting bank auth for %s, callback URL: %s",
+                self._selected_institution.get("name"),
+                callback_url,
+            )
 
             # Calculate session validity (RFC3339 with timezone)
             valid_until = (
@@ -227,8 +232,18 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                 valid_until=valid_until,
                 state=state,
             )
+            _LOGGER.debug("Enable Banking auth response: %s", auth_data)
             self._auth_url = auth_data.get("url", "")
             self._auth_id = auth_data.get("auth_id", "")
+            if not self._auth_url:
+                _LOGGER.error(
+                    "Enable Banking returned no auth URL. Response: %s",
+                    auth_data,
+                )
+                return self.async_abort(reason="connection_failed")
+            _LOGGER.debug(
+                "Auth URL obtained (auth_id: %s)", self._auth_id
+            )
 
             # Store pending auth so the OAuth callback can resume this flow
             self.hass.data.setdefault(DOMAIN, {})
