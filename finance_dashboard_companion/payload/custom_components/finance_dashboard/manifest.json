@@ -1,6 +1,6 @@
 {
   "domain": "finance_dashboard",
-  "name": "Finance Dashboard",
+  "name": "Finance",
   "codeowners": [
     "@Jerry0022"
   ],
@@ -17,5 +17,5 @@
   "requirements": [
     "cryptography>=42.0.0"
   ],
-  "version": "0.5.2"
+  "version": "0.5.3"
 }

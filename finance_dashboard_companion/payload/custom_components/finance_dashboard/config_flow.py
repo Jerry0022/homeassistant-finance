@@ -193,101 +193,101 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_authorize(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Step 3: Initiate Enable Banking authorization and redirect user."""
-        errors: dict[str, str] = {}
+        """Step 3: Redirect user to bank for PSD2 authorization.
 
-        if user_input is not None:
-            # User came back from bank — check for auth code
-            pending_code = self.hass.data.get(DOMAIN, {}).get(
-                "pending_auth_code"
+        Uses HA's external step mechanism: opens bank URL in new tab,
+        waits for OAuth callback to resume the flow automatically.
+        """
+        try:
+            from .enablebanking_client import EnableBankingClient
+
+            client = EnableBankingClient(
+                self._application_id, self._private_key_pem
             )
 
-            if pending_code:
-                try:
-                    from .enablebanking_client import EnableBankingClient
+            # Build callback URL
+            callback_url = (
+                f"{self.hass.config.external_url or self.hass.config.internal_url}"
+                f"/api/{DOMAIN}/oauth/callback"
+            )
 
-                    client = EnableBankingClient(
-                        self._application_id, self._private_key_pem
-                    )
+            # Calculate session validity
+            valid_until = (
+                datetime.now() + timedelta(days=SESSION_MAX_DAYS)
+            ).isoformat()
 
-                    # Exchange code for session
-                    session_data = await client.async_create_session(
-                        pending_code
-                    )
-                    self._session_id = session_data.get("session_id")
-                    accounts = session_data.get("accounts", [])
+            # Create authorization
+            auth_data = await client.async_create_auth(
+                aspsp_name=self._selected_institution["name"],
+                aspsp_country="DE",
+                redirect_url=callback_url,
+                valid_until=valid_until,
+            )
+            self._auth_url = auth_data.get("url", "")
+            self._auth_id = auth_data.get("auth_id", "")
 
-                    # Clear pending code
-                    self.hass.data[DOMAIN].pop("pending_auth_code", None)
+            # Store pending auth so the OAuth callback can resume this flow
+            self.hass.data.setdefault(DOMAIN, {})
+            self.hass.data[DOMAIN]["pending_auth"] = {
+                "auth_id": self._auth_id,
+                "flow_id": self.flow_id,
+            }
 
-                    if accounts:
-                        self._linked_accounts = accounts
-                        # Fetch full account details
-                        await self._fetch_account_details(client)
-                        return await self.async_step_assign_accounts()
-                    errors["base"] = "no_accounts_linked"
+        except Exception:
+            _LOGGER.exception(
+                "Failed to create Enable Banking authorization"
+            )
+            return self.async_abort(reason="connection_failed")
 
-                except Exception:
-                    _LOGGER.exception(
-                        "Failed to create Enable Banking session"
-                    )
-                    errors["base"] = "connection_failed"
-            else:
-                errors["base"] = "authorization_pending"
-        else:
-            # First visit — create auth request
-            try:
-                from .enablebanking_client import EnableBankingClient
-
-                client = EnableBankingClient(
-                    self._application_id, self._private_key_pem
-                )
-
-                # Build callback URL
-                callback_url = (
-                    f"{self.hass.config.external_url or self.hass.config.internal_url}"
-                    f"/api/{DOMAIN}/oauth/callback"
-                )
-
-                # Calculate session validity
-                valid_until = (
-                    datetime.now() + timedelta(days=SESSION_MAX_DAYS)
-                ).isoformat()
-
-                # Create authorization
-                auth_data = await client.async_create_auth(
-                    aspsp_name=self._selected_institution["name"],
-                    aspsp_country="DE",
-                    redirect_url=callback_url,
-                    valid_until=valid_until,
-                )
-                self._auth_url = auth_data.get("url", "")
-                self._auth_id = auth_data.get("auth_id", "")
-
-                # Store pending auth for the OAuth callback handler
-                self.hass.data.setdefault(DOMAIN, {})
-                self.hass.data[DOMAIN]["pending_auth"] = {
-                    "auth_id": self._auth_id,
-                    "flow_id": self.flow_id,
-                }
-
-            except Exception:
-                _LOGGER.exception(
-                    "Failed to create Enable Banking authorization"
-                )
-                errors["base"] = "connection_failed"
-
-        bank_name = self._selected_institution.get("name", "your bank")
-
-        return self.async_show_form(
-            step_id="authorize",
-            data_schema=vol.Schema({}),  # Just a confirm button
-            errors=errors,
-            description_placeholders={
-                "bank_name": bank_name,
-                "auth_url": self._auth_url,
-            },
+        # Open bank auth URL in new tab, show "waiting" UI in HA
+        return self.async_external_step(
+            step_id="authorize", url=self._auth_url
         )
+
+    async def async_step_authorize_done(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Step 3b: Resume after bank authorization callback.
+
+        Called automatically when the OAuth callback invokes
+        async_external_step_done on this flow.
+        """
+        pending_code = self.hass.data.get(DOMAIN, {}).get(
+            "pending_auth_code"
+        )
+
+        if not pending_code:
+            return self.async_abort(reason="authorization_pending")
+
+        try:
+            from .enablebanking_client import EnableBankingClient
+
+            client = EnableBankingClient(
+                self._application_id, self._private_key_pem
+            )
+
+            # Exchange code for session
+            session_data = await client.async_create_session(
+                pending_code
+            )
+            self._session_id = session_data.get("session_id")
+            accounts = session_data.get("accounts", [])
+
+            # Clear pending code
+            self.hass.data[DOMAIN].pop("pending_auth_code", None)
+
+            if accounts:
+                self._linked_accounts = accounts
+                await self._fetch_account_details(client)
+                return await self.async_step_assign_accounts()
+
+            return self.async_abort(reason="no_accounts_linked")
+
+        except Exception:
+            _LOGGER.exception(
+                "Failed to create Enable Banking session"
+            )
+            return self.async_abort(reason="connection_failed")
 
     async def async_step_assign_accounts(
         self, user_input: dict[str, Any] | None = None

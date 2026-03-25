@@ -18,7 +18,7 @@
       },
       "authorize": {
         "title": "Bankzugang autorisieren",
-        "description": "Klicke den Link unten um den Zugriff auf dein Bankkonto bei **{bank_name}** zu autorisieren.\n\n[Bank-Autorisierung öffnen]({auth_url})\n\nNach Abschluss der Autorisierung bei deiner Bank, kehre hierher zurück und klicke **Absenden**."
+        "description": "Du wirst zu **{bank_name}** weitergeleitet, um den Zugriff auf dein Bankkonto zu autorisieren. Nach Abschluss kehrst du automatisch hierher zurück."
       },
       "assign_accounts": {
         "title": "Konten zuordnen",
@@ -36,6 +36,12 @@
       "authorization_expired": "Die Autorisierung ist abgelaufen. Bitte starte den Vorgang erneut.",
       "authorization_pending": "Autorisierung noch nicht abgeschlossen. Bitte schließe den Vorgang bei deiner Bank ab.",
       "no_accounts_linked": "Keine Konten wurden verknüpft. Bitte versuche die Autorisierung erneut."
+    },
+    "abort": {
+      "already_configured": "Finance Dashboard ist bereits konfiguriert.",
+      "connection_failed": "Verbindung zu Enable Banking fehlgeschlagen. Bitte versuche es erneut.",
+      "authorization_pending": "Bank-Autorisierung wurde nicht abgeschlossen. Bitte versuche es erneut.",
+      "no_accounts_linked": "Keine Konten wurden bei der Autorisierung verknüpft. Bitte versuche es erneut."
     }
   },
   "options": {

@@ -4,11 +4,11 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.5.2"
+VERSION = "0.5.3"
 
 # Panel
 PANEL_URL_PATH = "finance-dashboard"
-PANEL_TITLE = "Finance Dashboard"
+PANEL_TITLE = "Finance"
 PANEL_ICON = "mdi:finance"
 PANEL_COMPONENT_NAME = "finance-dashboard-panel"
 PANEL_MODULE_PATH = (
