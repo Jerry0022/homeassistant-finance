@@ -106,7 +106,10 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
 
             if not credentials:
                 return self.json(
-                    {"error": "No API credentials stored"},
+                    {
+                        "error": "No API credentials stored",
+                        "error_type": "no_credentials",
+                    },
                     status_code=400,
                 )
 
@@ -123,13 +126,22 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout fetching institutions from Enable Banking API")
             return self.json(
-                {"error": "Enable Banking API timeout — please try again"},
+                {
+                    "error": "Enable Banking API timeout — please try again",
+                    "error_type": "timeout",
+                },
                 status_code=504,
             )
-        except Exception:
+        except Exception as exc:
             _LOGGER.exception("Failed to fetch institutions")
+            error_type = "api_error"
+            error_msg = "Failed to fetch institutions"
+            exc_msg = str(exc).lower()
+            if "401" in exc_msg or "403" in exc_msg or "unauthorized" in exc_msg:
+                error_type = "invalid_credentials"
+                error_msg = "API credentials rejected by Enable Banking"
             return self.json(
-                {"error": "Failed to fetch institutions"},
+                {"error": error_msg, "error_type": error_type},
                 status_code=502,
             )
 
