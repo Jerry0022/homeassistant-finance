@@ -25,6 +25,7 @@ class FinanceDashboardPanel extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._hass = null;
+    this._panel = null;
   }
 
   set hass(hass) {
@@ -33,6 +34,10 @@ class FinanceDashboardPanel extends HTMLElement {
       this._render();
     }
     this._refresh();
+  }
+
+  set panel(panel) {
+    this._panel = panel;
   }
 
   _render() {
@@ -303,4 +308,8 @@ class FinanceDashboardPanel extends HTMLElement {
 
 }
 
-customElements.define("finance-dashboard-panel", FinanceDashboardPanel);
+if (!customElements.get("finance-dashboard-panel")) {
+  customElements.define("finance-dashboard-panel", FinanceDashboardPanel);
+}
+
+export default FinanceDashboardPanel;

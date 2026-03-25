@@ -24,6 +24,9 @@ jobs:
         with:
           node-version: "20"
 
+      - name: Install Python dependencies
+        run: pip install pyyaml
+
       - name: Validate Python syntax
         run: |
           find custom_components/finance_dashboard -name "*.py" -exec python -m py_compile {} +
