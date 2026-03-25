@@ -387,7 +387,8 @@ class EnableBankingClient:
         url = f"{ENABLEBANKING_BASE_URL}{endpoint}"
         _LOGGER.debug("Enable Banking request: %s %s", method, url)
 
-        async with aiohttp.ClientSession() as session:
+        timeout = aiohttp.ClientTimeout(total=30)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.request(
                 method, url, headers=headers, **kwargs
             ) as resp:

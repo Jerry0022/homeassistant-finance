@@ -287,6 +287,7 @@ class FinanceDashboardPanel extends HTMLElement {
     this._wizardSelectedBank = null;
     this._wizardAccounts = [];
     this._wizardPollTimer = null;
+    this._wizardLoadError = null;
 
     container.innerHTML = `<div class="overlay"><div class="wizard" id="wizard"></div></div>`;
     this._renderWizardStep();
@@ -338,6 +339,12 @@ class FinanceDashboardPanel extends HTMLElement {
   }
 
   _renderStep1() {
+    if (this._wizardLoadError) {
+      return `<div class="wait-center">
+        <p class="error-msg">${this._wizardLoadError}</p>
+        <button class="wiz-btn wiz-btn-primary" id="wizRetryLoad" style="margin-top:12px">Erneut versuchen</button>
+      </div>`;
+    }
     if (!this._wizardInstitutions.length) {
       return `<div class="wait-center"><div class="spinner"></div><p>Lade Bankliste...</p></div>`;
     }
@@ -407,6 +414,16 @@ class FinanceDashboardPanel extends HTMLElement {
   }
 
   _attachWizardListeners() {
+    // Retry button (shown on load error)
+    const retryBtn = this.shadowRoot.getElementById("wizRetryLoad");
+    if (retryBtn) {
+      retryBtn.addEventListener("click", () => {
+        this._wizardLoadError = null;
+        this._renderWizardStep();
+        this._loadInstitutions();
+      });
+    }
+
     if (this._wizardStep === 1) {
       // Search filter
       const searchInput = this.shadowRoot.getElementById("bankSearch");
@@ -463,14 +480,16 @@ class FinanceDashboardPanel extends HTMLElement {
   }
 
   async _loadInstitutions() {
+    this._wizardLoadError = null;
     try {
       const result = await this._hass.callApi("GET", "finance_dashboard/setup/institutions");
+      if (result.error) throw new Error(result.error);
       this._wizardInstitutions = (result.institutions || []).sort((a,b) => a.name.localeCompare(b.name));
-      this._renderWizardStep();
     } catch (e) {
-      const err = this.shadowRoot.getElementById("wizError");
-      if (err) err.textContent = "Fehler beim Laden der Bankliste.";
+      console.error("Failed to load institutions:", e);
+      this._wizardLoadError = "Fehler beim Laden der Bankliste. Bitte prüfe die API-Zugangsdaten in den Integrationseinstellungen.";
     }
+    this._renderWizardStep();
   }
 
   async _startAuthorization() {
