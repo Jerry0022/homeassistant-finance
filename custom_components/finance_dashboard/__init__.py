@@ -154,6 +154,16 @@ async def async_setup_entry(
             entry, PLATFORMS
         )
 
+        # Initial data refresh (runs in background so setup isn't blocked)
+        async def _initial_refresh() -> None:
+            try:
+                await manager.async_refresh_transactions()
+                _LOGGER.info("Initial transaction refresh complete")
+            except Exception:
+                _LOGGER.exception("Initial data refresh failed")
+
+        hass.async_create_task(_initial_refresh())
+
         _LOGGER.info(
             "Finance fully loaded (bank connected)"
         )
