@@ -1,5 +1,19 @@
 # Build Log
 
+## [v0.6.0] 2026-03-25 — 670ccb3
+Version: 0.6.0
+Branch: claude/zealous-shannon
+PR: #30
+Commit: 670ccb3
+Changes:
+- Move bank setup from config flow to dashboard panel setup wizard
+- Config flow reduced to credentials-only (1 step, config VERSION 3)
+- New 4-step setup wizard overlay in Finance Dashboard sidebar panel
+- 4 new setup API endpoints (status, institutions, authorize, complete)
+- Fix Enable Banking API: authorization_id field, nested IBAN, UUID state
+- Fix panel registration: StaticPathConfig with cache, correct unregister
+- Config entry migration v2→v3 preserves existing setups
+
 ## [v0.5.5] 2026-03-25 — 000de4a
 - fix(logging): granular Enable Banking API debug logging
 
