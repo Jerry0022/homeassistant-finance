@@ -1,5 +1,17 @@
 # Build Log
 
+## eb7ef69 — 2026-03-25
+Version: 0.5.0
+Branch: claude/wonderful-leakey
+PR: #22
+Commit: 3bf932d
+Changes:
+- Migrate from GoCardless to Enable Banking API
+- New EnableBankingClient with JWT RS256 signing
+- RSA PEM key storage + session management
+- Config flow v2 with migration handler
+- Updated UI strings (EN + DE)
+
 ## c4851d1 — 2026-03-25
 Version: 0.4.3
 Branch: claude/vibrant-swirles
