@@ -1,5 +1,13 @@
 # Build Log
 
+## v0.6.5 — 2026-03-25
+- **Build:** `35a8905`
+- **Scope:** Fix bank list loading error in setup wizard
+- fix(setup): add retry logic and error handling in EnableBanking client for bank list API calls
+- fix(config_flow): graceful error handling when fetching supported banks fails
+- fix(panel): frontend error state with actionable feedback for bank list loading failures
+- fix(api): improved error response handling for bank list endpoint
+
 ## v0.6.4 — 2026-03-25
 - **Build:** `38778e0`
 - **Scope:** Fix credential return type breaking bank list loading
