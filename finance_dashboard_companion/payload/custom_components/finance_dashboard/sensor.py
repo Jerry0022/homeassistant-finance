@@ -74,7 +74,8 @@ class AccountBalanceSensor(SensorEntity):
         self._account_id = account["id"]
 
         # Build a readable name from account info
-        name = account.get("name", "Account")
+        custom_name = account.get("custom_name", "")
+        name = custom_name or account.get("name", "Account")
         institution = account.get("institution", "")
         iban = account.get("iban", "")
         iban_masked = (
@@ -93,12 +94,18 @@ class AccountBalanceSensor(SensorEntity):
         if logo:
             self._attr_entity_picture = logo
 
+        # HA user IDs assigned to this account
+        ha_users = account.get("ha_users", [])
+        ha_user_names = [u.get("name", "") for u in ha_users]
+
         # Extra attributes
         self._attr_extra_state_attributes = {
             "iban_masked": iban_masked,
             "institution": institution,
             "account_type": account.get("type", "personal"),
             "person": account.get("person", ""),
+            "ha_users": ha_user_names,
+            "custom_name": custom_name,
             "currency": account.get("currency", "EUR"),
         }
 
