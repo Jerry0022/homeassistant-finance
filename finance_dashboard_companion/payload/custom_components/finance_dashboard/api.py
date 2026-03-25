@@ -198,27 +198,17 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
                 credentials["private_key_pem"],
             )
 
-            base_url = (
-                hass.config.external_url or hass.config.internal_url
-            )
-            if not base_url:
-                # Fallback: derive from the incoming request
-                scheme = request.scheme
-                host = request.host
-                base_url = f"{scheme}://{host}"
-                _LOGGER.warning(
-                    "No external/internal URL configured in HA — "
-                    "falling back to request-derived URL: %s",
-                    base_url,
-                )
+            # Build callback URL from the request origin — this
+            # ensures the URL matches how the user actually accesses
+            # HA (Nabu Casa, local HTTPS, etc.) rather than relying
+            # on hass.config which may be stale or "Automatic".
+            base_url = f"{request.scheme}://{request.host}"
             callback_url = (
                 f"{base_url}/api/{DOMAIN}/oauth/callback"
             )
-            _LOGGER.debug(
-                "Auth callback URL: %s (external=%s, internal=%s)",
+            _LOGGER.info(
+                "Auth callback URL: %s (from request origin)",
                 callback_url,
-                hass.config.external_url,
-                hass.config.internal_url,
             )
 
             valid_until = (
