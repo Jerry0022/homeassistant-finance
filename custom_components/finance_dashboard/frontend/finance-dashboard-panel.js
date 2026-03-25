@@ -340,9 +340,13 @@ class FinanceDashboardPanel extends HTMLElement {
 
   _renderStep1() {
     if (this._wizardLoadError) {
+      const isCredentialError = this._wizardLoadErrorType === "no_credentials" || this._wizardLoadErrorType === "invalid_credentials";
+      const actionBtn = isCredentialError
+        ? `<a href="/config/integrations/integration/finance_dashboard" class="wiz-btn wiz-btn-primary" style="margin-top:12px;display:inline-block;text-decoration:none">Einstellungen öffnen</a>`
+        : `<button class="wiz-btn wiz-btn-primary" id="wizRetryLoad" style="margin-top:12px">Erneut versuchen</button>`;
       return `<div class="wait-center">
         <p class="error-msg">${this._wizardLoadError}</p>
-        <button class="wiz-btn wiz-btn-primary" id="wizRetryLoad" style="margin-top:12px">Erneut versuchen</button>
+        ${actionBtn}
       </div>`;
     }
     if (!this._wizardInstitutions.length) {
@@ -377,9 +381,12 @@ class FinanceDashboardPanel extends HTMLElement {
         <div class="spinner"></div>
         <p style="font-size:15px;font-weight:600;margin-bottom:4px">Warte auf Bankfreigabe...</p>
         <p style="font-size:13px;color:var(--tx2)">Ein neuer Tab wurde geöffnet. Autorisiere dort den Zugriff bei <strong>${this._wizardSelectedBank?.name||"deiner Bank"}</strong>.</p>
-        <p style="font-size:12px;color:var(--tx2);margin-top:12px">Dieses Fenster aktualisiert sich automatisch.</p>
+        <p style="font-size:12px;color:var(--tx2);margin-top:12px">Dieses Fenster aktualisiert sich automatisch (Timeout: 5 Min).</p>
       </div>
-      <div id="wizError" class="error-msg"></div>`;
+      <div id="wizError" class="error-msg"></div>
+      <div class="wiz-actions">
+        <button class="wiz-btn" id="wizCancelAuth" style="opacity:.7">Abbrechen</button>
+      </div>`;
   }
 
   _renderStep3() {
@@ -471,6 +478,20 @@ class FinanceDashboardPanel extends HTMLElement {
       }
     }
 
+    if (this._wizardStep === 2) {
+      const cancelBtn = this.shadowRoot.getElementById("wizCancelAuth");
+      if (cancelBtn) {
+        cancelBtn.addEventListener("click", () => {
+          if (this._wizardPollTimer) {
+            clearInterval(this._wizardPollTimer);
+            this._wizardPollTimer = null;
+          }
+          this._wizardStep = 1;
+          this._renderWizardStep();
+        });
+      }
+    }
+
     if (this._wizardStep === 3) {
       const completeBtn = this.shadowRoot.getElementById("wizComplete");
       if (completeBtn) {
@@ -481,13 +502,28 @@ class FinanceDashboardPanel extends HTMLElement {
 
   async _loadInstitutions() {
     this._wizardLoadError = null;
+    this._wizardLoadErrorType = null;
     try {
       const result = await this._hass.callApi("GET", "finance_dashboard/setup/institutions");
-      if (result.error) throw new Error(result.error);
+      if (result.error) {
+        const err = new Error(result.error);
+        err.errorType = result.error_type || "unknown";
+        throw err;
+      }
       this._wizardInstitutions = (result.institutions || []).sort((a,b) => a.name.localeCompare(b.name));
     } catch (e) {
       console.error("Failed to load institutions:", e);
-      this._wizardLoadError = "Fehler beim Laden der Bankliste. Bitte prüfe die API-Zugangsdaten in den Integrationseinstellungen.";
+      const errorType = e.errorType || "unknown";
+      this._wizardLoadErrorType = errorType;
+      if (errorType === "no_credentials") {
+        this._wizardLoadError = "Keine API-Zugangsdaten hinterlegt. Bitte richte die Integration zuerst in den Einstellungen ein.";
+      } else if (errorType === "invalid_credentials") {
+        this._wizardLoadError = "Die API-Zugangsdaten wurden abgelehnt. Bitte prüfe Application ID und Private Key in den Integrationseinstellungen.";
+      } else if (errorType === "timeout") {
+        this._wizardLoadError = "Die Enable Banking API antwortet nicht. Bitte versuche es in einigen Minuten erneut.";
+      } else {
+        this._wizardLoadError = "Fehler beim Laden der Bankliste. Bitte versuche es erneut oder prüfe die Integrationseinstellungen.";
+      }
     }
     this._renderWizardStep();
   }
@@ -525,7 +561,21 @@ class FinanceDashboardPanel extends HTMLElement {
   _startAuthPolling() {
     if (this._wizardPollTimer) clearInterval(this._wizardPollTimer);
 
+    const POLL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    const pollStart = Date.now();
+
     this._wizardPollTimer = setInterval(async () => {
+      // Timeout — stop polling after 5 minutes
+      if (Date.now() - pollStart > POLL_TIMEOUT_MS) {
+        clearInterval(this._wizardPollTimer);
+        this._wizardPollTimer = null;
+        this._wizardStep = 1;
+        this._wizardLoadError = "Zeitüberschreitung bei der Bankfreigabe. Die Autorisierung wurde nicht rechtzeitig abgeschlossen.";
+        this._wizardLoadErrorType = "timeout";
+        this._renderWizardStep();
+        return;
+      }
+
       try {
         const status = await this._hass.callApi("GET", "finance_dashboard/setup/status");
         if (status.pending_auth_code && status.pending_accounts?.length) {
