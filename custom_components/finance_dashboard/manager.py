@@ -99,6 +99,8 @@ class FinanceDashboardManager:
                 # Preserve assignment info from config
                 acc_data["type"] = account.get("type", "personal")
                 acc_data["person"] = account.get("person", "")
+                acc_data["ha_users"] = account.get("ha_users", [])
+                acc_data["custom_name"] = account.get("custom_name", "")
                 acc_data["institution"] = account.get("institution", "")
                 acc_data["logo"] = account.get("logo", "")
                 refreshed.append(acc_data)
@@ -143,17 +145,19 @@ class FinanceDashboardManager:
                 pending = txns.get("pending", [])
 
                 # Tag each transaction with account info
+                display_name = account.get("custom_name") or account.get("name", "")
                 for txn in booked:
                     txn["_account_id"] = account_id
-                    txn["_account_name"] = account.get("name", "")
+                    txn["_account_name"] = display_name
                     txn["_account_type"] = account.get("type", "personal")
                     txn["_account_person"] = account.get("person", "")
+                    txn["_account_ha_users"] = account.get("ha_users", [])
                     txn["_status"] = "booked"
                     txn["category"] = self._categorizer.categorize(txn)
 
                 for txn in pending:
                     txn["_account_id"] = account_id
-                    txn["_account_name"] = account.get("name", "")
+                    txn["_account_name"] = display_name
                     txn["_status"] = "pending"
                     txn["category"] = self._categorizer.categorize(txn)
 
