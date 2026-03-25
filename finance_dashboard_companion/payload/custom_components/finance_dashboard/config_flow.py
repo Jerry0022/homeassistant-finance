@@ -31,6 +31,55 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 
+def _normalize_pem(raw: str) -> str:
+    """Normalize a PEM private key that may have lost newlines.
+
+    Handles:
+    - Correct PEM (returned as-is)
+    - PEM with all newlines stripped (re-wrapped at 64 chars)
+    - PEM with \\n literal strings instead of real newlines
+    - Extra whitespace between lines
+    """
+    if not raw:
+        return raw
+
+    # Replace literal \n sequences with real newlines
+    normalized = raw.replace("\\n", "\n")
+
+    # If it already has proper PEM structure, return as-is
+    if (
+        "-----BEGIN" in normalized
+        and "\n" in normalized.split("-----")[2]
+    ):
+        return normalized.strip()
+
+    # Strip headers/footers and all whitespace to get raw base64
+    body = normalized
+    for marker in (
+        "-----BEGIN PRIVATE KEY-----",
+        "-----END PRIVATE KEY-----",
+        "-----BEGIN RSA PRIVATE KEY-----",
+        "-----END RSA PRIVATE KEY-----",
+    ):
+        body = body.replace(marker, "")
+    body = body.replace("\n", "").replace("\r", "").replace(" ", "")
+
+    if not body:
+        return raw
+
+    # Detect header type
+    if "RSA PRIVATE KEY" in normalized:
+        header = "-----BEGIN RSA PRIVATE KEY-----"
+        footer = "-----END RSA PRIVATE KEY-----"
+    else:
+        header = "-----BEGIN PRIVATE KEY-----"
+        footer = "-----END PRIVATE KEY-----"
+
+    # Re-wrap at 64 characters per line (PEM standard)
+    lines = [body[i : i + 64] for i in range(0, len(body), 64)]
+    return f"{header}\n" + "\n".join(lines) + f"\n{footer}"
+
+
 class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Finance.
 
@@ -48,7 +97,9 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             application_id = user_input["application_id"].strip()
-            private_key_pem = user_input["private_key_pem"].strip()
+            private_key_pem = _normalize_pem(
+                user_input["private_key_pem"].strip()
+            )
 
             if not application_id or not private_key_pem:
                 errors["base"] = "missing_credentials"

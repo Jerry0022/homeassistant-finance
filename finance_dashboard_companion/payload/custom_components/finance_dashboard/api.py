@@ -94,7 +94,12 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
     requires_auth = True
 
     async def get(self, request: web.Request) -> web.Response:
-        """Fetch DE bank list from Enable Banking API."""
+        """Fetch DE bank list from Enable Banking API.
+
+        Always returns HTTP 200 with error details in the body so the
+        frontend can inspect error_type reliably.  HA's callApi() throws
+        on non-200 responses, swallowing the JSON body.
+        """
         hass = request.app["hass"]
 
         try:
@@ -105,12 +110,15 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
             credentials = await cred_mgr.async_get_api_credentials()
 
             if not credentials:
+                _LOGGER.warning(
+                    "No Enable Banking credentials found — "
+                    "user must configure the integration first"
+                )
                 return self.json(
                     {
                         "error": "No API credentials stored",
                         "error_type": "no_credentials",
-                    },
-                    status_code=400,
+                    }
                 )
 
             from .enablebanking_client import EnableBankingClient
@@ -121,6 +129,10 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
             )
 
             institutions = await client.async_get_institutions("DE")
+            _LOGGER.debug(
+                "Fetched %d institutions from Enable Banking",
+                len(institutions),
+            )
             return self.json({"institutions": institutions})
 
         except asyncio.TimeoutError:
@@ -129,8 +141,7 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
                 {
                     "error": "Enable Banking API timeout — please try again",
                     "error_type": "timeout",
-                },
-                status_code=504,
+                }
             )
         except Exception as exc:
             _LOGGER.exception("Failed to fetch institutions")
@@ -141,8 +152,7 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
                 error_type = "invalid_credentials"
                 error_msg = "API credentials rejected by Enable Banking"
             return self.json(
-                {"error": error_msg, "error_type": error_type},
-                status_code=502,
+                {"error": error_msg, "error_type": error_type}
             )
 
 

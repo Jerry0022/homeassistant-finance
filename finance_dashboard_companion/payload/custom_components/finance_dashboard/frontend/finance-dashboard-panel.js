@@ -513,7 +513,18 @@ class FinanceDashboardPanel extends HTMLElement {
       this._wizardInstitutions = (result.institutions || []).sort((a,b) => a.name.localeCompare(b.name));
     } catch (e) {
       console.error("Failed to load institutions:", e);
-      const errorType = e.errorType || "unknown";
+      // Extract error_type — may be on the error object (200-with-error)
+      // or embedded in the message string (non-200 response body)
+      let errorType = e.errorType || "unknown";
+      if (errorType === "unknown" && e.message) {
+        try {
+          const bodyMatch = e.message.match(/\{.*\}/s);
+          if (bodyMatch) {
+            const parsed = JSON.parse(bodyMatch[0]);
+            if (parsed.error_type) errorType = parsed.error_type;
+          }
+        } catch (_) { /* not JSON, keep unknown */ }
+      }
       this._wizardLoadErrorType = errorType;
       if (errorType === "no_credentials") {
         this._wizardLoadError = "Keine API-Zugangsdaten hinterlegt. Bitte richte die Integration zuerst in den Einstellungen ein.";
