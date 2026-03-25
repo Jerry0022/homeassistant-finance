@@ -201,6 +201,16 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
             base_url = (
                 hass.config.external_url or hass.config.internal_url
             )
+            if not base_url:
+                # Fallback: derive from the incoming request
+                scheme = request.scheme
+                host = request.host
+                base_url = f"{scheme}://{host}"
+                _LOGGER.warning(
+                    "No external/internal URL configured in HA — "
+                    "falling back to request-derived URL: %s",
+                    base_url,
+                )
             callback_url = (
                 f"{base_url}/api/{DOMAIN}/oauth/callback"
             )
