@@ -8,7 +8,8 @@
   "dependencies": [
     "persistent_notification",
     "http",
-    "frontend"
+    "frontend",
+    "panel_custom"
   ],
   "integration_type": "service",
   "documentation": "https://github.com/Jerry0022/homeassistant-finance",
