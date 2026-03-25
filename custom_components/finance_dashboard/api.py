@@ -11,6 +11,7 @@ SECURITY:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -119,6 +120,12 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
             institutions = await client.async_get_institutions("DE")
             return self.json({"institutions": institutions})
 
+        except asyncio.TimeoutError:
+            _LOGGER.error("Timeout fetching institutions from Enable Banking API")
+            return self.json(
+                {"error": "Enable Banking API timeout — please try again"},
+                status_code=504,
+            )
         except Exception:
             _LOGGER.exception("Failed to fetch institutions")
             return self.json(
