@@ -1,8 +1,10 @@
 # Build Log
 
 ## v0.6.1 — 2026-03-25
-- **Build:** `918fb98`
-- **Scope:** Branding rename — "Finance Dashboard" → "Finance" across all user-visible strings
+- **Build:** `b48cbc3`
+- **Scope:** Fix infinite spinner in bank setup wizard + branding rename
+- fix(panel): add 30s timeout to Enable Banking API, error state with retry button (#32)
+- fix(branding): rename "Finance Dashboard" to "Finance" everywhere (#31)
 
 ## [v0.6.0] 2026-03-25 — 670ccb3
 Version: 0.6.0
