@@ -2,6 +2,11 @@
 
 All notable changes to the Finance Dashboard will be documented in this file.
 
+## [0.4.3] — 2026-03-25
+
+### Fixed
+- Removed unused `nordigen-python==2.1.0` dependency from `manifest.json` that caused 500 Internal Server Error during config flow (package not installable)
+
 ## [0.4.2] — 2026-03-25
 
 ### Fixed

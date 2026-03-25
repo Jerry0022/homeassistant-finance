@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.4.3
+- Remove unused nordigen-python dependency (fixes 500 error on config flow)
+
 ## 0.4.2
 - Fix sidebar panel not appearing (use correct panel_custom API)
 - Fix repository.yaml format (remove non-standard channel field)
