@@ -29,7 +29,8 @@
     },
     "error": {
       "missing_credentials": "Please enter both Application ID and Private Key.",
-      "invalid_credentials": "Could not connect to Enable Banking. Please verify your API credentials.",
+      "invalid_key_format": "The private key could not be loaded. Make sure you paste the complete PEM content including the -----BEGIN/END PRIVATE KEY----- lines.",
+      "invalid_credentials": "Enable Banking rejected the credentials (HTTP 401/403). Verify that your Application ID matches the private key and the application is activated.",
       "no_institutions": "No banking institutions found for Germany.",
       "invalid_institution": "Please select a valid bank.",
       "connection_failed": "Connection to Enable Banking failed. Please check your internet connection.",

@@ -2,6 +2,36 @@
 
 All notable changes to the Finance Dashboard will be documented in this file.
 
+## [0.5.2] — 2026-03-25
+
+### Fixed
+- Config flow error handling now distinguishes PEM key format errors from API auth failures
+- Specific error messages for: invalid key format (PEM parsing), auth rejected (401/403), network errors
+
+### Changed
+- README fully updated: all GoCardless references replaced with Enable Banking, version synced, setup instructions rewritten
+- CHANGELOG updated with v0.5.0 and v0.5.1 entries
+
+## [0.5.1] — 2026-03-25
+
+### Fixed
+- PEM private key field now renders as multiline textarea (was single-line, truncating key)
+- Removed deprecated `armhf`, `armv7`, `i386` arch values from companion add-on config
+- Updated add-on description from GoCardless to Enable Banking
+
+### Improved
+- Step-by-step instructions in Enable Banking setup dialog (EN + DE)
+- Config flow shows redirect URL dynamically for easy copy-paste
+
+## [0.5.0] — 2026-03-25
+
+### Changed
+- **Breaking**: Migrated from GoCardless to Enable Banking API
+  - New credentials format: Application ID + RSA Private Key (PEM) instead of Secret ID/Key
+  - JWT-based per-request authentication (RS256) instead of OAuth tokens
+  - Config flow version bumped to 2 (automatic reconfigure prompt for existing users)
+- API client rewritten for Enable Banking endpoints with GoCardless-compatible normalization
+
 ## [0.4.3] — 2026-03-25
 
 ### Fixed
