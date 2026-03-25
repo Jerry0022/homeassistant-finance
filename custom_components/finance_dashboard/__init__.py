@@ -102,6 +102,41 @@ async def async_setup_entry(
 
     await async_register_api(hass)
 
+    # Poll for add-on restart marker (always — even before bank is connected)
+    async def _poll_restart_marker(_now) -> None:
+        marker_path = Path(
+            hass.config.path(
+                ".storage/finance_dashboard_restart_needed.json"
+            )
+        )
+        if marker_path.exists():
+            import json
+
+            try:
+                data = json.loads(marker_path.read_text())
+                marker_path.unlink()
+                ir.async_create_issue(
+                    hass,
+                    DOMAIN,
+                    "restart_required",
+                    is_fixable=True,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key="restart_required",
+                    translation_placeholders={
+                        "version": data.get("version", "unknown")
+                    },
+                )
+            except Exception:
+                _LOGGER.exception("Failed to process restart marker")
+
+    # Check immediately on startup, then poll every 60s
+    await _poll_restart_marker(None)
+    entry.async_on_unload(
+        async_track_time_interval(
+            hass, _poll_restart_marker, timedelta(seconds=60)
+        )
+    )
+
     is_configured = entry.data.get("configured", False)
 
     if is_configured:
@@ -113,41 +148,6 @@ async def async_setup_entry(
         hass.data[DOMAIN][entry.entry_id] = manager
 
         await _async_register_services(hass, manager)
-
-        # Poll for add-on restart marker
-        async def _poll_restart_marker(_now) -> None:
-            marker_path = Path(
-                hass.config.path(
-                    ".storage/finance_dashboard_restart_needed.json"
-                )
-            )
-            if marker_path.exists():
-                import json
-
-                try:
-                    data = json.loads(marker_path.read_text())
-                    marker_path.unlink()
-                    ir.async_create_issue(
-                        hass,
-                        DOMAIN,
-                        "restart_required",
-                        is_fixable=True,
-                        severity=ir.IssueSeverity.WARNING,
-                        translation_key="restart_required",
-                        translation_placeholders={
-                            "version": data.get("version", "unknown")
-                        },
-                    )
-                except Exception:
-                    _LOGGER.exception(
-                        "Failed to process restart marker"
-                    )
-
-        entry.async_on_unload(
-            async_track_time_interval(
-                hass, _poll_restart_marker, timedelta(seconds=60)
-            )
-        )
 
         # Forward platform setup
         await hass.config_entries.async_forward_entry_setups(

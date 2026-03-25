@@ -90,41 +90,17 @@ verify_install() {
 
 send_restart_notification() {
     local version="$1"
-    local notification_id="finance_dashboard_restart_required"
-    local title="Finance updated to v${version}"
-    local message="The Finance integration has been updated. **Please restart Home Assistant** to activate the new version."
 
-    # Write marker file — the running integration polls for this every 60s
-    # and creates a Repairs issue (Settings > System > Repairs) with a restart button.
+    # Write marker file — the running integration picks this up immediately
+    # (or on next 60s poll) and creates a Repairs issue in Settings > System > Repairs.
     bashio::log.info "Writing restart marker file..."
-    cat > "/config/.storage/finance_dashboard_restart_needed.json" <<NOTIF
+    cat > "/config/.storage/finance_dashboard_restart_needed.json" <<MARKER
 {
   "version": "${version}",
-  "timestamp_utc": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "title": "${title}",
-  "message": "${message}",
-  "notification_id": "${notification_id}"
+  "timestamp_utc": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
 }
-NOTIF
-    bashio::log.info "Restart marker written — repair issue will appear in Settings within 60s"
-
-    # Also try a single persistent notification as fallback
-    if [ -n "${SUPERVISOR_TOKEN:-}" ]; then
-        local payload="{\"notification_id\": \"${notification_id}\", \"title\": \"${title}\", \"message\": \"${message}\"}"
-        local response=""
-        local status=""
-        response="$(curl -sSL -w "\n%{http_code}" -X POST \
-            -H "Authorization: Bearer ${SUPERVISOR_TOKEN}" \
-            -H "Content-Type: application/json" \
-            "http://supervisor/core/api/services/persistent_notification/create" \
-            -d "$payload" 2>&1)" || true
-        status="$(echo "$response" | tail -n1)"
-        if [ "$status" = "200" ] || [ "$status" = "201" ]; then
-            bashio::log.info "Persistent notification created as fallback (HTTP ${status})"
-        else
-            bashio::log.info "Persistent notification fallback skipped (HTTP ${status})"
-        fi
-    fi
+MARKER
+    bashio::log.info "Restart marker written — repair issue will appear in Settings"
 }
 
 # ── Main ──
