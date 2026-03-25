@@ -50,12 +50,42 @@ class EnableBankingClient:
             private_key_pem: RSA private key in PEM format for JWT signing.
         """
         self._application_id = application_id
-        self._private_key = serialization.load_pem_private_key(
+        pem_bytes = (
             private_key_pem.encode()
             if isinstance(private_key_pem, str)
-            else private_key_pem,
-            password=None,
+            else private_key_pem
         )
+        try:
+            self._private_key = serialization.load_pem_private_key(
+                pem_bytes, password=None
+            )
+        except (ValueError, TypeError):
+            # PEM may have lost newlines — try to reconstruct
+            _LOGGER.debug("PEM load failed, attempting newline reconstruction")
+            pem_str = pem_bytes.decode() if isinstance(pem_bytes, bytes) else pem_bytes
+            pem_str = self._reconstruct_pem(pem_str)
+            self._private_key = serialization.load_pem_private_key(
+                pem_str.encode(), password=None
+            )
+
+    @staticmethod
+    def _reconstruct_pem(raw: str) -> str:
+        """Reconstruct PEM with proper line breaks."""
+        raw = raw.replace("\\n", "\n")
+        for marker in (
+            "-----BEGIN PRIVATE KEY-----",
+            "-----END PRIVATE KEY-----",
+            "-----BEGIN RSA PRIVATE KEY-----",
+            "-----END RSA PRIVATE KEY-----",
+        ):
+            raw = raw.replace(marker, "")
+        body = raw.replace("\n", "").replace("\r", "").replace(" ", "")
+        if "RSA PRIVATE KEY" in raw:
+            h, f = "-----BEGIN RSA PRIVATE KEY-----", "-----END RSA PRIVATE KEY-----"
+        else:
+            h, f = "-----BEGIN PRIVATE KEY-----", "-----END PRIVATE KEY-----"
+        lines = [body[i : i + 64] for i in range(0, len(body), 64)]
+        return f"{h}\n" + "\n".join(lines) + f"\n{f}"
 
     # ------------------------------------------------------------------
     # Public API methods
