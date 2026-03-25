@@ -1,5 +1,13 @@
 # Build Log
 
+## 456ec0c — 2026-03-25
+Branch: fix/addon-deprecated-arch
+PR: #24
+Commit: ea4dbf0
+Changes:
+- Remove deprecated arch values (armhf, armv7, i386) from companion add-on config
+- Update add-on description from GoCardless to Enable Banking
+
 ## 3a525f7 — 2026-03-25
 Branch: claude/nostalgic-poitras
 PR: #23
