@@ -1,5 +1,13 @@
 # Build Log
 
+## v0.6.3 — 2026-03-25
+- **Build:** `0c2dbc4`
+- **Scope:** Improve setup wizard error handling and UX
+- fix(panel): backend returns typed errors (error_type) for differentiated frontend handling
+- fix(panel): frontend shows specific German error messages per error type
+- fix(panel): credential errors link to integration settings instead of retry
+- fix(panel): 5-minute polling timeout in Step 2, cancel button to return to Step 1
+
 ## v0.6.2 — 2026-03-25
 - **Build:** `77a8500`
 - **Scope:** Fix restart repair notification not appearing
