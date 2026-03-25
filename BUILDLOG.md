@@ -1,5 +1,11 @@
 # Build Log
 
+## v0.6.4 — 2026-03-25
+- **Build:** `38778e0`
+- **Scope:** Fix credential return type breaking bank list loading
+- fix(credentials): return dict from async_get_api_credentials instead of tuple
+- Callers in api.py and manager.py expected dict-style access; tuple caused TypeError swallowed by exception handlers
+
 ## v0.6.3 — 2026-03-25
 - **Build:** `0c2dbc4`
 - **Scope:** Improve setup wizard error handling and UX
