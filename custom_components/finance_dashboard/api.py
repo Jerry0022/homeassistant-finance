@@ -58,6 +58,17 @@ class FinanceDashboardOAuthCallbackView(HomeAssistantView):
             _LOGGER.info(
                 "OAuth callback received with authorization code"
             )
+
+            # Resume the config flow that initiated this auth
+            pending_auth = hass.data.get(DOMAIN, {}).get("pending_auth")
+            if pending_auth and "flow_id" in pending_auth:
+                await hass.config_entries.flow.async_configure(
+                    flow_id=pending_auth["flow_id"]
+                )
+                _LOGGER.info(
+                    "Config flow %s resumed after bank authorization",
+                    pending_auth["flow_id"],
+                )
         else:
             _LOGGER.warning(
                 "OAuth callback received without authorization code"
@@ -79,8 +90,7 @@ p { color: #9898a8; font-size: 14px; line-height: 1.6; }
   <div class="icon">&#9989;</div>
   <h1>Bank Authorization Complete</h1>
   <p>Your bank account has been linked successfully.<br>
-  Please return to Home Assistant and click <strong>Submit</strong>
-  to continue the setup.</p>
+  You can close this tab and return to Home Assistant.</p>
 </div>
 </body></html>"""
 

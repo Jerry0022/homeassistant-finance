@@ -18,8 +18,7 @@
       },
       "authorize": {
         "title": "Authorize Bank Access",
-        "description": "Click the link below to authorize access to your bank account at **{bank_name}**.\n\n[Open Bank Authorization]({auth_url})\n\nAfter completing the authorization at your bank, return here and click **Submit**.",
-        "data": {}
+        "description": "You will be redirected to **{bank_name}** to authorize access to your bank account. After completing the authorization, you will be returned here automatically."
       },
       "assign_accounts": {
         "title": "Assign Accounts",
@@ -40,7 +39,10 @@
       "no_accounts_linked": "No accounts were linked. Please try the authorization again."
     },
     "abort": {
-      "already_configured": "Finance Dashboard is already configured."
+      "already_configured": "Finance Dashboard is already configured.",
+      "connection_failed": "Connection to Enable Banking failed. Please try again.",
+      "authorization_pending": "Bank authorization was not completed. Please try again.",
+      "no_accounts_linked": "No accounts were linked during authorization. Please try again."
     }
   },
   "options": {
