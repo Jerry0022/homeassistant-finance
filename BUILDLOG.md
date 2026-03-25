@@ -1,5 +1,9 @@
 # Build Log
 
+## v0.6.1 — 2026-03-25
+- **Build:** `918fb98`
+- **Scope:** Branding rename — "Finance Dashboard" → "Finance" across all user-visible strings
+
 ## [v0.6.0] 2026-03-25 — 670ccb3
 Version: 0.6.0
 Branch: claude/zealous-shannon
