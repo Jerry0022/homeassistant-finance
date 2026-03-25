@@ -374,10 +374,24 @@ class EnableBankingClient:
         }
 
         url = f"{ENABLEBANKING_BASE_URL}{endpoint}"
+        _LOGGER.debug("Enable Banking request: %s %s", method, url)
 
         async with aiohttp.ClientSession() as session:
             async with session.request(
                 method, url, headers=headers, **kwargs
             ) as resp:
+                _LOGGER.debug(
+                    "Enable Banking response: HTTP %s for %s %s",
+                    resp.status,
+                    method,
+                    url,
+                )
+                if not resp.ok:
+                    body = await resp.text()
+                    _LOGGER.error(
+                        "Enable Banking API error: HTTP %s — %s",
+                        resp.status,
+                        body[:500],
+                    )
                 resp.raise_for_status()
                 return await resp.json()

@@ -2,6 +2,12 @@
 
 All notable changes to the Finance Dashboard will be documented in this file.
 
+## [0.5.5] — 2026-03-25
+
+### Fixed
+- Added granular debug logging for Enable Banking HTTP requests and responses (status code, URL, error body on non-OK responses)
+- Added debug logging in bank authorization step: callback URL, institution name, full API response, and explicit error when auth URL is missing
+
 ## [0.5.2] — 2026-03-25
 
 ### Fixed
