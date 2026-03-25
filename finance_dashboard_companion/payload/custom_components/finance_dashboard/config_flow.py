@@ -14,6 +14,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any
 
+import aiohttp
 import voluptuous as vol
 
 from homeassistant.config_entries import (
@@ -71,23 +72,57 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                     client = EnableBankingClient(
                         self._application_id, self._private_key_pem
                     )
-                    self._institutions = (
-                        await client.async_get_institutions("DE")
+                except (ValueError, TypeError) as exc:
+                    _LOGGER.error(
+                        "Failed to load PEM private key: %s", exc
                     )
-                    if self._institutions:
-                        # Store credentials securely
-                        from .credential_manager import CredentialManager
-
-                        cred_mgr = CredentialManager(self.hass)
-                        await cred_mgr.async_initialize()
-                        await cred_mgr.async_store_api_credentials(
-                            self._application_id, self._private_key_pem
-                        )
-                        return await self.async_step_select_bank()
-                    errors["base"] = "no_institutions"
+                    errors["base"] = "invalid_key_format"
                 except Exception:
-                    _LOGGER.exception("Enable Banking connection failed")
-                    errors["base"] = "invalid_credentials"
+                    _LOGGER.exception(
+                        "Unexpected error loading credentials"
+                    )
+                    errors["base"] = "invalid_key_format"
+                else:
+                    try:
+                        self._institutions = (
+                            await client.async_get_institutions("DE")
+                        )
+                    except aiohttp.ClientResponseError as exc:
+                        _LOGGER.error(
+                            "Enable Banking API rejected request: "
+                            "HTTP %s — %s",
+                            exc.status,
+                            exc.message,
+                        )
+                        if exc.status in (401, 403):
+                            errors["base"] = "invalid_credentials"
+                        else:
+                            errors["base"] = "connection_failed"
+                    except aiohttp.ClientError as exc:
+                        _LOGGER.error(
+                            "Network error contacting Enable Banking: %s",
+                            exc,
+                        )
+                        errors["base"] = "connection_failed"
+                    except Exception:
+                        _LOGGER.exception(
+                            "Enable Banking connection failed"
+                        )
+                        errors["base"] = "invalid_credentials"
+                    else:
+                        if self._institutions:
+                            from .credential_manager import (
+                                CredentialManager,
+                            )
+
+                            cred_mgr = CredentialManager(self.hass)
+                            await cred_mgr.async_initialize()
+                            await cred_mgr.async_store_api_credentials(
+                                self._application_id,
+                                self._private_key_pem,
+                            )
+                            return await self.async_step_select_bank()
+                        errors["base"] = "no_institutions"
 
         return self.async_show_form(
             step_id="user",

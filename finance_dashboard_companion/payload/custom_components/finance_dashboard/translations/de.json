@@ -27,7 +27,8 @@
     },
     "error": {
       "missing_credentials": "Bitte gib sowohl die Application ID als auch den privaten Schlüssel ein.",
-      "invalid_credentials": "Verbindung zu Enable Banking fehlgeschlagen. Bitte überprüfe deine API-Zugangsdaten.",
+      "invalid_key_format": "Der private Schlüssel konnte nicht geladen werden. Stelle sicher, dass du den kompletten PEM-Inhalt inklusive der -----BEGIN/END PRIVATE KEY----- Zeilen einfügst.",
+      "invalid_credentials": "Enable Banking hat die Zugangsdaten abgelehnt (HTTP 401/403). Überprüfe ob die Application ID zum privaten Schlüssel passt und die Anwendung aktiviert ist.",
       "no_institutions": "Keine Banken für Deutschland gefunden.",
       "invalid_institution": "Bitte wähle eine gültige Bank aus.",
       "connection_failed": "Verbindung zu Enable Banking fehlgeschlagen. Bitte überprüfe deine Internetverbindung.",
