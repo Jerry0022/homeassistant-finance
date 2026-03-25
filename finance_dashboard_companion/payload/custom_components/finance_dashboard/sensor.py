@@ -103,7 +103,7 @@ class AccountBalanceSensor(SensorEntity):
         }
 
     async def async_update(self) -> None:
-        """Fetch latest balance from GoCardless."""
+        """Fetch latest balance from Enable Banking."""
         try:
             client = await self._manager._async_get_client()
             if not client:

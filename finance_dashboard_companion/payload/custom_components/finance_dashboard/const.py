@@ -4,7 +4,7 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.4.3"
+VERSION = "0.5.0"
 
 # Panel
 PANEL_URL_PATH = "finance-dashboard"
@@ -21,11 +21,13 @@ STORAGE_KEY_TOKENS = f"{DOMAIN}_tokens"
 STORAGE_KEY_AUDIT = f"{DOMAIN}_audit_log"
 STORAGE_VERSION = 1
 
-# GoCardless / Nordigen
-GOCARDLESS_BASE_URL = "https://bankaccountdata.gocardless.com/api/v2"
-TOKEN_REFRESH_INTERVAL_HOURS = 23  # Refresh before 24h expiry
-TOKEN_MAX_AGE_DAYS = 90  # Force re-auth after 90 days
+# Enable Banking
+ENABLEBANKING_BASE_URL = "https://api.enablebanking.com"
+ENABLEBANKING_SANDBOX_URL = "https://api.enablebanking.com"  # Sandbox uses different app registration
+TOKEN_MAX_AGE_DAYS = 90  # Force re-auth after 90 days (our own policy)
+SESSION_MAX_DAYS = 180  # Enable Banking session validity
 SESSION_TIMEOUT_MINUTES = 30
+ENABLEBANKING_RATE_LIMIT_DAILY = 4
 
 # Transaction categorization
 CATEGORY_HOUSING = "housing"

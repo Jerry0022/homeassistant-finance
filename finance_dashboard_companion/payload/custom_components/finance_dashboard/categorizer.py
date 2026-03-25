@@ -38,7 +38,7 @@ class TransactionCategorizer:
         against keyword patterns.
 
         Args:
-            transaction: GoCardless transaction object
+            transaction: Transaction object (normalized format)
 
         Returns:
             Category string (e.g., 'housing', 'food', 'income')

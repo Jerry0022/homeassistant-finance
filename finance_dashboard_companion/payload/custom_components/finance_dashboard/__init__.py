@@ -1,10 +1,10 @@
 """Finance Dashboard — Home Assistant Integration.
 
-Provides a secure finance overview with live banking data via GoCardless/Nordigen
-Open Banking API. Tracks accounts, transactions, and household budgets.
+Provides a secure finance overview with live banking data via Enable Banking
+Open Banking API (PSD2). Tracks accounts, transactions, and household budgets.
 
 SECURITY: No financial data is ever stored in git or logs.
-All credentials and tokens are stored in HA's encrypted .storage/ directory.
+All credentials and sessions are stored in HA's encrypted .storage/ directory.
 """
 
 from __future__ import annotations
@@ -39,6 +39,40 @@ type FinanceDashboardConfigEntry = ConfigEntry
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Set up the Finance Dashboard integration."""
     hass.data.setdefault(DOMAIN, {})
+    return True
+
+
+async def async_migrate_entry(
+    hass: HomeAssistant, config_entry: FinanceDashboardConfigEntry
+) -> bool:
+    """Migrate old config entries from GoCardless (v1) to Enable Banking (v2)."""
+    if config_entry.version < 2:
+        _LOGGER.info(
+            "Migrating Finance Dashboard config entry from v%d to v2 "
+            "(GoCardless -> Enable Banking)",
+            config_entry.version,
+        )
+        # Remove GoCardless-specific fields, keep accounts + institution info
+        new_data = {**config_entry.data}
+        new_data.pop("requisition_id", None)
+        new_data.pop("agreement_id", None)
+        new_data["session_id"] = None  # Needs re-setup
+        new_data["configured"] = False  # Mark as needing reconfiguration
+
+        hass.config_entries.async_update_entry(
+            config_entry, data=new_data, version=2
+        )
+
+        # Create repair issue to inform user
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            "reconfigure_required",
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="reconfigure_required",
+        )
+        _LOGGER.info("Migration to v2 complete — user must reconfigure")
     return True
 
 

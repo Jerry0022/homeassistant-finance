@@ -34,6 +34,7 @@ EXCLUDE_PATTERNS = {
     ".bak",
     "preview.html",
     ".DS_Store",
+    "_deprecated",
 }
 
 

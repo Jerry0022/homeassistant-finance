@@ -1,7 +1,7 @@
 """Finance Dashboard Manager — core business logic orchestrator.
 
 Coordinates between:
-- GoCardless API client (banking data)
+- Enable Banking API client (banking data via PSD2)
 - Credential Manager (secure storage)
 - Transaction Categorizer (auto-classification)
 - Transaction Cache (encrypted .storage/)
@@ -36,7 +36,7 @@ class FinanceDashboardManager:
         self._hass = hass
         self._entry = entry
         self._credential_manager = None
-        self._gocardless_client = None
+        self._banking_client = None
         self._categorizer = None
         self._transaction_store = Store(
             hass, TRANSACTION_CACHE_VERSION, TRANSACTION_CACHE_KEY
@@ -77,12 +77,12 @@ class FinanceDashboardManager:
         """Clean shutdown — persist cache, clear sensitive data from memory."""
         # Save current transactions before shutdown
         await self._persist_transactions()
-        self._gocardless_client = None
+        self._banking_client = None
         self._balances.clear()
         _LOGGER.info("Finance Dashboard Manager shut down")
 
     async def async_refresh_accounts(self) -> list[dict[str, Any]]:
-        """Refresh account list from GoCardless."""
+        """Refresh account list from Enable Banking."""
         client = await self._async_get_client()
         if not client:
             return []
@@ -346,19 +346,19 @@ class FinanceDashboardManager:
         return self._transactions[:limit]
 
     async def _async_get_client(self):
-        """Get or create GoCardless client with current credentials."""
-        if self._gocardless_client:
-            return self._gocardless_client
+        """Get or create Enable Banking client with current credentials."""
+        if self._banking_client:
+            return self._banking_client
 
         creds = await self._credential_manager.async_get_api_credentials()
         if not creds:
-            _LOGGER.error("No GoCardless credentials available")
+            _LOGGER.error("No Enable Banking credentials available")
             return None
 
-        from .gocardless_client import GoCardlessClient
+        from .enablebanking_client import EnableBankingClient
 
-        self._gocardless_client = GoCardlessClient(creds[0], creds[1])
-        return self._gocardless_client
+        self._banking_client = EnableBankingClient(creds[0], creds[1])
+        return self._banking_client
 
     async def _persist_transactions(self) -> None:
         """Save transactions to encrypted .storage/ cache."""

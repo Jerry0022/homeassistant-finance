@@ -3,7 +3,7 @@
 SECURITY ARCHITECTURE:
 - All credentials stored in HA's .storage/ directory (encrypted at rest)
 - Additional encryption layer using Fernet (symmetric encryption)
-- Token auto-rotation before expiry
+- Session management (up to 180 days)
 - Session timeouts for inactive connections
 - Full audit trail of all credential operations
 - No credentials ever appear in logs, git, or config files
@@ -29,7 +29,7 @@ from .const import (
     STORAGE_KEY_TOKENS,
     STORAGE_VERSION,
     TOKEN_MAX_AGE_DAYS,
-    TOKEN_REFRESH_INTERVAL_HOURS,
+    SESSION_MAX_DAYS,
     SESSION_TIMEOUT_MINUTES,
 )
 
@@ -42,7 +42,7 @@ class CredentialManager:
     Security layers:
     1. HA .storage/ directory (OS-level file permissions)
     2. Fernet symmetric encryption (AES-128-CBC + HMAC)
-    3. Token auto-rotation (before 24h GoCardless expiry)
+    3. Session management (up to 180 days)
     4. Session timeouts (30min inactivity)
     5. Audit logging (all operations tracked)
     6. Max token age (force re-auth after 90 days)
@@ -77,23 +77,23 @@ class CredentialManager:
         _LOGGER.debug("Credential manager initialized")
 
     async def async_store_api_credentials(
-        self, secret_id: str, secret_key: str
+        self, application_id: str, private_key_pem: str
     ) -> None:
-        """Store GoCardless API credentials (encrypted)."""
+        """Store Enable Banking API credentials (encrypted)."""
         self._ensure_initialized()
-        encrypted_id = self._fernet.encrypt(secret_id.encode()).decode()
-        encrypted_key = self._fernet.encrypt(secret_key.encode()).decode()
+        encrypted_id = self._fernet.encrypt(application_id.encode()).decode()
+        encrypted_key = self._fernet.encrypt(private_key_pem.encode()).decode()
 
         token_data = await self._token_store.async_load() or {}
-        token_data["api_secret_id"] = encrypted_id
-        token_data["api_secret_key"] = encrypted_key
+        token_data["api_application_id"] = encrypted_id
+        token_data["api_private_key_pem"] = encrypted_key
         token_data["stored_at"] = datetime.now().isoformat()
         await self._token_store.async_save(token_data)
 
         await self._audit_log("api_credentials_stored")
 
     async def async_get_api_credentials(self) -> tuple[str, str] | None:
-        """Retrieve decrypted GoCardless API credentials."""
+        """Retrieve decrypted Enable Banking API credentials."""
         self._ensure_initialized()
         self._check_session_timeout()
 
@@ -101,87 +101,76 @@ class CredentialManager:
         if not token_data:
             return None
 
-        encrypted_id = token_data.get("api_secret_id")
-        encrypted_key = token_data.get("api_secret_key")
+        encrypted_id = token_data.get("api_application_id")
+        encrypted_key = token_data.get("api_private_key_pem")
+
+        # Migration detection: old GoCardless keys present but new keys missing
         if not encrypted_id or not encrypted_key:
+            if token_data.get("api_secret_id"):
+                _LOGGER.warning(
+                    "Found legacy GoCardless credentials but no Enable Banking "
+                    "credentials. Re-configuration required."
+                )
             return None
 
         try:
-            secret_id = self._fernet.decrypt(encrypted_id.encode()).decode()
-            secret_key = self._fernet.decrypt(encrypted_key.encode()).decode()
+            application_id = self._fernet.decrypt(encrypted_id.encode()).decode()
+            private_key_pem = self._fernet.decrypt(encrypted_key.encode()).decode()
             self._touch_session()
             await self._audit_log("api_credentials_accessed")
-            return secret_id, secret_key
+            return application_id, private_key_pem
         except Exception:
             _LOGGER.error("Failed to decrypt API credentials")
             await self._audit_log("api_credentials_decrypt_failed")
             return None
 
-    async def async_store_access_token(
-        self, access_token: str, refresh_token: str, expires_in: int
+    async def async_store_session(
+        self, session_id: str, valid_until: str
     ) -> None:
-        """Store GoCardless access/refresh tokens (encrypted)."""
+        """Store Enable Banking session (encrypted)."""
         self._ensure_initialized()
-
         token_data = await self._token_store.async_load() or {}
-        token_data["access_token"] = self._fernet.encrypt(
-            access_token.encode()
+        token_data["eb_session_id"] = self._fernet.encrypt(
+            session_id.encode()
         ).decode()
-        token_data["refresh_token"] = self._fernet.encrypt(
-            refresh_token.encode()
-        ).decode()
-        token_data["token_expires_at"] = (
-            datetime.now() + timedelta(seconds=expires_in)
-        ).isoformat()
-        token_data["token_created_at"] = datetime.now().isoformat()
+        token_data["eb_session_valid_until"] = valid_until  # ISO datetime string, not secret
+        token_data["eb_session_stored_at"] = datetime.now().isoformat()
         await self._token_store.async_save(token_data)
+        await self._audit_log("session_stored")
 
-        await self._audit_log("access_token_stored")
-
-    async def async_get_access_token(self) -> str | None:
-        """Get decrypted access token, auto-refreshing if needed."""
+    async def async_get_session(self) -> dict[str, str] | None:
+        """Get Enable Banking session if still valid."""
         self._ensure_initialized()
         self._check_session_timeout()
 
         token_data = await self._token_store.async_load()
-        if not token_data or "access_token" not in token_data:
+        if not token_data:
             return None
 
-        # Check token age — force re-auth after max age
-        created_at = token_data.get("token_created_at")
-        if created_at:
-            created = datetime.fromisoformat(created_at)
-            if datetime.now() - created > timedelta(days=TOKEN_MAX_AGE_DAYS):
-                _LOGGER.warning(
-                    "Token exceeded max age (%d days), re-auth required",
-                    TOKEN_MAX_AGE_DAYS,
-                )
-                await self._audit_log("token_max_age_exceeded")
-                return None
+        encrypted_session = token_data.get("eb_session_id")
+        valid_until = token_data.get("eb_session_valid_until")
+        if not encrypted_session or not valid_until:
+            return None
 
-        # Check if token needs refresh
-        expires_at = token_data.get("token_expires_at")
-        if expires_at:
-            expires = datetime.fromisoformat(expires_at)
-            if datetime.now() > expires - timedelta(
-                hours=1
-            ):  # Refresh 1h before expiry
-                await self._audit_log("token_refresh_needed")
-                refreshed = await self._async_refresh_token(token_data)
-                if not refreshed:
-                    return None
-                # Reload after refresh
-                token_data = await self._token_store.async_load()
+        # Check if session has expired
+        try:
+            expires = datetime.fromisoformat(valid_until)
+            if datetime.now() >= expires:
+                _LOGGER.warning("Enable Banking session expired")
+                await self._audit_log("session_expired")
+                return None
+        except ValueError:
+            return None
 
         try:
-            decrypted = self._fernet.decrypt(
-                token_data["access_token"].encode()
+            session_id = self._fernet.decrypt(
+                encrypted_session.encode()
             ).decode()
             self._touch_session()
-            return decrypted
+            await self._audit_log("session_accessed")
+            return {"session_id": session_id, "valid_until": valid_until}
         except Exception:
-            _LOGGER.error("Failed to decrypt access token")
-            await self._audit_log("access_token_decrypt_failed")
+            _LOGGER.error("Failed to decrypt session")
             return None
 
     async def async_clear_all(self) -> None:
@@ -221,41 +210,6 @@ class CredentialManager:
                 "Session timed out after %d minutes of inactivity",
                 SESSION_TIMEOUT_MINUTES,
             )
-
-    async def _async_refresh_token(
-        self, token_data: dict[str, Any]
-    ) -> bool:
-        """Refresh the GoCardless access token."""
-        refresh_token_enc = token_data.get("refresh_token")
-        if not refresh_token_enc:
-            return False
-
-        try:
-            refresh_token = self._fernet.decrypt(
-                refresh_token_enc.encode()
-            ).decode()
-
-            from .gocardless_client import GoCardlessClient
-
-            # Get API credentials for refresh
-            creds = await self.async_get_api_credentials()
-            if not creds:
-                return False
-
-            client = GoCardlessClient(creds[0], creds[1])
-            new_tokens = await client.async_refresh_token(refresh_token)
-            if new_tokens:
-                await self.async_store_access_token(
-                    new_tokens["access"],
-                    new_tokens.get("refresh", refresh_token),
-                    new_tokens.get("access_expires", 86400),
-                )
-                await self._audit_log("token_refreshed")
-                return True
-        except Exception:
-            _LOGGER.exception("Token refresh failed")
-            await self._audit_log("token_refresh_failed")
-        return False
 
     async def _audit_log(self, event: str) -> None:
         """Write an entry to the audit log."""

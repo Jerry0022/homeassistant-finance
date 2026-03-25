@@ -2,11 +2,11 @@
   "config": {
     "step": {
       "user": {
-        "title": "GoCardless API Setup",
-        "description": "Enter your GoCardless/Nordigen API credentials.\n\nGet your free API keys at [{gocardless_url}]({gocardless_url}).\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant.",
+        "title": "Enable Banking Setup",
+        "description": "Enter your Enable Banking API credentials.\n\nCreate your application at [{enablebanking_url}]({enablebanking_url}) and download the private key.\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant. They are never sent to any third party except Enable Banking.",
         "data": {
-          "secret_id": "Secret ID",
-          "secret_key": "Secret Key"
+          "application_id": "Application ID",
+          "private_key_pem": "Private Key (PEM)"
         }
       },
       "select_bank": {
@@ -18,19 +18,21 @@
       },
       "authorize": {
         "title": "Authorize Bank Access",
-        "description": "Click the link below to authorize access to your bank account at **{bank_name}**.\n\n[Open Bank Authorization]({auth_url})\n\nAfter completing the authorization at your bank, return here and click **Submit**."
+        "description": "Click the link below to authorize access to your bank account at **{bank_name}**.\n\n[Open Bank Authorization]({auth_url})\n\nAfter completing the authorization at your bank, return here and click **Submit**.",
+        "data": {}
       },
       "assign_accounts": {
         "title": "Assign Accounts",
-        "description": "Found {account_count} accounts: {account_list}\n\nFor each account, choose whether it is **personal** or **shared**."
+        "description": "Found {account_count} accounts: {account_list}\n\nFor each account, choose whether it is **personal** (belongs to one person) or **shared** (household account). Enter the person's name for personal accounts.",
+        "data": {}
       }
     },
     "error": {
-      "missing_credentials": "Please enter both Secret ID and Secret Key.",
-      "invalid_credentials": "Could not connect to GoCardless. Please verify your API credentials.",
+      "missing_credentials": "Please enter both Application ID and Private Key.",
+      "invalid_credentials": "Could not connect to Enable Banking. Please verify your API credentials.",
       "no_institutions": "No banking institutions found for Germany.",
       "invalid_institution": "Please select a valid bank.",
-      "connection_failed": "Connection to GoCardless failed. Please check your internet connection.",
+      "connection_failed": "Connection to Enable Banking failed. Please check your internet connection.",
       "bank_rejected": "Your bank rejected the authorization. Please try again.",
       "authorization_expired": "The authorization has expired. Please start over.",
       "authorization_pending": "Authorization not yet complete. Please finish at your bank and try again.",
@@ -65,6 +67,10 @@
           }
         }
       }
+    },
+    "reconfigure_required": {
+      "title": "Finance Dashboard: Reconfiguration Required",
+      "description": "Finance Dashboard has switched from GoCardless to Enable Banking. Please reconfigure with your Enable Banking credentials via Settings > Integrations."
     }
   }
 }
