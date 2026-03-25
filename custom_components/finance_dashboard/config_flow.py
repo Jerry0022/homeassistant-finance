@@ -1,8 +1,8 @@
-"""Config flow for Finance Dashboard integration.
+"""Config flow for Finance integration.
 
 Minimal flow: only collects Enable Banking API credentials.
 Bank selection, authorization, and account assignment happen
-in the Finance Dashboard panel (setup wizard overlay).
+in the Finance panel (setup wizard overlay).
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Finance Dashboard.
+    """Handle a config flow for Finance.
 
     Single step: validate Enable Banking API credentials, then create
     the config entry immediately. Bank setup continues in the panel.
@@ -114,7 +114,7 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                             )
 
                             return self.async_create_entry(
-                                title="Finance Dashboard",
+                                title="Finance",
                                 data={"configured": False},
                             )
 
@@ -153,7 +153,7 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class FinanceDashboardOptionsFlow(OptionsFlow):
-    """Handle options for Finance Dashboard."""
+    """Handle options for Finance."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""

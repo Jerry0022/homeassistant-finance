@@ -1,4 +1,4 @@
-"""Event firing for Finance Dashboard automation triggers.
+"""Event firing for Finance automation triggers.
 
 4 events:
 - fd_transaction_new: New transaction detected

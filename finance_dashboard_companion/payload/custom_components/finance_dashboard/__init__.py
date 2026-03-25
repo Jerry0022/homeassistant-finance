@@ -1,4 +1,4 @@
-"""Finance Dashboard — Home Assistant Integration.
+"""Finance — Home Assistant Integration.
 
 Provides a secure finance overview with live banking data via Enable Banking
 Open Banking API (PSD2). Tracks accounts, transactions, and household budgets.
@@ -33,7 +33,7 @@ type FinanceDashboardConfigEntry = ConfigEntry
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Set up the Finance Dashboard integration."""
+    """Set up the Finance integration."""
     hass.data.setdefault(DOMAIN, {})
     return True
 
@@ -44,7 +44,7 @@ async def async_migrate_entry(
     """Migrate old config entries to current version."""
     if config_entry.version < 2:
         _LOGGER.info(
-            "Migrating Finance Dashboard config entry from v%d to v3 "
+            "Migrating Finance config entry from v%d to v3 "
             "(GoCardless -> Enable Banking panel-driven setup)",
             config_entry.version,
         )
@@ -68,7 +68,7 @@ async def async_migrate_entry(
 
     elif config_entry.version == 2:
         _LOGGER.info(
-            "Migrating Finance Dashboard config entry from v2 to v3 "
+            "Migrating Finance config entry from v2 to v3 "
             "(panel-driven bank setup)"
         )
         new_data = {**config_entry.data}
@@ -86,7 +86,7 @@ async def async_migrate_entry(
 async def async_setup_entry(
     hass: HomeAssistant, entry: FinanceDashboardConfigEntry
 ) -> bool:
-    """Set up Finance Dashboard from a config entry."""
+    """Set up Finance from a config entry."""
     ir.async_delete_issue(hass, DOMAIN, "restart_required")
 
     # Store entry reference for setup API endpoints
@@ -155,11 +155,11 @@ async def async_setup_entry(
         )
 
         _LOGGER.info(
-            "Finance Dashboard fully loaded (bank connected)"
+            "Finance fully loaded (bank connected)"
         )
     else:
         _LOGGER.info(
-            "Finance Dashboard loaded — awaiting bank setup in panel"
+            "Finance loaded — awaiting bank setup in panel"
         )
 
     return True

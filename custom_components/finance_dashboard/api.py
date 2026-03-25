@@ -1,4 +1,4 @@
-"""HTTP API endpoints for Finance Dashboard.
+"""HTTP API endpoints for Finance.
 
 Provides REST endpoints for the frontend panel and Lovelace cards
 to interact with the integration.
@@ -38,7 +38,7 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardSetupInstitutionsView())
     hass.http.register_view(FinanceDashboardSetupAuthorizeView())
     hass.http.register_view(FinanceDashboardSetupCompleteView())
-    _LOGGER.debug("Finance Dashboard API endpoints registered")
+    _LOGGER.debug("Finance API endpoints registered")
 
 
 # ------------------------------------------------------------------
@@ -359,7 +359,7 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                 )
                 hass.config_entries.async_update_entry(
                     entry,
-                    title=f"Finance Dashboard ({institution_name})",
+                    title=f"Finance ({institution_name})",
                     data={
                         "configured": True,
                         "institution_id": pending_auth.get(
@@ -482,7 +482,7 @@ class FinanceDashboardOAuthCallbackView(HomeAssistantView):
             )
 
         html = """<!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Finance Dashboard</title>
+<html><head><meta charset="utf-8"><title>Finance</title>
 <style>
 body { font-family: -apple-system, sans-serif; background: #0a0a0f;
   color: #e8e8ed; display: flex; justify-content: center;
@@ -497,7 +497,7 @@ p { color: #9898a8; font-size: 14px; line-height: 1.6; }
   <div class="icon">&#9989;</div>
   <h1>Bankverbindung erfolgreich</h1>
   <p>Dein Bankkonto wurde autorisiert.<br>
-  Du kannst diesen Tab schlie&szlig;en und zum Finance Dashboard zur&uuml;ckkehren.</p>
+  Du kannst diesen Tab schlie&szlig;en und zum Finance zur&uuml;ckkehren.</p>
 </div>
 </body></html>"""
 

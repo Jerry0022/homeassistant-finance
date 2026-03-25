@@ -1,4 +1,4 @@
-"""Sensor platform for Finance Dashboard.
+"""Sensor platform for Finance.
 
 Creates sensor entities for:
 - Account balances (one per linked bank account, with bank logo)
@@ -30,7 +30,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Finance Dashboard sensors from a config entry."""
+    """Set up Finance sensors from a config entry."""
     manager = hass.data[DOMAIN][entry.entry_id]
     accounts = entry.data.get("accounts", [])
 

@@ -1,5 +1,5 @@
 /**
- * Finance Dashboard — Drag & Drop Transaction Categorizer
+ * Finance — Drag & Drop Transaction Categorizer
  *
  * Admin-only Lovelace card for re-categorizing transactions.
  * Drag transactions into category buckets. System learns new
@@ -184,6 +184,6 @@ customElements.define("fd-categorize", FdCategorize);
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "fd-categorize",
-  name: "Finance Dashboard — Categorize",
+  name: "Finance — Categorize",
   description: "Drag & drop transaction categorization (admin only).",
 });

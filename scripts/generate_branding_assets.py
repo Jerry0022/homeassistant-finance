@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate branding assets for the integration and companion add-on.
 
-Renders the Finance Dashboard coin icon (gold rim, green face, smiley)
+Renders the Finance coin icon (gold rim, green face, smiley)
 as 256x256 PNGs in both light and dark mode variants.
 
 Output locations:
@@ -56,7 +56,7 @@ def mix(a: tuple[int, int, int], b: tuple[int, int, int], t: float) -> tuple[int
 
 
 def render_icon(size: int, dark: bool) -> list[tuple[int, int, int, int]]:
-    """Render the Finance Dashboard coin icon.
+    """Render the Finance coin icon.
 
     Design: dual-tone coin with a friendly face.
     - Outer gold ring (coin edge)
@@ -187,7 +187,7 @@ def render_icon(size: int, dark: bool) -> list[tuple[int, int, int, int]]:
 
 
 def main() -> int:
-    print("Generating Finance Dashboard branding assets...")
+    print("Generating Finance branding assets...")
 
     addon_icon = render_icon(256, dark=False)
     addon_dark = render_icon(256, dark=True)

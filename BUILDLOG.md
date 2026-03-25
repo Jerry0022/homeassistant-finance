@@ -8,7 +8,7 @@ Commit: 670ccb3
 Changes:
 - Move bank setup from config flow to dashboard panel setup wizard
 - Config flow reduced to credentials-only (1 step, config VERSION 3)
-- New 4-step setup wizard overlay in Finance Dashboard sidebar panel
+- New 4-step setup wizard overlay in Finance sidebar panel
 - 4 new setup API endpoints (status, institutions, authorize, complete)
 - Fix Enable Banking API: authorization_id field, nested IBAN, UUID state
 - Fix panel registration: StaticPathConfig with cache, correct unregister

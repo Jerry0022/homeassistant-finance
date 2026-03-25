@@ -1,4 +1,4 @@
-"""Sidebar panel registration for Finance Dashboard."""
+"""Sidebar panel registration for Finance."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ LOVELACE_COMPONENTS = [
 
 
 async def async_register_panel(hass: HomeAssistant) -> None:
-    """Register the Finance Dashboard sidebar panel.
+    """Register the Finance sidebar panel.
 
     Creates a sidebar entry that loads the finance dashboard
     web component from the integration's static files.
@@ -64,10 +64,10 @@ async def async_register_panel(hass: HomeAssistant) -> None:
             add_extra_js_url(hass, url)
 
         _LOGGER.debug(
-            "Finance Dashboard panel registered at /%s", PANEL_URL_PATH
+            "Finance panel registered at /%s", PANEL_URL_PATH
         )
     except Exception:
-        _LOGGER.exception("Failed to register Finance Dashboard panel")
+        _LOGGER.exception("Failed to register Finance panel")
 
 
 async def async_unregister_panel(hass: HomeAssistant) -> None:

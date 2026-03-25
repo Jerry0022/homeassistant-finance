@@ -1,5 +1,5 @@
 /**
- * Finance Dashboard — Budget Config Lovelace Card
+ * Finance — Budget Config Lovelace Card
  *
  * Dedicated card for configuring the household budget split model.
  * - Dropdown for split mode (equal/proportional/custom)
@@ -128,6 +128,6 @@ customElements.define("fd-budget-config", FdBudgetConfig);
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "fd-budget-config",
-  name: "Finance Dashboard — Budget Config",
+  name: "Finance — Budget Config",
   description: "Configure household budget split model and preview Spielgeld.",
 });
