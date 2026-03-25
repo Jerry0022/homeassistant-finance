@@ -180,11 +180,19 @@ class FinanceDashboardPanel extends HTMLElement {
 .acc-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
 .acc-name { font-size:14px; font-weight:600; }
 .acc-iban { font-size:12px; color:var(--tx2); }
-.acc-fields { display:flex; gap:10px; }
+.acc-fields { display:flex; flex-direction:column; gap:8px; }
+.acc-fields-row { display:flex; gap:10px; }
 .acc-fields select, .acc-fields input {
   padding:7px 10px; border-radius:8px; border:1px solid var(--bd);
   background:var(--sf); color:var(--tx); font-size:13px; flex:1;
 }
+.acc-users-label { font-size:12px; color:var(--tx2); margin-bottom:2px; }
+.acc-users-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.acc-user-chip { display:inline-flex; align-items:center; gap:4px; padding:4px 10px;
+  border-radius:16px; font-size:12px; cursor:pointer; transition:all .15s;
+  border:1px solid var(--bd); background:var(--sf); color:var(--tx); }
+.acc-user-chip.selected { background:var(--accent-color, #4ecca3); color:#fff; border-color:transparent; }
+.acc-user-chip:hover { opacity:.85; }
 
 /* Buttons */
 .wiz-actions { display:flex; justify-content:flex-end; gap:8px; padding-top:16px; }
@@ -286,12 +294,14 @@ class FinanceDashboardPanel extends HTMLElement {
     this._wizardInstitutions = [];
     this._wizardSelectedBank = null;
     this._wizardAccounts = [];
+    this._wizardHaUsers = [];
     this._wizardPollTimer = null;
     this._wizardLoadError = null;
 
     container.innerHTML = `<div class="overlay"><div class="wizard" id="wizard"></div></div>`;
     this._renderWizardStep();
     this._loadInstitutions();
+    this._loadHaUsers();
   }
 
   _hideSetupWizard() {
@@ -394,20 +404,33 @@ class FinanceDashboardPanel extends HTMLElement {
       return `<div class="wait-center"><div class="spinner"></div><p>Lade Kontodaten...</p></div>`;
     }
 
+    const users = this._wizardHaUsers || [];
+
     const accItems = this._wizardAccounts.map(acc => {
       const iban = acc.iban ? `****${acc.iban.slice(-4)}` : "****";
-      const name = acc.name || "Konto";
+      const bankName = acc.name || "Konto";
+
+      const userChips = users.length
+        ? `<div class="acc-users-label">Personen zuweisen:</div>
+           <div class="acc-users-chips">${users.map(u =>
+             `<span class="acc-user-chip" data-user-id="${u.id}" data-user-name="${u.name}">${u.name}</span>`
+           ).join("")}</div>`
+        : `<input data-field="person" type="text" placeholder="Person (optional)">`;
+
       return `<div class="acc-item" data-acc-id="${acc.id}">
         <div class="acc-header">
-          <span class="acc-name">${name}</span>
+          <span class="acc-name">${bankName}</span>
           <span class="acc-iban">${iban}</span>
         </div>
         <div class="acc-fields">
-          <select data-field="type">
-            <option value="personal">Persönlich</option>
-            <option value="shared">Gemeinsam</option>
-          </select>
-          <input data-field="person" type="text" placeholder="Person (optional)">
+          <div class="acc-fields-row">
+            <select data-field="type">
+              <option value="personal">Persönlich</option>
+              <option value="shared">Gemeinsam</option>
+            </select>
+            <input data-field="custom_name" type="text" placeholder="Anzeigename (optional)">
+          </div>
+          ${userChips}
         </div>
       </div>`;
     }).join("");
@@ -493,6 +516,11 @@ class FinanceDashboardPanel extends HTMLElement {
     }
 
     if (this._wizardStep === 3) {
+      // User chip toggle (multi-select)
+      this.shadowRoot.querySelectorAll(".acc-user-chip").forEach(chip => {
+        chip.addEventListener("click", () => chip.classList.toggle("selected"));
+      });
+
       const completeBtn = this.shadowRoot.getElementById("wizComplete");
       if (completeBtn) {
         completeBtn.addEventListener("click", () => this._completeSetup());
@@ -537,6 +565,16 @@ class FinanceDashboardPanel extends HTMLElement {
       }
     }
     this._renderWizardStep();
+  }
+
+  async _loadHaUsers() {
+    try {
+      const result = await this._hass.callApi("GET", "finance_dashboard/setup/users");
+      this._wizardHaUsers = result.users || [];
+    } catch (e) {
+      console.warn("Failed to load HA users:", e);
+      this._wizardHaUsers = [];
+    }
   }
 
   async _startAuthorization() {
@@ -627,8 +665,19 @@ class FinanceDashboardPanel extends HTMLElement {
     accItems.forEach(item => {
       const id = item.dataset.accId;
       const type = item.querySelector('[data-field="type"]')?.value || "personal";
+      const customName = item.querySelector('[data-field="custom_name"]')?.value || "";
+
+      // Collect selected HA users (chips with .selected class)
+      const selectedChips = item.querySelectorAll(".acc-user-chip.selected");
+      const haUsers = Array.from(selectedChips).map(chip => ({
+        id: chip.dataset.userId,
+        name: chip.dataset.userName,
+      }));
+
+      // Fallback: free-text person field (when no HA users available)
       const person = item.querySelector('[data-field="person"]')?.value || "";
-      accounts.push({ id, type, person });
+
+      accounts.push({ id, type, custom_name: customName, ha_users: haUsers, person });
     });
 
     try {

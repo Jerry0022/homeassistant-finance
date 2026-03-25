@@ -39,6 +39,7 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardSetupInstitutionsView())
     hass.http.register_view(FinanceDashboardSetupAuthorizeView())
     hass.http.register_view(FinanceDashboardSetupCompleteView())
+    hass.http.register_view(FinanceDashboardSetupUsersView())
     _LOGGER.debug("Finance API endpoints registered")
 
 
@@ -84,6 +85,26 @@ class FinanceDashboardSetupStatusView(HomeAssistantView):
             "pending_accounts": pending_accounts,
         }
         return self.json(result)
+
+
+class FinanceDashboardSetupUsersView(HomeAssistantView):
+    """Return HA users for account assignment in setup wizard."""
+
+    url = f"/api/{DOMAIN}/setup/users"
+    name = f"api:{DOMAIN}:setup_users"
+    requires_auth = True
+
+    async def get(self, request: web.Request) -> web.Response:
+        """Return list of HA users (id + name)."""
+        hass = request.app["hass"]
+
+        users = await hass.auth.async_get_users()
+        user_list = [
+            {"id": user.id, "name": user.name or user.id}
+            for user in users
+            if user.is_active and not user.system_generated
+        ]
+        return self.json({"users": user_list})
 
 
 class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
@@ -376,6 +397,14 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                     )
                     acct = raw_acc
 
+                # Build person field: from HA users or free text
+                ha_users = assignment.get("ha_users", [])
+                person = assignment.get("person", "")
+                if ha_users and not person:
+                    person = ", ".join(
+                        u.get("name", "") for u in ha_users
+                    )
+
                 account_config.append(
                     {
                         "id": acc_id,
@@ -384,6 +413,9 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                         ),
                         "name": acct.get(
                             "name", raw_acc.get("name", "")
+                        ),
+                        "custom_name": assignment.get(
+                            "custom_name", ""
                         ),
                         "institution": pending_auth.get(
                             "institution_name", ""
@@ -399,7 +431,8 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                             raw_acc.get("currency", "EUR"),
                         ),
                         "type": assignment.get("type", "personal"),
-                        "person": assignment.get("person", ""),
+                        "person": person,
+                        "ha_users": ha_users,
                     }
                 )
 
