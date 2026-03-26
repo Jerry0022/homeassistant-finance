@@ -35,7 +35,8 @@ homeassistant-finance/
 ├── www/community/finance-dashboard/       # Lovelace card (HACS install)
 ├── scripts/                               # Dev tooling
 │   ├── bump_versions.py         # Sync versions across manifest/addon/const
-│   └── sync_addon_payload.py    # Copy integration → add-on payload
+│   ├── sync_addon_payload.py    # Copy integration → add-on payload
+│   └── sync_changelog.py       # Sync BUILDLOG → CHANGELOG (both root + addon)
 └── .github/workflows/validate.yml         # CI: syntax + version + payload validation
 ```
 
@@ -74,6 +75,10 @@ Three files must always have aligned versions:
 3. `custom_components/finance_dashboard/const.py` → `VERSION` constant
 
 Use `python scripts/bump_versions.py --part [patch|minor|major]` to bump all three atomically. The script also auto-syncs the add-on payload.
+
+### CHANGELOG Sync (mandatory after every BUILDLOG entry)
+
+After writing a BUILDLOG entry, run `python scripts/sync_changelog.py` to propagate the entry to both `CHANGELOG.md` (keep-a-changelog format) and `finance_dashboard_companion/CHANGELOG.md` (simplified). The script parses conventional commit prefixes (`feat()`, `fix()`, `refactor()`) and groups changes by Added/Changed/Fixed. Use `--check` to verify sync status.
 
 ## Key Patterns (from Golden Sample)
 
@@ -134,6 +139,11 @@ python scripts/bump_versions.py --part patch    # Bump version
 # Payload sync
 python scripts/sync_addon_payload.py            # Sync files
 python scripts/sync_addon_payload.py --check    # Verify sync
+
+# CHANGELOG sync (BUILDLOG → CHANGELOG + addon CHANGELOG)
+python scripts/sync_changelog.py                # Sync current version
+python scripts/sync_changelog.py --check        # Verify CHANGELOG is up-to-date
+python scripts/sync_changelog.py --version X.Y.Z  # Sync specific version
 
 # Validation (same as CI)
 python -m py_compile custom_components/finance_dashboard/__init__.py
