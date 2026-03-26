@@ -1,5 +1,13 @@
 # Build Log
 
+## v0.7.2 — 2026-03-26
+- **Build hash:** `f995339`
+- **Branch:** fix/dashboard-resilient-loading
+- **Changes:** fix(dashboard): resilient API loading + multi-bank account merge
+- fix(api): setup/complete merges new accounts with existing ones instead of replacing entry.data
+- fix(frontend): dashboard _refresh() uses independent .catch() per endpoint instead of Promise.all
+- fix(frontend): manage accounts dialog retries 3x with 2s delay before showing error
+
 ## v0.7.1 — 2026-03-26
 - **Build hash:** `f03daac`
 - **Branch:** claude/elegant-swanson
