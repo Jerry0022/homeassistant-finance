@@ -446,22 +446,18 @@ class FinanceDashboardPanel extends HTMLElement {
     // Hide wizard if configured
     this._hideSetupWizard();
 
-    // Load dashboard data
-    try {
-      const [bal, txn, sum, chains] = await Promise.all([
-        this._hass.callApi("GET", "finance_dashboard/balances"),
-        this._hass.callApi("GET", "finance_dashboard/transactions"),
-        this._hass.callApi("GET", "finance_dashboard/summary"),
-        this._hass.callApi("GET", "finance_dashboard/transfer_chains").catch(() => ({ chains: [] })),
-      ]);
-      this._chainData = chains?.chains || [];
-      this._draw(c, bal, txn, sum);
-      this._updateTimestamp();
-    } catch (e) {
-      if (!hasData) c.innerHTML = this._renderEmptyDashboard();
-    } finally {
-      this._setRefreshing(false);
-    }
+    // Load dashboard data — each endpoint fails independently so a
+    // single broken API doesn't blank the entire dashboard.
+    const [bal, txn, sum, chains] = await Promise.all([
+      this._hass.callApi("GET", "finance_dashboard/balances").catch(e => { console.error("[Finance] /balances failed:", e); return {}; }),
+      this._hass.callApi("GET", "finance_dashboard/transactions").catch(e => { console.error("[Finance] /transactions failed:", e); return {}; }),
+      this._hass.callApi("GET", "finance_dashboard/summary").catch(e => { console.error("[Finance] /summary failed:", e); return {}; }),
+      this._hass.callApi("GET", "finance_dashboard/transfer_chains").catch(() => ({ chains: [] })),
+    ]);
+    this._chainData = chains?.chains || [];
+    this._draw(c, bal, txn, sum);
+    this._updateTimestamp();
+    this._setRefreshing(false);
   }
 
   _renderEmptyDashboard() {
@@ -1266,20 +1262,30 @@ class FinanceDashboardPanel extends HTMLElement {
       if (e.target === e.currentTarget) this._hideManageOverlay();
     });
 
-    try {
-      const [statusResp, usersResp] = await Promise.all([
-        this._hass.callApi("GET", "finance_dashboard/setup/status"),
-        this._hass.callApi("GET", "finance_dashboard/setup/users"),
-      ]);
-      this._manageAccounts = statusResp.accounts || [];
-      this._manageHaUsers = usersResp.users || [];
-      this._renderManageContent();
-    } catch (e) {
-      const body = container.querySelector(".wiz-body");
-      if (body) body.innerHTML = `<div class="error-msg">Fehler beim Laden der Konten.</div>
-        <div class="wiz-actions"><button class="wiz-btn wiz-btn-secondary" id="manageClose">Schliessen</button></div>`;
-      container.querySelector("#manageClose")?.addEventListener("click", () => this._hideManageOverlay());
+    // Retry logic — the entry may still be reloading after a bank was added
+    let lastErr = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 2000));
+        const [statusResp, usersResp] = await Promise.all([
+          this._hass.callApi("GET", "finance_dashboard/setup/status"),
+          this._hass.callApi("GET", "finance_dashboard/setup/users"),
+        ]);
+        this._manageAccounts = statusResp.accounts || [];
+        this._manageHaUsers = usersResp.users || [];
+        this._renderManageContent();
+        return;
+      } catch (e) {
+        lastErr = e;
+        console.warn(`[Finance] Manage overlay load attempt ${attempt + 1} failed:`, e);
+      }
     }
+    // All retries exhausted
+    console.error("[Finance] Failed to load accounts for manage overlay:", lastErr);
+    const body = container.querySelector(".wiz-body");
+    if (body) body.innerHTML = `<div class="error-msg">Fehler beim Laden der Konten.</div>
+      <div class="wiz-actions"><button class="wiz-btn wiz-btn-secondary" id="manageClose">Schliessen</button></div>`;
+    container.querySelector("#manageClose")?.addEventListener("click", () => this._hideManageOverlay());
   }
 
   _hideManageOverlay() {
