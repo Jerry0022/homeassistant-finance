@@ -49,6 +49,10 @@ class FinanceDashboardPanel extends HTMLElement {
   background:var(--sf); color:var(--tx); font-size:13px; cursor:pointer; }
 .btn:hover { background:var(--sf2); }
 .btn-p { background:var(--ac); color:#0a0a0f; border-color:var(--ac); font-weight:600; }
+.btn-icon { padding:7px; border-radius:10px; border:1px solid var(--bd);
+  background:var(--sf); color:var(--tx2); cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.btn-icon:hover { background:var(--sf2); color:var(--tx); }
+.btn-icon svg { width:18px; height:18px; }
 
 /* Stats row */
 .stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
@@ -256,6 +260,26 @@ class FinanceDashboardPanel extends HTMLElement {
   border-radius:16px; font-size:12px; cursor:pointer; transition:all .15s;
   border:1px solid var(--bd); background:var(--sf); color:var(--tx); }
 .acc-user-chip.selected { background:var(--accent-color, #4ecca3); color:#fff; border-color:transparent; }
+
+/* ============ Settings / Manage Overlay ============ */
+.manage-list { max-height:400px; overflow-y:auto; }
+.manage-acc { background:var(--sf2); border-radius:10px; padding:14px; margin-bottom:10px; }
+.manage-acc-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.manage-acc-bank { display:flex; align-items:center; gap:8px; }
+.manage-acc-bank img { width:24px; height:24px; border-radius:4px; object-fit:contain; background:#fff; }
+.manage-acc-bank span { font-size:12px; color:var(--tx2); }
+.manage-acc-iban { font-size:12px; color:var(--tx2); }
+.manage-fields { display:flex; flex-direction:column; gap:8px; }
+.manage-field-row { display:flex; gap:10px; align-items:center; }
+.manage-field-row label { font-size:12px; color:var(--tx2); min-width:60px; }
+.manage-field-row input, .manage-field-row select {
+  padding:7px 10px; border-radius:8px; border:1px solid var(--bd);
+  background:var(--sf); color:var(--tx); font-size:13px; flex:1; }
+.manage-add-btn { display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:14px; border-radius:10px; border:2px dashed var(--bd); background:transparent;
+  color:var(--tx2); font-size:14px; cursor:pointer; width:100%; margin-top:4px; transition:all .15s; }
+.manage-add-btn:hover { border-color:var(--ac); color:var(--ac); }
+.manage-add-btn svg { width:18px; height:18px; }
 .acc-user-chip:hover { opacity:.85; }
 
 /* Buttons */
@@ -281,6 +305,12 @@ class FinanceDashboardPanel extends HTMLElement {
       </div>
       <button class="btn" id="monthBtn"></button>
       <button class="btn btn-p" id="refreshBtn">Aktualisieren</button>
+      <button class="btn-icon" id="settingsBtn" title="Konten verwalten">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
     </div>
   </div>
   <div id="content"></div>
@@ -289,6 +319,8 @@ class FinanceDashboardPanel extends HTMLElement {
 
     this.shadowRoot.getElementById("refreshBtn")
       .addEventListener("click", () => this._refresh());
+    this.shadowRoot.getElementById("settingsBtn")
+      .addEventListener("click", () => this._showManageOverlay());
     // Show skeleton immediately
     const c = this.shadowRoot.getElementById("content");
     if (c) c.innerHTML = this._renderSkeleton();
@@ -850,7 +882,31 @@ class FinanceDashboardPanel extends HTMLElement {
     const cats = summary?.categories || {};
     const totalExp = summary?.total_expenses || 0;
     const totalInc = summary?.total_income || 0;
-    const balance = summary?.balance || 0;
+
+    // Calculate real bank balance from account balances (not summary income-expenses)
+    let bankBalance = 0;
+    let accountCount = 0;
+    if (balances && typeof balances === "object") {
+      for (const acc of Object.values(balances)) {
+        const bals = acc.balances || [];
+        // Prefer "expected" balance, fall back to first available
+        const balEntry = bals.find(b => b.balanceType === "expected")
+          || bals.find(b => b.balanceType === "closingBooked")
+          || bals[0];
+        if (balEntry) {
+          const amt = parseFloat(balEntry.balanceAmount?.amount ?? balEntry.amount ?? 0);
+          if (!isNaN(amt)) { bankBalance += amt; accountCount++; }
+        }
+      }
+    }
+    // Fallback to summary balance if no bank balance data available
+    const balance = accountCount > 0 ? bankBalance : (summary?.balance || 0);
+    const balanceSource = accountCount > 0
+      ? `${accountCount} ${accountCount === 1 ? "Konto" : "Konten"}`
+      : "Aktueller Monat";
+
+    // Store balances for settings overlay
+    this._lastBalances = balances;
 
     // Month label
     const now = new Date();
@@ -919,8 +975,8 @@ class FinanceDashboardPanel extends HTMLElement {
     el.innerHTML = `
       <div class="stats">
         <div class="stat"><div class="stat-l">Gesamtsaldo</div>
-          <div class="stat-v pos">${eur(balance)}</div>
-          <div class="stat-d neu">Aktueller Monat</div></div>
+          <div class="stat-v ${balance >= 0 ? "pos" : "neg"}">${eur(balance)}</div>
+          <div class="stat-d neu">${balanceSource}</div></div>
         <div class="stat"><div class="stat-l">Ausgaben</div>
           <div class="stat-v neg">${eur(-totalExp)}</div>
           <div class="stat-d">${summary?.transaction_count||0} Transaktionen</div></div>
@@ -978,6 +1034,177 @@ class FinanceDashboardPanel extends HTMLElement {
       <div id="persons"></div>
     `;
     el.classList.remove("loading");
+  }
+
+  // ==================== Settings / Manage Overlay ====================
+
+  async _showManageOverlay() {
+    const container = this.shadowRoot.getElementById("overlay-container");
+    if (!container || container.querySelector(".overlay")) return;
+
+    // Load current accounts and HA users
+    this._manageAccounts = [];
+    this._manageHaUsers = [];
+    this._manageSaving = false;
+
+    container.innerHTML = `<div class="overlay"><div class="wizard" id="manageWiz">
+      <div class="wiz-header"><h2>Konten verwalten</h2>
+        <p>Bankkonten umbenennen, Personen zuordnen oder neue Bank hinzufugen.</p></div>
+      <div class="wiz-body"><div class="wait-center"><div class="spinner"></div><p>Lade Konten...</p></div></div>
+    </div></div>`;
+
+    // Close on backdrop click
+    container.querySelector(".overlay").addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) this._hideManageOverlay();
+    });
+
+    try {
+      const [statusResp, usersResp] = await Promise.all([
+        this._hass.callApi("GET", "finance_dashboard/setup/status"),
+        this._hass.callApi("GET", "finance_dashboard/setup/users"),
+      ]);
+      this._manageAccounts = statusResp.accounts || [];
+      this._manageHaUsers = usersResp.users || [];
+      this._renderManageContent();
+    } catch (e) {
+      const body = container.querySelector(".wiz-body");
+      if (body) body.innerHTML = `<div class="error-msg">Fehler beim Laden der Konten.</div>
+        <div class="wiz-actions"><button class="wiz-btn wiz-btn-secondary" id="manageClose">Schliessen</button></div>`;
+      container.querySelector("#manageClose")?.addEventListener("click", () => this._hideManageOverlay());
+    }
+  }
+
+  _hideManageOverlay() {
+    const container = this.shadowRoot.getElementById("overlay-container");
+    if (container) container.innerHTML = "";
+  }
+
+  _renderManageContent() {
+    const wiz = this.shadowRoot.getElementById("manageWiz");
+    if (!wiz) return;
+
+    const accounts = this._manageAccounts;
+    const users = this._manageHaUsers;
+
+    const accountsHtml = accounts.map((acc, i) => {
+      const logoHtml = acc.logo
+        ? `<img src="${acc.logo}" alt="">`
+        : `<div class="bank-logo-placeholder">${(acc.institution || "?")[0]}</div>`;
+
+      const userChips = users.map(u => {
+        const sel = (acc.ha_users || []).includes(u.id) ? "selected" : "";
+        return `<span class="acc-user-chip ${sel}" data-acc="${i}" data-uid="${u.id}">${u.name}</span>`;
+      }).join("");
+
+      return `<div class="manage-acc" data-idx="${i}">
+        <div class="manage-acc-hdr">
+          <div class="manage-acc-bank">${logoHtml}<span>${acc.institution || ""}</span></div>
+          <div class="manage-acc-iban">${acc.iban_masked || acc.iban || ""}</div>
+        </div>
+        <div class="manage-fields">
+          <div class="manage-field-row">
+            <label>Name</label>
+            <input type="text" value="${acc.custom_name || acc.name || ""}" data-field="custom_name" data-idx="${i}" placeholder="Kontoname">
+          </div>
+          <div class="manage-field-row">
+            <label>Typ</label>
+            <select data-field="type" data-idx="${i}">
+              <option value="personal" ${acc.type === "personal" ? "selected" : ""}>Persoenlich</option>
+              <option value="shared" ${acc.type === "shared" ? "selected" : ""}>Gemeinsam</option>
+            </select>
+          </div>
+          <div>
+            <div class="acc-users-label">Personen</div>
+            <div class="acc-users-chips">${userChips}</div>
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+
+    wiz.innerHTML = `
+      <div class="wiz-header"><h2>Konten verwalten</h2>
+        <p>Bankkonten umbenennen, Personen zuordnen oder neue Bank hinzufugen.</p></div>
+      <div class="wiz-body">
+        <div class="manage-list">${accountsHtml || '<div style="text-align:center;color:var(--tx2);padding:20px">Noch keine Konten verbunden.</div>'}</div>
+        <button class="manage-add-btn" id="manageAddBank">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Neue Bank verbinden
+        </button>
+        <div class="wiz-actions">
+          <button class="wiz-btn wiz-btn-secondary" id="manageClose">Abbrechen</button>
+          <button class="wiz-btn wiz-btn-primary" id="manageSave">Speichern</button>
+        </div>
+      </div>`;
+
+    // Event listeners
+    wiz.querySelector("#manageClose").addEventListener("click", () => this._hideManageOverlay());
+    wiz.querySelector("#manageSave").addEventListener("click", () => this._saveManageChanges());
+    wiz.querySelector("#manageAddBank").addEventListener("click", () => {
+      this._hideManageOverlay();
+      this._showSetupWizard();
+    });
+
+    // Input change handlers
+    wiz.querySelectorAll("input[data-field], select[data-field]").forEach(el => {
+      el.addEventListener("change", () => {
+        const idx = parseInt(el.dataset.idx);
+        const field = el.dataset.field;
+        if (this._manageAccounts[idx]) {
+          this._manageAccounts[idx][field] = el.value;
+        }
+      });
+    });
+
+    // User chip toggle
+    wiz.querySelectorAll(".acc-user-chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        const idx = parseInt(chip.dataset.acc);
+        const uid = chip.dataset.uid;
+        const acc = this._manageAccounts[idx];
+        if (!acc) return;
+        if (!acc.ha_users) acc.ha_users = [];
+        const uidIdx = acc.ha_users.indexOf(uid);
+        if (uidIdx >= 0) {
+          acc.ha_users.splice(uidIdx, 1);
+          chip.classList.remove("selected");
+        } else {
+          acc.ha_users.push(uid);
+          chip.classList.add("selected");
+        }
+      });
+    });
+  }
+
+  async _saveManageChanges() {
+    if (this._manageSaving) return;
+    this._manageSaving = true;
+
+    const saveBtn = this.shadowRoot.querySelector("#manageSave");
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = "Speichern..."; }
+
+    try {
+      await this._hass.callApi("POST", "finance_dashboard/setup/update_accounts", {
+        accounts: this._manageAccounts.map(acc => ({
+          id: acc.id,
+          custom_name: acc.custom_name || acc.name || "",
+          type: acc.type || "personal",
+          ha_users: acc.ha_users || [],
+        })),
+      });
+      this._hideManageOverlay();
+      this._refresh();
+    } catch (e) {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = "Speichern"; }
+      const body = this.shadowRoot.querySelector(".wiz-body");
+      const existing = body?.querySelector(".error-msg");
+      if (existing) existing.remove();
+      const err = document.createElement("div");
+      err.className = "error-msg";
+      err.textContent = "Fehler beim Speichern. Bitte erneut versuchen.";
+      body?.querySelector(".wiz-actions")?.before(err);
+    } finally {
+      this._manageSaving = false;
+    }
   }
 
 }
