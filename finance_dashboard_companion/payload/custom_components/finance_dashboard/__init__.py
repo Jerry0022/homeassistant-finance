@@ -157,12 +157,36 @@ async def async_setup_entry(
         # Initial data refresh (runs in background so setup isn't blocked)
         async def _initial_refresh() -> None:
             try:
+                await manager.async_refresh_accounts()
                 await manager.async_refresh_transactions()
-                _LOGGER.info("Initial transaction refresh complete")
+                await manager.async_get_balance()
+                _LOGGER.info(
+                    "Initial data refresh complete "
+                    "(accounts + transactions + balances)"
+                )
             except Exception:
                 _LOGGER.exception("Initial data refresh failed")
 
         hass.async_create_task(_initial_refresh())
+
+        # Periodic data refresh (balances + transactions)
+        refresh_minutes = entry.options.get("refresh_interval_minutes", 60)
+
+        async def _periodic_refresh(_now) -> None:
+            try:
+                await manager.async_refresh_transactions()
+                await manager.async_get_balance()
+                _LOGGER.debug("Periodic data refresh complete")
+            except Exception:
+                _LOGGER.exception("Periodic data refresh failed")
+
+        entry.async_on_unload(
+            async_track_time_interval(
+                hass,
+                _periodic_refresh,
+                timedelta(minutes=refresh_minutes),
+            )
+        )
 
         _LOGGER.info(
             "Finance fully loaded (bank connected)"
