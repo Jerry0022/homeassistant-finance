@@ -1,5 +1,13 @@
 # Changelog
 
+
+## 0.7.4
+- **Branch:** claude/upbeat-davinci
+- **Changes:** feat(frontend): status chip replaces refresh button
+- New `<finance-status-chip>` Lovelace component with 4 visual states (idle/loading/success/error)
+- Panel header uses status chip instead of refresh button + dot indicator
+- Register status chip JS as Lovelace extra module
+
 ## 0.7.3
 - Fix setup wizard race condition — guard flag prevents wizard re-trigger during entry reload
 - Fix account defaults in step 3 — merge existing settings into pending accounts
