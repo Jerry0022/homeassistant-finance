@@ -430,7 +430,7 @@ class FinanceDashboardPanel extends HTMLElement {
       const status = await this._hass.callApi("GET", "finance_dashboard/setup/status");
       this._configured = status.configured;
 
-      if (!status.configured) {
+      if (!status.configured && !this._justCompletedSetup) {
         c.innerHTML = this._renderEmptyDashboard();
         this._setRefreshing(false);
         this._showSetupWizard();
@@ -613,14 +613,19 @@ class FinanceDashboardPanel extends HTMLElement {
 
     const accItems = this._wizardAccounts.map(acc => {
       const iban = acc.iban ? `****${acc.iban.slice(-4)}` : "****";
-      const bankName = acc.name || "Konto";
+      const bankName = acc.custom_name || acc.name || "Konto";
+      const accType = acc.type || "personal";
+      const accCustomName = acc.custom_name || "";
+      // Pre-select HA users from existing settings
+      const accHaUsers = (acc.ha_users || []).map(u => typeof u === "string" ? u : u.id);
 
       const userChips = users.length
         ? `<div class="acc-users-label">Personen zuweisen:</div>
-           <div class="acc-users-chips">${users.map(u =>
-             `<span class="acc-user-chip" data-user-id="${u.id}" data-user-name="${u.name}">${u.name}</span>`
-           ).join("")}</div>`
-        : `<input data-field="person" type="text" placeholder="Person (optional)">`;
+           <div class="acc-users-chips">${users.map(u => {
+             const sel = accHaUsers.includes(u.id) ? " selected" : "";
+             return `<span class="acc-user-chip${sel}" data-user-id="${u.id}" data-user-name="${u.name}">${u.name}</span>`;
+           }).join("")}</div>`
+        : `<input data-field="person" type="text" placeholder="Person (optional)" value="${acc.person || ""}">`;
 
       return `<div class="acc-item" data-acc-id="${acc.id}">
         <div class="acc-header">
@@ -630,10 +635,10 @@ class FinanceDashboardPanel extends HTMLElement {
         <div class="acc-fields">
           <div class="acc-fields-row">
             <select data-field="type">
-              <option value="personal">Persönlich</option>
-              <option value="shared">Gemeinsam</option>
+              <option value="personal" ${accType === "personal" ? "selected" : ""}>Persönlich</option>
+              <option value="shared" ${accType === "shared" ? "selected" : ""}>Gemeinsam</option>
             </select>
-            <input data-field="custom_name" type="text" placeholder="Anzeigename (optional)">
+            <input data-field="custom_name" type="text" placeholder="Anzeigename (optional)" value="${accCustomName}">
           </div>
           ${userChips}
         </div>
@@ -847,7 +852,15 @@ class FinanceDashboardPanel extends HTMLElement {
         if (status.pending_auth_code && status.pending_accounts?.length) {
           clearInterval(this._wizardPollTimer);
           this._wizardPollTimer = null;
-          this._wizardAccounts = status.pending_accounts;
+          // Merge existing account settings as defaults for re-auth
+          const existingAccounts = status.accounts || [];
+          this._wizardAccounts = status.pending_accounts.map(acc => {
+            const existing = existingAccounts.find(e => e.id === acc.id);
+            if (existing) {
+              return { ...acc, type: existing.type, custom_name: existing.custom_name, ha_users: existing.ha_users || [], person: existing.person || "" };
+            }
+            return acc;
+          });
           this._wizardStep = 3;
           this._renderWizardStep();
         }
@@ -889,6 +902,8 @@ class FinanceDashboardPanel extends HTMLElement {
       const result = await this._hass.callApi("POST", "finance_dashboard/setup/complete", { accounts });
       if (result.success) {
         this._hideSetupWizard();
+        // Guard: prevent _refresh from re-showing wizard during reload
+        this._justCompletedSetup = true;
         // Poll until the entry reload completes and configured=true
         await this._waitForConfigured();
         this._refresh();
@@ -911,13 +926,34 @@ class FinanceDashboardPanel extends HTMLElement {
   }
 
   async _waitForConfigured(maxAttempts = 15) {
+    // Wait for entry reload to complete. The deferred reload (1s delay)
+    // briefly removes the entry, so we must wait until it's back AND
+    // configured=true. We detect the full cycle: initial wait for reload
+    // to start, then poll until the entry is restored.
+    let sawUnavailable = false;
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise(r => setTimeout(r, 2000));
       try {
         const status = await this._hass.callApi("GET", "finance_dashboard/setup/status");
-        if (status.configured) return;
-      } catch (_) { /* endpoint may be briefly unavailable during reload */ }
+        if (!status.has_entry) {
+          sawUnavailable = true;
+          continue;
+        }
+        if (status.configured) {
+          // If we saw the entry disappear and come back, reload is done.
+          // If we never saw it disappear, wait one more cycle to be safe.
+          if (sawUnavailable || i >= 1) {
+            this._justCompletedSetup = false;
+            return;
+          }
+        }
+      } catch (_) {
+        sawUnavailable = true;
+        /* endpoint may be briefly unavailable during reload */
+      }
     }
+    // Timeout — clear flag anyway so subsequent refreshes work normally
+    this._justCompletedSetup = false;
   }
 
   // ==================== Dashboard Drawing ====================
