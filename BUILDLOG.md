@@ -1,5 +1,13 @@
 # Build Log
 
+## v0.6.15 — 2026-03-26
+- **Build:** `b72a132`
+- **Scope:** Real bank balances and settings overlay
+- feat(frontend): Gesamtsaldo uses actual bank balances from /balances API instead of transaction sums
+- feat(frontend): settings gear icon in dashboard header for account management
+- feat(frontend): manage-accounts overlay with rename, type change, person assignment, connect new bank
+- feat(api): new `update_accounts` endpoint and account details in `setup/status`
+
 ## v0.6.14 — 2026-03-26
 - **Build:** `98bfa58`
 - **Scope:** Dashboard loading UX and mobile responsiveness
