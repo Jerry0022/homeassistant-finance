@@ -20,7 +20,13 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
-from .const import DOMAIN, STORAGE_VERSION
+from .const import DOMAIN, STORAGE_KEY_TRANSFER_OVERRIDES, STORAGE_VERSION
+from .transfer_detector import (
+    apply_overrides,
+    detect_transfer_chains,
+    enrich_transactions,
+    get_effective_transactions,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,6 +53,10 @@ class FinanceDashboardManager:
         self._transactions: list[dict[str, Any]] = []
         self._balances: dict[str, Any] = {}
         self._last_refresh: datetime | None = None
+        self._transfer_override_store = Store(
+            hass, 1, STORAGE_KEY_TRANSFER_OVERRIDES
+        )
+        self._transfer_overrides: dict[str, bool] = {}
 
     async def async_initialize(self) -> None:
         """Initialize all sub-components."""
@@ -182,6 +192,18 @@ class FinanceDashboardManager:
             reverse=True,
         )
 
+        # Detect cascading transfers and refunds
+        chains, refunds = detect_transfer_chains(
+            all_transactions, self._accounts
+        )
+        all_transactions = enrich_transactions(
+            all_transactions, chains, refunds
+        )
+
+        # Apply user overrides (confirmed/rejected chains)
+        overrides = await self._async_load_transfer_overrides()
+        apply_overrides(all_transactions, overrides)
+
         self._transactions = all_transactions
         self._last_refresh = datetime.now()
 
@@ -244,13 +266,33 @@ class FinanceDashboardManager:
         target_month = month or now.month
         target_year = year or now.year
 
-        # Filter transactions for the target month
+        # Use effective transactions (intermediate chain legs excluded)
+        effective = get_effective_transactions(self._transactions)
+
+        # Filter for target month
         monthly_txns = [
+            txn
+            for txn in effective
+            if self._is_in_month(txn, target_month, target_year)
+            and txn.get("_status") == "booked"
+        ]
+
+        # Count excluded transfers for transparency
+        all_monthly = [
             txn
             for txn in self._transactions
             if self._is_in_month(txn, target_month, target_year)
             and txn.get("_status") == "booked"
         ]
+        excluded_chain_txns = [
+            txn for txn in all_monthly
+            if txn.get("_transfer_role") in ("intermediate", "destination")
+            and txn.get("_transfer_confirmed") is not False
+        ]
+        excluded_amount = sum(
+            abs(float(t.get("transactionAmount", {}).get("amount", 0)))
+            for t in excluded_chain_txns
+        )
 
         # Group by category
         category_totals: dict[str, float] = {}
@@ -282,6 +324,15 @@ class FinanceDashboardManager:
                 k: round(v, 2) for k, v in category_totals.items()
             },
             "transaction_count": len(monthly_txns),
+            "excluded_transfers": {
+                "chain_count": len(
+                    {t.get("_transfer_chain_id")
+                     for t in excluded_chain_txns
+                     if t.get("_transfer_chain_id")}
+                ),
+                "excluded_amount": round(excluded_amount, 2),
+                "excluded_txn_count": len(excluded_chain_txns),
+            },
             "last_refresh": (
                 self._last_refresh.isoformat()
                 if self._last_refresh
@@ -365,6 +416,70 @@ class FinanceDashboardManager:
             creds["application_id"], creds["private_key_pem"]
         )
         return self._banking_client
+
+    async def async_confirm_transfer_chain(
+        self, chain_id: str, confirmed: bool
+    ) -> None:
+        """Confirm or reject a detected transfer chain.
+
+        Args:
+            chain_id: The chain UUID to confirm/reject
+            confirmed: True = user agrees it's a chain, False = reject
+        """
+        self._transfer_overrides[chain_id] = confirmed
+        await self._transfer_override_store.async_save(
+            self._transfer_overrides
+        )
+        # Apply to in-memory transactions immediately
+        apply_overrides(self._transactions, self._transfer_overrides)
+        _LOGGER.info(
+            "Transfer chain %s %s",
+            chain_id,
+            "confirmed" if confirmed else "rejected",
+        )
+
+    def get_transfer_chains(self) -> list[dict[str, Any]]:
+        """Return detected transfer chains for API/frontend display."""
+        chains: dict[str, dict[str, Any]] = {}
+        for txn in self._transactions:
+            chain_id = txn.get("_transfer_chain_id")
+            if not chain_id:
+                continue
+
+            if chain_id not in chains:
+                chains[chain_id] = {
+                    "chain_id": chain_id,
+                    "confidence": txn.get("_transfer_confidence", 0),
+                    "confirmed": txn.get("_transfer_confirmed"),
+                    "transactions": [],
+                }
+
+            amount = float(
+                txn.get("transactionAmount", {}).get("amount", 0)
+            )
+            chains[chain_id]["transactions"].append({
+                "transactionId": txn.get("transactionId", ""),
+                "role": txn.get("_transfer_role", ""),
+                "account_name": txn.get("_account_name", ""),
+                "amount": amount,
+                "date": txn.get("bookingDate", ""),
+                "creditor": txn.get("creditorName", ""),
+                "description": txn.get(
+                    "remittanceInformationUnstructured", ""
+                ),
+            })
+
+        return list(chains.values())
+
+    async def _async_load_transfer_overrides(
+        self,
+    ) -> dict[str, bool]:
+        """Load user overrides for transfer chains from storage."""
+        data = await self._transfer_override_store.async_load()
+        if data and isinstance(data, dict):
+            self._transfer_overrides = data
+            return data
+        return {}
 
     async def _persist_transactions(self) -> None:
         """Save transactions to encrypted .storage/ cache."""

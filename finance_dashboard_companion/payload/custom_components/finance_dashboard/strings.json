@@ -30,7 +30,26 @@
           "split_model": "Budget split model",
           "currency": "Currency",
           "enable_total_balance_sensor": "Enable total balance sensor",
-          "enable_dashboard_panel": "Show sidebar panel"
+          "enable_dashboard_panel": "Show sidebar panel",
+          "transfer_detection_enabled": "Transfer chain detection",
+          "transfer_amount_tolerance": "Amount tolerance (EUR)",
+          "transfer_time_window": "Time window (days)"
+        }
+      }
+    }
+  },
+  "services": {
+    "confirm_transfer_chain": {
+      "name": "Confirm transfer chain",
+      "description": "Confirm or reject a detected transfer chain.",
+      "fields": {
+        "chain_id": {
+          "name": "Chain ID",
+          "description": "UUID of the transfer chain"
+        },
+        "confirmed": {
+          "name": "Confirmed",
+          "description": "True to confirm, false to reject"
         }
       }
     }
