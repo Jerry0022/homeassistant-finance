@@ -30,7 +30,26 @@
           "split_model": "Budget-Aufteilungsmodell",
           "currency": "Währung",
           "enable_total_balance_sensor": "Gesamtsaldo-Sensor aktivieren",
-          "enable_dashboard_panel": "Sidebar-Panel anzeigen"
+          "enable_dashboard_panel": "Sidebar-Panel anzeigen",
+          "transfer_detection_enabled": "Transfer-Ketten-Erkennung",
+          "transfer_amount_tolerance": "Betrags-Toleranz (EUR)",
+          "transfer_time_window": "Zeitfenster (Tage)"
+        }
+      }
+    }
+  },
+  "services": {
+    "confirm_transfer_chain": {
+      "name": "Transfer-Kette bestätigen",
+      "description": "Eine erkannte Transfer-Kette bestätigen oder ablehnen.",
+      "fields": {
+        "chain_id": {
+          "name": "Ketten-ID",
+          "description": "UUID der Transfer-Kette"
+        },
+        "confirmed": {
+          "name": "Bestätigt",
+          "description": "True zum Bestätigen, false zum Ablehnen"
         }
       }
     }
