@@ -2,6 +2,108 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.7.3] — 2026-03-26
+
+### Fixed
+- Setup wizard race condition — guard flag prevents wizard re-trigger during entry reload
+- Account defaults in step 3 — merge existing settings into pending accounts
+
+## [0.7.2] — 2026-03-26
+
+### Fixed
+- `setup/complete` merges new accounts with existing ones instead of replacing entry.data
+- Dashboard `_refresh()` uses independent `.catch()` per endpoint instead of `Promise.all`
+- Manage accounts dialog retries 3x with 2s delay before showing error
+
+## [0.7.1] — 2026-03-26
+
+### Fixed
+- Defer settings overlay render to prevent flash on load
+- Correct balance data display in account cards
+
+## [0.7.0] — 2026-03-26
+
+### Added
+- Cascading transfer chain detection
+
+## [0.6.15] — 2026-03-26
+
+### Added
+- Gesamtsaldo uses actual bank balances from `/balances` API instead of transaction sums
+- Settings gear icon in dashboard header for account management
+- Manage-accounts overlay with rename, type change, person assignment, connect new bank
+- New `update_accounts` endpoint and account details in `setup/status`
+
+## [0.6.14] — 2026-03-26
+
+### Added
+- Shimmer skeleton loaders replacing plain loading text
+- Async refresh indicator (pulsing dot + timestamp) — old data stays visible
+- Responsive breakpoints for tablet (≤900px) and mobile (≤480px)
+- Improved empty state with SVG icon and descriptive text
+
+## [0.6.12] — 2026-03-26
+
+### Added
+- Step 3 offers HA user multi-select chips (n:m) instead of free-text person field
+- Custom display name field per account
+- New `GET /api/finance_dashboard/setup/users` endpoint for HA user list
+- New fields propagated through manager, sensor attributes, and transaction tagging
+
+## [0.6.9] — 2026-03-26
+
+### Fixed
+- RepairsFlow calls `homeassistant.restart` service when user confirms
+- Repair notification title says "Restart Required" instead of "Update Available"
+- Updated EN and DE translations for restart repair flow
+
+## [0.6.5] — 2026-03-25
+
+### Fixed
+- Retry logic and error handling in EnableBanking client for bank list API calls
+- Graceful error handling when fetching supported banks fails
+- Frontend error state with actionable feedback for bank list loading failures
+- Improved error response handling for bank list endpoint
+
+## [0.6.4] — 2026-03-25
+
+### Fixed
+- Return dict from `async_get_api_credentials` instead of tuple (callers expected dict-style access; tuple caused TypeError)
+
+## [0.6.3] — 2026-03-25
+
+### Fixed
+- Backend returns typed errors (`error_type`) for differentiated frontend handling
+- Frontend shows specific German error messages per error type
+- Credential errors link to integration settings instead of retry
+- 5-minute polling timeout in Step 2, cancel button to return to Step 1
+
+## [0.6.2] — 2026-03-25
+
+### Fixed
+- Move restart marker poll outside `is_configured`, check on startup, remove persistent notification fallback
+
+## [0.6.1] — 2026-03-25
+
+### Fixed
+- 30s timeout added to Enable Banking API, error state with retry button
+- Rename "Finance Dashboard" to "Finance" everywhere
+
+## [0.6.0] — 2026-03-25
+
+### Changed
+- **Breaking**: Bank setup moved from config flow to dashboard panel setup wizard
+- Config flow reduced to credentials-only (1 step, config VERSION 3)
+- Config entry migration v2→v3 preserves existing setups
+
+### Added
+- 4-step setup wizard overlay in Finance sidebar panel
+- 4 new setup API endpoints (status, institutions, authorize, complete)
+
+### Fixed
+- Enable Banking API: `authorization_id` field, nested IBAN, UUID state
+- Panel registration: `StaticPathConfig` with cache, correct unregister
+
 ## [0.5.5] — 2026-03-25
 
 ### Fixed
