@@ -1,7 +1,7 @@
 # Build Log
 
 ## v0.7.4 — 2026-03-26
-- **Build hash:** `pending`
+- **Build hash:** `ec85d55`
 - **Branch:** claude/upbeat-davinci
 - **Changes:** feat(frontend): status chip replaces refresh button
 - feat(frontend): new `<finance-status-chip>` Lovelace component with 4 visual states (idle/loading/success/error)
