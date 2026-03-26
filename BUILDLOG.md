@@ -1,5 +1,12 @@
 # Build Log
 
+## v0.7.1 — 2026-03-26
+- **Build hash:** `f03daac`
+- **Branch:** claude/elegant-swanson
+- **Changes:** fix(dashboard): settings overlay flash + missing balance data
+- fix(dashboard): defer settings overlay render to prevent flash on load
+- fix(dashboard): correct balance data display in account cards
+
 ## v0.7.0 — 2026-03-26
 - **Build hash:** `7305434`
 - **Branch:** claude/awesome-knuth
