@@ -41,6 +41,7 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardSetupCompleteView())
     hass.http.register_view(FinanceDashboardSetupUsersView())
     hass.http.register_view(FinanceDashboardSetupUpdateAccountsView())
+    hass.http.register_view(FinanceDashboardTransferChainsView())
     _LOGGER.debug("Finance API endpoints registered")
 
 
@@ -834,26 +835,123 @@ class FinanceDashboardTransactionsView(HomeAssistantView):
 
         sanitized = []
         for txn in transactions:
-            sanitized.append(
-                {
-                    "date": txn.get("bookingDate", ""),
-                    "amount": txn.get("transactionAmount", {}).get(
-                        "amount", "0"
-                    ),
-                    "currency": txn.get("transactionAmount", {}).get(
-                        "currency", "EUR"
-                    ),
-                    "description": txn.get(
-                        "remittanceInformationUnstructured", ""
-                    ),
-                    "creditor": txn.get("creditorName", ""),
-                    "category": txn.get("category", "other"),
-                    "status": txn.get("_status", "booked"),
-                }
-            )
+            entry = {
+                "date": txn.get("bookingDate", ""),
+                "amount": txn.get("transactionAmount", {}).get(
+                    "amount", "0"
+                ),
+                "currency": txn.get("transactionAmount", {}).get(
+                    "currency", "EUR"
+                ),
+                "description": txn.get(
+                    "remittanceInformationUnstructured", ""
+                ),
+                "creditor": txn.get("creditorName", ""),
+                "category": txn.get("category", "other"),
+                "status": txn.get("_status", "booked"),
+                "account_name": txn.get("_account_name", ""),
+            }
+
+            # Transfer chain metadata
+            chain_id = txn.get("_transfer_chain_id")
+            if chain_id:
+                entry["transfer_chain_id"] = chain_id
+                entry["transfer_role"] = txn.get(
+                    "_transfer_role", ""
+                )
+                entry["transfer_confidence"] = txn.get(
+                    "_transfer_confidence"
+                )
+                entry["transfer_confirmed"] = txn.get(
+                    "_transfer_confirmed"
+                )
+
+            # Refund metadata
+            refund_id = txn.get("_refund_pair_id")
+            if refund_id:
+                entry["refund_pair_id"] = refund_id
+                entry["refund_role"] = txn.get("_refund_role", "")
+
+            sanitized.append(entry)
 
         return self.json(
             {"privacy": "admin_full", "transactions": sanitized}
+        )
+
+
+class FinanceDashboardTransferChainsView(HomeAssistantView):
+    """API endpoint for transfer chain data.
+
+    Returns detected cascading transfer chains for the frontend.
+    Supports confirming/rejecting chains via POST.
+    """
+
+    url = f"/api/{DOMAIN}/transfer_chains"
+    name = f"api:{DOMAIN}:transfer_chains"
+    requires_auth = True
+
+    async def get(self, request: web.Request) -> web.Response:
+        """Get all detected transfer chains."""
+        hass = request.app["hass"]
+        manager = _get_manager(hass)
+
+        if not manager:
+            return self.json(
+                {"error": "Not configured"}, status_code=404
+            )
+
+        user = request.get("hass_user")
+        is_admin = user and user.is_admin if user else False
+
+        if not is_admin:
+            return self.json(
+                {"error": "Admin access required"},
+                status_code=403,
+            )
+
+        chains = manager.get_transfer_chains()
+        return self.json({"chains": chains})
+
+    async def post(self, request: web.Request) -> web.Response:
+        """Confirm or reject a transfer chain."""
+        hass = request.app["hass"]
+        manager = _get_manager(hass)
+
+        if not manager:
+            return self.json(
+                {"error": "Not configured"}, status_code=404
+            )
+
+        user = request.get("hass_user")
+        is_admin = user and user.is_admin if user else False
+
+        if not is_admin:
+            return self.json(
+                {"error": "Admin access required"},
+                status_code=403,
+            )
+
+        try:
+            body = await request.json()
+        except Exception:
+            return self.json(
+                {"error": "Invalid JSON body"}, status_code=400
+            )
+
+        chain_id = body.get("chain_id", "")
+        confirmed = body.get("confirmed")
+
+        if not chain_id or confirmed is None:
+            return self.json(
+                {"error": "chain_id and confirmed required"},
+                status_code=400,
+            )
+
+        await manager.async_confirm_transfer_chain(
+            chain_id, bool(confirmed)
+        )
+        return self.json(
+            {"success": True, "chain_id": chain_id}
         )
 
 

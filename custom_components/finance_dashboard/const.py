@@ -4,7 +4,7 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.6.15"
+VERSION = "0.7.0"
 
 # Panel
 PANEL_URL_PATH = "finance-dashboard"
@@ -107,6 +107,19 @@ AUDIT_EVENT_DATA_ACCESS = "data_access"
 AUDIT_EVENT_CONFIG_CHANGE = "config_change"
 AUDIT_EVENT_ERROR = "error"
 AUDIT_MAX_ENTRIES = 1000
+
+# Transfer chain detection
+TRANSFER_AMOUNT_TOLERANCE = 0.50  # EUR tolerance for fee differences
+TRANSFER_TIME_WINDOW_DAYS = 3  # ±days for date matching
+TRANSFER_REFUND_WINDOW_DAYS = 14  # Lookback for refund matching
+TRANSFER_AUTO_CONFIDENCE = 0.60  # Auto-link threshold (0.0–1.0)
+STORAGE_KEY_TRANSFER_OVERRIDES = f"{DOMAIN}_transfer_overrides"
+
+# Refund keywords — transaction text must contain one for refund detection
+REFUND_KEYWORDS = [
+    "storno", "gutschrift", "refund", "rueckzahlung", "rückzahlung",
+    "erstattung", "retoure", "reversal", "chargeback",
+]
 
 # Household model
 DEFAULT_SPLIT_MODEL = "proportional"  # proportional, equal, custom

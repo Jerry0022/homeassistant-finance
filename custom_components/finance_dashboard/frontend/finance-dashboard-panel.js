@@ -157,6 +157,47 @@ class FinanceDashboardPanel extends HTMLElement {
 .skel-card-sm2 { height:126px; }
 .skel-bar { height:80px; margin-bottom:20px; }
 
+/* Transaction list */
+.txn-list { padding:0; }
+.txn-row { display:flex; align-items:center; gap:10px; padding:10px 18px;
+  border-bottom:1px solid var(--bd); font-size:13px; }
+.txn-row:last-child { border-bottom:none; }
+.txn-row.intermediate { opacity:.4; }
+.txn-date { width:70px; color:var(--tx2); flex-shrink:0; }
+.txn-desc { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.txn-acct { font-size:11px; color:var(--tx2); }
+.txn-amt { font-weight:600; width:90px; text-align:right; flex-shrink:0; }
+.txn-chain-badge { display:inline-flex; align-items:center; gap:3px; padding:2px 7px;
+  border-radius:6px; font-size:10px; font-weight:600; cursor:pointer;
+  background:rgba(78,204,163,0.12); color:var(--ac); border:1px solid rgba(78,204,163,0.2); }
+.txn-chain-badge:hover { background:rgba(78,204,163,0.22); }
+.txn-chain-badge.unconfirmed { background:rgba(243,156,18,0.12); color:var(--wn);
+  border-color:rgba(243,156,18,0.2); }
+.txn-refund-badge { display:inline-flex; align-items:center; gap:3px; padding:2px 7px;
+  border-radius:6px; font-size:10px; font-weight:600;
+  background:rgba(59,130,246,0.12); color:var(--bl); border:1px solid rgba(59,130,246,0.2); }
+.txn-show-more { text-align:center; padding:10px; }
+.txn-show-more button { background:none; border:1px solid var(--bd); color:var(--tx2);
+  padding:6px 16px; border-radius:8px; cursor:pointer; font-size:12px; }
+.txn-show-more button:hover { background:var(--sf2); }
+
+/* Chain detail overlay */
+.chain-overlay { position:fixed; top:0; left:0; right:0; bottom:0; z-index:998;
+  background:rgba(0,0,0,0.6); display:flex; justify-content:center; align-items:center; }
+.chain-detail { background:var(--sf); border:1px solid var(--bd); border-radius:16px;
+  max-width:480px; width:calc(100% - 32px); padding:24px; }
+.chain-title { font-size:16px; font-weight:700; margin-bottom:16px; }
+.chain-flow { display:flex; flex-direction:column; gap:0; margin-bottom:18px; }
+.chain-step { display:flex; align-items:center; gap:10px; padding:10px 0; }
+.chain-arrow { color:var(--tx2); font-size:18px; text-align:center; padding:2px 0; }
+.chain-role { display:inline-block; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; }
+.chain-role.source { background:rgba(78,204,163,0.15); color:var(--ac); }
+.chain-role.intermediate { background:rgba(243,156,18,0.15); color:var(--wn); }
+.chain-role.destination { background:rgba(59,130,246,0.15); color:var(--bl); }
+.chain-confidence { font-size:12px; color:var(--tx2); margin-bottom:14px; }
+.chain-actions { display:flex; gap:10px; }
+.chain-actions .btn { flex:1; text-align:center; }
+
 /* Responsive */
 @media(max-width:900px) {
   .fd { padding:16px; }
@@ -401,11 +442,13 @@ class FinanceDashboardPanel extends HTMLElement {
 
     // Load dashboard data
     try {
-      const [bal, txn, sum] = await Promise.all([
+      const [bal, txn, sum, chains] = await Promise.all([
         this._hass.callApi("GET", "finance_dashboard/balances"),
         this._hass.callApi("GET", "finance_dashboard/transactions"),
         this._hass.callApi("GET", "finance_dashboard/summary"),
+        this._hass.callApi("GET", "finance_dashboard/transfer_chains").catch(() => ({ chains: [] })),
       ]);
+      this._chainData = chains?.chains || [];
       this._draw(c, bal, txn, sum);
       this._updateTimestamp();
     } catch (e) {
@@ -1032,8 +1075,167 @@ class FinanceDashboardPanel extends HTMLElement {
       </div>
 
       <div id="persons"></div>
+
+      ${this._renderTransactionList(txnData, summary)}
     `;
     el.classList.remove("loading");
+
+    // Bind chain badge click handlers
+    el.querySelectorAll(".txn-chain-badge").forEach(badge => {
+      badge.addEventListener("click", () => {
+        this._showChainDetail(badge.dataset.chainId);
+      });
+    });
+
+    // Bind show-more button
+    const showMoreBtn = el.querySelector(".txn-show-more button");
+    if (showMoreBtn) {
+      showMoreBtn.addEventListener("click", () => {
+        this._txnLimit = (this._txnLimit || 10) + 20;
+        this._refresh();
+      });
+    }
+  }
+
+  _renderTransactionList(txnData, summary) {
+    const eur = (v) => new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v);
+    const txns = txnData?.transactions || [];
+    if (!txns.length) return "";
+
+    const limit = this._txnLimit || 10;
+    const visible = txns.slice(0, limit);
+    const excluded = summary?.excluded_transfers || {};
+
+    // Excluded transfers info banner
+    let excludedBanner = "";
+    if (excluded.chain_count > 0) {
+      excludedBanner = `<div style="padding:8px 18px;font-size:11px;color:var(--tx2);background:rgba(78,204,163,0.06);border-bottom:1px solid var(--bd)">
+        &#x1f517; ${excluded.chain_count} Transfer-Kette${excluded.chain_count > 1 ? "n" : ""} erkannt
+        &mdash; ${eur(excluded.excluded_amount)} ausgeblendet (${excluded.excluded_txn_count} Zwischenbuchungen)
+      </div>`;
+    }
+
+    const rows = visible.map(txn => {
+      const amt = parseFloat(txn.amount || 0);
+      const cls = txn.transfer_role === "intermediate" ? "txn-row intermediate" : "txn-row";
+
+      // Chain badge
+      let badge = "";
+      if (txn.transfer_chain_id) {
+        const conf = txn.transfer_confirmed;
+        const badgeCls = conf === true ? "txn-chain-badge" :
+                         conf === false ? "" : "txn-chain-badge unconfirmed";
+        if (conf !== false) {
+          const roleLabel = txn.transfer_role === "source" ? "Quelle" :
+                            txn.transfer_role === "intermediate" ? "Durchlauf" :
+                            txn.transfer_role === "destination" ? "Ziel" : "";
+          badge = `<span class="${badgeCls}" data-chain-id="${txn.transfer_chain_id}"
+            title="Transfer-Kette: ${roleLabel}">&#x1f517; ${roleLabel}</span>`;
+        }
+      }
+
+      // Refund badge
+      if (txn.refund_pair_id) {
+        const refLabel = txn.refund_role === "refund" ? "Erstattung" : "Erstattet";
+        badge += `<span class="txn-refund-badge" title="${refLabel}">&#x21a9; ${refLabel}</span>`;
+      }
+
+      return `<div class="${cls}">
+        <span class="txn-date">${txn.date || ""}</span>
+        <span class="txn-desc">
+          ${txn.creditor || txn.description || "—"}
+          ${txn.account_name ? `<span class="txn-acct">${txn.account_name}</span>` : ""}
+          ${badge}
+        </span>
+        <span class="txn-amt ${amt >= 0 ? "pos" : "neg"}">${eur(amt)}</span>
+      </div>`;
+    }).join("");
+
+    const showMore = txns.length > limit
+      ? `<div class="txn-show-more"><button>Weitere laden (${txns.length - limit} verbleibend)</button></div>`
+      : "";
+
+    return `<div class="card grid-full">
+      <div class="card-h">Transaktionen</div>
+      ${excludedBanner}
+      <div class="txn-list">${rows}</div>
+      ${showMore}
+    </div>`;
+  }
+
+  _showChainDetail(chainId) {
+    if (!chainId) return;
+    const chain = (this._chainData || []).find(c => c.chain_id === chainId);
+    if (!chain) return;
+
+    const eur = (v) => new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v);
+    const container = this.shadowRoot.getElementById("overlay-container");
+    if (!container) return;
+
+    const steps = (chain.transactions || []).map(txn => {
+      const roleCls = txn.role || "source";
+      const roleLabel = txn.role === "source" ? "Quelle" :
+                        txn.role === "intermediate" ? "Durchlauf" :
+                        txn.role === "destination" ? "Ziel" : "";
+      return `<div class="chain-step">
+        <span class="chain-role ${roleCls}">${roleLabel}</span>
+        <span style="flex:1">${txn.account_name || ""} &mdash; ${txn.creditor || txn.description || ""}</span>
+        <span class="${parseFloat(txn.amount) >= 0 ? "pos" : "neg"}">${eur(txn.amount)}</span>
+      </div>`;
+    });
+
+    // Add arrows between steps
+    const flow = steps.reduce((acc, step, i) => {
+      acc.push(step);
+      if (i < steps.length - 1) acc.push(`<div class="chain-arrow">&#x2193;</div>`);
+      return acc;
+    }, []).join("");
+
+    const confPct = Math.round((chain.confidence || 0) * 100);
+    const isConfirmed = chain.confirmed;
+
+    container.innerHTML = `<div class="chain-overlay" id="chain-overlay">
+      <div class="chain-detail">
+        <div class="chain-title">Transfer-Kette</div>
+        <div class="chain-flow">${flow}</div>
+        <div class="chain-confidence">Konfidenz: ${confPct}%</div>
+        ${isConfirmed === null || isConfirmed === undefined ? `
+          <div class="chain-actions">
+            <button class="btn btn-p" id="chain-confirm">Korrekt</button>
+            <button class="btn" id="chain-reject">Keine Kette</button>
+          </div>
+        ` : `<div style="font-size:12px;color:var(--tx2)">${isConfirmed ? "Von dir bestaetigt" : "Von dir abgelehnt"}</div>`}
+        <div style="margin-top:14px;text-align:right">
+          <button class="btn" id="chain-close">Schliessen</button>
+        </div>
+      </div>
+    </div>`;
+
+    container.querySelector("#chain-close").addEventListener("click", () => {
+      container.innerHTML = "";
+    });
+    container.querySelector("#chain-overlay").addEventListener("click", (e) => {
+      if (e.target.id === "chain-overlay") container.innerHTML = "";
+    });
+
+    const confirmBtn = container.querySelector("#chain-confirm");
+    const rejectBtn = container.querySelector("#chain-reject");
+    if (confirmBtn) {
+      confirmBtn.addEventListener("click", async () => {
+        await this._hass.callApi("POST", "finance_dashboard/transfer_chains",
+          { chain_id: chainId, confirmed: true });
+        container.innerHTML = "";
+        this._refresh();
+      });
+    }
+    if (rejectBtn) {
+      rejectBtn.addEventListener("click", async () => {
+        await this._hass.callApi("POST", "finance_dashboard/transfer_chains",
+          { chain_id: chainId, confirmed: false });
+        container.innerHTML = "";
+        this._refresh();
+      });
+    }
   }
 
   // ==================== Settings / Manage Overlay ====================
