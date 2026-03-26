@@ -17,5 +17,5 @@
   "requirements": [
     "cryptography>=42.0.0"
   ],
-  "version": "0.7.2"
+  "version": "0.7.3"
 }
