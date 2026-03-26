@@ -40,6 +40,7 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardSetupAuthorizeView())
     hass.http.register_view(FinanceDashboardSetupCompleteView())
     hass.http.register_view(FinanceDashboardSetupUsersView())
+    hass.http.register_view(FinanceDashboardSetupUpdateAccountsView())
     _LOGGER.debug("Finance API endpoints registered")
 
 
@@ -74,13 +75,33 @@ class FinanceDashboardSetupStatusView(HomeAssistantView):
             "pending_accounts", []
         )
 
+        # Sanitize account details for frontend (no raw IBANs)
+        raw_accounts = entry.data.get("accounts", [])
+        safe_accounts = []
+        for acc in raw_accounts:
+            iban = acc.get("iban", "")
+            safe_accounts.append({
+                "id": acc.get("id", ""),
+                "name": acc.get("name", ""),
+                "custom_name": acc.get("custom_name", ""),
+                "iban_masked": (
+                    f"****{iban[-4:]}" if len(iban) >= 4 else "****"
+                ),
+                "institution": acc.get("institution", ""),
+                "logo": acc.get("logo", ""),
+                "type": acc.get("type", "personal"),
+                "ha_users": acc.get("ha_users", []),
+                "person": acc.get("person", ""),
+            })
+
         result = {
             "configured": configured,
             "has_entry": True,
             "institution_name": entry.data.get(
                 "institution_name", ""
             ),
-            "account_count": len(entry.data.get("accounts", [])),
+            "account_count": len(raw_accounts),
+            "accounts": safe_accounts,
             "pending_auth_code": has_pending_code,
             "pending_accounts": pending_accounts,
         }
@@ -500,6 +521,71 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
         except Exception:
             _LOGGER.exception("Failed to complete bank setup")
             return self.json({"error": "Setup completion failed"})
+
+
+class FinanceDashboardSetupUpdateAccountsView(HomeAssistantView):
+    """Update account settings (name, type, person assignment)."""
+
+    url = f"/api/{DOMAIN}/setup/update_accounts"
+    name = f"api:{DOMAIN}:setup_update_accounts"
+    requires_auth = True
+
+    async def post(self, request: web.Request) -> web.Response:
+        """Update account metadata in config entry."""
+        hass = request.app["hass"]
+        entry = hass.data.get(DOMAIN, {}).get("entry")
+
+        if not entry:
+            return self.json(
+                {"error": "Not configured"}, status_code=404
+            )
+
+        try:
+            body = await request.json()
+        except Exception:
+            return self.json(
+                {"error": "Invalid JSON body"}, status_code=400
+            )
+
+        updates = body.get("accounts", [])
+        if not updates:
+            return self.json(
+                {"error": "No account data provided"},
+                status_code=400,
+            )
+
+        # Merge updates into existing account config
+        existing = list(entry.data.get("accounts", []))
+        for update in updates:
+            acc_id = update.get("id")
+            if not acc_id:
+                continue
+            for acc in existing:
+                if acc.get("id") == acc_id:
+                    if "custom_name" in update:
+                        acc["custom_name"] = update["custom_name"]
+                    if "type" in update:
+                        acc["type"] = update["type"]
+                    if "ha_users" in update:
+                        acc["ha_users"] = update["ha_users"]
+                    break
+
+        # Update config entry
+        new_data = {**entry.data, "accounts": existing}
+        hass.config_entries.async_update_entry(
+            entry, data=new_data
+        )
+
+        # Update manager if running
+        manager = _get_manager(hass)
+        if manager:
+            manager._accounts = existing
+
+        _LOGGER.info(
+            "Updated account settings for %d accounts",
+            len(updates),
+        )
+        return self.json({"success": True})
 
 
 # ------------------------------------------------------------------
