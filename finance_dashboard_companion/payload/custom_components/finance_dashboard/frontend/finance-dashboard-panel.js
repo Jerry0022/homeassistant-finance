@@ -5,6 +5,16 @@
  * Privacy-first: only aggregated data shown by default.
  */
 
+// Load the status chip component (needed inside shadow DOM)
+{
+  const base = document.currentScript?.src?.replace(/[^/]*$/, "") || "/api/finance_dashboard/static/";
+  if (!customElements.get("finance-status-chip")) {
+    const s = document.createElement("script");
+    s.src = base + "finance-status-chip.js";
+    document.head.appendChild(s);
+  }
+}
+
 class FinanceDashboardPanel extends HTMLElement {
   constructor() {
     super();
@@ -139,12 +149,8 @@ class FinanceDashboardPanel extends HTMLElement {
 .empty-title { font-size:18px; font-weight:600; margin-bottom:8px; }
 .empty-desc { font-size:14px; color:var(--tx2); max-width:360px; margin:0 auto; line-height:1.5; }
 
-/* Refresh indicator */
-.refresh-indicator { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--tx2); }
-.refresh-indicator .ts { opacity:.7; }
-@keyframes pulse-dot { 0%,100% { opacity:.4; } 50% { opacity:1; } }
-.refresh-dot { width:6px; height:6px; border-radius:50%; background:var(--ac); display:none; }
-.refresh-dot.active { display:inline-block; animation:pulse-dot 1s ease-in-out infinite; }
+/* Status chip slot in header */
+finance-status-chip { vertical-align: middle; }
 
 .loading { text-align:center; padding:60px; color:var(--tx2); }
 
@@ -346,12 +352,8 @@ class FinanceDashboardPanel extends HTMLElement {
   <div class="hdr">
     <h1>Finance</h1>
     <div style="display:flex;align-items:center;gap:10px">
-      <div class="refresh-indicator">
-        <span class="refresh-dot" id="refreshDot"></span>
-        <span class="ts" id="lastUpdate"></span>
-      </div>
+      <finance-status-chip id="statusChip"></finance-status-chip>
       <button class="btn" id="monthBtn"></button>
-      <button class="btn btn-p" id="refreshBtn">Aktualisieren</button>
       <button class="btn-icon" id="settingsBtn" title="Konten verwalten">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
@@ -364,8 +366,8 @@ class FinanceDashboardPanel extends HTMLElement {
   <div id="overlay-container"></div>
 </div>`;
 
-    this.shadowRoot.getElementById("refreshBtn")
-      .addEventListener("click", () => this._refresh());
+    this.shadowRoot.getElementById("statusChip")
+      .addEventListener("retry", () => this._refresh());
     this.shadowRoot.getElementById("settingsBtn")
       .addEventListener("click", () => this._showManageOverlay());
     // Show skeleton immediately
@@ -391,24 +393,28 @@ class FinanceDashboardPanel extends HTMLElement {
       <div class="skel skel-bar"></div>`;
   }
 
-  _setRefreshing(active) {
-    const dot = this.shadowRoot.getElementById("refreshDot");
-    const btn = this.shadowRoot.getElementById("refreshBtn");
-    if (dot) dot.classList.toggle("active", active);
-    if (btn) {
-      btn.disabled = active;
-      btn.textContent = active ? "Wird geladen..." : "Aktualisieren";
-    }
+  /** @returns {FinanceStatusChip|null} */
+  _chip() {
+    return this.shadowRoot.getElementById("statusChip");
   }
 
-  _updateTimestamp() {
-    const el = this.shadowRoot.getElementById("lastUpdate");
-    if (!el) return;
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2, "0");
-    const mm = String(now.getMinutes()).padStart(2, "0");
-    el.textContent = `Stand ${hh}:${mm}`;
-    this._lastUpdateTime = now;
+  _setRefreshing(active) {
+    const chip = this._chip();
+    if (!chip) return;
+    if (active) {
+      chip.setState("loading");
+    }
+    // idle/success/error are set explicitly by _refresh()
+  }
+
+  _setSuccess() {
+    const chip = this._chip();
+    if (chip) chip.setState("success");
+  }
+
+  _setError(msg) {
+    const chip = this._chip();
+    if (chip) chip.setState("error", msg);
   }
 
   async _refresh() {
@@ -432,14 +438,14 @@ class FinanceDashboardPanel extends HTMLElement {
 
       if (!status.configured && !this._justCompletedSetup) {
         c.innerHTML = this._renderEmptyDashboard();
-        this._setRefreshing(false);
+        this._setSuccess();
         this._showSetupWizard();
         return;
       }
     } catch (e) {
       // Status endpoint failed — show empty state
       if (!hasData) c.innerHTML = this._renderEmptyDashboard();
-      this._setRefreshing(false);
+      this._setError("API nicht erreichbar");
       return;
     }
 
@@ -456,8 +462,7 @@ class FinanceDashboardPanel extends HTMLElement {
     ]);
     this._chainData = chains?.chains || [];
     this._draw(c, bal, txn, sum);
-    this._updateTimestamp();
-    this._setRefreshing(false);
+    this._setSuccess();
   }
 
   _renderEmptyDashboard() {

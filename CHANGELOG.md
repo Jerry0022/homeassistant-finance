@@ -201,6 +201,17 @@ All notable changes to the Finance will be documented in this file.
 
 ## [0.1.0] — 2026-03-24
 
+## [0.7.4] — 2026-03-26
+
+### Added
+- **Changes:** feat(frontend): status chip replaces refresh button
+- New `<finance-status-chip>` Lovelace component with 4 visual states (idle/loading/success/error)
+- Register status chip JS as Lovelace extra module
+
+### Changed
+- **Branch:** claude/upbeat-davinci
+- Panel header uses status chip instead of refresh button + dot indicator
+
 ### Added
 - Initial project scaffold
 - GoCardless (Nordigen) Open Banking API client

@@ -1,5 +1,13 @@
 # Build Log
 
+## v0.7.4 — 2026-03-26
+- **Build hash:** `pending`
+- **Branch:** claude/upbeat-davinci
+- **Changes:** feat(frontend): status chip replaces refresh button
+- feat(frontend): new `<finance-status-chip>` Lovelace component with 4 visual states (idle/loading/success/error)
+- refactor(frontend): panel header uses status chip instead of refresh button + dot indicator
+- feat(panel): register status chip JS as Lovelace extra module
+
 ## v0.7.3 — 2026-03-26
 - **Build hash:** `b1843b1`
 - **Branch:** claude/inspiring-albattani
