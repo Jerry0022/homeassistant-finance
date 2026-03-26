@@ -1,5 +1,12 @@
 # Build Log
 
+## v0.7.3 — 2026-03-26
+- **Build hash:** `b1843b1`
+- **Branch:** claude/inspiring-albattani
+- **Changes:** fix(dashboard): setup wizard race condition + account defaults in step 3
+- fix(dashboard): setup wizard race condition — guard flag prevents wizard re-trigger during entry reload
+- fix(dashboard): account defaults in step 3 — merge existing settings into pending accounts
+
 ## v0.7.2 — 2026-03-26
 - **Build hash:** `f995339`
 - **Branch:** fix/dashboard-resilient-loading
