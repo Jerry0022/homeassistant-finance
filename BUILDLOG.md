@@ -1,5 +1,10 @@
 # Build Log
 
+## v0.7.0 — 2026-03-26
+- **Build hash:** `7305434`
+- **Branch:** claude/awesome-knuth
+- **Changes:** feat(transfers): cascading transfer chain detection
+
 ## v0.6.15 — 2026-03-26
 - **Build:** `b72a132`
 - **Scope:** Real bank balances and settings overlay
