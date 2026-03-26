@@ -89,6 +89,7 @@ class FinanceDashboardSetupStatusView(HomeAssistantView):
                     f"****{iban[-4:]}" if len(iban) >= 4 else "****"
                 ),
                 "institution": acc.get("institution", ""),
+                "institution_id": acc.get("institution_id", ""),
                 "logo": acc.get("logo", ""),
                 "type": acc.get("type", "personal"),
                 "ha_users": acc.get("ha_users", []),
@@ -467,26 +468,59 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                     session_id, valid_until
                 )
 
-            # Update config entry
+            # Update config entry — merge with existing data to
+            # preserve accounts from previously connected banks.
             entry = hass.data.get(DOMAIN, {}).get("entry")
             if entry:
                 institution_name = pending_auth.get(
                     "institution_name", ""
                 )
+                institution_id = pending_auth.get(
+                    "institution_id", ""
+                )
+
+                # Merge accounts: keep existing accounts from other
+                # banks, replace accounts that share the same
+                # institution_id (re-auth of same bank).
+                existing_accounts = list(entry.data.get("accounts", []))
+                existing_accounts = [
+                    acc for acc in existing_accounts
+                    if acc.get("institution_id") != institution_id
+                ]
+                merged_accounts = existing_accounts + account_config
+
+                # Build multi-bank title
+                bank_names = sorted({
+                    acc.get("institution", "")
+                    for acc in merged_accounts
+                    if acc.get("institution")
+                })
+                title = (
+                    f"Finance ({', '.join(bank_names)})"
+                    if bank_names
+                    else f"Finance ({institution_name})"
+                )
+
+                # Merge sessions: store one session_id per bank
+                existing_sessions = dict(
+                    entry.data.get("sessions", {})
+                )
+                existing_sessions[institution_id] = session_id
+
                 hass.config_entries.async_update_entry(
                     entry,
-                    title=f"Finance ({institution_name})",
+                    title=title,
                     data={
+                        **entry.data,
                         "configured": True,
-                        "institution_id": pending_auth.get(
-                            "institution_id", ""
-                        ),
+                        "institution_id": institution_id,
                         "institution_name": institution_name,
                         "institution_logo": pending_auth.get(
                             "institution_logo", ""
                         ),
                         "session_id": session_id,
-                        "accounts": account_config,
+                        "sessions": existing_sessions,
+                        "accounts": merged_accounts,
                     },
                 )
 
