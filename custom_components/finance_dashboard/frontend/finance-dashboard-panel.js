@@ -19,6 +19,12 @@ class FinanceDashboardPanel extends HTMLElement {
     if (!this.shadowRoot.querySelector(".fd")) {
       this._render();
     }
+    // Skip refresh while any overlay is open — HA updates hass continuously
+    // and _refresh() re-renders the DOM, destroying overlays
+    const overlayContainer = this.shadowRoot.getElementById("overlay-container");
+    if (overlayContainer && overlayContainer.querySelector(".overlay")) {
+      return;
+    }
     this._refresh();
   }
 
