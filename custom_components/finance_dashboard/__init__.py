@@ -56,6 +56,7 @@ async def async_setup_entry(
     await manager.async_initialize()
 
     hass.data[DOMAIN][entry.entry_id] = manager
+    hass.data[DOMAIN]["entry"] = entry
 
     # Register services
     await _async_register_services(hass, manager)
@@ -104,6 +105,18 @@ async def async_setup_entry(
     # Forward platform setup
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Auto-refresh transactions on startup if configured and cache is stale
+    if entry.data.get("configured"):
+        async def _initial_refresh(_event=None) -> None:
+            try:
+                await manager.async_refresh_transactions()
+                _LOGGER.info("Initial transaction refresh completed")
+            except Exception:
+                _LOGGER.exception("Initial transaction refresh failed")
+
+        # Delay until HA is fully started to avoid blocking startup
+        hass.bus.async_listen_once("homeassistant_started", _initial_refresh)
+
     _LOGGER.info("Finance Dashboard v%s loaded", entry.version)
     return True
 
@@ -119,6 +132,9 @@ async def async_unload_entry(
         manager = hass.data[DOMAIN].pop(entry.entry_id, None)
         if manager:
             await manager.async_shutdown()
+        # Clean up entry reference if it matches
+        if hass.data.get(DOMAIN, {}).get("entry") is entry:
+            hass.data[DOMAIN].pop("entry", None)
     return unload_ok
 
 
