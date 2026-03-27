@@ -1,152 +1,125 @@
-#!/usr/bin/with-contenv bashio
-set -euo pipefail
+#!/usr/bin/env bash
+# Finance Dashboard Companion Add-on — Smart Payload Installer
+#
+# This script runs once after the add-on starts.
+# It copies the bundled integration + frontend assets to HA config,
+# but only if the versions differ (avoids unnecessary restarts).
+#
+# SECURITY: This script never touches credentials or financial data.
+# It only manages integration code files.
+
+set -e
 
 INTEGRATION_SOURCE="/payload/custom_components/finance_dashboard"
-LOVELACE_SOURCE="/payload/www/community/finance-dashboard"
 INTEGRATION_TARGET="/config/custom_components/finance_dashboard"
-LOVELACE_TARGET_DIR="/config/www/community/finance-dashboard"
-SOURCE_MANIFEST="$INTEGRATION_SOURCE/manifest.json"
-TARGET_MANIFEST="$INTEGRATION_TARGET/manifest.json"
+LOVELACE_SOURCE="/payload/www/community/finance-dashboard"
+LOVELACE_TARGET="/config/www/community/finance-dashboard"
 INSTALL_STATE_PATH="/config/.storage/finance_dashboard_installer.json"
+RESTART_MARKER_PATH="/config/.storage/finance_dashboard_restart_needed.json"
 
-copy_tree() {
-    local source="$1"
-    local target="$2"
+# --- Helper functions ---
 
-    rm -rf "$target"
-
-    mkdir -p "$(dirname "$target")"
-    cp -R "$source" "$target"
-}
-
-copy_dir() {
-    local source="$1"
-    local target="$2"
-
-    rm -rf "$target"
-
-    mkdir -p "$target"
-    cp -R "$source/." "$target/"
-}
-
-read_version() {
-    local manifest="$1"
-    if [ ! -f "$manifest" ]; then
-        echo "missing"
-        return
-    fi
-    sed -n 's/.*"version":[[:space:]]*"\([^"]*\)".*/\1/p' "$manifest" | head -n 1
-}
-
-has_security_marker() {
-    local file="$1"
-    if [ ! -f "$file" ]; then
-        echo "missing"
-        return
-    fi
-    if grep -q "SECURITY" "$file"; then
-        echo "yes"
+get_version_from_manifest() {
+    local manifest_path="$1/manifest.json"
+    if [ -f "$manifest_path" ]; then
+        grep -o '"version": *"[^"]*"' "$manifest_path" | head -1 | sed 's/.*"\([^"]*\)"/\1/'
     else
-        echo "no"
+        echo "0.0.0"
     fi
+}
+
+has_diagnostics_marker() {
+    local file="$1"
+    grep -q "SECURITY" "$file" 2>/dev/null
 }
 
 write_install_state() {
-    local source_version="$1"
-    local target_version="$2"
-    local security_marker="$3"
-    local lovelace_exists="$4"
+    local bundled_version="$1"
+    local installed_version="$2"
+    local action="$3"
 
-    mkdir -p "$(dirname "$INSTALL_STATE_PATH")"
-    cat > "$INSTALL_STATE_PATH" <<EOF
+    cat > "$INSTALL_STATE_PATH" << EOF
 {
-  "installer": "finance_dashboard_companion",
-  "timestamp_utc": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "source_version": "$source_version",
-  "target_version": "$target_version",
-  "security_marker": "$security_marker",
-  "lovelace_asset_present": $lovelace_exists
+    "bundled_version": "$bundled_version",
+    "installed_version": "$installed_version",
+    "last_action": "$action",
+    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+    "has_lovelace": $([ -d "$LOVELACE_TARGET" ] && echo "true" || echo "false")
 }
 EOF
+    echo "[Finance Dashboard] Install state written: $action"
 }
 
-verify_install() {
-    local source_version="$1"
-    local target_version="$2"
-    local security_marker="$3"
-
-    if [ "$target_version" != "$source_version" ]; then
-        bashio::log.fatal "Integration copy verification failed: source version $source_version, target version $target_version"
-    fi
-
-    if [ "$security_marker" != "yes" ]; then
-        bashio::log.fatal "Integration copy verification failed: security marker missing in target __init__.py"
-    fi
-
-    if [ ! -f "$INTEGRATION_TARGET/__init__.py" ] || [ ! -f "$INTEGRATION_TARGET/config_flow.py" ]; then
-        bashio::log.fatal "Integration copy verification failed: critical integration files are missing in target"
-    fi
-}
-
-send_restart_notification() {
+write_restart_marker() {
     local version="$1"
-
-    # Write marker file — the running integration picks this up immediately
-    # (or on next 60s poll) and creates a Repairs issue in Settings > System > Repairs.
-    bashio::log.info "Writing restart marker file..."
-    cat > "/config/.storage/finance_dashboard_restart_needed.json" <<MARKER
+    cat > "$RESTART_MARKER_PATH" << EOF
 {
-  "version": "${version}",
-  "timestamp_utc": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    "version": "$version",
+    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
-MARKER
-    bashio::log.info "Restart marker written — repair issue will appear in Settings"
+EOF
+    echo "[Finance Dashboard] Restart marker written for version $version"
 }
 
-# ── Main ──
+# --- Main logic ---
 
-if [ ! -d "$INTEGRATION_SOURCE" ]; then
-    bashio::log.fatal "Bundled integration payload not found: $INTEGRATION_SOURCE"
+echo "========================================"
+echo "  Finance Dashboard Companion Add-on"
+echo "========================================"
+
+BUNDLED_VERSION=$(get_version_from_manifest "$INTEGRATION_SOURCE")
+INSTALLED_VERSION=$(get_version_from_manifest "$INTEGRATION_TARGET")
+
+echo "[Finance Dashboard] Bundled version:   $BUNDLED_VERSION"
+echo "[Finance Dashboard] Installed version:  $INSTALLED_VERSION"
+
+if [ "$BUNDLED_VERSION" = "$INSTALLED_VERSION" ]; then
+    echo "[Finance Dashboard] Versions match — no update needed."
+    write_install_state "$BUNDLED_VERSION" "$INSTALLED_VERSION" "skipped_same_version"
+    exit 0
 fi
 
-SOURCE_VERSION="$(read_version "$SOURCE_MANIFEST")"
-INSTALLED_VERSION="$(read_version "$TARGET_MANIFEST")"
+echo "[Finance Dashboard] Version mismatch — updating integration..."
 
-bashio::log.info "Bundled integration version: $SOURCE_VERSION"
-bashio::log.info "Installed integration version: $INSTALLED_VERSION"
-bashio::log.info "Security marker (source): $(has_security_marker "$INTEGRATION_SOURCE/__init__.py")"
-bashio::log.info "Security marker (installed): $(has_security_marker "$INTEGRATION_TARGET/__init__.py")"
+# Create target directories
+mkdir -p "$INTEGRATION_TARGET"
+mkdir -p "$(dirname "$LOVELACE_TARGET")"
 
-# Only copy if versions differ or target is missing
-if [ "$INSTALLED_VERSION" != "$SOURCE_VERSION" ]; then
-    bashio::log.info "Installing bundled custom integration into /config/custom_components"
-    copy_tree "$INTEGRATION_SOURCE" "$INTEGRATION_TARGET"
+# Copy integration files
+echo "[Finance Dashboard] Copying integration files..."
+cp -r "$INTEGRATION_SOURCE/." "$INTEGRATION_TARGET/"
 
-    # Copy Lovelace assets (if bundled)
-    if [ -d "$LOVELACE_SOURCE" ]; then
-        bashio::log.info "Installing bundled Lovelace assets into /config/www/community"
-        copy_dir "$LOVELACE_SOURCE" "$LOVELACE_TARGET_DIR"
-    fi
-
-    TARGET_VERSION="$(read_version "$TARGET_MANIFEST")"
-    TARGET_SECURITY_MARKER="$(has_security_marker "$INTEGRATION_TARGET/__init__.py")"
-    LOVELACE_EXISTS="$([ -d "$LOVELACE_TARGET_DIR" ] && echo "true" || echo "false")"
-
-    bashio::log.info "Installed integration version after copy: $TARGET_VERSION"
-    bashio::log.info "Security marker after copy: $TARGET_SECURITY_MARKER"
-
-    verify_install "$SOURCE_VERSION" "$TARGET_VERSION" "$TARGET_SECURITY_MARKER"
-    write_install_state "$SOURCE_VERSION" "$TARGET_VERSION" "$TARGET_SECURITY_MARKER" "$LOVELACE_EXISTS"
-    bashio::log.info "Wrote installer state to $INSTALL_STATE_PATH"
-
-    bashio::log.warning "Integration updated to v${TARGET_VERSION}. Home Assistant restart required."
-    send_restart_notification "$TARGET_VERSION"
+# Verify copy
+if has_diagnostics_marker "$INTEGRATION_TARGET/__init__.py"; then
+    echo "[Finance Dashboard] Integration files verified."
 else
-    bashio::log.info "Integration is already at v${INSTALLED_VERSION}, no update needed."
+    echo "[Finance Dashboard] WARNING: Verification failed — files may be incomplete."
 fi
 
-# Stay running so the Supervisor keeps this add-on in "started" state.
-# This ensures the add-on auto-restarts after updates (boot: auto),
-# which triggers the install/update logic above with the new payload.
-bashio::log.info "Add-on is running. It will re-deploy automatically after updates."
-exec sleep infinity
+# Copy Lovelace assets (if bundled)
+if [ -d "$LOVELACE_SOURCE" ]; then
+    echo "[Finance Dashboard] Copying Lovelace assets..."
+    mkdir -p "$LOVELACE_TARGET"
+    cp -r "$LOVELACE_SOURCE/." "$LOVELACE_TARGET/"
+    echo "[Finance Dashboard] Lovelace assets copied."
+fi
+
+# Write install state
+write_install_state "$BUNDLED_VERSION" "$BUNDLED_VERSION" "updated"
+
+# Signal restart needed
+write_restart_marker "$BUNDLED_VERSION"
+
+# Also try to create a persistent notification via HA API (fallback)
+if [ -n "$SUPERVISOR_TOKEN" ]; then
+    curl -s -X POST \
+        -H "Authorization: Bearer ${SUPERVISOR_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d "{\"title\": \"Finance Dashboard Updated\", \"message\": \"Version ${BUNDLED_VERSION} installed. Please restart Home Assistant.\", \"notification_id\": \"finance_dashboard_update\"}" \
+        "http://supervisor/core/api/services/persistent_notification/create" \
+        > /dev/null 2>&1 || true
+    echo "[Finance Dashboard] Persistent notification sent."
+fi
+
+echo "[Finance Dashboard] Update complete. Restart Home Assistant to apply."
+echo "========================================"

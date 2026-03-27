@@ -25,10 +25,8 @@ Thumbs.db
 # Node
 node_modules/
 
-# AI tooling — shared config tracked, session state excluded
-.claude/worktrees/
-.claude/todos/
-.claude/settings.local.json
+# AI tooling — session state excluded
+.claude/
 
 # Runtime / sensitive data — NEVER commit
 *.secrets

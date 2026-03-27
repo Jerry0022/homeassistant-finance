@@ -1,5 +1,4 @@
-<!-- Inherits from ~/.claude/CLAUDE.md — do not duplicate global rules here -->
-<!-- global-sync: 2026-03-24 -->
+<!-- Uses dotclaude-dev-ops plugin + personal ~/.claude/CLAUDE.md -->
 
 # Finance — Home Assistant Integration
 

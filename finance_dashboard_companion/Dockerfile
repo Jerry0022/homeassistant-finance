@@ -1,9 +1,11 @@
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-RUN apk add --no-cache bash
+# Install bash and curl for run.sh
+RUN apk add --no-cache bash curl
 
-COPY run.sh /run.sh
+# Copy add-on files
+COPY run.sh /
 COPY payload /payload
 
 RUN chmod a+x /run.sh

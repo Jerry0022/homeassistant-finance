@@ -1,6 +1,11 @@
 # Changelog
 
 
+
+## 0.7.5
+- Expose config entry to API views (entry key was never set)
+- Auto-refresh transactions on HA startup (summary panel showed zeros)
+
 ## 0.7.4
 - **Branch:** claude/upbeat-davinci
 - **Changes:** feat(frontend): status chip replaces refresh button
