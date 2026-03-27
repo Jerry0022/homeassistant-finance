@@ -1,10 +1,10 @@
-"""Finance — Home Assistant Integration.
+"""Finance Dashboard — Home Assistant Integration.
 
-Provides a secure finance overview with live banking data via Enable Banking
-Open Banking API (PSD2). Tracks accounts, transactions, and household budgets.
+Provides a secure finance overview with live banking data via GoCardless/Nordigen
+Open Banking API. Tracks accounts, transactions, and household budgets.
 
 SECURITY: No financial data is ever stored in git or logs.
-All credentials and sessions are stored in HA's encrypted .storage/ directory.
+All credentials and tokens are stored in HA's encrypted .storage/ directory.
 """
 
 from __future__ import annotations
@@ -19,7 +19,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_track_time_interval
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    STORAGE_KEY_AUDIT,
+    STORAGE_VERSION,
+)
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -33,81 +37,43 @@ type FinanceDashboardConfigEntry = ConfigEntry
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Set up the Finance integration."""
+    """Set up the Finance Dashboard integration."""
     hass.data.setdefault(DOMAIN, {})
-    return True
-
-
-async def async_migrate_entry(
-    hass: HomeAssistant, config_entry: FinanceDashboardConfigEntry
-) -> bool:
-    """Migrate old config entries to current version."""
-    if config_entry.version < 2:
-        _LOGGER.info(
-            "Migrating Finance config entry from v%d to v3 "
-            "(GoCardless -> Enable Banking panel-driven setup)",
-            config_entry.version,
-        )
-        new_data = {**config_entry.data}
-        new_data.pop("requisition_id", None)
-        new_data.pop("agreement_id", None)
-        new_data["session_id"] = None
-        new_data["configured"] = False
-        hass.config_entries.async_update_entry(
-            config_entry, data=new_data, version=3
-        )
-        ir.async_create_issue(
-            hass,
-            DOMAIN,
-            "reconfigure_required",
-            is_fixable=False,
-            severity=ir.IssueSeverity.WARNING,
-            translation_key="reconfigure_required",
-        )
-        _LOGGER.info("Migration to v3 complete — user must set up bank in panel")
-
-    elif config_entry.version == 2:
-        _LOGGER.info(
-            "Migrating Finance config entry from v2 to v3 "
-            "(panel-driven bank setup)"
-        )
-        new_data = {**config_entry.data}
-        # Keep existing configured state — if bank was connected, it stays
-        if not new_data.get("configured"):
-            new_data["configured"] = False
-        hass.config_entries.async_update_entry(
-            config_entry, data=new_data, version=3
-        )
-        _LOGGER.info("Migration to v3 complete")
-
     return True
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: FinanceDashboardConfigEntry
 ) -> bool:
-    """Set up Finance from a config entry."""
+    """Set up Finance Dashboard from a config entry."""
+    # Clean up stale restart issues from previous sessions
     ir.async_delete_issue(hass, DOMAIN, "restart_required")
 
-    # Store entry reference for setup API endpoints
-    hass.data[DOMAIN]["entry"] = entry
+    # Initialize the manager (core business logic)
+    from .manager import FinanceDashboardManager
 
-    # Register sidebar panel (always — even before bank is connected)
+    manager = FinanceDashboardManager(hass, entry)
+    await manager.async_initialize()
+
+    hass.data[DOMAIN][entry.entry_id] = manager
+
+    # Register services
+    await _async_register_services(hass, manager)
+
+    # Register sidebar panel
     from .panel import async_register_panel
 
     await async_register_panel(hass)
 
-    # Register HTTP endpoints (always — includes setup endpoints)
+    # Register HTTP endpoints
     from .api import async_register_api
 
     await async_register_api(hass)
 
-    # Poll for add-on restart marker (always — even before bank is connected)
+    # Poll for add-on restart marker (every 60 seconds)
     async def _poll_restart_marker(_now) -> None:
         marker_path = Path(
-            hass.config.path(
-                ".storage/finance_dashboard_restart_needed.json"
-            )
+            hass.config.path(".storage/finance_dashboard_restart_needed.json")
         )
         if marker_path.exists():
             import json
@@ -129,73 +95,16 @@ async def async_setup_entry(
             except Exception:
                 _LOGGER.exception("Failed to process restart marker")
 
-    # Check immediately on startup, then poll every 60s
-    await _poll_restart_marker(None)
     entry.async_on_unload(
         async_track_time_interval(
             hass, _poll_restart_marker, timedelta(seconds=60)
         )
     )
 
-    is_configured = entry.data.get("configured", False)
+    # Forward platform setup
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    if is_configured:
-        # Full initialization: manager, services, sensors
-        from .manager import FinanceDashboardManager
-
-        manager = FinanceDashboardManager(hass, entry)
-        await manager.async_initialize()
-        hass.data[DOMAIN][entry.entry_id] = manager
-
-        await _async_register_services(hass, manager)
-
-        # Forward platform setup
-        await hass.config_entries.async_forward_entry_setups(
-            entry, PLATFORMS
-        )
-
-        # Initial data refresh (runs in background so setup isn't blocked)
-        async def _initial_refresh() -> None:
-            try:
-                await manager.async_refresh_accounts()
-                await manager.async_refresh_transactions()
-                await manager.async_get_balance()
-                _LOGGER.info(
-                    "Initial data refresh complete "
-                    "(accounts + transactions + balances)"
-                )
-            except Exception:
-                _LOGGER.exception("Initial data refresh failed")
-
-        hass.async_create_task(_initial_refresh())
-
-        # Periodic data refresh (balances + transactions)
-        refresh_minutes = entry.options.get("refresh_interval_minutes", 60)
-
-        async def _periodic_refresh(_now) -> None:
-            try:
-                await manager.async_refresh_transactions()
-                await manager.async_get_balance()
-                _LOGGER.debug("Periodic data refresh complete")
-            except Exception:
-                _LOGGER.exception("Periodic data refresh failed")
-
-        entry.async_on_unload(
-            async_track_time_interval(
-                hass,
-                _periodic_refresh,
-                timedelta(minutes=refresh_minutes),
-            )
-        )
-
-        _LOGGER.info(
-            "Finance fully loaded (bank connected)"
-        )
-    else:
-        _LOGGER.info(
-            "Finance loaded — awaiting bank setup in panel"
-        )
-
+    _LOGGER.info("Finance Dashboard v%s loaded", entry.version)
     return True
 
 
@@ -203,25 +112,13 @@ async def async_unload_entry(
     hass: HomeAssistant, entry: FinanceDashboardConfigEntry
 ) -> bool:
     """Unload a config entry."""
-    is_configured = entry.data.get("configured", False)
-
-    if is_configured:
-        unload_ok = await hass.config_entries.async_unload_platforms(
-            entry, PLATFORMS
-        )
-        if unload_ok:
-            manager = hass.data[DOMAIN].pop(entry.entry_id, None)
-            if manager:
-                await manager.async_shutdown()
-    else:
-        unload_ok = True
-
-    hass.data[DOMAIN].pop("entry", None)
-
-    from .panel import async_unregister_panel
-
-    await async_unregister_panel(hass)
-
+    unload_ok = await hass.config_entries.async_unload_platforms(
+        entry, PLATFORMS
+    )
+    if unload_ok:
+        manager = hass.data[DOMAIN].pop(entry.entry_id, None)
+        if manager:
+            await manager.async_shutdown()
     return unload_ok
 
 
@@ -258,9 +155,7 @@ async def _async_register_services(
         category = call.data.get("category")
         limit = call.data.get("limit")
         if category and limit is not None:
-            await manager.async_set_budget_limit(
-                category, float(limit)
-            )
+            await manager.async_set_budget_limit(category, float(limit))
 
     async def handle_export_csv(call) -> dict:
         path = await manager.async_export_csv(
@@ -274,9 +169,7 @@ async def _async_register_services(
         DOMAIN, SERVICE_REFRESH_ACCOUNTS, handle_refresh_accounts
     )
     hass.services.async_register(
-        DOMAIN,
-        SERVICE_REFRESH_TRANSACTIONS,
-        handle_refresh_transactions,
+        DOMAIN, SERVICE_REFRESH_TRANSACTIONS, handle_refresh_transactions
     )
     hass.services.async_register(
         DOMAIN, SERVICE_GET_BALANCE, handle_get_balance
