@@ -4,6 +4,12 @@
  * Full monthly overview using Lovelace card components as building blocks.
  * Privacy-first: only aggregated data shown by default.
  *
+ * Update strategy:
+ *  - Fetch data once when the panel is first connected to the DOM
+ *  - Auto-refresh every 10 minutes via setInterval
+ *  - Manual refresh via the "Aktualisieren" button
+ *  - Never re-fetch on hass setter calls (hass changes many times per second)
+ *
  * CHECKLIST (from design sprint):
  * [x] Total income, total expenses, monthly balance (Must)
  * [x] Category breakdown donut chart (Must)
@@ -20,19 +26,49 @@
  * [x] Dashboard deactivatable in config (Must via Options)
  */
 
+const AUTO_REFRESH_MS = 10 * 60 * 1000; // 10 minutes
+
 class FinanceDashboardPanel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
     this._hass = null;
+    this._refreshInterval = null;
+    this._refreshing = false;
   }
 
   set hass(hass) {
     this._hass = hass;
+    // Only build the DOM once — data is loaded separately via _refresh()
     if (!this.shadowRoot.querySelector(".fd")) {
       this._render();
     }
+  }
+
+  connectedCallback() {
+    // Fetch data immediately when panel enters the DOM
     this._refresh();
+    // Then keep it fresh every 10 minutes
+    this._startAutoRefresh();
+  }
+
+  disconnectedCallback() {
+    this._stopAutoRefresh();
+  }
+
+  _startAutoRefresh() {
+    if (this._refreshInterval) return;
+    this._refreshInterval = setInterval(
+      () => this._refresh(),
+      AUTO_REFRESH_MS
+    );
+  }
+
+  _stopAutoRefresh() {
+    if (this._refreshInterval) {
+      clearInterval(this._refreshInterval);
+      this._refreshInterval = null;
+    }
   }
 
   _render() {
@@ -54,9 +90,12 @@ class FinanceDashboardPanel extends HTMLElement {
 .fd { max-width:1200px; margin:0 auto; padding:24px; }
 .hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; }
 .hdr h1 { font-size:24px; font-weight:700; margin:0; }
+.hdr-right { display:flex; align-items:center; gap:10px; }
+.last-update { font-size:11px; color:var(--tx2); }
 .btn { padding:7px 14px; border-radius:10px; border:1px solid var(--bd);
   background:var(--sf); color:var(--tx); font-size:13px; cursor:pointer; }
 .btn:hover { background:var(--sf2); }
+.btn:disabled { opacity:.5; cursor:default; }
 .btn-p { background:var(--ac); color:#0a0a0f; border-color:var(--ac); font-weight:600; }
 
 /* Stats row */
@@ -132,17 +171,19 @@ class FinanceDashboardPanel extends HTMLElement {
 .fv-bar { height:8px; border-radius:4px; overflow:hidden; background:var(--sf2); margin:8px 0; }
 
 .loading { text-align:center; padding:60px; color:var(--tx2); }
+.error { text-align:center; padding:40px; color:var(--dg); }
 </style>
 
 <div class="fd">
   <div class="hdr">
     <h1>Finance Dashboard</h1>
-    <div style="display:flex;gap:6px">
+    <div class="hdr-right">
+      <span class="last-update" id="lastUpdate"></span>
       <button class="btn" id="monthBtn"></button>
       <button class="btn btn-p" id="refreshBtn">Aktualisieren</button>
     </div>
   </div>
-  <div id="content" class="loading">Lade Finanzdaten...</div>
+  <div id="content" class="loading">Lade Finanzdaten&#8230;</div>
 </div>`;
 
     this.shadowRoot.getElementById("refreshBtn")
@@ -150,9 +191,20 @@ class FinanceDashboardPanel extends HTMLElement {
   }
 
   async _refresh() {
-    if (!this._hass) return;
+    if (!this._hass || this._refreshing) return;
+    this._refreshing = true;
+
+    const btn = this.shadowRoot.getElementById("refreshBtn");
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Lädt…";
+    }
+
     const c = this.shadowRoot.getElementById("content");
-    if (!c) return;
+    if (!c) {
+      this._refreshing = false;
+      return;
+    }
 
     try {
       const [bal, txn, sum] = await Promise.all([
@@ -161,8 +213,17 @@ class FinanceDashboardPanel extends HTMLElement {
         this._hass.callApi("GET", "finance_dashboard/summary"),
       ]);
       this._draw(c, bal, txn, sum);
+      const ts = this.shadowRoot.getElementById("lastUpdate");
+      if (ts) ts.textContent = `Zuletzt: ${new Date().toLocaleTimeString("de-DE")}`;
     } catch (e) {
-      c.innerHTML = `<div class="loading">Verbinde dein Bankkonto unter Einstellungen.</div>`;
+      c.className = "error";
+      c.innerHTML = `<div>Verbinde dein Bankkonto unter Einstellungen → Integrationen → Finance.</div>`;
+    } finally {
+      this._refreshing = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Aktualisieren";
+      }
     }
   }
 
@@ -176,8 +237,8 @@ class FinanceDashboardPanel extends HTMLElement {
     // Month label
     const now = new Date();
     const monthNames = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
-    this.shadowRoot.getElementById("monthBtn").textContent =
-      `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+    const monthBtn = this.shadowRoot.getElementById("monthBtn");
+    if (monthBtn) monthBtn.textContent = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
 
     // Category colors
     const catColors = {
@@ -186,7 +247,7 @@ class FinanceDashboardPanel extends HTMLElement {
       cleaning:"#a855f7", income:"#4ecca3", transfers:"#6b7280", other:"#6b7280"
     };
 
-    // Sort categories by absolute amount
+    // Sort categories by absolute amount, exclude income/transfers from expense chart
     const sorted = Object.entries(cats)
       .filter(([k]) => k !== "income" && k !== "transfers")
       .sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
@@ -219,7 +280,7 @@ class FinanceDashboardPanel extends HTMLElement {
     // Top 3 cost drivers
     const top3 = sorted.slice(0,3).map(([cat,amt]) =>
       `<div class="top-item"><span>${cat.charAt(0).toUpperCase()+cat.slice(1)}</span>
-       <span class="neg">${eur(amt)}</span></div>`
+       <span class="neg">${eur(Math.abs(amt))}</span></div>`
     ).join("");
 
     // Shared costs bar segments
@@ -237,13 +298,14 @@ class FinanceDashboardPanel extends HTMLElement {
     const varTotal = totalExp - fixedTotal;
     const fixPct = totalExp > 0 ? Math.round(fixedTotal/totalExp*100) : 0;
 
+    el.className = "";
     el.innerHTML = `
       <div class="stats">
         <div class="stat"><div class="stat-l">Gesamtsaldo</div>
-          <div class="stat-v pos">${eur(balance)}</div>
+          <div class="stat-v ${balance>=0?"pos":"neg"}">${eur(balance)}</div>
           <div class="stat-d neu">Aktueller Monat</div></div>
         <div class="stat"><div class="stat-l">Ausgaben</div>
-          <div class="stat-v neg">${eur(-totalExp)}</div>
+          <div class="stat-v neg">${eur(totalExp)}</div>
           <div class="stat-d">${summary?.transaction_count||0} Transaktionen</div></div>
         <div class="stat"><div class="stat-l">Einnahmen</div>
           <div class="stat-v" style="color:var(--bl)">${eur(totalInc)}</div>
@@ -261,14 +323,14 @@ class FinanceDashboardPanel extends HTMLElement {
               <svg viewBox="0 0 100 100">${donutSvg}</svg>
               <div class="donut-c"><div class="v">${eur(totalExp)}</div><div class="l">Gesamt</div></div>
             </div>
-            <ul class="cat-list">${catList}</ul>
+            <ul class="cat-list">${catList||"<li style='color:var(--tx2);font-size:13px'>Keine Daten</li>"}</ul>
           </div>
         </div>
 
         <div>
           <div class="card" style="margin-bottom:14px">
             <div class="card-h">Top-3 Kostentreiber</div>
-            <div class="top-list">${top3}</div>
+            <div class="top-list">${top3||"<div style='color:var(--tx2);font-size:13px'>Keine Daten</div>"}</div>
           </div>
           <div class="card">
             <div class="card-h">Fix vs. Variabel</div>
@@ -289,16 +351,15 @@ class FinanceDashboardPanel extends HTMLElement {
       </div>
 
       <div class="card grid-full" style="margin-bottom:20px">
-        <div class="card-h">Geteilte Fixkosten</div>
+        <div class="card-h">Kostenverteilung</div>
         <div style="padding:14px 18px">
-          <div class="cost-bar">${costBar}</div>
+          <div class="cost-bar">${costBar||"<div style='width:100%;background:var(--sf2)'></div>"}</div>
         </div>
         <div class="cost-legend">${costLegend}</div>
       </div>
 
       <div id="persons"></div>
     `;
-    el.classList.remove("loading");
   }
 
 }

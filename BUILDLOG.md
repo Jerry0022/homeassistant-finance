@@ -1,5 +1,16 @@
 # Build Log
 
+## 0.7.6 — 2026-03-28
+Version: 0.7.6
+Branch: claude/stoic-wing
+Changes:
+- fix(core): add DataUpdateCoordinator — entities no longer call banking API directly
+- fix(core): sensor update interval 10 min via coordinator (was ~30 s per entity → rate-limit exhaustion)
+- fix(frontend): panel refresh on connectedCallback + 10-min auto-timer instead of every hass setter
+- fix(frontend): Lovelace card throttles API calls to max once per 10 min (was every hass setter)
+- feat(core): coordinator refreshes transactions only when cache is stale (>6 h), balances every 10 min
+- fix(core): manual refresh_transactions service triggers coordinator push to entities
+
 ## 0.7.5 — 2026-03-27
 Version: 0.7.5
 Branch: claude/keen-meninsky

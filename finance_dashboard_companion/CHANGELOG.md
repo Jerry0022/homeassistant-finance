@@ -2,6 +2,15 @@
 
 
 
+
+## 0.7.6
+- Add DataUpdateCoordinator — entities no longer call banking API directly
+- Sensor update interval 10 min via coordinator (was ~30 s per entity → rate-limit exhaustion)
+- Panel refresh on connectedCallback + 10-min auto-timer instead of every hass setter
+- Lovelace card throttles API calls to max once per 10 min (was every hass setter)
+- Coordinator refreshes transactions only when cache is stale (>6 h), balances every 10 min
+- Manual refresh_transactions service triggers coordinator push to entities
+
 ## 0.7.5
 - Expose config entry to API views (entry key was never set)
 - Auto-refresh transactions on HA startup (summary panel showed zeros)
