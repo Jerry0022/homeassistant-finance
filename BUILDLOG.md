@@ -1,5 +1,12 @@
 # Build Log
 
+## 0.7.5 — 2026-03-27
+Version: 0.7.5
+Branch: claude/keen-meninsky
+Changes:
+- fix(core): expose config entry to API views (entry key was never set)
+- fix(core): auto-refresh transactions on HA startup (summary panel showed zeros)
+
 ## 0.4.0 — 2026-03-24
 Version: 0.4.0
 Branch: main
