@@ -55,11 +55,18 @@ async def async_setup_entry(
     manager = FinanceDashboardManager(hass, entry)
     await manager.async_initialize()
 
+    # Create the coordinator — single source of truth for all entities.
+    # Entities read from coordinator.data instead of calling the API directly.
+    from .coordinator import FinanceDashboardCoordinator
+
+    coordinator = FinanceDashboardCoordinator(hass, manager)
+
     hass.data[DOMAIN][entry.entry_id] = manager
+    hass.data[DOMAIN][f"{entry.entry_id}_coordinator"] = coordinator
     hass.data[DOMAIN]["entry"] = entry
 
-    # Register services
-    await _async_register_services(hass, manager)
+    # Register services (pass coordinator so refresh service can push updates)
+    await _async_register_services(hass, manager, coordinator)
 
     # Register sidebar panel
     from .panel import async_register_panel
@@ -102,19 +109,19 @@ async def async_setup_entry(
         )
     )
 
-    # Forward platform setup
+    # Forward platform setup — sensors/numbers/selects will register themselves
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Auto-refresh transactions on startup if configured and cache is stale
+    # Kick off the first coordinator refresh once HA is fully started.
+    # This populates entities with live data immediately without blocking startup.
     if entry.data.get("configured"):
         async def _initial_refresh(_event=None) -> None:
             try:
-                await manager.async_refresh_transactions()
-                _LOGGER.info("Initial transaction refresh completed")
+                await coordinator.async_refresh()
+                _LOGGER.info("Initial coordinator refresh completed")
             except Exception:
-                _LOGGER.exception("Initial transaction refresh failed")
+                _LOGGER.exception("Initial coordinator refresh failed")
 
-        # Delay until HA is fully started to avoid blocking startup
         hass.bus.async_listen_once("homeassistant_started", _initial_refresh)
 
     _LOGGER.info("Finance Dashboard v%s loaded", entry.version)
@@ -130,6 +137,7 @@ async def async_unload_entry(
     )
     if unload_ok:
         manager = hass.data[DOMAIN].pop(entry.entry_id, None)
+        hass.data[DOMAIN].pop(f"{entry.entry_id}_coordinator", None)
         if manager:
             await manager.async_shutdown()
         # Clean up entry reference if it matches
@@ -139,7 +147,7 @@ async def async_unload_entry(
 
 
 async def _async_register_services(
-    hass: HomeAssistant, manager
+    hass: HomeAssistant, manager, coordinator
 ) -> None:
     """Register integration services."""
     from .const import (
@@ -157,6 +165,8 @@ async def _async_register_services(
 
     async def handle_refresh_transactions(call) -> None:
         await manager.async_refresh_transactions()
+        # Push fresh data to all entities via coordinator
+        await coordinator.async_refresh()
 
     async def handle_get_balance(call) -> dict:
         return await manager.async_get_balance()

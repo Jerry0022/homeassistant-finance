@@ -218,6 +218,18 @@ All notable changes to the Finance will be documented in this file.
 - Expose config entry to API views (entry key was never set)
 - Auto-refresh transactions on HA startup (summary panel showed zeros)
 
+## [0.7.6] — 2026-03-28
+
+### Added
+- Coordinator refreshes transactions only when cache is stale (>6 h), balances every 10 min
+
+### Fixed
+- Add DataUpdateCoordinator — entities no longer call banking API directly
+- Sensor update interval 10 min via coordinator (was ~30 s per entity → rate-limit exhaustion)
+- Panel refresh on connectedCallback + 10-min auto-timer instead of every hass setter
+- Lovelace card throttles API calls to max once per 10 min (was every hass setter)
+- Manual refresh_transactions service triggers coordinator push to entities
+
 ### Added
 - Initial project scaffold
 - GoCardless (Nordigen) Open Banking API client
