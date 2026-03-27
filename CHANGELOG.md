@@ -212,6 +212,12 @@ All notable changes to the Finance will be documented in this file.
 - **Branch:** claude/upbeat-davinci
 - Panel header uses status chip instead of refresh button + dot indicator
 
+## [0.7.5] — 2026-03-27
+
+### Fixed
+- Expose config entry to API views (entry key was never set)
+- Auto-refresh transactions on HA startup (summary panel showed zeros)
+
 ### Added
 - Initial project scaffold
 - GoCardless (Nordigen) Open Banking API client

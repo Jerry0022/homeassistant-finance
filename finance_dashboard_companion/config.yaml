@@ -1,5 +1,5 @@
 name: Finance Dashboard
-version: "0.4.0"
+version: "0.7.5"
 slug: finance_dashboard_companion
 description: >-
   Install or update the Finance Dashboard integration for Home Assistant.
