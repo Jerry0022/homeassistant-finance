@@ -221,26 +221,33 @@ class FinanceDashboardManager:
         self._transactions = all_transactions
         self._last_refresh = datetime.now()
 
-        # Detect recurring payment patterns
-        self._recurring_patterns = detect_recurring(all_transactions)
+        # Detect recurring payment patterns — must not crash transaction refresh
+        try:
+            self._recurring_patterns = detect_recurring(all_transactions)
+        except Exception:
+            _LOGGER.exception("Recurring detection failed — skipping")
+            self._recurring_patterns = []
 
         # Persist to encrypted .storage/
         await self._persist_transactions()
 
-        # Fire events for newly detected transactions
-        from .events import fire_transaction_new
+        # Fire events for newly detected transactions — must not crash refresh
+        try:
+            from .events import fire_transaction_new
 
-        for txn in new_txns:
-            amount = float(
-                txn.get("transactionAmount", {}).get("amount", 0)
-            )
-            fire_transaction_new(
-                self._hass,
-                amount=amount,
-                creditor=txn.get("creditorName", ""),
-                category=txn.get("category", "other"),
-                account_name=txn.get("_account_name", ""),
-            )
+            for txn in new_txns:
+                amount = float(
+                    txn.get("transactionAmount", {}).get("amount", 0)
+                )
+                fire_transaction_new(
+                    self._hass,
+                    amount=amount,
+                    creditor=txn.get("creditorName", ""),
+                    category=txn.get("category", "other"),
+                    account_name=txn.get("_account_name", ""),
+                )
+        except Exception:
+            _LOGGER.exception("Transaction event firing failed — skipping")
 
         await self._credential_manager._audit_log(
             "transactions_refreshed"
@@ -289,24 +296,27 @@ class FinanceDashboardManager:
                     account_id,
                 )
 
-        # Fire events for significant balance changes
-        from .events import fire_balance_changed
+        # Fire events for significant balance changes — must not crash balance fetch
+        try:
+            from .events import fire_balance_changed
 
-        for acc_id, data in balances.items():
-            raw = data.get("balances", [])
-            if raw:
-                new_bal = float(
-                    raw[0].get("balanceAmount", {}).get("amount", 0)
-                )
-                old_bal = self._previous_balances.get(acc_id)
-                if old_bal is not None and abs(new_bal - old_bal) >= 1.0:
-                    fire_balance_changed(
-                        self._hass,
-                        account_name=data.get("account_name", ""),
-                        old_balance=old_bal,
-                        new_balance=new_bal,
+            for acc_id, data in balances.items():
+                raw = data.get("balances", [])
+                if raw:
+                    new_bal = float(
+                        raw[0].get("balanceAmount", {}).get("amount", 0)
                     )
-                self._previous_balances[acc_id] = new_bal
+                    old_bal = self._previous_balances.get(acc_id)
+                    if old_bal is not None and abs(new_bal - old_bal) >= 1.0:
+                        fire_balance_changed(
+                            self._hass,
+                            account_name=data.get("account_name", ""),
+                            old_balance=old_bal,
+                            new_balance=new_bal,
+                        )
+                    self._previous_balances[acc_id] = new_bal
+        except Exception:
+            _LOGGER.exception("Balance change event firing failed — skipping")
 
         self._balances = balances
         return balances
@@ -368,7 +378,12 @@ class FinanceDashboardManager:
             )
 
         # Build household split data from per-person accounts
-        household = self._compute_household(monthly_txns, total_expenses)
+        # Graceful degradation: household features must never crash the coordinator
+        household = None
+        try:
+            household = self._compute_household(monthly_txns, total_expenses)
+        except Exception:
+            _LOGGER.exception("Household computation failed — skipping")
 
         # Recurring patterns (already detected during refresh)
         recurring_top = self._recurring_patterns[:10]
@@ -380,8 +395,11 @@ class FinanceDashboardManager:
         )
         variable_total = total_expenses - fixed_total
 
-        # Budget exceeded check
-        self._check_budget_limits(category_totals)
+        # Budget exceeded check — must not crash the coordinator
+        try:
+            self._check_budget_limits(category_totals)
+        except Exception:
+            _LOGGER.exception("Budget limit check failed — skipping")
 
         return {
             "month": target_month,
