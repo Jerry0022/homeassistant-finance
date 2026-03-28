@@ -21,6 +21,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN, STORAGE_KEY_TRANSFER_OVERRIDES, STORAGE_VERSION
+from .household import HouseholdMember, HouseholdModel
+from .recurring import detect_recurring
 from .transfer_detector import (
     apply_overrides,
     detect_transfer_chains,
@@ -57,6 +59,8 @@ class FinanceDashboardManager:
             hass, 1, STORAGE_KEY_TRANSFER_OVERRIDES
         )
         self._transfer_overrides: dict[str, bool] = {}
+        self._recurring_patterns: list[dict[str, Any]] = []
+        self._previous_balances: dict[str, float] = {}
 
     async def async_initialize(self) -> None:
         """Initialize all sub-components."""
@@ -204,19 +208,49 @@ class FinanceDashboardManager:
         overrides = await self._async_load_transfer_overrides()
         apply_overrides(all_transactions, overrides)
 
+        # Detect new transactions (compare with previous set)
+        old_ids = {
+            t.get("transactionId") for t in self._transactions
+            if t.get("transactionId")
+        }
+        new_txns = [
+            t for t in all_transactions
+            if t.get("transactionId") and t["transactionId"] not in old_ids
+        ]
+
         self._transactions = all_transactions
         self._last_refresh = datetime.now()
 
+        # Detect recurring payment patterns
+        self._recurring_patterns = detect_recurring(all_transactions)
+
         # Persist to encrypted .storage/
         await self._persist_transactions()
+
+        # Fire events for newly detected transactions
+        from .events import fire_transaction_new
+
+        for txn in new_txns:
+            amount = float(
+                txn.get("transactionAmount", {}).get("amount", 0)
+            )
+            fire_transaction_new(
+                self._hass,
+                amount=amount,
+                creditor=txn.get("creditorName", ""),
+                category=txn.get("category", "other"),
+                account_name=txn.get("_account_name", ""),
+            )
 
         await self._credential_manager._audit_log(
             "transactions_refreshed"
         )
         _LOGGER.info(
-            "Refreshed %d transactions across %d accounts",
+            "Refreshed %d transactions across %d accounts (%d new, %d recurring patterns)",
             len(all_transactions),
             len(self._accounts),
+            len(new_txns),
+            len(self._recurring_patterns),
         )
         return all_transactions
 
@@ -254,6 +288,25 @@ class FinanceDashboardManager:
                     "Failed to fetch balance for account %s",
                     account_id,
                 )
+
+        # Fire events for significant balance changes
+        from .events import fire_balance_changed
+
+        for acc_id, data in balances.items():
+            raw = data.get("balances", [])
+            if raw:
+                new_bal = float(
+                    raw[0].get("balanceAmount", {}).get("amount", 0)
+                )
+                old_bal = self._previous_balances.get(acc_id)
+                if old_bal is not None and abs(new_bal - old_bal) >= 1.0:
+                    fire_balance_changed(
+                        self._hass,
+                        account_name=data.get("account_name", ""),
+                        old_balance=old_bal,
+                        new_balance=new_bal,
+                    )
+                self._previous_balances[acc_id] = new_bal
 
         self._balances = balances
         return balances
@@ -314,6 +367,22 @@ class FinanceDashboardManager:
                 category_totals.get(category, 0) + amount
             )
 
+        # Build household split data from per-person accounts
+        household = self._compute_household(monthly_txns, total_expenses)
+
+        # Recurring patterns (already detected during refresh)
+        recurring_top = self._recurring_patterns[:10]
+
+        # Fixed vs variable costs
+        fixed_cats = {"housing", "loans", "utilities", "insurance"}
+        fixed_total = sum(
+            abs(category_totals.get(c, 0)) for c in fixed_cats
+        )
+        variable_total = total_expenses - fixed_total
+
+        # Budget exceeded check
+        self._check_budget_limits(category_totals)
+
         return {
             "month": target_month,
             "year": target_year,
@@ -333,6 +402,20 @@ class FinanceDashboardManager:
                 "excluded_amount": round(excluded_amount, 2),
                 "excluded_txn_count": len(excluded_chain_txns),
             },
+            "household": household,
+            "recurring": [
+                {
+                    "creditor": p.get("creditor", ""),
+                    "average_amount": p.get("average_amount", 0),
+                    "frequency": p.get("frequency", "monthly"),
+                    "category": p.get("category", "other"),
+                    "occurrences": p.get("occurrences", 0),
+                    "expected_day": p.get("expected_day", 1),
+                }
+                for p in recurring_top
+            ],
+            "fixed_costs": round(fixed_total, 2),
+            "variable_costs": round(variable_total, 2),
             "last_refresh": (
                 self._last_refresh.isoformat()
                 if self._last_refresh
@@ -494,6 +577,133 @@ class FinanceDashboardManager:
                 "account_count": len(self._accounts),
             }
         )
+
+    def _compute_household(
+        self,
+        monthly_txns: list[dict[str, Any]],
+        total_expenses: float,
+    ) -> dict[str, Any] | None:
+        """Build household split data from account assignments and transactions.
+
+        Groups transactions by person (from account assignments), computes
+        income and individual costs per person, then runs the household
+        split model to calculate each person's share of shared costs
+        and their remaining Spielgeld.
+        """
+        # Build person map from account config
+        persons: dict[str, dict[str, Any]] = {}
+        for acc in self._accounts:
+            person = acc.get("person", "")
+            if not person:
+                continue
+            if person not in persons:
+                persons[person] = {
+                    "income": 0.0,
+                    "individual_costs": 0.0,
+                    "account_ids": [],
+                    "acc_type": acc.get("type", "personal"),
+                }
+            persons[person]["account_ids"].append(acc.get("id", ""))
+
+        if not persons:
+            return None
+
+        # Sum income and costs per person from their transactions
+        shared_costs = 0.0
+        shared_cost_items: list[dict[str, Any]] = []
+
+        for txn in monthly_txns:
+            amount = float(
+                txn.get("transactionAmount", {}).get("amount", 0)
+            )
+            acc_type = txn.get("_account_type", "personal")
+            person = txn.get("_account_person", "")
+            category = txn.get("category", "other")
+
+            if acc_type == "shared":
+                # Shared account — costs are split among all members
+                if amount < 0:
+                    shared_costs += abs(amount)
+                    shared_cost_items.append({
+                        "category": category,
+                        "amount": amount,
+                    })
+            elif person and person in persons:
+                if amount > 0:
+                    persons[person]["income"] += amount
+                else:
+                    persons[person]["individual_costs"] += abs(amount)
+
+        # Build HouseholdMembers
+        members = []
+        for name, data in persons.items():
+            members.append(
+                HouseholdMember(
+                    name=name,
+                    net_income=data["income"],
+                    gross_income=data["income"],
+                    individual_costs=data["individual_costs"],
+                    account_ids=data["account_ids"],
+                )
+            )
+
+        split_mode = self._entry.options.get("split_model", "proportional")
+        remainder_mode = self._entry.options.get("remainder_mode", "none")
+
+        model = HouseholdModel(
+            members=members,
+            split_mode=split_mode,
+            remainder_mode=remainder_mode,
+        )
+
+        results = model.calculate_split(
+            shared_costs, shared_cost_items or None
+        )
+
+        return {
+            "members": [
+                {
+                    "person": r.person,
+                    "gross_income": round(r.gross_income, 2),
+                    "net_income": round(r.net_income, 2),
+                    "income_ratio": round(r.income_ratio * 100, 1),
+                    "shared_costs_share": round(r.shared_costs_share, 2),
+                    "individual_costs": round(r.individual_costs, 2),
+                    "spielgeld": round(r.spielgeld, 2),
+                    "bonus_amount": round(r.bonus_amount, 2),
+                }
+                for r in results
+            ],
+            "split_model": split_mode,
+            "remainder_mode": remainder_mode,
+            "total_shared_costs": round(shared_costs, 2),
+        }
+
+    def _check_budget_limits(
+        self, category_totals: dict[str, float]
+    ) -> None:
+        """Check if any category exceeds its budget limit and fire events."""
+        from .events import fire_budget_exceeded
+
+        for category, amount in category_totals.items():
+            if amount >= 0:
+                continue  # Only check expense categories
+            actual = abs(amount)
+            entity_id = f"number.fd_budget_{category}"
+            state = self._hass.states.get(entity_id)
+            if state is None:
+                continue
+            try:
+                limit = float(state.state)
+            except (ValueError, TypeError):
+                continue
+            if limit > 0 and actual > limit:
+                fire_budget_exceeded(
+                    self._hass,
+                    category=category,
+                    limit=limit,
+                    actual=actual,
+                )
 
     @staticmethod
     def _is_in_month(

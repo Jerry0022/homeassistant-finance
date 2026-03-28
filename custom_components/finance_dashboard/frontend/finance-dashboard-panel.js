@@ -11,15 +11,17 @@
  *  - Never re-fetch on hass setter calls (hass changes many times per second)
  *
  * CHECKLIST (from design sprint):
- * [x] Total income, total expenses, monthly balance (Must)
+ * [x] Total balance from bank accounts (Must)
+ * [x] Total income, total expenses, monthly surplus (Must)
+ * [x] Savings rate (Must)
  * [x] Category breakdown donut chart (Must)
  * [x] Category bars - percentage of total (Should)
  * [x] Spielgeld per person (Must)
  * [x] Income ratio (Must)
  * [x] Shared fixed costs bar (Must)
- * [x] Month-over-month comparison Δ% (Should)
  * [x] Top-3 cost drivers (Should)
  * [x] Fixed vs variable costs split (Should)
+ * [x] Recurring costs section (Should)
  * [ ] 6-month trend chart (Should — Phase 2.1)
  * [x] Privacy-first: only aggregates (Must)
  * [x] Admin-only transaction details (Must)
@@ -170,8 +172,25 @@ class FinanceDashboardPanel extends HTMLElement {
 .fv-block .l { font-size:11px; color:var(--tx2); }
 .fv-bar { height:8px; border-radius:4px; overflow:hidden; background:var(--sf2); margin:8px 0; }
 
+/* Recurring list */
+.rec-list { padding:18px; }
+.rec-item { display:flex; justify-content:space-between; align-items:center; padding:8px 0;
+  border-bottom:1px solid var(--bd); font-size:13px; }
+.rec-item:last-child { border-bottom:none; }
+.rec-left { display:flex; align-items:center; gap:8px; }
+.rec-cat { font-size:10px; color:var(--tx2); background:var(--sf2); padding:2px 6px; border-radius:4px; }
+.rec-day { font-size:11px; color:var(--tx2); }
+
 .loading { text-align:center; padding:60px; color:var(--tx2); }
 .error { text-align:center; padding:40px; color:var(--dg); }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .grid { grid-template-columns: 1fr; }
+  .donut-wrap { flex-direction: column; }
+  .persons { grid-template-columns: 1fr; }
+}
 </style>
 
 <div class="fd">
@@ -197,7 +216,7 @@ class FinanceDashboardPanel extends HTMLElement {
     const btn = this.shadowRoot.getElementById("refreshBtn");
     if (btn) {
       btn.disabled = true;
-      btn.textContent = "Lädt…";
+      btn.textContent = "Laden\u2026";
     }
 
     const c = this.shadowRoot.getElementById("content");
@@ -216,8 +235,9 @@ class FinanceDashboardPanel extends HTMLElement {
       const ts = this.shadowRoot.getElementById("lastUpdate");
       if (ts) ts.textContent = `Zuletzt: ${new Date().toLocaleTimeString("de-DE")}`;
     } catch (e) {
+      console.error("Finance Dashboard refresh error:", e);
       c.className = "error";
-      c.innerHTML = `<div>Verbinde dein Bankkonto unter Einstellungen → Integrationen → Finance.</div>`;
+      c.innerHTML = `<div>Verbinde dein Bankkonto unter Einstellungen \u2192 Integrationen \u2192 Finance.</div>`;
     } finally {
       this._refreshing = false;
       if (btn) {
@@ -228,15 +248,39 @@ class FinanceDashboardPanel extends HTMLElement {
   }
 
   _draw(el, balances, txnData, summary) {
-    const eur = (v) => new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v);
+    const eur = (v) => new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v || 0);
+    const pct = (v) => `${Math.round(v || 0)}%`;
+
     const cats = summary?.categories || {};
     const totalExp = summary?.total_expenses || 0;
     const totalInc = summary?.total_income || 0;
-    const balance = summary?.balance || 0;
+    const surplus = summary?.balance || 0;
+    const txnCount = summary?.transaction_count || 0;
+    const household = summary?.household || null;
+    const recurring = summary?.recurring || [];
+    const fixedCosts = summary?.fixed_costs || 0;
+    const varCosts = summary?.variable_costs || 0;
+
+    // Compute real bank balance from balances API data
+    let totalBalance = 0;
+    let accountCount = 0;
+    if (balances && typeof balances === "object") {
+      for (const accId of Object.keys(balances)) {
+        const accBals = balances[accId]?.balances || [];
+        if (accBals.length > 0) {
+          // Pick best balance type (same priority as sensor)
+          const bal = this._pickBalance(accBals);
+          if (bal) {
+            totalBalance += parseFloat(bal.balanceAmount?.amount || 0);
+            accountCount++;
+          }
+        }
+      }
+    }
 
     // Month label
     const now = new Date();
-    const monthNames = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+    const monthNames = ["Jan","Feb","M\u00e4r","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
     const monthBtn = this.shadowRoot.getElementById("monthBtn");
     if (monthBtn) monthBtn.textContent = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
 
@@ -246,19 +290,70 @@ class FinanceDashboardPanel extends HTMLElement {
       insurance:"#8b5cf6", subscriptions:"#ec4899", transport:"#06b6d4",
       cleaning:"#a855f7", income:"#4ecca3", transfers:"#6b7280", other:"#6b7280"
     };
+    const catLabels = {
+      housing:"Wohnen", loans:"Kredite", food:"Lebensmittel", utilities:"Nebenkosten",
+      insurance:"Versicherung", subscriptions:"Abos", transport:"Mobilit\u00e4t",
+      cleaning:"Reinigung", income:"Einkommen", transfers:"\u00dcbertr\u00e4ge", other:"Sonstiges"
+    };
 
     // Sort categories by absolute amount, exclude income/transfers from expense chart
     const sorted = Object.entries(cats)
       .filter(([k]) => k !== "income" && k !== "transfers")
       .sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]));
 
+    // Savings rate
+    const savingsRate = totalInc > 0 ? Math.round(surplus / totalInc * 100) : 0;
+
+    // ---- Build HTML ----
+    let html = "";
+
+    // Stats row — 4 KPIs
+    html += `<div class="stats">
+      <div class="stat"><div class="stat-l">Gesamtsaldo</div>
+        <div class="stat-v ${totalBalance>=0?"pos":"neg"}">${eur(totalBalance)}</div>
+        <div class="stat-d neu">${accountCount} ${accountCount===1?"Konto":"Konten"}</div></div>
+      <div class="stat"><div class="stat-l">Ausgaben</div>
+        <div class="stat-v neg">${eur(totalExp)}</div>
+        <div class="stat-d">${txnCount} Transaktionen</div></div>
+      <div class="stat"><div class="stat-l">Einnahmen</div>
+        <div class="stat-v" style="color:var(--bl)">${eur(totalInc)}</div>
+        <div class="stat-d neu">Netto</div></div>
+      <div class="stat"><div class="stat-l">Sparquote</div>
+        <div class="stat-v" style="color:var(--pp)">${pct(savingsRate)}</div>
+        <div class="stat-d neu">${surplus >= 0 ? "+" : ""}${eur(surplus)} Monatssaldo</div></div>
+    </div>`;
+
+    // ---- Person cards (Household split) ----
+    if (household && household.members && household.members.length > 0) {
+      html += `<div class="persons">`;
+      for (const m of household.members) {
+        const spielgeldClass = m.spielgeld >= 0 ? "pos" : "neg";
+        html += `<div class="person">
+          <div class="person-n">${this._esc(m.person)}</div>
+          <div class="person-r">Einkommensanteil: ${m.income_ratio.toFixed(1)}% &middot; ${household.split_model === "proportional" ? "Proportional" : household.split_model === "equal" ? "Gleich" : "Benutzerdefiniert"}</div>
+          <ul class="person-rows">
+            <li class="person-row"><span class="l">Einkommen (netto)</span><span>${eur(m.net_income)}</span></li>
+            <li class="person-row"><span class="l">Anteil Fixkosten</span><span class="neg">${eur(m.shared_costs_share)}</span></li>
+            <li class="person-row"><span class="l">Eigene Ausgaben</span><span class="neg">${eur(m.individual_costs)}</span></li>
+            ${m.bonus_amount > 0 ? `<li class="person-row"><span class="l">Bonus (erkannt)</span><span class="pos">${eur(m.bonus_amount)}</span></li>` : ""}
+          </ul>
+          <div class="person-saldo">
+            <span class="l">Spielgeld</span>
+            <span class="v ${spielgeldClass}">${eur(m.spielgeld)}</span>
+          </div>
+        </div>`;
+      }
+      html += `</div>`;
+    }
+
+    // ---- Category donut + Top 3 + Fix vs Var grid ----
     // Donut segments
     let donutSvg = `<circle cx="50" cy="50" r="40" fill="none" stroke="#222236" stroke-width="12"/>`;
     let offset = 0;
     const circ = 2 * Math.PI * 40;
     for (const [cat, amt] of sorted) {
-      const pct = totalExp > 0 ? Math.abs(amt) / totalExp : 0;
-      const len = pct * circ;
+      const p = totalExp > 0 ? Math.abs(amt) / totalExp : 0;
+      const len = p * circ;
       donutSvg += `<circle cx="50" cy="50" r="40" fill="none"
         stroke="${catColors[cat]||"#6b7280"}" stroke-width="12"
         stroke-dasharray="${len} ${circ-len}" stroke-dashoffset="-${offset}"
@@ -268,100 +363,144 @@ class FinanceDashboardPanel extends HTMLElement {
 
     // Category list
     const catList = sorted.map(([cat,amt]) => {
-      const pct = totalExp > 0 ? Math.round(Math.abs(amt)/totalExp*100) : 0;
+      const p = totalExp > 0 ? Math.round(Math.abs(amt)/totalExp*100) : 0;
       return `<li class="cat-item">
         <div class="cat-dot" style="background:${catColors[cat]||"#6b7280"}"></div>
-        <span class="cat-n">${cat.charAt(0).toUpperCase()+cat.slice(1)}</span>
+        <span class="cat-n">${catLabels[cat]||cat}</span>
         <span class="cat-a">${eur(Math.abs(amt))}</span>
-        <span class="cat-p">${pct}%</span>
+        <span class="cat-p">${p}%</span>
       </li>`;
     }).join("");
 
     // Top 3 cost drivers
     const top3 = sorted.slice(0,3).map(([cat,amt]) =>
-      `<div class="top-item"><span>${cat.charAt(0).toUpperCase()+cat.slice(1)}</span>
+      `<div class="top-item"><span>${catLabels[cat]||cat}</span>
        <span class="neg">${eur(Math.abs(amt))}</span></div>`
     ).join("");
 
-    // Shared costs bar segments
-    const costBar = sorted.map(([cat,amt]) => {
-      const pct = totalExp > 0 ? Math.abs(amt)/totalExp*100 : 0;
-      return `<div style="width:${pct}%;background:${catColors[cat]||"#6b7280"}"></div>`;
-    }).join("");
-    const costLegend = sorted.slice(0,6).map(([cat,amt]) =>
-      `<div class="cost-legend-item"><div class="cost-legend-dot" style="background:${catColors[cat]||"#6b7280"}"></div>${cat} ${eur(Math.abs(amt))}</div>`
-    ).join("");
+    // Fixed vs variable
+    const fixPct = totalExp > 0 ? Math.round(fixedCosts/totalExp*100) : 0;
+    const varPct = 100 - fixPct;
 
-    // Fixed vs variable (heuristic: housing+loans+utilities+insurance = fixed)
-    const fixedCats = ["housing","loans","utilities","insurance"];
-    const fixedTotal = sorted.filter(([c])=>fixedCats.includes(c)).reduce((s,[,a])=>s+Math.abs(a),0);
-    const varTotal = totalExp - fixedTotal;
-    const fixPct = totalExp > 0 ? Math.round(fixedTotal/totalExp*100) : 0;
-
-    el.className = "";
-    el.innerHTML = `
-      <div class="stats">
-        <div class="stat"><div class="stat-l">Gesamtsaldo</div>
-          <div class="stat-v ${balance>=0?"pos":"neg"}">${eur(balance)}</div>
-          <div class="stat-d neu">Aktueller Monat</div></div>
-        <div class="stat"><div class="stat-l">Ausgaben</div>
-          <div class="stat-v neg">${eur(totalExp)}</div>
-          <div class="stat-d">${summary?.transaction_count||0} Transaktionen</div></div>
-        <div class="stat"><div class="stat-l">Einnahmen</div>
-          <div class="stat-v" style="color:var(--bl)">${eur(totalInc)}</div>
-          <div class="stat-d neu">Brutto</div></div>
-        <div class="stat"><div class="stat-l">Sparquote</div>
-          <div class="stat-v" style="color:var(--pp)">${totalInc>0?Math.round(balance/totalInc*100):0}%</div>
-          <div class="stat-d neu">vom Einkommen</div></div>
+    html += `<div class="grid">
+      <div class="card">
+        <div class="card-h">Ausgaben nach Kategorie</div>
+        <div class="donut-wrap">
+          <div class="donut">
+            <svg viewBox="0 0 100 100">${donutSvg}</svg>
+            <div class="donut-c"><div class="v">${eur(totalExp)}</div><div class="l">Gesamt</div></div>
+          </div>
+          <ul class="cat-list">${catList||`<li style="color:var(--tx2);font-size:13px">Keine Ausgaben</li>`}</ul>
+        </div>
       </div>
-
-      <div class="grid">
+      <div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="card-h">Top-3 Kostentreiber</div>
+          <div class="top-list">${top3||`<div style="color:var(--tx2);font-size:13px;padding:18px">Keine Daten</div>`}</div>
+        </div>
         <div class="card">
-          <div class="card-h">Ausgaben nach Kategorie</div>
-          <div class="donut-wrap">
-            <div class="donut">
-              <svg viewBox="0 0 100 100">${donutSvg}</svg>
-              <div class="donut-c"><div class="v">${eur(totalExp)}</div><div class="l">Gesamt</div></div>
+          <div class="card-h">Fix vs. Variabel</div>
+          <div class="fv">
+            <div class="fv-block">
+              <div class="v">${eur(fixedCosts)}</div>
+              <div class="l">Fixkosten (${fixPct}%)</div>
+              <div class="fv-bar"><div style="width:${fixPct}%;height:100%;background:var(--bl);border-radius:4px"></div></div>
             </div>
-            <ul class="cat-list">${catList||"<li style='color:var(--tx2);font-size:13px'>Keine Daten</li>"}</ul>
-          </div>
-        </div>
-
-        <div>
-          <div class="card" style="margin-bottom:14px">
-            <div class="card-h">Top-3 Kostentreiber</div>
-            <div class="top-list">${top3||"<div style='color:var(--tx2);font-size:13px'>Keine Daten</div>"}</div>
-          </div>
-          <div class="card">
-            <div class="card-h">Fix vs. Variabel</div>
-            <div class="fv">
-              <div class="fv-block">
-                <div class="v">${eur(fixedTotal)}</div>
-                <div class="l">Fixkosten (${fixPct}%)</div>
-                <div class="fv-bar"><div style="width:${fixPct}%;height:100%;background:var(--bl);border-radius:4px"></div></div>
-              </div>
-              <div class="fv-block">
-                <div class="v">${eur(varTotal)}</div>
-                <div class="l">Variabel (${100-fixPct}%)</div>
-                <div class="fv-bar"><div style="width:${100-fixPct}%;height:100%;background:var(--wn);border-radius:4px"></div></div>
-              </div>
+            <div class="fv-block">
+              <div class="v">${eur(varCosts)}</div>
+              <div class="l">Variabel (${varPct}%)</div>
+              <div class="fv-bar"><div style="width:${varPct}%;height:100%;background:var(--wn);border-radius:4px"></div></div>
             </div>
           </div>
         </div>
       </div>
+    </div>`;
 
-      <div class="card grid-full" style="margin-bottom:20px">
+    // ---- Shared fixed costs distribution bar ----
+    if (household && household.total_shared_costs > 0) {
+      const memberColors = ["#3b82f6", "#8b5cf6", "#f97316", "#ec4899", "#06b6d4"];
+      const sharedBar = household.members.map((m, i) => {
+        const w = household.total_shared_costs > 0
+          ? (m.shared_costs_share / household.total_shared_costs * 100)
+          : 0;
+        return `<div style="width:${w}%;background:${memberColors[i % memberColors.length]}"></div>`;
+      }).join("");
+      const sharedLegend = household.members.map((m, i) =>
+        `<div class="cost-legend-item"><div class="cost-legend-dot" style="background:${memberColors[i % memberColors.length]}"></div>${this._esc(m.person)} ${eur(m.shared_costs_share)} (${m.income_ratio.toFixed(0)}%)</div>`
+      ).join("");
+
+      html += `<div class="card" style="margin-bottom:20px">
+        <div class="card-h">Geteilte Fixkosten <span style="font-weight:400;font-size:12px;color:var(--tx2)">${eur(household.total_shared_costs)} gesamt</span></div>
+        <div style="padding:14px 18px">
+          <div class="cost-bar">${sharedBar}</div>
+        </div>
+        <div class="cost-legend">${sharedLegend}</div>
+      </div>`;
+    } else {
+      // Cost distribution by category when no household
+      const costBar = sorted.map(([cat,amt]) => {
+        const p = totalExp > 0 ? Math.abs(amt)/totalExp*100 : 0;
+        return `<div style="width:${p}%;background:${catColors[cat]||"#6b7280"}"></div>`;
+      }).join("");
+      const costLegend = sorted.slice(0,6).map(([cat,amt]) =>
+        `<div class="cost-legend-item"><div class="cost-legend-dot" style="background:${catColors[cat]||"#6b7280"}"></div>${catLabels[cat]||cat} ${eur(Math.abs(amt))}</div>`
+      ).join("");
+
+      html += `<div class="card" style="margin-bottom:20px">
         <div class="card-h">Kostenverteilung</div>
         <div style="padding:14px 18px">
-          <div class="cost-bar">${costBar||"<div style='width:100%;background:var(--sf2)'></div>"}</div>
+          <div class="cost-bar">${costBar||`<div style="width:100%;background:var(--sf2)"></div>`}</div>
         </div>
         <div class="cost-legend">${costLegend}</div>
-      </div>
+      </div>`;
+    }
 
-      <div id="persons"></div>
-    `;
+    // ---- Recurring payments ----
+    if (recurring && recurring.length > 0) {
+      const recItems = recurring.slice(0, 8).map(r => {
+        const dayStr = r.expected_day ? `${r.expected_day}. d.M.` : "";
+        return `<div class="rec-item">
+          <div class="rec-left">
+            <span>${this._esc(r.creditor)}</span>
+            <span class="rec-cat">${catLabels[r.category] || r.category}</span>
+          </div>
+          <div style="text-align:right">
+            <span class="neg" style="font-weight:600">${eur(Math.abs(r.average_amount))}</span>
+            <span class="rec-day">${dayStr}</span>
+          </div>
+        </div>`;
+      }).join("");
+
+      html += `<div class="card" style="margin-bottom:20px">
+        <div class="card-h">Wiederkehrende Zahlungen <span style="font-weight:400;font-size:12px;color:var(--tx2)">${recurring.length} erkannt</span></div>
+        <div class="rec-list">${recItems}</div>
+      </div>`;
+    }
+
+    el.className = "";
+    el.innerHTML = html;
   }
 
+  /** Pick the most useful balance type from a list of balances. */
+  _pickBalance(balances) {
+    const priority = ["closingBooked", "interimAvailable", "interimBooked", "closingAvailable"];
+    const byType = {};
+    for (const b of balances) {
+      byType[b.balanceType] = b;
+    }
+    for (const t of priority) {
+      if (byType[t]) return byType[t];
+    }
+    return balances[0] || null;
+  }
+
+  /** Escape HTML to prevent XSS from user-provided names. */
+  _esc(s) {
+    if (!s) return "";
+    const d = document.createElement("div");
+    d.textContent = s;
+    return d.innerHTML;
+  }
 }
 
 customElements.define("finance-dashboard-panel", FinanceDashboardPanel);
