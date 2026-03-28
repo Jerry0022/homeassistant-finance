@@ -230,6 +230,24 @@ All notable changes to the Finance will be documented in this file.
 - Lovelace card throttles API calls to max once per 10 min (was every hass setter)
 - Manual refresh_transactions service triggers coordinator push to entities
 
+## [0.7.7] — 2026-03-28
+
+### Added
+- Integrate HouseholdModel into manager — auto-builds members from account assignments, computes per-person Spielgeld splits
+- Activate recurring payment detection on each transaction refresh
+- Fire fd_transaction_new, fd_balance_changed, fd_budget_exceeded events
+- Budget limit checking against Number entities per category
+- Fixed vs variable cost computation in summary API
+- Dashboard shows real bank balance from API (not income minus expenses)
+- Person cards with Spielgeld, income ratio, shared costs share
+- Shared Fixkosten bar with per-person distribution
+- Recurring payments section with detected patterns
+- German category labels (Wohnen, Mobilität, etc.)
+- Responsive layout for mobile viewports
+
+### Fixed
+- XSS protection for user-provided names
+
 ### Added
 - Initial project scaffold
 - GoCardless (Nordigen) Open Banking API client

@@ -3,6 +3,21 @@
 
 
 
+
+## 0.7.7
+- Integrate HouseholdModel into manager — auto-builds members from account assignments, computes per-person Spielgeld splits
+- Activate recurring payment detection on each transaction refresh
+- Fire fd_transaction_new, fd_balance_changed, fd_budget_exceeded events
+- Budget limit checking against Number entities per category
+- Fixed vs variable cost computation in summary API
+- Dashboard shows real bank balance from API (not income minus expenses)
+- Person cards with Spielgeld, income ratio, shared costs share
+- Shared Fixkosten bar with per-person distribution
+- Recurring payments section with detected patterns
+- German category labels (Wohnen, Mobilität, etc.)
+- Responsive layout for mobile viewports
+- XSS protection for user-provided names
+
 ## 0.7.6
 - Add DataUpdateCoordinator — entities no longer call banking API directly
 - Sensor update interval 10 min via coordinator (was ~30 s per entity → rate-limit exhaustion)
