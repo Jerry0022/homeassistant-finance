@@ -2,6 +2,32 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.7.8] — 2026-03-28
+
+### Fixed
+- Graceful degradation for household model — exception no longer crashes coordinator
+- Graceful degradation for recurring detection — failure yields empty list
+- Graceful degradation for budget limit checks — log and skip on error
+- Graceful degradation for event firing (balance + transaction) — never blocks data flow
+
+## [0.7.7] — 2026-03-28
+
+### Added
+- Integrate HouseholdModel into manager — auto-builds members from account assignments, computes per-person Spielgeld splits
+- Activate recurring payment detection on each transaction refresh
+- Fire fd_transaction_new, fd_balance_changed, fd_budget_exceeded events
+- Budget limit checking against Number entities per category
+- Fixed vs variable cost computation in summary API
+- Dashboard shows real bank balance from API (not income minus expenses)
+- Person cards with Spielgeld, income ratio, shared costs share
+- Shared Fixkosten bar with per-person distribution
+- Recurring payments section with detected patterns
+- German category labels (Wohnen, Mobilität, etc.)
+- Responsive layout for mobile viewports
+
+### Fixed
+- XSS protection for user-provided names
+
 ## [0.7.3] — 2026-03-26
 
 ### Fixed
@@ -229,35 +255,3 @@ All notable changes to the Finance will be documented in this file.
 - Panel refresh on connectedCallback + 10-min auto-timer instead of every hass setter
 - Lovelace card throttles API calls to max once per 10 min (was every hass setter)
 - Manual refresh_transactions service triggers coordinator push to entities
-
-## [0.7.7] — 2026-03-28
-
-### Added
-- Integrate HouseholdModel into manager — auto-builds members from account assignments, computes per-person Spielgeld splits
-- Activate recurring payment detection on each transaction refresh
-- Fire fd_transaction_new, fd_balance_changed, fd_budget_exceeded events
-- Budget limit checking against Number entities per category
-- Fixed vs variable cost computation in summary API
-- Dashboard shows real bank balance from API (not income minus expenses)
-- Person cards with Spielgeld, income ratio, shared costs share
-- Shared Fixkosten bar with per-person distribution
-- Recurring payments section with detected patterns
-- German category labels (Wohnen, Mobilität, etc.)
-- Responsive layout for mobile viewports
-
-### Fixed
-- XSS protection for user-provided names
-
-### Added
-- Initial project scaffold
-- GoCardless (Nordigen) Open Banking API client
-- Secure credential management with Fernet encryption
-- Auto-transaction categorization (rule-based)
-- Companion add-on with smart payload installer
-- Sidebar panel (web component)
-- Lovelace card for dashboard integration
-- Config flow with GoCardless API setup
-- German and English translations
-- Version management scripts (bump + sync)
-- GitHub Actions CI/CD pipeline
-- Maximum security: token rotation, session timeouts, audit log

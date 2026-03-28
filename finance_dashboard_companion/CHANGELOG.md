@@ -2,7 +2,11 @@
 
 
 
-
+## 0.7.8
+- Graceful degradation for household model — exception no longer crashes coordinator
+- Graceful degradation for recurring detection — failure yields empty list
+- Graceful degradation for budget limit checks — log and skip on error
+- Graceful degradation for event firing (balance + transaction) — never blocks data flow
 
 ## 0.7.7
 - Integrate HouseholdModel into manager — auto-builds members from account assignments, computes per-person Spielgeld splits

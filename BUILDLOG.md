@@ -1,5 +1,14 @@
 # Build Log
 
+## 0.7.8 — 2026-03-28
+Version: 0.7.8
+Branch: main (hotfix)
+Changes:
+- fix(core): graceful degradation for household model — exception no longer crashes coordinator
+- fix(core): graceful degradation for recurring detection — failure yields empty list
+- fix(core): graceful degradation for budget limit checks — log and skip on error
+- fix(core): graceful degradation for event firing (balance + transaction) — never blocks data flow
+
 ## 0.7.7 — 2026-03-28
 Version: 0.7.7
 Branch: claude/zen-satoshi
