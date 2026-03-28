@@ -1,5 +1,23 @@
 # Build Log
 
+## 0.7.7 — 2026-03-28
+Version: 0.7.7
+Branch: claude/zen-satoshi
+PR: #55
+Changes:
+- feat(core): integrate HouseholdModel into manager — auto-builds members from account assignments, computes per-person Spielgeld splits
+- feat(core): activate recurring payment detection on each transaction refresh
+- feat(core): fire fd_transaction_new, fd_balance_changed, fd_budget_exceeded events
+- feat(core): budget limit checking against Number entities per category
+- feat(core): fixed vs variable cost computation in summary API
+- feat(frontend): dashboard shows real bank balance from API (not income minus expenses)
+- feat(frontend): person cards with Spielgeld, income ratio, shared costs share
+- feat(frontend): shared Fixkosten bar with per-person distribution
+- feat(frontend): recurring payments section with detected patterns
+- feat(frontend): German category labels (Wohnen, Mobilität, etc.)
+- feat(frontend): responsive layout for mobile viewports
+- fix(frontend): XSS protection for user-provided names
+
 ## 0.7.6 — 2026-03-28
 Version: 0.7.6
 Branch: claude/stoic-wing
