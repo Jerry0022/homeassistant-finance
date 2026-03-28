@@ -603,6 +603,8 @@ class FinanceDashboardSetupUpdateAccountsView(HomeAssistantView):
                         acc["type"] = update["type"]
                     if "ha_users" in update:
                         acc["ha_users"] = update["ha_users"]
+                    if "person" in update:
+                        acc["person"] = update["person"]
                     break
 
         # Update config entry

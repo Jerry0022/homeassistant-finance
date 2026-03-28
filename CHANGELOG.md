@@ -249,6 +249,19 @@ All notable changes to the Finance will be documented in this file.
 ### Added
 - Coordinator refreshes transactions only when cache is stale (>6 h), balances every 10 min
 
+## [0.8.0] — 2026-03-28
+
+### Changed
+- Decompose monolithic panel into 10 web components (fd-data-provider, fd-header, fd-stats-row, fd-stat-card, fd-household-section, fd-person-card, fd-category-section, fd-donut-chart, fd-cost-distribution, fd-recurring-list)
+- Entity-first data strategy — fd-data-provider reads HA sensor/number/select entities, falls back to API for household+recurring
+- Panel shell reduced from 507 lines to ~120 lines
+- Docs: ARCHITECTURE-FRONTEND.md added with component hierarchy, data flow, entity table, event system
+
+### Fixed
+- Coordinator force-refreshes transactions on first cycle — prevents stale cache showing 0,00 EUR
+- Account settings API now persists `person` field for household assignment
+- Monthly summary sensor exposes fixed_costs, variable_costs, household, recurring attributes
+
 ### Fixed
 - Add DataUpdateCoordinator — entities no longer call banking API directly
 - Sensor update interval 10 min via coordinator (was ~30 s per entity → rate-limit exhaustion)

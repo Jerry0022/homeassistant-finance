@@ -46,6 +46,7 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
             update_interval=COORDINATOR_UPDATE_INTERVAL,
         )
         self._manager = manager
+        self._first_update = True
 
     async def _async_update_data(self) -> dict:
         """Called by HA every 10 minutes (and on demand via async_refresh)."""
@@ -53,8 +54,12 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
             # Refresh raw transactions only when the cache is stale.
             # Balance calls happen on every cycle; transaction fetches are
             # kept infrequent to stay within API rate limits.
+            # On first coordinator cycle, always refresh to ensure fresh data
+            # even if cached _last_refresh appears recent from a prior session.
             last = self._manager._last_refresh
-            if last is None or (datetime.now() - last) > TRANSACTION_REFRESH_STALENESS:
+            force_first = self._first_update
+            self._first_update = False
+            if force_first or last is None or (datetime.now() - last) > TRANSACTION_REFRESH_STALENESS:
                 _LOGGER.debug("Transaction cache stale — refreshing from API")
                 await self._manager.async_refresh_transactions()
 
