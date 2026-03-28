@@ -66,9 +66,11 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
             balances = await self._manager.async_get_balance()
             summary = await self._manager.async_get_monthly_summary()
 
+            rate_limited = self._manager.rate_limited_until
             return {
                 "balances": balances,
                 "summary": summary,
+                "rate_limited_until": rate_limited.isoformat() if rate_limited else None,
             }
         except Exception as exc:
             raise UpdateFailed(f"Finance data update failed: {exc}") from exc

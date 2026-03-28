@@ -23,6 +23,12 @@ from typing import Any
 import uuid
 
 import aiohttp
+
+from .const import ENABLEBANKING_RATE_LIMIT_DAILY
+
+
+class RateLimitExceeded(Exception):
+    """Raised when the banking API returns HTTP 429 (daily quota exhausted)."""
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
@@ -435,6 +441,12 @@ class EnableBankingClient:
                         resp.status,
                         body[:500],
                     )
+                    # Daily consent quota exhausted — signal callers to
+                    # stop retrying and serve cached data until tomorrow.
+                    if resp.status == 429:
+                        raise RateLimitExceeded(
+                            f"Daily API quota exhausted (HTTP 429): {body[:200]}"
+                        )
                     # Include the API error body in the exception
                     # so callers can surface it to the user
                     raise aiohttp.ClientResponseError(

@@ -80,6 +80,12 @@ class FinanceDashboardPanel extends HTMLElement {
     this.shadowRoot.addEventListener("fd-refresh-requested", () => {
       const dp = this.shadowRoot.querySelector("fd-data-provider");
       const header = this.shadowRoot.querySelector("fd-header");
+      // Don't call the API if rate-limited — button should already be disabled,
+      // but guard here as well.
+      if (header && header._rateLimitedUntil &&
+          new Date(header._rateLimitedUntil) > new Date()) {
+        return;
+      }
       if (header) header.refreshing = true;
       if (dp) {
         dp.refresh().finally(() => {
@@ -103,9 +109,12 @@ class FinanceDashboardPanel extends HTMLElement {
     content.className = "";
     content.innerHTML = "";
 
-    // Update header timestamp
+    // Update header timestamp and rate limit state
     const header = this.shadowRoot.querySelector("fd-header");
-    if (header) header.lastRefresh = data.lastRefresh;
+    if (header) {
+      header.lastRefresh = data.lastRefresh;
+      header.rateLimitedUntil = data.rateLimitedUntil;
+    }
 
     // Stats row
     const statsRow = document.createElement("fd-stats-row");

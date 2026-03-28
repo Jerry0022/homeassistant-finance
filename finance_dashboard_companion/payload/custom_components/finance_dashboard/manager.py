@@ -21,6 +21,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN, STORAGE_KEY_TRANSFER_OVERRIDES, STORAGE_VERSION
+from .enablebanking_client import RateLimitExceeded
 from .household import HouseholdMember, HouseholdModel
 from .recurring import detect_recurring
 from .transfer_detector import (
@@ -55,12 +56,32 @@ class FinanceDashboardManager:
         self._transactions: list[dict[str, Any]] = []
         self._balances: dict[str, Any] = {}
         self._last_refresh: datetime | None = None
+        self._rate_limited_until: datetime | None = None
         self._transfer_override_store = Store(
             hass, 1, STORAGE_KEY_TRANSFER_OVERRIDES
         )
         self._transfer_overrides: dict[str, bool] = {}
         self._recurring_patterns: list[dict[str, Any]] = []
         self._previous_balances: dict[str, float] = {}
+
+    @property
+    def rate_limited_until(self) -> datetime | None:
+        """Return the datetime until which the API is rate-limited, or None."""
+        if self._rate_limited_until and datetime.now() < self._rate_limited_until:
+            return self._rate_limited_until
+        return None
+
+    def _set_rate_limited(self) -> None:
+        """Mark API as rate-limited until midnight (next calendar day)."""
+        now = datetime.now()
+        tomorrow = (now + timedelta(days=1)).replace(
+            hour=0, minute=0, second=0, microsecond=0,
+        )
+        self._rate_limited_until = tomorrow
+        _LOGGER.warning(
+            "API rate-limited — serving cached data until %s",
+            tomorrow.isoformat(),
+        )
 
     async def async_initialize(self) -> None:
         """Initialize all sub-components."""
@@ -135,7 +156,19 @@ class FinanceDashboardManager:
 
         Fetches last N days of transactions, auto-categorizes them,
         and persists to encrypted .storage/ cache.
+
+        If the API returns HTTP 429 (daily quota exhausted), cached
+        data is served and no further API calls are attempted until
+        the next calendar day (midnight local time).
         """
+        # Skip API calls if we're still rate-limited
+        if self.rate_limited_until:
+            _LOGGER.info(
+                "API rate-limited until %s — serving cached transactions",
+                self._rate_limited_until.isoformat(),
+            )
+            return self._transactions
+
         client = await self._async_get_client()
         if not client:
             return []
@@ -184,6 +217,13 @@ class FinanceDashboardManager:
                     len(booked),
                     len(pending),
                 )
+            except RateLimitExceeded:
+                _LOGGER.warning(
+                    "Rate limit hit for account %s — stopping all fetches",
+                    account_id,
+                )
+                self._set_rate_limited()
+                break
             except Exception:
                 _LOGGER.exception(
                     "Failed to fetch transactions for account %s",
@@ -263,6 +303,11 @@ class FinanceDashboardManager:
 
     async def async_get_balance(self) -> dict[str, Any]:
         """Get current balances for all accounts."""
+        # Serve cached balances while rate-limited
+        if self.rate_limited_until:
+            _LOGGER.debug("Rate-limited — serving cached balances")
+            return self._balances
+
         client = await self._async_get_client()
         if not client:
             return {}
@@ -290,6 +335,13 @@ class FinanceDashboardManager:
                     "logo": account.get("logo", ""),
                     "balances": account_balances,
                 }
+            except RateLimitExceeded:
+                _LOGGER.warning(
+                    "Rate limit hit fetching balance for %s — serving cache",
+                    account_id,
+                )
+                self._set_rate_limited()
+                return self._balances
             except Exception:
                 _LOGGER.exception(
                     "Failed to fetch balance for account %s",
@@ -437,6 +489,11 @@ class FinanceDashboardManager:
             "last_refresh": (
                 self._last_refresh.isoformat()
                 if self._last_refresh
+                else None
+            ),
+            "rate_limited_until": (
+                self._rate_limited_until.isoformat()
+                if self.rate_limited_until
                 else None
             ),
         }

@@ -101,6 +101,7 @@ class FdDataProvider extends HTMLElement {
         loading: false,
         error: null,
         lastRefresh: null,
+        rateLimitedUntil: null,
       };
 
       // 1. Read per-account balance sensors
@@ -145,6 +146,7 @@ class FdDataProvider extends HTMLElement {
         data.summary.month = sa.month || data.summary.month;
         data.summary.year = sa.year || data.summary.year;
         data.lastRefresh = sa.last_refresh || null;
+        data.rateLimitedUntil = sa.rate_limited_until || null;
 
         // Household and recurring from entity attrs (added in v0.7.9+)
         if (sa.household) data.household = sa.household;
