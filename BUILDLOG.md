@@ -1,5 +1,18 @@
 # Build Log
 
+## 0.8.0 — 2026-03-28
+Version: 0.8.0
+Branch: claude/compassionate-kowalevski
+PR: #56
+Changes:
+- refactor(frontend): decompose monolithic panel into 10 web components (fd-data-provider, fd-header, fd-stats-row, fd-stat-card, fd-household-section, fd-person-card, fd-category-section, fd-donut-chart, fd-cost-distribution, fd-recurring-list)
+- refactor(frontend): entity-first data strategy — fd-data-provider reads HA sensor/number/select entities, falls back to API for household+recurring
+- refactor(frontend): panel shell reduced from 507 lines to ~120 lines
+- fix(core): coordinator force-refreshes transactions on first cycle — prevents stale cache showing 0,00 EUR
+- fix(core): account settings API now persists `person` field for household assignment
+- fix(core): monthly summary sensor exposes fixed_costs, variable_costs, household, recurring attributes
+- docs: ARCHITECTURE-FRONTEND.md added with component hierarchy, data flow, entity table, event system
+
 ## 0.7.8 — 2026-03-28
 Version: 0.7.8
 Branch: main (hotfix)

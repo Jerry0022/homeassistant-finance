@@ -2,6 +2,16 @@
 
 
 
+
+## 0.8.0
+- Decompose monolithic panel into 10 web components (fd-data-provider, fd-header, fd-stats-row, fd-stat-card, fd-household-section, fd-person-card, fd-category-section, fd-donut-chart, fd-cost-distribution, fd-recurring-list)
+- Entity-first data strategy — fd-data-provider reads HA sensor/number/select entities, falls back to API for household+recurring
+- Panel shell reduced from 507 lines to ~120 lines
+- Coordinator force-refreshes transactions on first cycle — prevents stale cache showing 0,00 EUR
+- Account settings API now persists `person` field for household assignment
+- Monthly summary sensor exposes fixed_costs, variable_costs, household, recurring attributes
+- Docs: ARCHITECTURE-FRONTEND.md added with component hierarchy, data flow, entity table, event system
+
 ## 0.7.8
 - Graceful degradation for household model — exception no longer crashes coordinator
 - Graceful degradation for recurring detection — failure yields empty list
