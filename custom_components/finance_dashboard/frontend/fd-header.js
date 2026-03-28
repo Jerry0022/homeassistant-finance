@@ -14,6 +14,7 @@ class FdHeader extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._lastRefresh = null;
     this._refreshing = false;
+    this._rateLimitedUntil = null;
   }
 
   set lastRefresh(v) {
@@ -23,10 +24,29 @@ class FdHeader extends HTMLElement {
 
   set refreshing(v) {
     this._refreshing = v;
+    this._updateRefreshBtn();
+  }
+
+  set rateLimitedUntil(v) {
+    this._rateLimitedUntil = v;
+    this._updateRefreshBtn();
+  }
+
+  _updateRefreshBtn() {
     const btn = this.shadowRoot.getElementById("refreshBtn");
-    if (btn) {
-      btn.disabled = v;
-      btn.textContent = v ? "Laden\u2026" : "Aktualisieren";
+    if (!btn) return;
+    if (this._rateLimitedUntil && new Date(this._rateLimitedUntil) > new Date()) {
+      btn.disabled = true;
+      btn.textContent = "Morgen verf\u00fcgbar";
+      btn.title = "Tageslimit der Bank-API erreicht. N\u00e4chste Aktualisierung ab morgen.";
+    } else if (this._refreshing) {
+      btn.disabled = true;
+      btn.textContent = "Laden\u2026";
+      btn.title = "";
+    } else {
+      btn.disabled = false;
+      btn.textContent = "Aktualisieren";
+      btn.title = "";
     }
   }
 

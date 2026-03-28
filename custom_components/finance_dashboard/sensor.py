@@ -271,4 +271,5 @@ class MonthlySummarySensor(
             "household": summary.get("household"),
             "recurring": summary.get("recurring", []),
             "last_refresh": summary.get("last_refresh"),
+            "rate_limited_until": summary.get("rate_limited_until"),
         }
