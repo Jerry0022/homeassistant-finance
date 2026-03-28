@@ -22,6 +22,17 @@ _LOGGER = logging.getLogger(__name__)
 
 STATIC_BASE = f"/api/{DOMAIN}/static"
 LOVELACE_COMPONENTS = [
+    f"{STATIC_BASE}/fd-shared-styles.js",
+    f"{STATIC_BASE}/fd-data-provider.js",
+    f"{STATIC_BASE}/fd-stat-card.js",
+    f"{STATIC_BASE}/fd-person-card.js",
+    f"{STATIC_BASE}/fd-donut-chart.js",
+    f"{STATIC_BASE}/fd-header.js",
+    f"{STATIC_BASE}/fd-stats-row.js",
+    f"{STATIC_BASE}/fd-household-section.js",
+    f"{STATIC_BASE}/fd-category-section.js",
+    f"{STATIC_BASE}/fd-cost-distribution.js",
+    f"{STATIC_BASE}/fd-recurring-list.js",
     f"{STATIC_BASE}/fd-budget-config.js",
     f"{STATIC_BASE}/fd-categorize.js",
     f"{STATIC_BASE}/finance-status-chip.js",

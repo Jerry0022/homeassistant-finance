@@ -266,5 +266,9 @@ class MonthlySummarySensor(
             "transaction_count": summary.get("transaction_count", 0),
             "month": summary.get("month", 0),
             "year": summary.get("year", 0),
+            "fixed_costs": summary.get("fixed_costs", 0),
+            "variable_costs": summary.get("variable_costs", 0),
+            "household": summary.get("household"),
+            "recurring": summary.get("recurring", []),
             "last_refresh": summary.get("last_refresh"),
         }
