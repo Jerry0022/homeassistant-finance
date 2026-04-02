@@ -262,6 +262,14 @@ All notable changes to the Finance will be documented in this file.
 - Account settings API now persists `person` field for household assignment
 - Monthly summary sensor exposes fixed_costs, variable_costs, household, recurring attributes
 
+## [0.8.1] — 2026-04-02
+
+### Added
+- Chore: add .playwright-mcp/ to .gitignore
+
+### Fixed
+- Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
+
 ### Fixed
 - Add DataUpdateCoordinator — entities no longer call banking API directly
 - Sensor update interval 10 min via coordinator (was ~30 s per entity → rate-limit exhaustion)

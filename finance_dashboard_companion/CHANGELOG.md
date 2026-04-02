@@ -3,6 +3,11 @@
 
 
 
+
+## 0.8.1
+- Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
+- Chore: add .playwright-mcp/ to .gitignore
+
 ## 0.8.0
 - Decompose monolithic panel into 10 web components (fd-data-provider, fd-header, fd-stats-row, fd-stat-card, fd-household-section, fd-person-card, fd-category-section, fd-donut-chart, fd-cost-distribution, fd-recurring-list)
 - Entity-first data strategy — fd-data-provider reads HA sensor/number/select entities, falls back to API for household+recurring
