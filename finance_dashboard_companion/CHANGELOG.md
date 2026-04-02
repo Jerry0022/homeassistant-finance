@@ -5,8 +5,8 @@
 
 
 ## 0.8.1
-- Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
-- Chore: add .playwright-mcp/ to .gitignore
+- Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist
+- Restart notification no longer lost due to race condition in entry setup
 
 ## 0.8.0
 - Decompose monolithic panel into 10 web components (fd-data-provider, fd-header, fd-stats-row, fd-stat-card, fd-household-section, fd-person-card, fd-category-section, fd-donut-chart, fd-cost-distribution, fd-recurring-list)

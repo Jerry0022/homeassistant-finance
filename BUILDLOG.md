@@ -2,10 +2,11 @@
 
 ## 0.8.1 — 2026-04-02
 Version: 0.8.1
-Branch: claude/competent-payne
+Branch: claude/frosty-hoover
+PR: #59
 Changes:
-- fix(frontend): prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
-- chore: add .playwright-mcp/ to .gitignore
+- fix(frontend): fd-data-provider never called _rebuild when no fd_ entities exist — dashboard stuck on "Lade Finanzdaten..." forever. Added _initialRebuildDone flag to ensure first rebuild always runs.
+- fix(core): restart notification deleted by race condition — async_setup_entry unconditionally cleared restart_required issue before polling timer could detect marker. Now preserves issue when marker file exists and polls immediately on setup.
 
 ## 0.8.0 — 2026-03-28
 Version: 0.8.0
