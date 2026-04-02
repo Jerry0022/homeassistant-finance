@@ -22,6 +22,7 @@ class FdDataProvider extends HTMLElement {
     this._data = null;
     this._debounceTimer = null;
     this._prevStateHash = "";
+    this._initialRebuildDone = false;
     this._loading = false;
   }
 
@@ -54,8 +55,8 @@ class FdDataProvider extends HTMLElement {
   _onHassChanged() {
     if (!this._hass) return;
     const hash = this._computeStateHash();
-    // First call must always trigger rebuild (even with empty hash)
-    if (this._data !== null && hash === this._prevStateHash) return;
+    if (this._initialRebuildDone && hash === this._prevStateHash) return;
+    this._initialRebuildDone = true;
     this._prevStateHash = hash;
     this._rebuild();
   }
