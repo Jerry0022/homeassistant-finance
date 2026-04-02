@@ -1,5 +1,12 @@
 # Build Log
 
+## 0.8.1 — 2026-04-02
+Version: 0.8.1
+Branch: claude/competent-payne
+Changes:
+- fix(frontend): prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
+- chore: add .playwright-mcp/ to .gitignore
+
 ## 0.8.0 — 2026-03-28
 Version: 0.8.0
 Branch: claude/compassionate-kowalevski
