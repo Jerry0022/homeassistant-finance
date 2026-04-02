@@ -46,8 +46,12 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: FinanceDashboardConfigEntry
 ) -> bool:
     """Set up Finance Dashboard from a config entry."""
-    # Clean up stale restart issues from previous sessions
-    ir.async_delete_issue(hass, DOMAIN, "restart_required")
+    # Only clean up stale restart issues if no pending marker exists
+    marker_path = Path(
+        hass.config.path(".storage/finance_dashboard_restart_needed.json")
+    )
+    if not marker_path.exists():
+        ir.async_delete_issue(hass, DOMAIN, "restart_required")
 
     # Initialize the manager (core business logic)
     from .manager import FinanceDashboardManager
@@ -108,6 +112,9 @@ async def async_setup_entry(
             hass, _poll_restart_marker, timedelta(seconds=60)
         )
     )
+
+    # Fire first poll immediately so the user sees the notification within seconds
+    await _poll_restart_marker(None)
 
     # Forward platform setup — sensors/numbers/selects will register themselves
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
