@@ -54,7 +54,8 @@ class FdDataProvider extends HTMLElement {
   _onHassChanged() {
     if (!this._hass) return;
     const hash = this._computeStateHash();
-    if (hash === this._prevStateHash) return;
+    // First call must always trigger rebuild (even with empty hash)
+    if (this._data !== null && hash === this._prevStateHash) return;
     this._prevStateHash = hash;
     this._rebuild();
   }
