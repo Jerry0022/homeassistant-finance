@@ -264,7 +264,11 @@ All notable changes to the Finance will be documented in this file.
 
 ## [0.8.1] — 2026-04-02
 
+### Added
+- Chore: add .playwright-mcp/ to .gitignore
+
 ### Fixed
+- Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
 - Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist — data provider always triggers initial rebuild
 - Restart notification no longer lost due to race condition in entry setup — preserves issue when marker file exists and polls immediately
 - Add DataUpdateCoordinator — entities no longer call banking API directly
