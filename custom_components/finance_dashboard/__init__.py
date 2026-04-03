@@ -129,6 +129,7 @@ async def async_setup_entry(
             except Exception:
                 _LOGGER.exception("Initial coordinator refresh failed")
 
+
         hass.bus.async_listen_once("homeassistant_started", _initial_refresh)
 
     _LOGGER.info("Finance Dashboard v%s loaded", entry.version)

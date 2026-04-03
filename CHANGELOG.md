@@ -246,6 +246,7 @@ All notable changes to the Finance will be documented in this file.
 
 ## [0.7.6] — 2026-03-28
 
+
 ### Added
 - Coordinator refreshes transactions only when cache is stale (>6 h), balances every 10 min
 

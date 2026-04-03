@@ -4,6 +4,7 @@
 
 
 
+
 ## 0.8.1
 - Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist
 - Restart notification no longer lost due to race condition in entry setup
@@ -46,6 +47,7 @@
 - Lovelace card throttles API calls to max once per 10 min (was every hass setter)
 - Coordinator refreshes transactions only when cache is stale (>6 h), balances every 10 min
 - Manual refresh_transactions service triggers coordinator push to entities
+
 
 ## 0.7.5
 - Expose config entry to API views (entry key was never set)

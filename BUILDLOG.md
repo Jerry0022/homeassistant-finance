@@ -61,6 +61,7 @@ Changes:
 - feat(core): coordinator refreshes transactions only when cache is stale (>6 h), balances every 10 min
 - fix(core): manual refresh_transactions service triggers coordinator push to entities
 
+
 ## 0.7.5 — 2026-03-27
 Version: 0.7.5
 Branch: claude/keen-meninsky
