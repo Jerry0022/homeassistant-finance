@@ -2,7 +2,7 @@
 
 Centralises all Enable Banking API calls so that:
 - No entity ever calls the API directly
-- All updates happen on a fixed 10-minute schedule
+- Updates only happen on manual refresh (service call or UI button)
 - Rate limits are respected (transactions refreshed only when stale)
 - A single coordinator failure does not orphan individual entities
 """
@@ -19,15 +19,12 @@ from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
-# Balance + summary: every 10 minutes
-COORDINATOR_UPDATE_INTERVAL = timedelta(minutes=10)
-
 # Only re-fetch raw transactions if cache is older than 6 hours
 TRANSACTION_REFRESH_STALENESS = timedelta(hours=6)
 
 
 class FinanceDashboardCoordinator(DataUpdateCoordinator):
-    """Fetch balances and monthly summary on a fixed schedule.
+    """Fetch balances and monthly summary on manual refresh only.
 
     Entities read from coordinator.data — they never call the banking
     API themselves.  Structure of coordinator.data:
@@ -38,18 +35,23 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
     """
 
     def __init__(self, hass: HomeAssistant, manager) -> None:
-        """Initialise coordinator with a reference to the manager."""
+        """Initialise coordinator with a reference to the manager.
+
+        update_interval is None — API calls only happen on manual refresh
+        (service call or UI button). Entities receive cached data from
+        the initial startup refresh and subsequent manual refreshes.
+        """
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=COORDINATOR_UPDATE_INTERVAL,
+            update_interval=None,
         )
         self._manager = manager
         self._first_update = True
 
     async def _async_update_data(self) -> dict:
-        """Called by HA every 10 minutes (and on demand via async_refresh)."""
+        """Called on demand via async_refresh() (manual refresh only)."""
         try:
             # Refresh raw transactions only when the cache is stale.
             # Balance calls happen on every cycle; transaction fetches are

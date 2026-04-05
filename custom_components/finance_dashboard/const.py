@@ -123,3 +123,6 @@ REFUND_KEYWORDS = [
 
 # Household model
 DEFAULT_SPLIT_MODEL = "proportional"  # proportional, equal, custom
+
+# Demo mode
+SERVICE_TOGGLE_DEMO = "toggle_demo"

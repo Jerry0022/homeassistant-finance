@@ -93,6 +93,16 @@ class FinanceDashboardPanel extends HTMLElement {
         });
       }
     });
+
+    this.shadowRoot.addEventListener("fd-demo-toggle", () => {
+      const dp = this.shadowRoot.querySelector("fd-data-provider");
+      const header = this.shadowRoot.querySelector("fd-header");
+      if (dp) {
+        dp.toggleDemo().then((enabled) => {
+          if (header) header.demoMode = enabled;
+        });
+      }
+    });
   }
 
   _onData(data) {
@@ -109,11 +119,12 @@ class FinanceDashboardPanel extends HTMLElement {
     content.className = "";
     content.innerHTML = "";
 
-    // Update header timestamp and rate limit state
+    // Update header timestamp, rate limit, and demo state
     const header = this.shadowRoot.querySelector("fd-header");
     if (header) {
       header.lastRefresh = data.lastRefresh;
       header.rateLimitedUntil = data.rateLimitedUntil;
+      if (data.demoMode !== undefined) header.demoMode = data.demoMode;
     }
 
     // Stats row

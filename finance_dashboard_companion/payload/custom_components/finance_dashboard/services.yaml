@@ -1,6 +1,6 @@
 refresh_accounts:
   name: Refresh Accounts
-  description: Refresh the list of linked bank accounts from GoCardless.
+  description: Refresh the list of linked bank accounts from Enable Banking.
 
 refresh_transactions:
   name: Refresh Transactions
@@ -68,6 +68,10 @@ set_budget_limit:
           max: 100000
           step: 0.01
           mode: box
+
+toggle_demo:
+  name: Toggle Demo Mode
+  description: Toggle demo mode on/off. Generates realistic synthetic banking data for testing and demonstration.
 
 export_csv:
   name: Export CSV

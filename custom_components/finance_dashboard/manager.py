@@ -63,6 +63,7 @@ class FinanceDashboardManager:
         self._transfer_overrides: dict[str, bool] = {}
         self._recurring_patterns: list[dict[str, Any]] = []
         self._previous_balances: dict[str, float] = {}
+        self._demo_mode: bool = False
 
     @property
     def rate_limited_until(self) -> datetime | None:
@@ -82,6 +83,37 @@ class FinanceDashboardManager:
             "API rate-limited — serving cached data until %s",
             tomorrow.isoformat(),
         )
+
+    @property
+    def demo_mode(self) -> bool:
+        """Return whether demo mode is active."""
+        return self._demo_mode
+
+    def set_demo_mode(self, enabled: bool) -> None:
+        """Toggle demo mode on or off.
+
+        When enabled, loads synthetic demo data into the manager's state.
+        When disabled, clears demo data and reverts to real cached data.
+        """
+        self._demo_mode = enabled
+        if enabled:
+            from .demo import generate_demo_data
+
+            data = generate_demo_data()
+            self._accounts = data["_demo_accounts"]
+            self._transactions = data["_demo_transactions"]
+            self._balances = data["_demo_balances"]
+            self._last_refresh = datetime.now()
+            self._recurring_patterns = data.get("recurring", [])
+            _LOGGER.info("Demo mode enabled — loaded synthetic data")
+        else:
+            # Clear demo data — real data reloads on next manual refresh
+            self._accounts = self._entry.data.get("accounts", [])
+            self._transactions = []
+            self._balances = {}
+            self._last_refresh = None
+            self._recurring_patterns = []
+            _LOGGER.info("Demo mode disabled — cleared synthetic data")
 
     async def async_initialize(self) -> None:
         """Initialize all sub-components."""
@@ -110,14 +142,17 @@ class FinanceDashboardManager:
 
     async def async_shutdown(self) -> None:
         """Clean shutdown — persist cache, clear sensitive data from memory."""
-        # Save current transactions before shutdown
-        await self._persist_transactions()
+        # Only persist real transactions — never overwrite cache with demo data
+        if not self._demo_mode:
+            await self._persist_transactions()
         self._banking_client = None
         self._balances.clear()
         _LOGGER.info("Finance Manager shut down")
 
     async def async_refresh_accounts(self) -> list[dict[str, Any]]:
         """Refresh account list from Enable Banking."""
+        if self._demo_mode:
+            return self._accounts
         client = await self._async_get_client()
         if not client:
             return []
@@ -161,6 +196,17 @@ class FinanceDashboardManager:
         data is served and no further API calls are attempted until
         the next calendar day (midnight local time).
         """
+        # Demo mode — regenerate fresh demo data without API calls
+        if self._demo_mode:
+            from .demo import generate_demo_data
+
+            data = generate_demo_data()
+            self._transactions = data["_demo_transactions"]
+            self._balances = data["_demo_balances"]
+            self._last_refresh = datetime.now()
+            self._recurring_patterns = data.get("recurring", [])
+            return self._transactions
+
         # Skip API calls if we're still rate-limited
         if self.rate_limited_until:
             _LOGGER.info(
@@ -303,6 +349,9 @@ class FinanceDashboardManager:
 
     async def async_get_balance(self) -> dict[str, Any]:
         """Get current balances for all accounts."""
+        if self._demo_mode:
+            return self._balances
+
         # Serve cached balances while rate-limited
         if self.rate_limited_until:
             _LOGGER.debug("Rate-limited — serving cached balances")
@@ -500,7 +549,7 @@ class FinanceDashboardManager:
 
     async def async_categorize_transactions(self) -> None:
         """Re-run auto-categorization on all cached transactions."""
-        if not self._categorizer:
+        if self._demo_mode or not self._categorizer:
             return
         for txn in self._transactions:
             txn["category"] = self._categorizer.categorize(txn)
