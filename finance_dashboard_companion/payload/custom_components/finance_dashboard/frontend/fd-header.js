@@ -15,6 +15,7 @@ class FdHeader extends HTMLElement {
     this._lastRefresh = null;
     this._refreshing = false;
     this._rateLimitedUntil = null;
+    this._demoMode = false;
   }
 
   set lastRefresh(v) {
@@ -30,6 +31,11 @@ class FdHeader extends HTMLElement {
   set rateLimitedUntil(v) {
     this._rateLimitedUntil = v;
     this._updateRefreshBtn();
+  }
+
+  set demoMode(v) {
+    this._demoMode = v;
+    this._updateDemoBtn();
   }
 
   _updateRefreshBtn() {
@@ -54,6 +60,22 @@ class FdHeader extends HTMLElement {
     this._render();
   }
 
+  _updateDemoBtn() {
+    const btn = this.shadowRoot.getElementById("demoBtn");
+    const badge = this.shadowRoot.getElementById("demoBadge");
+    if (!btn) return;
+    btn.setAttribute("aria-pressed", String(this._demoMode));
+    if (this._demoMode) {
+      btn.textContent = "Demo aus";
+      btn.classList.add("btn-demo-active");
+      if (badge) badge.style.display = "inline-block";
+    } else {
+      btn.textContent = "Demo";
+      btn.classList.remove("btn-demo-active");
+      if (badge) badge.style.display = "none";
+    }
+  }
+
   _render() {
     const monthNames = ["Jan", "Feb", "M\u00e4r", "Apr", "Mai", "Jun",
       "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
@@ -69,6 +91,7 @@ class FdHeader extends HTMLElement {
   --tx: var(--primary-text-color, #e0e0e0);
   --tx2: var(--secondary-text-color, #9898a8);
   --ac: var(--accent-color, #4ecca3);
+  --demo: #f39c12;
   display: block;
   margin-bottom: 24px;
 }
@@ -77,11 +100,27 @@ class FdHeader extends HTMLElement {
   justify-content: space-between;
   align-items: center;
 }
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 h1 {
   font-size: 24px;
   font-weight: 700;
   margin: 0;
   font-family: 'Segoe UI', system-ui, sans-serif;
+}
+.demo-badge {
+  display: none;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: var(--demo);
+  color: #0a0a0f;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
 }
 .right {
   display: flex;
@@ -110,11 +149,36 @@ h1 {
   border-color: var(--ac);
   font-weight: 600;
 }
+.btn-demo {
+  border-color: var(--demo);
+  color: var(--demo);
+}
+.btn-demo:hover {
+  background: rgba(243, 156, 18, 0.1);
+}
+.btn-demo-active {
+  background: var(--demo);
+  color: #0a0a0f;
+  font-weight: 600;
+}
+.btn-demo-active:hover {
+  background: #e67e22;
+}
+@media (max-width: 600px) {
+  .hdr { flex-wrap: wrap; gap: 10px; }
+  .right { width: 100%; justify-content: flex-end; }
+  h1 { font-size: 20px; }
+  .btn { padding: 6px 10px; font-size: 12px; }
+}
 </style>
 <div class="hdr">
-  <h1>Finance Dashboard</h1>
+  <div class="title-row">
+    <h1>Finance Dashboard</h1>
+    <span class="demo-badge" id="demoBadge">DEMO</span>
+  </div>
   <div class="right">
     <span class="ts" id="ts"></span>
+    <button class="btn btn-demo" id="demoBtn" aria-label="Demo-Modus umschalten" aria-pressed="false">Demo</button>
     <button class="btn" id="monthBtn">${monthLabel}</button>
     <button class="btn btn-p" id="refreshBtn">Aktualisieren</button>
   </div>
@@ -128,7 +192,16 @@ h1 {
         }));
       });
 
+    this.shadowRoot.getElementById("demoBtn")
+      .addEventListener("click", () => {
+        this.dispatchEvent(new CustomEvent("fd-demo-toggle", {
+          bubbles: true,
+          composed: true,
+        }));
+      });
+
     this._updateTimestamp();
+    this._updateDemoBtn();
   }
 
   _updateTimestamp() {

@@ -5,6 +5,20 @@
 
 
 
+
+## 0.9.0
+- Full demo mode with realistic German banking data (3 accounts, ~35 transactions, household split, recurring patterns)
+- Toggle via UI button (admin-only), service call, or options flow — persists across HA restarts
+- Manual-only API refresh — coordinator update_interval=None, data only updates on explicit user action
+- Initial coordinator refresh now works on config entry reloads (not just first HA start)
+- Shutdown no longer overwrites real transaction cache when demo mode is active
+- AttributeError in DemoToggleView coordinator lookup — null-safe access pattern
+- GoCardless reference replaced with Enable Banking in services.yaml
+- Removed dead COORDINATOR_UPDATE_INTERVAL constant and corrected all docstrings
+- Demo toggle button with DEMO badge, aria-pressed accessibility, mobile breakpoint
+- Rapid-click guard and loading state for demo API calls
+- DemoMode flag propagated in all data events for consistent UI state
+
 ## 0.8.1
 - Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist
 - Restart notification no longer lost due to race condition in entry setup

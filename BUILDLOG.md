@@ -1,5 +1,22 @@
 # Build Log
 
+## 0.9.0 — 2026-04-05
+Version: 0.9.0
+Branch: claude/practical-fermi
+PR: (pending)
+Changes:
+- feat(demo): full demo mode with realistic German banking data (3 accounts, ~35 transactions, household split, recurring patterns)
+- feat(demo): toggle via UI button (admin-only), service call, or options flow — persists across HA restarts
+- feat(core): manual-only API refresh — coordinator update_interval=None, data only updates on explicit user action
+- fix(core): initial coordinator refresh now works on config entry reloads (not just first HA start)
+- fix(core): shutdown no longer overwrites real transaction cache when demo mode is active
+- fix(api): AttributeError in DemoToggleView coordinator lookup — null-safe access pattern
+- fix(api): GoCardless reference replaced with Enable Banking in services.yaml
+- fix(coordinator): removed dead COORDINATOR_UPDATE_INTERVAL constant and corrected all docstrings
+- feat(frontend): demo toggle button with DEMO badge, aria-pressed accessibility, mobile breakpoint
+- fix(frontend): rapid-click guard and loading state for demo API calls
+- fix(frontend): demoMode flag propagated in all data events for consistent UI state
+
 ## 0.8.1 — 2026-04-02
 Version: 0.8.1
 Branch: claude/frosty-hoover, claude/competent-payne

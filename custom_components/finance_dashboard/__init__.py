@@ -21,6 +21,7 @@ from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
     DOMAIN,
+    SERVICE_TOGGLE_DEMO,
     STORAGE_KEY_AUDIT,
     STORAGE_VERSION,
 )
@@ -64,6 +65,10 @@ async def async_setup_entry(
     from .coordinator import FinanceDashboardCoordinator
 
     coordinator = FinanceDashboardCoordinator(hass, manager)
+
+    # Initialize demo mode from options
+    if entry.options.get("demo_mode", False):
+        manager.set_demo_mode(True)
 
     hass.data[DOMAIN][entry.entry_id] = manager
     hass.data[DOMAIN][f"{entry.entry_id}_coordinator"] = coordinator
@@ -119,18 +124,24 @@ async def async_setup_entry(
     # Forward platform setup — sensors/numbers/selects will register themselves
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Kick off the first coordinator refresh once HA is fully started.
-    # This populates entities with live data immediately without blocking startup.
-    if entry.data.get("configured"):
-        async def _initial_refresh(_event=None) -> None:
+    # Kick off the first coordinator refresh.
+    # Uses async_create_task so it works both on initial HA start AND
+    # on config entry reloads (homeassistant_started only fires once).
+    if entry.data.get("configured") or manager.demo_mode:
+        async def _initial_refresh() -> None:
             try:
                 await coordinator.async_refresh()
                 _LOGGER.info("Initial coordinator refresh completed")
             except Exception:
                 _LOGGER.exception("Initial coordinator refresh failed")
 
-
-        hass.bus.async_listen_once("homeassistant_started", _initial_refresh)
+        if hass.is_running:
+            hass.async_create_task(_initial_refresh())
+        else:
+            hass.bus.async_listen_once(
+                "homeassistant_started",
+                lambda _event: hass.async_create_task(_initial_refresh()),
+            )
 
     _LOGGER.info("Finance Dashboard v%s loaded", entry.version)
     return True
@@ -199,6 +210,11 @@ async def _async_register_services(
         )
         return {"path": path}
 
+    async def handle_toggle_demo(call) -> None:
+        enabled = not manager.demo_mode
+        manager.set_demo_mode(enabled)
+        await coordinator.async_refresh()
+
     hass.services.async_register(
         DOMAIN, SERVICE_REFRESH_ACCOUNTS, handle_refresh_accounts
     )
@@ -219,4 +235,7 @@ async def _async_register_services(
     )
     hass.services.async_register(
         DOMAIN, SERVICE_EXPORT_CSV, handle_export_csv
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_TOGGLE_DEMO, handle_toggle_demo
     )

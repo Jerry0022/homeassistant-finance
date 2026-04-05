@@ -24,22 +24,85 @@ class FdDataProvider extends HTMLElement {
     this._prevStateHash = "";
     this._initialRebuildDone = false;
     this._loading = false;
+    this._demoMode = false;
+    this._demoToggling = false;
   }
 
   get data() {
     return this._data;
   }
 
+  get demoMode() {
+    return this._demoMode;
+  }
+
   set hass(hass) {
     this._hass = hass;
+    // In demo mode, don't watch entity changes
+    if (this._demoMode) return;
     // Debounce: hass changes many times per second
     clearTimeout(this._debounceTimer);
     this._debounceTimer = setTimeout(() => this._onHassChanged(), DEBOUNCE_MS);
   }
 
+  /** Toggle demo mode — fetches demo data from API. Guarded against rapid clicks. */
+  async toggleDemo() {
+    if (!this._hass || this._demoToggling) return this._demoMode;
+    this._demoToggling = true;
+    try {
+      const result = await this._hass.callApi("POST", `${DOMAIN}/demo/toggle`);
+      this._demoMode = result.demo_mode;
+      if (this._demoMode) {
+        await this._loadDemoData();
+      } else {
+        // Revert to entity-based data
+        this._prevStateHash = "";
+        await this._rebuild();
+      }
+      return this._demoMode;
+    } catch (e) {
+      console.error("fd-data-provider: demo toggle failed:", e);
+      return this._demoMode;
+    } finally {
+      this._demoToggling = false;
+    }
+  }
+
+  /** Load demo data from the API endpoint. */
+  async _loadDemoData() {
+    if (!this._hass) return;
+    // Dispatch loading state
+    this.dispatchEvent(new CustomEvent("fd-data-updated", {
+      detail: { loading: true, demoMode: true },
+      bubbles: true,
+      composed: true,
+    }));
+    try {
+      const data = await this._hass.callApi("GET", `${DOMAIN}/demo/data`);
+      this._data = data;
+      this.dispatchEvent(new CustomEvent("fd-data-updated", {
+        detail: { ...data, demoMode: true },
+        bubbles: true,
+        composed: true,
+      }));
+    } catch (e) {
+      console.error("fd-data-provider: demo data fetch failed:", e);
+      this.dispatchEvent(new CustomEvent("fd-data-updated", {
+        detail: { error: "Demo-Daten konnten nicht geladen werden", demoMode: true },
+        bubbles: true,
+        composed: true,
+      }));
+    }
+  }
+
   /** Trigger a full data rebuild (manual refresh). */
   async refresh() {
     if (!this._hass) return;
+    if (this._demoMode) {
+      // In demo mode, just regenerate demo data
+      await this._loadDemoData();
+      return;
+    }
     // Ask HA to refresh transactions, which triggers coordinator update
     try {
       await this._hass.callService(DOMAIN, "refresh_transactions");
@@ -190,6 +253,7 @@ class FdDataProvider extends HTMLElement {
       }
 
       this._data = data;
+      data.demoMode = this._demoMode;
       this.dispatchEvent(new CustomEvent("fd-data-updated", {
         detail: data,
         bubbles: true,

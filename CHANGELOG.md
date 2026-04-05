@@ -268,6 +268,23 @@ All notable changes to the Finance will be documented in this file.
 ### Added
 - Chore: add .playwright-mcp/ to .gitignore
 
+## [0.9.0] — 2026-04-05
+
+### Added
+- Full demo mode with realistic German banking data (3 accounts, ~35 transactions, household split, recurring patterns)
+- Toggle via UI button (admin-only), service call, or options flow — persists across HA restarts
+- Manual-only API refresh — coordinator update_interval=None, data only updates on explicit user action
+- Demo toggle button with DEMO badge, aria-pressed accessibility, mobile breakpoint
+
+### Fixed
+- Initial coordinator refresh now works on config entry reloads (not just first HA start)
+- Shutdown no longer overwrites real transaction cache when demo mode is active
+- AttributeError in DemoToggleView coordinator lookup — null-safe access pattern
+- GoCardless reference replaced with Enable Banking in services.yaml
+- Removed dead COORDINATOR_UPDATE_INTERVAL constant and corrected all docstrings
+- Rapid-click guard and loading state for demo API calls
+- DemoMode flag propagated in all data events for consistent UI state
+
 ### Fixed
 - Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
 - Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist — data provider always triggers initial rebuild

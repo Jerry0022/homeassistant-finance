@@ -253,6 +253,12 @@ class FinanceDashboardOptionsFlow(OptionsFlow):
                             "enable_dashboard_panel", True
                         ),
                     ): bool,
+                    vol.Optional(
+                        "demo_mode",
+                        default=self.config_entry.options.get(
+                            "demo_mode", False
+                        ),
+                    ): bool,
                 }
             ),
         )

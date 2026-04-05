@@ -4,7 +4,7 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.8.1"
+VERSION = "0.9.0"
 
 # Panel
 PANEL_URL_PATH = "finance-dashboard"
@@ -123,3 +123,6 @@ REFUND_KEYWORDS = [
 
 # Household model
 DEFAULT_SPLIT_MODEL = "proportional"  # proportional, equal, custom
+
+# Demo mode
+SERVICE_TOGGLE_DEMO = "toggle_demo"
