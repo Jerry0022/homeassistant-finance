@@ -10,14 +10,11 @@ All credentials and tokens are stored in HA's encrypted .storage/ directory.
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
-from pathlib import Path
 
+from ha_customapps.restart import RestartNotifier
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import issue_registry as ir
-from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
     DOMAIN,
@@ -47,12 +44,9 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: FinanceDashboardConfigEntry
 ) -> bool:
     """Set up Finance Dashboard from a config entry."""
-    # Only clean up stale restart issues if no pending marker exists
-    marker_path = Path(
-        hass.config.path(".storage/finance_dashboard_restart_needed.json")
-    )
-    if not await hass.async_add_executor_job(marker_path.exists):
-        ir.async_delete_issue(hass, DOMAIN, "restart_required")
+    # Restart notification via ha-customapps (marker polling + Repairs issue)
+    notifier = RestartNotifier(hass, DOMAIN)
+    await notifier.async_setup(entry)
 
     # Initialize the manager (core business logic)
     from .manager import FinanceDashboardManager
@@ -86,50 +80,6 @@ async def async_setup_entry(
     from .api import async_register_api
 
     await async_register_api(hass)
-
-    # Poll for add-on restart marker (every 60 seconds)
-    async def _poll_restart_marker(_now) -> None:
-        marker = Path(
-            hass.config.path(".storage/finance_dashboard_restart_needed.json")
-        )
-
-        def _read_and_delete_marker() -> dict | None:
-            """Read marker file and delete it (runs in executor)."""
-            if not marker.exists():
-                return None
-            import json
-
-            try:
-                data = json.loads(marker.read_text(encoding="utf-8"))
-                marker.unlink()
-                return data
-            except Exception:
-                _LOGGER.exception("Failed to read restart marker")
-                return None
-
-        data = await hass.async_add_executor_job(_read_and_delete_marker)
-        if data is not None:
-            ir.async_create_issue(
-                hass,
-                DOMAIN,
-                "restart_required",
-                is_fixable=True,
-                is_persistent=True,
-                severity=ir.IssueSeverity.WARNING,
-                translation_key="restart_required",
-                translation_placeholders={
-                    "version": data.get("version", "unknown")
-                },
-            )
-
-    entry.async_on_unload(
-        async_track_time_interval(
-            hass, _poll_restart_marker, timedelta(seconds=60)
-        )
-    )
-
-    # Fire first poll immediately so the user sees the notification within seconds
-    await _poll_restart_marker(None)
 
     # Forward platform setup — sensors/numbers/selects will register themselves
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
