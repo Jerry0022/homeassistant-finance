@@ -285,6 +285,20 @@ All notable changes to the Finance will be documented in this file.
 - Rapid-click guard and loading state for demo API calls
 - DemoMode flag propagated in all data events for consistent UI state
 
+## [0.9.1] — 2026-04-07
+
+### Added
+- Chore: sync addon payload
+
+### Changed
+- Chore: sync translations (en.json, de.json) with new issue description
+
+### Fixed
+- Add missing issue-level description to strings.json — Repairs card had no body text, rendering it invisible in some HA versions
+- Add is_persistent=True to ir.async_create_issue — prevents HA from discarding the issue during internal operations
+- Wrap synchronous file I/O (exists/read_text/unlink) in async_add_executor_job — HA 2024+ blocks or warns on sync I/O in event loop
+- Return None for unknown issue_ids instead of generic RepairsFlow()
+
 ### Fixed
 - Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
 - Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist — data provider always triggers initial rebuild

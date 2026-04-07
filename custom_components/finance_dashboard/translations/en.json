@@ -57,6 +57,7 @@
   "issues": {
     "restart_required": {
       "title": "Finance Update — Restart Required",
+      "description": "Finance has been updated to version {version}. A restart is required to apply the new version.",
       "fix_flow": {
         "step": {
           "init": {

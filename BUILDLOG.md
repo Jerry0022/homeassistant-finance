@@ -1,5 +1,17 @@
 # Build Log
 
+## 0.9.1 — 2026-04-07
+Version: 0.9.1
+Branch: claude/optimistic-merkle
+PR: (pending)
+Changes:
+- fix(restart): add missing issue-level description to strings.json — Repairs card had no body text, rendering it invisible in some HA versions
+- fix(restart): add is_persistent=True to ir.async_create_issue — prevents HA from discarding the issue during internal operations
+- fix(restart): wrap synchronous file I/O (exists/read_text/unlink) in async_add_executor_job — HA 2024+ blocks or warns on sync I/O in event loop
+- fix(repairs): return None for unknown issue_ids instead of generic RepairsFlow()
+- chore: sync translations (en.json, de.json) with new issue description
+- chore: sync addon payload
+
 ## 0.9.0 — 2026-04-05
 Version: 0.9.0
 Branch: claude/practical-fermi

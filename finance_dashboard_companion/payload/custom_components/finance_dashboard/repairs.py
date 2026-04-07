@@ -24,8 +24,8 @@ class RestartRequiredRepairFlow(RepairsFlow):
 
 async def async_create_fix_flow(
     hass: HomeAssistant, issue_id: str, data: dict | None
-) -> RepairsFlow:
+) -> RepairsFlow | None:
     """Create repair flows."""
     if issue_id == "restart_required":
         return RestartRequiredRepairFlow()
-    return RepairsFlow()
+    return None

@@ -51,7 +51,7 @@ async def async_setup_entry(
     marker_path = Path(
         hass.config.path(".storage/finance_dashboard_restart_needed.json")
     )
-    if not marker_path.exists():
+    if not await hass.async_add_executor_job(marker_path.exists):
         ir.async_delete_issue(hass, DOMAIN, "restart_required")
 
     # Initialize the manager (core business logic)
@@ -89,28 +89,38 @@ async def async_setup_entry(
 
     # Poll for add-on restart marker (every 60 seconds)
     async def _poll_restart_marker(_now) -> None:
-        marker_path = Path(
+        marker = Path(
             hass.config.path(".storage/finance_dashboard_restart_needed.json")
         )
-        if marker_path.exists():
+
+        def _read_and_delete_marker() -> dict | None:
+            """Read marker file and delete it (runs in executor)."""
+            if not marker.exists():
+                return None
             import json
 
             try:
-                data = json.loads(marker_path.read_text())
-                marker_path.unlink()
-                ir.async_create_issue(
-                    hass,
-                    DOMAIN,
-                    "restart_required",
-                    is_fixable=True,
-                    severity=ir.IssueSeverity.WARNING,
-                    translation_key="restart_required",
-                    translation_placeholders={
-                        "version": data.get("version", "unknown")
-                    },
-                )
+                data = json.loads(marker.read_text(encoding="utf-8"))
+                marker.unlink()
+                return data
             except Exception:
-                _LOGGER.exception("Failed to process restart marker")
+                _LOGGER.exception("Failed to read restart marker")
+                return None
+
+        data = await hass.async_add_executor_job(_read_and_delete_marker)
+        if data is not None:
+            ir.async_create_issue(
+                hass,
+                DOMAIN,
+                "restart_required",
+                is_fixable=True,
+                is_persistent=True,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="restart_required",
+                translation_placeholders={
+                    "version": data.get("version", "unknown")
+                },
+            )
 
     entry.async_on_unload(
         async_track_time_interval(

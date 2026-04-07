@@ -6,6 +6,15 @@
 
 
 
+
+## 0.9.1
+- Add missing issue-level description to strings.json — Repairs card had no body text, rendering it invisible in some HA versions
+- Add is_persistent=True to ir.async_create_issue — prevents HA from discarding the issue during internal operations
+- Wrap synchronous file I/O (exists/read_text/unlink) in async_add_executor_job — HA 2024+ blocks or warns on sync I/O in event loop
+- Return None for unknown issue_ids instead of generic RepairsFlow()
+- Chore: sync translations (en.json, de.json) with new issue description
+- Chore: sync addon payload
+
 ## 0.9.0
 - Full demo mode with realistic German banking data (3 accounts, ~35 transactions, household split, recurring patterns)
 - Toggle via UI button (admin-only), service call, or options flow — persists across HA restarts
