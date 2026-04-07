@@ -57,6 +57,7 @@
   "issues": {
     "restart_required": {
       "title": "Finance Update — Neustart erforderlich",
+      "description": "Finance wurde auf Version {version} aktualisiert. Ein Neustart ist erforderlich, um die neue Version zu aktivieren.",
       "fix_flow": {
         "step": {
           "init": {
