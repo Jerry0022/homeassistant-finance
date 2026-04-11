@@ -48,20 +48,36 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
             update_interval=None,
         )
         self._manager = manager
-        self._first_update = True
+
+    async def async_load_cached(self) -> None:
+        """Populate coordinator data from cache only — zero API calls.
+
+        Used on startup to feed entities with cached transactions/balances
+        without hitting the banking API. The user must click "Aktualisieren"
+        to trigger real API calls.
+        """
+        try:
+            summary = await self._manager.async_get_monthly_summary()
+            rate_limited = self._manager.rate_limited_until
+            self.async_set_updated_data({
+                "balances": self._manager._balances,
+                "summary": summary,
+                "rate_limited_until": rate_limited.isoformat() if rate_limited else None,
+            })
+            _LOGGER.debug("Loaded cached data into coordinator (no API calls)")
+        except Exception:
+            _LOGGER.exception("Failed to load cached data into coordinator")
 
     async def _async_update_data(self) -> dict:
-        """Called on demand via async_refresh() (manual refresh only)."""
+        """Called on demand via async_refresh() (manual refresh only).
+
+        This method is ONLY reached when the user explicitly triggers
+        a refresh (UI button or service call). It never runs automatically.
+        """
         try:
             # Refresh raw transactions only when the cache is stale.
-            # Balance calls happen on every cycle; transaction fetches are
-            # kept infrequent to stay within API rate limits.
-            # On first coordinator cycle, always refresh to ensure fresh data
-            # even if cached _last_refresh appears recent from a prior session.
             last = self._manager._last_refresh
-            force_first = self._first_update
-            self._first_update = False
-            if force_first or last is None or (datetime.now() - last) > TRANSACTION_REFRESH_STALENESS:
+            if last is None or (datetime.now() - last) > TRANSACTION_REFRESH_STALENESS:
                 _LOGGER.debug("Transaction cache stale — refreshing from API")
                 await self._manager.async_refresh_transactions()
 

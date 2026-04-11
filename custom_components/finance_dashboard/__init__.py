@@ -84,23 +84,24 @@ async def async_setup_entry(
     # Forward platform setup — sensors/numbers/selects will register themselves
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Kick off the first coordinator refresh.
-    # Uses async_create_task so it works both on initial HA start AND
-    # on config entry reloads (homeassistant_started only fires once).
+    # Load cached data into coordinator — NO external API calls.
+    # Entities are populated immediately from the transaction cache
+    # that was loaded in manager.async_initialize(). The user must
+    # click "Aktualisieren" to trigger real banking API calls.
     if entry.data.get("configured") or manager.demo_mode:
-        async def _initial_refresh() -> None:
+        async def _initial_load() -> None:
             try:
-                await coordinator.async_refresh()
-                _LOGGER.info("Initial coordinator refresh completed")
+                await coordinator.async_load_cached()
+                _LOGGER.info("Initial cached data loaded (no API calls)")
             except Exception:
-                _LOGGER.exception("Initial coordinator refresh failed")
+                _LOGGER.exception("Initial cached data load failed")
 
         if hass.is_running:
-            hass.async_create_task(_initial_refresh())
+            hass.async_create_task(_initial_load())
         else:
             hass.bus.async_listen_once(
                 "homeassistant_started",
-                lambda _event: hass.async_create_task(_initial_refresh()),
+                lambda _event: hass.async_create_task(_initial_load()),
             )
 
     _LOGGER.info("Finance Dashboard v%s loaded", entry.version)
