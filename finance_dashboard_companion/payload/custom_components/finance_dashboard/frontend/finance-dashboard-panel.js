@@ -109,16 +109,6 @@ class FinanceDashboardPanel extends HTMLElement {
     const content = this.shadowRoot.getElementById("content");
     if (!content) return;
 
-    if (data.error) {
-      content.className = "error";
-      content.innerHTML = `<div>Verbinde dein Bankkonto unter Einstellungen \u2192 Integrationen \u2192 Finance.</div>`;
-      return;
-    }
-
-    // Clear loading state and build component tree
-    content.className = "";
-    content.innerHTML = "";
-
     // Update header timestamp, rate limit, and demo state
     const header = this.shadowRoot.querySelector("fd-header");
     if (header) {
@@ -126,6 +116,50 @@ class FinanceDashboardPanel extends HTMLElement {
       header.rateLimitedUntil = data.rateLimitedUntil;
       if (data.demoMode !== undefined) header.demoMode = data.demoMode;
     }
+
+    // Loading state (e.g. during demo toggle)
+    if (data.loading) return;
+
+    if (data.error) {
+      content.className = "error";
+      content.innerHTML = `<div>Verbinde dein Bankkonto unter Einstellungen \u2192 Integrationen \u2192 Finance.</div>`;
+      return;
+    }
+
+    // Onboarding: no accounts and no demo → show welcome with demo CTA
+    if (data.accountCount === 0 && !data.demoMode) {
+      content.className = "";
+      content.innerHTML = `
+<div style="text-align:center;padding:60px 20px;max-width:480px;margin:0 auto;">
+  <div style="font-size:48px;margin-bottom:16px;">&#x1F3E6;</div>
+  <h2 style="margin:0 0 8px;font-size:20px;font-weight:600;">Willkommen beim Finance Dashboard</h2>
+  <p style="color:var(--tx2);margin:0 0 24px;line-height:1.5;">
+    Noch keine Bankkonten verbunden. Starte den Demo-Modus um das Dashboard mit Beispieldaten zu erkunden, oder verbinde dein Bankkonto unter Einstellungen.
+  </p>
+  <button id="onboardingDemoBtn" style="
+    padding:12px 28px;border-radius:12px;border:2px solid #f39c12;
+    background:#f39c12;color:#0a0a0f;font-size:15px;font-weight:700;
+    cursor:pointer;font-family:inherit;margin-bottom:12px;
+  ">Demo starten</button>
+  <div style="margin-top:16px;">
+    <a href="/config/integrations" style="color:var(--tx2);font-size:13px;text-decoration:underline;">
+      Bankkonto verbinden \u2192
+    </a>
+  </div>
+</div>`;
+      content.querySelector("#onboardingDemoBtn")
+        .addEventListener("click", () => {
+          this.shadowRoot.dispatchEvent(new CustomEvent("fd-demo-toggle", {
+            bubbles: true,
+            composed: true,
+          }));
+        });
+      return;
+    }
+
+    // Clear loading state and build component tree
+    content.className = "";
+    content.innerHTML = "";
 
     // Stats row
     const statsRow = document.createElement("fd-stats-row");

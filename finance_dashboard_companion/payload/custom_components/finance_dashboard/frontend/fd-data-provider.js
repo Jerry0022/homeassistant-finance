@@ -109,9 +109,9 @@ class FdDataProvider extends HTMLElement {
     } catch (e) {
       console.warn("fd-data-provider: refresh_transactions failed:", e);
     }
-    // Force immediate rebuild
+    // Force immediate rebuild — allow API fallback for household/recurring
     this._prevStateHash = "";
-    await this._rebuild();
+    await this._rebuild(true);
   }
 
   /** Check if relevant entity states changed and rebuild if needed. */
@@ -139,8 +139,13 @@ class FdDataProvider extends HTMLElement {
     return parts.join(";");
   }
 
-  /** Rebuild the unified data object from entities + API. */
-  async _rebuild() {
+  /**
+   * Rebuild the unified data object from entities.
+   * @param {boolean} allowApiFallback — if true, fetch household/recurring
+   *   from the summary API when not available in entity attributes.
+   *   Only true during explicit user-triggered refresh.
+   */
+  async _rebuild(allowApiFallback = false) {
     if (!this._hass || this._loading) return;
     this._loading = true;
 
@@ -219,8 +224,9 @@ class FdDataProvider extends HTMLElement {
         if (sa.recurring) data.recurring = sa.recurring;
       }
 
-      // 4. If household/recurring not in entity attrs, fetch via API
-      if (!data.household || !data.recurring || data.recurring.length === 0) {
+      // 4. Fetch household/recurring from API ONLY on explicit user refresh
+      if (allowApiFallback &&
+          (!data.household || !data.recurring || data.recurring.length === 0)) {
         try {
           const summary = await this._hass.callApi("GET", `${DOMAIN}/summary`);
           if (summary) {
