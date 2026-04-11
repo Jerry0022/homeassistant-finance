@@ -7,6 +7,16 @@
 
 
 
+
+## 0.9.2
+- Remove automatic banking API calls on HA startup — coordinator now loads from cache only, no external calls until user clicks "Aktualisieren"
+- Remove _first_update force-refresh flag from coordinator — staleness check is sufficient
+- Remove automatic API fallback in _rebuild() — /summary endpoint only called on explicit user refresh, not on every entity change
+- Add onboarding welcome screen with "Demo starten" CTA when no bank accounts connected
+- Show "Noch keine Daten" timestamp fallback when no refresh has occurred
+- Make Demo button more prominent with visible background fill
+- Handle loading state in _onData to prevent clearing content during demo toggle
+
 ## 0.9.1
 - Add missing issue-level description to strings.json — Repairs card had no body text, rendering it invisible in some HA versions
 - Add is_persistent=True to ir.async_create_issue — prevents HA from discarding the issue during internal operations

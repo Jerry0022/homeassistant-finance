@@ -299,6 +299,21 @@ All notable changes to the Finance will be documented in this file.
 - Wrap synchronous file I/O (exists/read_text/unlink) in async_add_executor_job — HA 2024+ blocks or warns on sync I/O in event loop
 - Return None for unknown issue_ids instead of generic RepairsFlow()
 
+## [0.9.2] — 2026-04-11
+
+### Added
+- Add onboarding welcome screen with "Demo starten" CTA when no bank accounts connected
+- Show "Noch keine Daten" timestamp fallback when no refresh has occurred
+- Make Demo button more prominent with visible background fill
+
+### Changed
+- Remove automatic banking API calls on HA startup — coordinator now loads from cache only, no external calls until user clicks "Aktualisieren"
+- Remove _first_update force-refresh flag from coordinator — staleness check is sufficient
+- Remove automatic API fallback in _rebuild() — /summary endpoint only called on explicit user refresh, not on every entity change
+
+### Fixed
+- Handle loading state in _onData to prevent clearing content during demo toggle
+
 ### Fixed
 - Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
 - Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist — data provider always triggers initial rebuild

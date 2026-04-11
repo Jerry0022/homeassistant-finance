@@ -1,5 +1,18 @@
 # Build Log
 
+## 0.9.2 — 2026-04-11
+Version: 0.9.2
+Branch: claude/sharp-shockley
+PR: (pending)
+Changes:
+- refactor(core): remove automatic banking API calls on HA startup — coordinator now loads from cache only, no external calls until user clicks "Aktualisieren"
+- refactor(core): remove _first_update force-refresh flag from coordinator — staleness check is sufficient
+- refactor(frontend): remove automatic API fallback in _rebuild() — /summary endpoint only called on explicit user refresh, not on every entity change
+- feat(frontend): add onboarding welcome screen with "Demo starten" CTA when no bank accounts connected
+- feat(frontend): show "Noch keine Daten" timestamp fallback when no refresh has occurred
+- feat(frontend): make Demo button more prominent with visible background fill
+- fix(frontend): handle loading state in _onData to prevent clearing content during demo toggle
+
 ## 0.9.1 — 2026-04-07
 Version: 0.9.1
 Branch: claude/optimistic-merkle

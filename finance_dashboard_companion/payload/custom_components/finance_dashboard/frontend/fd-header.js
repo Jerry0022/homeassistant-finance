@@ -151,10 +151,12 @@ h1 {
 }
 .btn-demo {
   border-color: var(--demo);
+  background: rgba(243, 156, 18, 0.15);
   color: var(--demo);
+  font-weight: 600;
 }
 .btn-demo:hover {
-  background: rgba(243, 156, 18, 0.1);
+  background: rgba(243, 156, 18, 0.25);
 }
 .btn-demo-active {
   background: var(--demo);
@@ -177,7 +179,7 @@ h1 {
     <span class="demo-badge" id="demoBadge">DEMO</span>
   </div>
   <div class="right">
-    <span class="ts" id="ts"></span>
+    <span class="ts" id="ts">Noch keine Daten</span>
     <button class="btn btn-demo" id="demoBtn" aria-label="Demo-Modus umschalten" aria-pressed="false">Demo</button>
     <button class="btn" id="monthBtn">${monthLabel}</button>
     <button class="btn btn-p" id="refreshBtn">Aktualisieren</button>
