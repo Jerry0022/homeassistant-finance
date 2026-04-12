@@ -103,6 +103,29 @@ class FinanceDashboardPanel extends HTMLElement {
         });
       }
     });
+
+    this.shadowRoot.addEventListener("fd-open-wizard", () => {
+      this._openSetupWizard();
+    });
+
+    this.shadowRoot.addEventListener("fd-setup-complete", () => {
+      // Delay registry refresh — HA reloads the config entry asynchronously
+      // after setup/complete (1s deferred_reload in api.py). Wait for it.
+      const dp = this.shadowRoot.querySelector("fd-data-provider");
+      if (dp) setTimeout(() => dp.refreshRegistry(), 4000);
+    });
+
+    this.shadowRoot.addEventListener("fd-setup-closed", () => {
+      // Wizard removed itself, nothing extra needed
+    });
+  }
+
+  _openSetupWizard() {
+    // Prevent duplicate wizard
+    if (this.shadowRoot.querySelector("fd-setup-wizard")) return;
+    const wizard = document.createElement("fd-setup-wizard");
+    wizard.hass = this._hass;
+    this.shadowRoot.appendChild(wizard);
   }
 
   _onData(data) {
@@ -122,11 +145,13 @@ class FinanceDashboardPanel extends HTMLElement {
 
     if (data.error) {
       content.className = "error";
-      content.innerHTML = `<div>Verbinde dein Bankkonto unter Einstellungen \u2192 Integrationen \u2192 Finance.</div>`;
+      content.innerHTML = `<div>Keine Verbindung m\u00f6glich. <button id="errorWizardBtn" style="background:none;border:none;color:var(--accent-color,#4ecca3);cursor:pointer;text-decoration:underline;font-size:inherit;font-family:inherit;">Bankkonto verbinden</button></div>`;
+      content.querySelector("#errorWizardBtn")
+        ?.addEventListener("click", () => this._openSetupWizard());
       return;
     }
 
-    // Onboarding: no accounts and no demo → show welcome with demo CTA
+    // Onboarding: no accounts and no demo → show welcome with inline wizard CTA
     if (data.accountCount === 0 && !data.demoMode) {
       content.className = "";
       content.innerHTML = `
@@ -134,19 +159,23 @@ class FinanceDashboardPanel extends HTMLElement {
   <div style="font-size:48px;margin-bottom:16px;">&#x1F3E6;</div>
   <h2 style="margin:0 0 8px;font-size:20px;font-weight:600;">Willkommen beim Finance Dashboard</h2>
   <p style="color:var(--tx2);margin:0 0 24px;line-height:1.5;">
-    Noch keine Bankkonten verbunden. Starte den Demo-Modus um das Dashboard mit Beispieldaten zu erkunden, oder verbinde dein Bankkonto unter Einstellungen.
+    Noch keine Bankkonten verbunden. Verbinde jetzt dein Konto oder starte den Demo-Modus.
   </p>
-  <button id="onboardingDemoBtn" style="
-    padding:12px 28px;border-radius:12px;border:2px solid #f39c12;
-    background:#f39c12;color:#0a0a0f;font-size:15px;font-weight:700;
+  <button id="onboardingConnectBtn" style="
+    padding:12px 28px;border-radius:12px;border:none;
+    background:var(--accent-color,#4ecca3);color:#0a0a0f;font-size:15px;font-weight:700;
     cursor:pointer;font-family:inherit;margin-bottom:12px;
-  ">Demo starten</button>
-  <div style="margin-top:16px;">
-    <a href="/config/integrations" style="color:var(--tx2);font-size:13px;text-decoration:underline;">
-      Bankkonto verbinden \u2192
-    </a>
+  ">Bankkonto verbinden</button>
+  <div style="margin-top:12px;">
+    <button id="onboardingDemoBtn" style="
+      padding:10px 24px;border-radius:10px;border:2px solid #f39c12;
+      background:transparent;color:#f39c12;font-size:14px;font-weight:600;
+      cursor:pointer;font-family:inherit;
+    ">Demo starten</button>
   </div>
 </div>`;
+      content.querySelector("#onboardingConnectBtn")
+        .addEventListener("click", () => this._openSetupWizard());
       content.querySelector("#onboardingDemoBtn")
         .addEventListener("click", () => {
           this.shadowRoot.dispatchEvent(new CustomEvent("fd-demo-toggle", {
