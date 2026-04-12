@@ -5,11 +5,8 @@
  * one API call for household + recurring data. Dispatches a single
  * "fd-data-updated" CustomEvent whenever data changes.
  *
- * Entity sources:
- *   sensor.fd_*           — per-account balance + total balance
- *   sensor.fd_monthly_summary — income, expenses, categories, fixed/var
- *   number.fd_budget_*    — budget limits per category
- *   select.fd_split_model — household split model
+ * Entity discovery uses the HA Entity Registry (platform = "finance_dashboard")
+ * to reliably find our entities regardless of their generated entity_id.
  */
 
 const DEBOUNCE_MS = 200;
@@ -26,6 +23,9 @@ class FdDataProvider extends HTMLElement {
     this._loading = false;
     this._demoMode = false;
     this._demoToggling = false;
+    // Entity registry map: entity_id → unique_id (for our platform only)
+    this._entityMap = null;
+    this._registryLoading = false;
   }
 
   get data() {
@@ -38,11 +38,48 @@ class FdDataProvider extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    // Load entity registry on first hass assignment
+    if (!this._entityMap && !this._registryLoading) {
+      this._loadEntityRegistry();
+    }
     // In demo mode, don't watch entity changes
     if (this._demoMode) return;
     // Debounce: hass changes many times per second
     clearTimeout(this._debounceTimer);
     this._debounceTimer = setTimeout(() => this._onHassChanged(), DEBOUNCE_MS);
+  }
+
+  /** Load entity registry and build lookup map for our integration. */
+  async _loadEntityRegistry() {
+    if (!this._hass || !this._hass.connection) return;
+    this._registryLoading = true;
+    try {
+      const registry = await this._hass.connection.sendMessagePromise({
+        type: "config/entity_registry/list",
+      });
+      this._entityMap = new Map();
+      for (const entry of registry) {
+        if (entry.platform === DOMAIN) {
+          this._entityMap.set(entry.entity_id, entry.unique_id);
+        }
+      }
+      // Trigger initial rebuild now that we know our entities
+      this._prevStateHash = "";
+      this._initialRebuildDone = false;
+      this._onHassChanged();
+    } catch (e) {
+      console.error("fd-data-provider: entity registry load failed:", e);
+      this._entityMap = new Map();
+    } finally {
+      this._registryLoading = false;
+    }
+  }
+
+  /** Refresh entity registry (e.g. after setup wizard completes). */
+  async refreshRegistry() {
+    this._entityMap = null;
+    this._registryLoading = false;
+    await this._loadEntityRegistry();
   }
 
   /** Toggle demo mode — fetches demo data from API. Guarded against rapid clicks. */
@@ -116,7 +153,7 @@ class FdDataProvider extends HTMLElement {
 
   /** Check if relevant entity states changed and rebuild if needed. */
   _onHassChanged() {
-    if (!this._hass) return;
+    if (!this._hass || !this._entityMap) return;
     const hash = this._computeStateHash();
     // First call must always trigger rebuild (even with empty hash)
     if (this._initialRebuildDone && hash === this._prevStateHash) return;
@@ -127,13 +164,12 @@ class FdDataProvider extends HTMLElement {
 
   /** Quick hash of relevant entity states to detect changes. */
   _computeStateHash() {
-    if (!this._hass || !this._hass.states) return "";
+    if (!this._hass || !this._hass.states || !this._entityMap) return "";
     const parts = [];
-    for (const [id, state] of Object.entries(this._hass.states)) {
-      if (id.startsWith("sensor.fd_") ||
-          id.startsWith("number.fd_budget_") ||
-          id.startsWith("select.fd_")) {
-        parts.push(`${id}=${state.state}|${state.last_updated}`);
+    for (const entityId of this._entityMap.keys()) {
+      const state = this._hass.states[entityId];
+      if (state) {
+        parts.push(`${entityId}=${state.state}|${state.last_updated}`);
       }
     }
     return parts.join(";");
@@ -175,53 +211,88 @@ class FdDataProvider extends HTMLElement {
         rateLimitedUntil: null,
       };
 
-      // 1. Read per-account balance sensors
-      for (const [id, entity] of Object.entries(this._hass.states)) {
-        if (!id.startsWith("sensor.fd_") || id === "sensor.fd_total_balance" ||
-            id === "sensor.fd_monthly_summary") continue;
+      // 1. Read entities using registry-based lookup
+      let totalEntityId = null;
+      let summaryEntityId = null;
 
-        const val = parseFloat(entity.state);
-        if (isNaN(val)) continue;
+      for (const [entityId, uniqueId] of this._entityMap.entries()) {
+        const state = this._hass.states[entityId];
+        if (!state) continue;
 
-        const attrs = entity.attributes || {};
-        data.accounts.push({
-          entityId: id,
-          name: attrs.custom_name || attrs.friendly_name || id,
-          institution: attrs.institution || "",
-          balance: val,
-          ibanMasked: attrs.iban_masked || "****",
-          currency: attrs.unit_of_measurement || "EUR",
-          person: attrs.person || "",
-        });
-        data.totalBalance += val;
-        data.accountCount++;
+        // Account balance sensors: unique_id = finance_dashboard_{id}_balance
+        // (excludes total_balance and monthly_summary)
+        if (uniqueId === `${DOMAIN}_total_balance`) {
+          totalEntityId = entityId;
+          continue;
+        }
+        if (uniqueId === `${DOMAIN}_monthly_summary`) {
+          summaryEntityId = entityId;
+          continue;
+        }
+        if (uniqueId.startsWith(`${DOMAIN}_`) && uniqueId.endsWith("_balance")) {
+          const val = parseFloat(state.state);
+          if (isNaN(val)) continue;
+          const attrs = state.attributes || {};
+          data.accounts.push({
+            entityId,
+            name: attrs.custom_name || attrs.friendly_name || entityId,
+            institution: attrs.institution || "",
+            balance: val,
+            ibanMasked: attrs.iban_masked || "****",
+            currency: attrs.unit_of_measurement || "EUR",
+            person: attrs.person || "",
+          });
+          data.totalBalance += val;
+          data.accountCount++;
+          continue;
+        }
+
+        // Budget numbers: unique_id = finance_dashboard_budget_{category}
+        if (uniqueId.startsWith(`${DOMAIN}_budget_`)) {
+          const cat = uniqueId.replace(`${DOMAIN}_budget_`, "");
+          const val = parseFloat(state.state);
+          if (!isNaN(val) && val > 0) {
+            data.budgets[cat] = val;
+          }
+          continue;
+        }
+
+        // Split model: unique_id = finance_dashboard_split_model
+        if (uniqueId === `${DOMAIN}_split_model`) {
+          data.splitModel = state.state || "proportional";
+          continue;
+        }
       }
 
       // 2. Read total balance sensor (may differ from sum due to rounding)
-      const totalEntity = this._hass.states["sensor.fd_total_balance"];
-      if (totalEntity && !isNaN(parseFloat(totalEntity.state))) {
-        data.totalBalance = parseFloat(totalEntity.state);
+      if (totalEntityId) {
+        const totalEntity = this._hass.states[totalEntityId];
+        if (totalEntity && !isNaN(parseFloat(totalEntity.state))) {
+          data.totalBalance = parseFloat(totalEntity.state);
+        }
       }
 
       // 3. Read monthly summary sensor
-      const summaryEntity = this._hass.states["sensor.fd_monthly_summary"];
-      if (summaryEntity) {
-        const sa = summaryEntity.attributes || {};
-        data.summary.totalIncome = sa.total_income || 0;
-        data.summary.totalExpenses = sa.total_expenses || 0;
-        data.summary.balance = parseFloat(summaryEntity.state) || 0;
-        data.summary.categories = sa.categories || {};
-        data.summary.transactionCount = sa.transaction_count || 0;
-        data.summary.fixedCosts = sa.fixed_costs || 0;
-        data.summary.variableCosts = sa.variable_costs || 0;
-        data.summary.month = sa.month || data.summary.month;
-        data.summary.year = sa.year || data.summary.year;
-        data.lastRefresh = sa.last_refresh || null;
-        data.rateLimitedUntil = sa.rate_limited_until || null;
+      if (summaryEntityId) {
+        const summaryEntity = this._hass.states[summaryEntityId];
+        if (summaryEntity) {
+          const sa = summaryEntity.attributes || {};
+          data.summary.totalIncome = sa.total_income || 0;
+          data.summary.totalExpenses = sa.total_expenses || 0;
+          data.summary.balance = parseFloat(summaryEntity.state) || 0;
+          data.summary.categories = sa.categories || {};
+          data.summary.transactionCount = sa.transaction_count || 0;
+          data.summary.fixedCosts = sa.fixed_costs || 0;
+          data.summary.variableCosts = sa.variable_costs || 0;
+          data.summary.month = sa.month || data.summary.month;
+          data.summary.year = sa.year || data.summary.year;
+          data.lastRefresh = sa.last_refresh || null;
+          data.rateLimitedUntil = sa.rate_limited_until || null;
 
-        // Household and recurring from entity attrs (added in v0.7.9+)
-        if (sa.household) data.household = sa.household;
-        if (sa.recurring) data.recurring = sa.recurring;
+          // Household and recurring from entity attrs (added in v0.7.9+)
+          if (sa.household) data.household = sa.household;
+          if (sa.recurring) data.recurring = sa.recurring;
+        }
       }
 
       // 4. Fetch household/recurring from API ONLY on explicit user refresh
@@ -240,22 +311,6 @@ class FdDataProvider extends HTMLElement {
         } catch (e) {
           console.warn("fd-data-provider: API fallback for household/recurring failed:", e);
         }
-      }
-
-      // 5. Read budget entities
-      for (const [id, entity] of Object.entries(this._hass.states)) {
-        if (!id.startsWith("number.fd_budget_")) continue;
-        const cat = id.replace("number.fd_budget_", "");
-        const val = parseFloat(entity.state);
-        if (!isNaN(val) && val > 0) {
-          data.budgets[cat] = val;
-        }
-      }
-
-      // 6. Read split model
-      const splitEntity = this._hass.states["select.fd_split_model"];
-      if (splitEntity) {
-        data.splitModel = splitEntity.state || "proportional";
       }
 
       this._data = data;
