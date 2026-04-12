@@ -8,6 +8,16 @@
 
 
 
+
+## 0.10.0
+- Add inline bank connection wizard as modal overlay (4-step flow: institution search, bank authorization with polling, account assignment, success)
+- Replace fragile entity_id prefix matching with HA Entity Registry lookup — entities are now found by platform + unique_id regardless of HA-generated entity_ids
+- Add "+ Konto" button in header to open wizard from anywhere
+- Replace onboarding "Einstellungen" link with inline "Bankkonto verbinden" button
+- Add 4s delay before refreshRegistry() after setup complete to wait for HA config entry reload
+- Add https scheme validation on auth URLs to prevent XSS via javascript: scheme
+- Update institution filter to only re-render list container (prevents cursor jump)
+
 ## 0.9.2
 - Remove automatic banking API calls on HA startup — coordinator now loads from cache only, no external calls until user clicks "Aktualisieren"
 - Remove _first_update force-refresh flag from coordinator — staleness check is sufficient

@@ -1,5 +1,18 @@
 # Build Log
 
+## 0.10.0 — 2026-04-12
+Version: 0.10.0
+Branch: claude/sweet-nightingale
+PR: (pending)
+Changes:
+- feat(frontend): add inline bank connection wizard as modal overlay (4-step flow: institution search, bank authorization with polling, account assignment, success)
+- fix(frontend): replace fragile entity_id prefix matching with HA Entity Registry lookup — entities are now found by platform + unique_id regardless of HA-generated entity_ids
+- feat(frontend): add "+ Konto" button in header to open wizard from anywhere
+- refactor(frontend): replace onboarding "Einstellungen" link with inline "Bankkonto verbinden" button
+- fix(frontend): add 4s delay before refreshRegistry() after setup complete to wait for HA config entry reload
+- fix(frontend): add https scheme validation on auth URLs to prevent XSS via javascript: scheme
+- fix(frontend): update institution filter to only re-render list container (prevents cursor jump)
+
 ## 0.9.2 — 2026-04-11
 Version: 0.9.2
 Branch: claude/sharp-shockley

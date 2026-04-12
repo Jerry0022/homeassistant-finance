@@ -183,6 +183,7 @@ h1 {
     <button class="btn btn-demo" id="demoBtn" aria-label="Demo-Modus umschalten" aria-pressed="false">Demo</button>
     <button class="btn" id="monthBtn">${monthLabel}</button>
     <button class="btn btn-p" id="refreshBtn">Aktualisieren</button>
+    <button class="btn" id="addAccountBtn" title="Bankkonto hinzuf\u00fcgen">+ Konto</button>
   </div>
 </div>`;
 
@@ -197,6 +198,14 @@ h1 {
     this.shadowRoot.getElementById("demoBtn")
       .addEventListener("click", () => {
         this.dispatchEvent(new CustomEvent("fd-demo-toggle", {
+          bubbles: true,
+          composed: true,
+        }));
+      });
+
+    this.shadowRoot.getElementById("addAccountBtn")
+      .addEventListener("click", () => {
+        this.dispatchEvent(new CustomEvent("fd-open-wizard", {
           bubbles: true,
           composed: true,
         }));

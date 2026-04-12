@@ -34,6 +34,7 @@ LOVELACE_COMPONENTS = [
     f"{STATIC_BASE}/fd-recurring-list.js",
     f"{STATIC_BASE}/fd-budget-config.js",
     f"{STATIC_BASE}/fd-categorize.js",
+    f"{STATIC_BASE}/fd-setup-wizard.js",
     f"{STATIC_BASE}/finance-status-chip.js",
 ]
 

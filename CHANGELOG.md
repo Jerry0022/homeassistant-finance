@@ -314,6 +314,21 @@ All notable changes to the Finance will be documented in this file.
 ### Fixed
 - Handle loading state in _onData to prevent clearing content during demo toggle
 
+## [0.10.0] — 2026-04-12
+
+### Added
+- Add inline bank connection wizard as modal overlay (4-step flow: institution search, bank authorization with polling, account assignment, success)
+- Add "+ Konto" button in header to open wizard from anywhere
+
+### Changed
+- Replace onboarding "Einstellungen" link with inline "Bankkonto verbinden" button
+
+### Fixed
+- Replace fragile entity_id prefix matching with HA Entity Registry lookup — entities are now found by platform + unique_id regardless of HA-generated entity_ids
+- Add 4s delay before refreshRegistry() after setup complete to wait for HA config entry reload
+- Add https scheme validation on auth URLs to prevent XSS via javascript: scheme
+- Update institution filter to only re-render list container (prevents cursor jump)
+
 ### Fixed
 - Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
 - Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist — data provider always triggers initial rebuild
