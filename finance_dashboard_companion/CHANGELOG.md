@@ -9,6 +9,15 @@
 
 
 
+
+## 0.10.1
+- Propagate OAuth callback errors through /setup/status so the wizard surfaces them within 2s instead of timing out after 5min
+- Hard-fail /setup/authorize when callback URL is HTTP (Enable Banking requires pre-registered HTTPS redirect)
+- Trigger one coordinator refresh after deferred entry reload so entities populate immediately after bank link
+- Raise Repairs issue on missing or invalid Enable Banking credentials, auto-clear on recovery
+- Wizard polling stops on setup_error and shows the message instead of waiting for timeout
+- Data provider subscribes to entity_registry_updated events so newly created sensors appear without race-prone 4s timer
+
 ## 0.10.0
 - Add inline bank connection wizard as modal overlay (4-step flow: institution search, bank authorization with polling, account assignment, success)
 - Replace fragile entity_id prefix matching with HA Entity Registry lookup — entities are now found by platform + unique_id regardless of HA-generated entity_ids

@@ -1,5 +1,17 @@
 # Build Log
 
+## 0.10.1 — 2026-04-19
+Version: 0.10.1
+Branch: claude/pensive-rosalind-793ad9
+PR: (pending)
+Changes:
+- fix(setup): propagate OAuth callback errors through /setup/status so the wizard surfaces them within 2s instead of timing out after 5min
+- fix(setup): hard-fail /setup/authorize when callback URL is HTTP (Enable Banking requires pre-registered HTTPS redirect)
+- fix(setup): trigger one coordinator refresh after deferred entry reload so entities populate immediately after bank link
+- fix(core): raise Repairs issue on missing or invalid Enable Banking credentials, auto-clear on recovery
+- fix(frontend): wizard polling stops on setup_error and shows the message instead of waiting for timeout
+- fix(frontend): data provider subscribes to entity_registry_updated events so newly created sensors appear without race-prone 4s timer
+
 ## 0.10.0 — 2026-04-12
 Version: 0.10.0
 Branch: claude/sweet-nightingale
