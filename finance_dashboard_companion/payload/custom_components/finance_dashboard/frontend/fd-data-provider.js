@@ -26,6 +26,16 @@ class FdDataProvider extends HTMLElement {
     // Entity registry map: entity_id → unique_id (for our platform only)
     this._entityMap = null;
     this._registryLoading = false;
+    // Unsubscribe handle for entity_registry_updated subscription
+    this._registryUnsub = null;
+  }
+
+  disconnectedCallback() {
+    if (this._registryUnsub) {
+      try { this._registryUnsub(); } catch (e) { /* ignore */ }
+      this._registryUnsub = null;
+    }
+    clearTimeout(this._debounceTimer);
   }
 
   get data() {
@@ -67,11 +77,59 @@ class FdDataProvider extends HTMLElement {
       this._prevStateHash = "";
       this._initialRebuildDone = false;
       this._onHassChanged();
+      // Subscribe to registry changes so newly created entities (e.g.
+      // after setup wizard completion) are picked up automatically
+      // without depending on a fixed timer in the panel shell.
+      await this._subscribeRegistryUpdates();
     } catch (e) {
       console.error("fd-data-provider: entity registry load failed:", e);
       this._entityMap = new Map();
     } finally {
       this._registryLoading = false;
+    }
+  }
+
+  /** Subscribe to entity_registry_updated events for our platform. */
+  async _subscribeRegistryUpdates() {
+    if (this._registryUnsub || !this._hass || !this._hass.connection) return;
+    try {
+      this._registryUnsub = await this._hass.connection.subscribeEvents(
+        () => {
+          // Cheap reload — registry list calls are tiny
+          this._reloadRegistryFromEvent();
+        },
+        "entity_registry_updated",
+      );
+    } catch (e) {
+      console.warn("fd-data-provider: registry event subscribe failed:", e);
+    }
+  }
+
+  /** Re-fetch registry on update event (debounced via micro-task). */
+  async _reloadRegistryFromEvent() {
+    if (!this._hass || !this._hass.connection) return;
+    try {
+      const registry = await this._hass.connection.sendMessagePromise({
+        type: "config/entity_registry/list",
+      });
+      const next = new Map();
+      for (const entry of registry) {
+        if (entry.platform === DOMAIN) {
+          next.set(entry.entity_id, entry.unique_id);
+        }
+      }
+      // Only rebuild if the entity set actually changed
+      const changed =
+        !this._entityMap ||
+        next.size !== this._entityMap.size ||
+        [...next.keys()].some((k) => !this._entityMap.has(k));
+      this._entityMap = next;
+      if (changed) {
+        this._prevStateHash = "";
+        this._onHassChanged();
+      }
+    } catch (e) {
+      console.warn("fd-data-provider: registry reload failed:", e);
     }
   }
 

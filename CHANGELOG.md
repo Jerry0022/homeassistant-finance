@@ -329,6 +329,16 @@ All notable changes to the Finance will be documented in this file.
 - Add https scheme validation on auth URLs to prevent XSS via javascript: scheme
 - Update institution filter to only re-render list container (prevents cursor jump)
 
+## [0.10.1] — 2026-04-19
+
+### Fixed
+- Propagate OAuth callback errors through /setup/status so the wizard surfaces them within 2s instead of timing out after 5min
+- Hard-fail /setup/authorize when callback URL is HTTP (Enable Banking requires pre-registered HTTPS redirect)
+- Trigger one coordinator refresh after deferred entry reload so entities populate immediately after bank link
+- Raise Repairs issue on missing or invalid Enable Banking credentials, auto-clear on recovery
+- Wizard polling stops on setup_error and shows the message instead of waiting for timeout
+- Data provider subscribes to entity_registry_updated events so newly created sensors appear without race-prone 4s timer
+
 ### Fixed
 - Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
 - Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist — data provider always triggers initial rebuild
