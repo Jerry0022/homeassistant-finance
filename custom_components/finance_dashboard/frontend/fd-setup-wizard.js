@@ -132,6 +132,16 @@ class FdSetupWizard extends HTMLElement {
       }
       try {
         const status = await this._hass.callApi("GET", `${DOMAIN}/setup/status`);
+        // Backend reported a setup error during the OAuth callback —
+        // stop polling immediately and show it to the user instead of
+        // waiting for the 5-minute timeout.
+        if (status.setup_error) {
+          this._stopPolling();
+          this._error = status.setup_error;
+          this._step = 1;
+          this._renderContent();
+          return;
+        }
         if (status.pending_accounts && status.pending_accounts.length > 0) {
           this._stopPolling();
           this._pendingAccounts = status.pending_accounts.map((acc) => ({

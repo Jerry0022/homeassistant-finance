@@ -70,6 +70,14 @@
     "reconfigure_required": {
       "title": "Finance: Neukonfiguration erforderlich",
       "description": "Finance hat von GoCardless zu Enable Banking gewechselt. Bitte konfiguriere die Integration unter Einstellungen > Integrationen neu."
+    },
+    "credentials_missing": {
+      "title": "Finance: API-Credentials fehlen",
+      "description": "Es sind keine Enable-Banking-API-Credentials gespeichert. Die Integration kann keine Bankdaten abrufen, bis du sie unter Einstellungen > Geräte & Dienste neu einrichtest."
+    },
+    "credentials_invalid_pem": {
+      "title": "Finance: Privater Schlüssel ungültig",
+      "description": "Der gespeicherte Enable-Banking-Privatschlüssel konnte nicht geladen werden. Richte die Integration unter Einstellungen > Geräte & Dienste neu ein und füge den vollständigen PEM-Schlüssel inklusive der BEGIN/END-Zeilen ein."
     }
   }
 }

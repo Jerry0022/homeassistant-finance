@@ -98,6 +98,11 @@ class FinanceDashboardSetupStatusView(HomeAssistantView):
                 "person": acc.get("person", ""),
             })
 
+        # Surface any error from the OAuth callback so the wizard can
+        # stop polling and display a meaningful message instead of timing
+        # out after 5 minutes.
+        setup_error = hass.data.get(DOMAIN, {}).get("pending_setup_error")
+
         result = {
             "configured": configured,
             "has_entry": True,
@@ -108,6 +113,7 @@ class FinanceDashboardSetupStatusView(HomeAssistantView):
             "accounts": safe_accounts,
             "pending_auth_code": has_pending_code,
             "pending_accounts": pending_accounts,
+            "setup_error": setup_error,
         }
         return self.json(result)
 
@@ -257,6 +263,23 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
                 callback_url,
             )
 
+            # Enable Banking demands the redirect URL is pre-registered
+            # in the application dashboard. Hard-fail early with a
+            # helpful message so the user knows what to fix instead of
+            # waiting 5 min for the wizard to time out.
+            if request.scheme != "https":
+                return self.json({
+                    "error": (
+                        "Bank-Autorisierung erfordert HTTPS. Aktuelle "
+                        f"Callback-URL '{callback_url}' ist HTTP — "
+                        "öffne das Finance-Panel über die HTTPS-URL "
+                        "deiner HA-Instanz (z. B. Nabu Casa) oder "
+                        "richte ein TLS-Zertifikat ein."
+                    ),
+                    "error_type": "callback_not_https",
+                    "callback_url": callback_url,
+                })
+
             valid_until = (
                 datetime.now(timezone.utc)
                 + timedelta(days=SESSION_MAX_DAYS)
@@ -292,9 +315,10 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
                     "institution_logo", ""
                 ),
             }
-            # Clear any stale auth code
+            # Clear any stale auth code / error from previous attempts
             hass.data[DOMAIN].pop("pending_auth_code", None)
             hass.data[DOMAIN].pop("pending_accounts", None)
+            hass.data[DOMAIN].pop("pending_setup_error", None)
 
             return self.json({"auth_url": auth_url})
 
@@ -535,6 +559,11 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
             # response reaches the frontend before unload kills
             # the HTTP endpoints.  The frontend polls /setup/status
             # until configured=true after the reload completes.
+            # After reload, trigger ONE coordinator refresh so the
+            # newly created entities are populated immediately —
+            # without this the user sees "unavailable" until they
+            # click "Aktualisieren". This is a single user-initiated
+            # call (not a periodic auto-refresh).
             async def _deferred_reload() -> None:
                 import asyncio as _aio
 
@@ -545,6 +574,20 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                     )
                 except Exception:
                     _LOGGER.exception("Deferred entry reload failed")
+                    return
+                try:
+                    coordinator = hass.data.get(DOMAIN, {}).get(
+                        f"{entry.entry_id}_coordinator"
+                    )
+                    if coordinator:
+                        await coordinator.async_refresh()
+                        _LOGGER.info(
+                            "Initial post-setup refresh completed"
+                        )
+                except Exception:
+                    _LOGGER.exception(
+                        "Initial post-setup refresh failed"
+                    )
 
             hass.async_create_task(_deferred_reload())
 
@@ -661,7 +704,10 @@ class FinanceDashboardOAuthCallbackView(HomeAssistantView):
                 "pending_setup_auth"
             )
             if pending_setup:
-                # Panel flow — also fetch accounts for the wizard
+                # Panel flow — also fetch accounts for the wizard.
+                # On failure, store the error so /setup/status can
+                # surface it to the wizard (which polls until it sees
+                # either pending_accounts OR setup_error).
                 try:
                     from .credential_manager import CredentialManager
 
@@ -671,7 +717,12 @@ class FinanceDashboardOAuthCallbackView(HomeAssistantView):
                         await cred_mgr.async_get_api_credentials()
                     )
 
-                    if credentials:
+                    if not credentials:
+                        hass.data[DOMAIN]["pending_setup_error"] = (
+                            "Keine API-Credentials gespeichert — "
+                            "Integration neu einrichten."
+                        )
+                    else:
                         from .enablebanking_client import (
                             EnableBankingClient,
                         )
@@ -683,15 +734,26 @@ class FinanceDashboardOAuthCallbackView(HomeAssistantView):
                         session_data = (
                             await client.async_create_session(code)
                         )
-                        hass.data[DOMAIN]["pending_accounts"] = (
-                            session_data.get("accounts", [])
-                        )
-                        hass.data[DOMAIN]["pending_session_id"] = (
-                            session_data.get("session_id", "")
-                        )
-                except Exception:
+                        accounts = session_data.get("accounts", [])
+                        if not accounts:
+                            hass.data[DOMAIN]["pending_setup_error"] = (
+                                "Bank hat keine Konten zurückgegeben. "
+                                "Bitte Bankvertrag/Konsent prüfen."
+                            )
+                        else:
+                            hass.data[DOMAIN]["pending_accounts"] = (
+                                accounts
+                            )
+                            hass.data[DOMAIN]["pending_session_id"] = (
+                                session_data.get("session_id", "")
+                            )
+                except Exception as exc:
                     _LOGGER.exception(
                         "Failed to fetch accounts after OAuth callback"
+                    )
+                    hass.data[DOMAIN]["pending_setup_error"] = (
+                        f"Session-Erstellung fehlgeschlagen: "
+                        f"{str(exc)[:300]}"
                     )
             else:
                 # Legacy config flow — resume it

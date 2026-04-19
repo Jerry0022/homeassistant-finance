@@ -70,6 +70,14 @@
     "reconfigure_required": {
       "title": "Finance: Reconfiguration Required",
       "description": "Finance has switched from GoCardless to Enable Banking. Please reconfigure with your Enable Banking credentials via Settings > Integrations."
+    },
+    "credentials_missing": {
+      "title": "Finance: API Credentials Missing",
+      "description": "No Enable Banking API credentials are stored. The integration cannot fetch banking data until you reconfigure it via Settings > Devices & Services."
+    },
+    "credentials_invalid_pem": {
+      "title": "Finance: Invalid Private Key",
+      "description": "The stored Enable Banking private key could not be loaded. Reconfigure the integration via Settings > Devices & Services and paste the full PEM key including the BEGIN/END lines."
     }
   }
 }

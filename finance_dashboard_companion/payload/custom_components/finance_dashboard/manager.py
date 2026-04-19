@@ -615,14 +615,62 @@ class FinanceDashboardManager:
         creds = await self._credential_manager.async_get_api_credentials()
         if not creds:
             _LOGGER.error("No Enable Banking credentials available")
+            self._raise_credentials_issue("missing")
             return None
 
         from .enablebanking_client import EnableBankingClient
 
-        self._banking_client = EnableBankingClient(
-            creds["application_id"], creds["private_key_pem"]
-        )
+        try:
+            self._banking_client = EnableBankingClient(
+                creds["application_id"], creds["private_key_pem"]
+            )
+        except (ValueError, TypeError):
+            _LOGGER.exception(
+                "Enable Banking client init failed — PEM key invalid"
+            )
+            self._raise_credentials_issue("invalid_pem")
+            return None
+
+        # Successful client creation — clear any stale repair issue
+        self._clear_credentials_issue()
         return self._banking_client
+
+    def _raise_credentials_issue(self, kind: str) -> None:
+        """Surface credential problems via the Repairs flow."""
+        try:
+            from homeassistant.helpers import issue_registry as ir
+
+            translation_key = (
+                "credentials_missing"
+                if kind == "missing"
+                else "credentials_invalid_pem"
+            )
+            ir.async_create_issue(
+                self._hass,
+                DOMAIN,
+                f"credentials_{kind}",
+                is_fixable=False,
+                severity=ir.IssueSeverity.ERROR,
+                translation_key=translation_key,
+                learn_more_url=(
+                    "https://enablebanking.com/docs/api/reference/"
+                ),
+            )
+        except Exception:
+            _LOGGER.debug("Could not create credentials repair issue",
+                          exc_info=True)
+
+    def _clear_credentials_issue(self) -> None:
+        """Remove credential-related repair issues after recovery."""
+        try:
+            from homeassistant.helpers import issue_registry as ir
+
+            for kind in ("missing", "invalid_pem"):
+                ir.async_delete_issue(
+                    self._hass, DOMAIN, f"credentials_{kind}"
+                )
+        except Exception:
+            pass
 
     async def async_confirm_transfer_chain(
         self, chain_id: str, confirmed: bool
