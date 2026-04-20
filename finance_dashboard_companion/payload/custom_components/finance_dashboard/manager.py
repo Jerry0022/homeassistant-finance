@@ -8,11 +8,21 @@ Coordinates between:
 
 SECURITY: All transaction data is cached in HA's .storage/ directory
 (encrypted at rest). No financial data is ever written to logs or git.
+
+CACHE vs LIVE FETCH CONTRACT:
+- ``get_cached_*`` / ``async_get_balance`` return in-memory cache only —
+  zero API calls, unbounded calls allowed. Use from HTTP read endpoints.
+- ``async_refresh_*`` hits the Enable Banking API and updates the cache —
+  ONLY called from explicit user-triggered paths (service call, refresh
+  button, setup-complete bootstrap). Enable Banking enforces a 4/day
+  ASPSP rate limit, so automatic background fetches are forbidden.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -64,6 +74,18 @@ class FinanceDashboardManager:
         self._recurring_patterns: list[dict[str, Any]] = []
         self._previous_balances: dict[str, float] = {}
         self._demo_mode: bool = False
+        # Last user-triggered refresh statistics — surfaced to the UI so
+        # the user sees exactly what happened on the last "Aktualisieren"
+        # click (accounts hit, transactions loaded, duration, outcome).
+        # Structure: {"outcome": str, "accounts": int, "transactions": int,
+        #   "new": int, "duration_ms": int, "started_at": ISO,
+        #   "finished_at": ISO, "errors": list[str]}
+        self._last_refresh_stats: dict[str, Any] = {}
+        # Serialises concurrent refresh requests (double-click guard,
+        # parallel service calls). In-flight state is also surfaced via
+        # ``is_refreshing`` so the frontend can poll for completion.
+        self._refresh_lock = asyncio.Lock()
+        self._refresh_in_flight: bool = False
 
     @property
     def rate_limited_until(self) -> datetime | None:
@@ -71,6 +93,21 @@ class FinanceDashboardManager:
         if self._rate_limited_until and datetime.now() < self._rate_limited_until:
             return self._rate_limited_until
         return None
+
+    @property
+    def is_refreshing(self) -> bool:
+        """True while a user-triggered refresh is in flight."""
+        return self._refresh_in_flight
+
+    @property
+    def last_refresh(self) -> datetime | None:
+        """Timestamp of the last successful transaction refresh, if any."""
+        return self._last_refresh
+
+    @property
+    def last_refresh_stats(self) -> dict[str, Any]:
+        """Structured stats from the most recent refresh attempt."""
+        return dict(self._last_refresh_stats)
 
     def _set_rate_limited(self) -> None:
         """Mark API as rate-limited until midnight (next calendar day)."""
@@ -105,6 +142,15 @@ class FinanceDashboardManager:
             self._balances = data["_demo_balances"]
             self._last_refresh = datetime.now()
             self._recurring_patterns = data.get("recurring", [])
+            self._last_refresh_stats = self._build_stats(
+                outcome="demo",
+                started=self._last_refresh,
+                duration_ms=0,
+                accounts=len(self._accounts),
+                transactions=len(self._transactions),
+                new=0,
+                errors=[],
+            )
             _LOGGER.info("Demo mode enabled — loaded synthetic data")
         else:
             # Clear demo data — real data reloads on next manual refresh
@@ -131,11 +177,31 @@ class FinanceDashboardManager:
             self._transactions = cached["transactions"]
             last_refresh = cached.get("last_refresh")
             if last_refresh:
-                self._last_refresh = datetime.fromisoformat(last_refresh)
+                try:
+                    self._last_refresh = datetime.fromisoformat(last_refresh)
+                except ValueError:
+                    self._last_refresh = None
+            # Cached balances survive restart so the UI shows something
+            # immediately — they're only reset by an explicit live refresh.
+            self._balances = cached.get("balances", {}) or {}
+            # Rate-limit state must survive restart — otherwise a user
+            # who hit HTTP 429 at 23:59 would "reset" by bouncing HA.
+            rl = cached.get("rate_limited_until")
+            if rl:
+                try:
+                    rl_dt = datetime.fromisoformat(rl)
+                    if rl_dt > datetime.now():
+                        self._rate_limited_until = rl_dt
+                except ValueError:
+                    pass
+            stats = cached.get("last_refresh_stats")
+            if isinstance(stats, dict):
+                self._last_refresh_stats = stats
             _LOGGER.info(
-                "Loaded %d cached transactions (last refresh: %s)",
+                "Loaded %d cached transactions (last refresh: %s, balances: %d)",
                 len(self._transactions),
                 self._last_refresh,
+                len(self._balances),
             )
 
         _LOGGER.info("Finance Manager initialized")
@@ -187,15 +253,32 @@ class FinanceDashboardManager:
     async def async_refresh_transactions(
         self, days: int = 90
     ) -> list[dict[str, Any]]:
-        """Refresh transactions for all linked accounts.
+        """Refresh transactions AND balances for all linked accounts.
 
         Fetches last N days of transactions, auto-categorizes them,
-        and persists to encrypted .storage/ cache.
+        and persists to encrypted .storage/ cache. Also refreshes
+        balances in the same user-triggered round — a single click
+        updates the entire cache.
 
         If the API returns HTTP 429 (daily quota exhausted), cached
         data is served and no further API calls are attempted until
         the next calendar day (midnight local time).
+
+        Concurrent calls are serialised by ``_refresh_lock`` and stats
+        are written to ``_last_refresh_stats`` regardless of outcome.
         """
+        async with self._refresh_lock:
+            self._refresh_in_flight = True
+            started = datetime.now()
+            t0 = time.monotonic()
+            try:
+                return await self._do_refresh(days, started, t0)
+            finally:
+                self._refresh_in_flight = False
+
+    async def _do_refresh(
+        self, days: int, started: datetime, t0: float
+    ) -> list[dict[str, Any]]:
         # Demo mode — regenerate fresh demo data without API calls
         if self._demo_mode:
             from .demo import generate_demo_data
@@ -205,6 +288,15 @@ class FinanceDashboardManager:
             self._balances = data["_demo_balances"]
             self._last_refresh = datetime.now()
             self._recurring_patterns = data.get("recurring", [])
+            self._last_refresh_stats = self._build_stats(
+                outcome="demo",
+                started=started,
+                duration_ms=int((time.monotonic() - t0) * 1000),
+                accounts=len(self._accounts),
+                transactions=len(self._transactions),
+                new=0,
+                errors=[],
+            )
             return self._transactions
 
         # Skip API calls if we're still rate-limited
@@ -213,10 +305,28 @@ class FinanceDashboardManager:
                 "API rate-limited until %s — serving cached transactions",
                 self._rate_limited_until.isoformat(),
             )
+            self._last_refresh_stats = self._build_stats(
+                outcome="rate_limited",
+                started=started,
+                duration_ms=int((time.monotonic() - t0) * 1000),
+                accounts=0,
+                transactions=len(self._transactions),
+                new=0,
+                errors=["Tageslimit der Bank-API erreicht (4/Tag pro Konto)"],
+            )
             return self._transactions
 
         client = await self._async_get_client()
         if not client:
+            self._last_refresh_stats = self._build_stats(
+                outcome="error",
+                started=started,
+                duration_ms=int((time.monotonic() - t0) * 1000),
+                accounts=0,
+                transactions=len(self._transactions),
+                new=0,
+                errors=["Keine Enable-Banking-Credentials hinterlegt"],
+            )
             return []
 
         date_from = (datetime.now() - timedelta(days=days)).strftime(
@@ -225,6 +335,8 @@ class FinanceDashboardManager:
         date_to = datetime.now().strftime("%Y-%m-%d")
 
         all_transactions = []
+        errors: list[str] = []
+        accounts_hit = 0
         for account in self._accounts:
             account_id = account.get("id")
             if not account_id:
@@ -234,6 +346,7 @@ class FinanceDashboardManager:
                 txns = await client.async_get_transactions(
                     account_id, date_from, date_to
                 )
+                accounts_hit += 1
                 booked = txns.get("booked", [])
                 pending = txns.get("pending", [])
 
@@ -269,11 +382,18 @@ class FinanceDashboardManager:
                     account_id,
                 )
                 self._set_rate_limited()
+                errors.append(
+                    f"Rate-Limit bei {account.get('name', account_id)} — "
+                    "Tageslimit (4/Tag) aufgebraucht"
+                )
                 break
-            except Exception:
+            except Exception as exc:
                 _LOGGER.exception(
                     "Failed to fetch transactions for account %s",
                     account_id,
+                )
+                errors.append(
+                    f"{account.get('name', account_id)}: {str(exc)[:120]}"
                 )
 
         # Sort by booking date (newest first)
@@ -345,23 +465,71 @@ class FinanceDashboardManager:
             len(new_txns),
             len(self._recurring_patterns),
         )
+
+        # Same user click → also refresh balances so the whole cache
+        # is consistent when the UI re-reads. Failures here are logged
+        # but do not fail the transaction refresh.
+        balance_errors: list[str] = []
+        try:
+            await self._async_refresh_balances_live(client, balance_errors)
+        except Exception:
+            _LOGGER.exception("Balance refresh leg failed")
+        errors.extend(balance_errors)
+
+        # Outcome classification: full success, partial (some accounts
+        # errored), rate_limited (quota hit during the call), or error.
+        if self.rate_limited_until:
+            outcome = "rate_limited"
+        elif errors:
+            outcome = "partial" if accounts_hit > 0 else "error"
+        else:
+            outcome = "ok"
+
+        self._last_refresh_stats = self._build_stats(
+            outcome=outcome,
+            started=started,
+            duration_ms=int((time.monotonic() - t0) * 1000),
+            accounts=accounts_hit,
+            transactions=len(all_transactions),
+            new=len(new_txns),
+            errors=errors,
+        )
+
         return all_transactions
 
-    async def async_get_balance(self) -> dict[str, Any]:
-        """Get current balances for all accounts."""
-        if self._demo_mode:
-            return self._balances
+    @staticmethod
+    def _build_stats(
+        outcome: str,
+        started: datetime,
+        duration_ms: int,
+        accounts: int,
+        transactions: int,
+        new: int,
+        errors: list[str],
+    ) -> dict[str, Any]:
+        """Assemble a refresh-stats dict for the status endpoint."""
+        finished = datetime.now()
+        return {
+            "outcome": outcome,
+            "accounts": accounts,
+            "transactions": transactions,
+            "new": new,
+            "duration_ms": duration_ms,
+            "started_at": started.isoformat(),
+            "finished_at": finished.isoformat(),
+            "errors": list(errors)[:5],  # cap payload size
+        }
 
-        # Serve cached balances while rate-limited
-        if self.rate_limited_until:
-            _LOGGER.debug("Rate-limited — serving cached balances")
-            return self._balances
+    async def _async_refresh_balances_live(
+        self, client, errors: list[str]
+    ) -> dict[str, Any]:
+        """Live-fetch balances from the API and update the cache.
 
-        client = await self._async_get_client()
-        if not client:
-            return {}
-
-        balances = {}
+        NEVER call this directly from an HTTP read endpoint — only from
+        user-triggered refresh paths.  Reads should go through
+        ``async_get_balance()`` which is cache-only.
+        """
+        balances: dict[str, Any] = {}
         for account in self._accounts:
             account_id = account.get("id")
             if not account_id:
@@ -386,18 +554,26 @@ class FinanceDashboardManager:
                 }
             except RateLimitExceeded:
                 _LOGGER.warning(
-                    "Rate limit hit fetching balance for %s — serving cache",
-                    account_id,
+                    "Rate limit hit fetching balance for %s", account_id
                 )
                 self._set_rate_limited()
+                errors.append(
+                    f"Rate-Limit beim Saldo für "
+                    f"{account.get('name', account_id)}"
+                )
+                # Serve the cache we have — no further API calls today
                 return self._balances
-            except Exception:
+            except Exception as exc:
                 _LOGGER.exception(
                     "Failed to fetch balance for account %s",
                     account_id,
                 )
+                errors.append(
+                    f"Saldo {account.get('name', account_id)}: "
+                    f"{str(exc)[:120]}"
+                )
 
-        # Fire events for significant balance changes — must not crash balance fetch
+        # Fire balance-change events — must never crash the refresh
         try:
             from .events import fire_balance_changed
 
@@ -419,8 +595,23 @@ class FinanceDashboardManager:
         except Exception:
             _LOGGER.exception("Balance change event firing failed — skipping")
 
-        self._balances = balances
-        return balances
+        if balances:
+            self._balances = balances
+        return self._balances
+
+    async def async_get_balance(self) -> dict[str, Any]:
+        """Return cached balances — NEVER hits the banking API.
+
+        This is the read path used by the HTTP balance endpoint and the
+        coordinator's state queries. Safe for unbounded reads. Live
+        updates happen inside ``async_refresh_transactions`` which is
+        only invoked from user-triggered refresh paths.
+        """
+        return dict(self._balances)
+
+    def get_cached_balances(self) -> dict[str, Any]:
+        """Synchronous alias for ``async_get_balance`` — cache only."""
+        return dict(self._balances)
 
     async def async_get_monthly_summary(
         self, month: int | None = None, year: int | None = None
@@ -545,6 +736,8 @@ class FinanceDashboardManager:
                 if self.rate_limited_until
                 else None
             ),
+            "last_refresh_stats": dict(self._last_refresh_stats),
+            "is_refreshing": self._refresh_in_flight,
         }
 
     async def async_categorize_transactions(self) -> None:
@@ -606,6 +799,38 @@ class FinanceDashboardManager:
         Full details only — caller must check admin status.
         """
         return self._transactions[:limit]
+
+    def get_refresh_status(self) -> dict[str, Any]:
+        """Return a compact status snapshot for the UI status endpoint.
+
+        Pure cache read — NEVER touches the banking API. Safe for
+        unbounded polling while a refresh is in flight.
+        """
+        now = datetime.now()
+        cache_age_seconds: int | None = None
+        if self._last_refresh:
+            cache_age_seconds = int(
+                (now - self._last_refresh).total_seconds()
+            )
+        return {
+            "is_refreshing": self._refresh_in_flight,
+            "last_refresh": (
+                self._last_refresh.isoformat()
+                if self._last_refresh
+                else None
+            ),
+            "cache_age_seconds": cache_age_seconds,
+            "rate_limited_until": (
+                self._rate_limited_until.isoformat()
+                if self.rate_limited_until
+                else None
+            ),
+            "stats": dict(self._last_refresh_stats),
+            "account_count": len(self._accounts),
+            "transaction_count": len(self._transactions),
+            "has_cache": bool(self._transactions) or bool(self._balances),
+            "demo_mode": self._demo_mode,
+        }
 
     async def _async_get_client(self):
         """Get or create Enable Banking client with current credentials."""
@@ -737,15 +962,22 @@ class FinanceDashboardManager:
         return {}
 
     async def _persist_transactions(self) -> None:
-        """Save transactions to encrypted .storage/ cache."""
+        """Save transactions, balances, rate-limit and stats to cache."""
         await self._transaction_store.async_save(
             {
                 "transactions": self._transactions,
+                "balances": self._balances,
                 "last_refresh": (
                     self._last_refresh.isoformat()
                     if self._last_refresh
                     else None
                 ),
+                "rate_limited_until": (
+                    self._rate_limited_until.isoformat()
+                    if self._rate_limited_until
+                    else None
+                ),
+                "last_refresh_stats": self._last_refresh_stats,
                 "account_count": len(self._accounts),
             }
         )

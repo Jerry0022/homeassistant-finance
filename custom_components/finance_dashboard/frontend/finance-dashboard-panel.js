@@ -84,6 +84,13 @@ class FinanceDashboardPanel extends HTMLElement {
       // but guard here as well.
       if (header && header._rateLimitedUntil &&
           new Date(header._rateLimitedUntil) > new Date()) {
+        if (header.showToast) {
+          header.showToast(
+            "Tageslimit der Bank-API ist erreicht (4/Tag pro Konto). "
+            + "Neue Abfragen sind erst ab morgen 00:00 m\u00f6glich.",
+            "warn",
+          );
+        }
         return;
       }
       if (header) header.refreshing = true;
@@ -91,6 +98,42 @@ class FinanceDashboardPanel extends HTMLElement {
         dp.refresh().finally(() => {
           if (header) header.refreshing = false;
         });
+      }
+    });
+
+    this.shadowRoot.addEventListener("fd-refresh-done", (e) => {
+      const header = this.shadowRoot.querySelector("fd-header");
+      if (!header || !header.showToast) return;
+      const d = e.detail || {};
+      const s = d.status?.stats || {};
+      const reason = d.reason || s.outcome || "error";
+      if (reason === "ok") {
+        const parts = [];
+        if (s.accounts) parts.push(`${s.accounts} Konten`);
+        if (s.transactions) parts.push(`${s.transactions} Transaktionen`);
+        if (s.new) parts.push(`${s.new} neu`);
+        const dur = s.duration_ms ? ` in ${(s.duration_ms / 1000).toFixed(1)}s` : "";
+        header.showToast(
+          `Aktualisiert \u2014 ${parts.join(", ") || "keine Daten"}${dur}`,
+          "success",
+        );
+      } else if (reason === "partial") {
+        const msg = `Teilweise aktualisiert \u2014 `
+          + `${s.accounts || 0} Konten, ${s.transactions || 0} Tx. `
+          + `${(s.errors || []).join(" \u00b7 ")}`.trim();
+        header.showToast(msg, "warn");
+      } else if (reason === "rate_limited") {
+        header.showToast(
+          "Tageslimit der Bank-API erreicht. Cache bleibt aktiv, "
+          + "neue Live-Daten morgen ab 00:00.",
+          "warn",
+        );
+      } else if (reason === "demo") {
+        header.showToast("Demo-Daten neu generiert.", "info");
+      } else {
+        const errs = (s.errors || []).slice(0, 2).join(" \u00b7 ")
+          || "Unbekannter Fehler";
+        header.showToast(`Aktualisierung fehlgeschlagen \u2014 ${errs}`, "error");
       }
     });
 
@@ -137,6 +180,7 @@ class FinanceDashboardPanel extends HTMLElement {
     if (header) {
       header.lastRefresh = data.lastRefresh;
       header.rateLimitedUntil = data.rateLimitedUntil;
+      header.lastRefreshStats = data.lastRefreshStats;
       if (data.demoMode !== undefined) header.demoMode = data.demoMode;
     }
 

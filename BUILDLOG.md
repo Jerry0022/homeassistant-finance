@@ -1,5 +1,25 @@
 # Build Log
 
+## 0.11.0 — 2026-04-20
+Version: 0.11.0
+Branch: claude/bold-swirles-d0afe6
+PR: (pending)
+Changes:
+- fix(core): separate cache-reads from live API fetches — `manager.async_get_balance()` now returns cached balances only (was hitting Enable Banking on every HTTP `/balances` call, burning the 4/day/ASPSP rate limit)
+- feat(core): serialise user-triggered refreshes with `asyncio.Lock` to prevent double-click concurrent fetches
+- feat(core): persist `rate_limited_until` and `last_refresh_stats` across HA restart so the 4/day counter is not lost on reboot
+- feat(core): track structured refresh stats (outcome, accounts, transactions, new, duration_ms, errors) exposed via `manager.get_refresh_status()`
+- feat(api): new `POST /api/finance_dashboard/refresh` endpoint — the single user-triggered live-fetch entry point, returns stats synchronously
+- feat(api): new `GET /api/finance_dashboard/refresh_status` — cache-only polling endpoint, unbounded reads allowed
+- feat(core): `refresh_transactions` service now uses `SupportsResponse.OPTIONAL` and returns stats so automations can react to the outcome
+- feat(core): refresh_transactions refreshes balances in the same user-triggered round — one click, one cache update
+- feat(frontend): refresh button now shows a result toast ("5 Konten, 243 Transaktionen, 2 neu in 3.1s" / rate-limit / partial / error)
+- feat(frontend): header timestamp shows live cache age ("Zuletzt 14:23 · vor 2 Std") and updates every minute
+- feat(frontend): rate-limit and loading states surfaced clearly next to the refresh button instead of silent "Aktualisieren" reverts
+- fix(frontend): "Noch keine Daten" state now has explicit styling + hint to click Aktualisieren
+- refactor(coordinator): remove staleness-based auto-refresh — coordinator is now a pure cache projection, live fetches only via dedicated endpoint
+- docs(claude-md): replace stale GoCardless references with Enable Banking, document cache vs. live-fetch contract
+
 ## 0.10.1 — 2026-04-19
 Version: 0.10.1
 Branch: claude/pensive-rosalind-793ad9

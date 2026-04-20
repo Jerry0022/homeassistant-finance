@@ -190,23 +190,78 @@ class FdDataProvider extends HTMLElement {
     }
   }
 
-  /** Trigger a full data rebuild (manual refresh). */
+  /** Trigger a full data rebuild (manual refresh).
+   *
+   *  Returns a stats object the panel can surface in a toast:
+   *    { outcome, accounts, transactions, new, duration_ms, errors,
+   *      rate_limited_until, last_refresh, cache_age_seconds }
+   *
+   *  "outcome" is one of: ok | partial | rate_limited | error | demo.
+   */
   async refresh() {
-    if (!this._hass) return;
+    if (!this._hass) return { outcome: "error", errors: ["no hass"] };
     if (this._demoMode) {
-      // In demo mode, just regenerate demo data
       await this._loadDemoData();
-      return;
+      return { outcome: "demo" };
     }
-    // Ask HA to refresh transactions, which triggers coordinator update
+    // Notify listeners that a live fetch started — used by the header
+    // to show the spinner chip instead of the static timestamp.
+    this.dispatchEvent(new CustomEvent("fd-refresh-started", {
+      bubbles: true,
+      composed: true,
+    }));
+
+    let resultStatus = null;
     try {
-      await this._hass.callService(DOMAIN, "refresh_transactions");
+      // Dedicated endpoint blocks until the refresh completes and
+      // returns structured stats. Using this instead of the HA service
+      // call avoids the pre-2024 no-response behaviour on older cores.
+      const resp = await this._hass.callApi("POST", `${DOMAIN}/refresh`);
+      resultStatus = resp?.status || null;
+      if (resp && resp.ok === false) {
+        // Rate-limited or hard error — still dispatch the status so the
+        // header can render the "Morgen verfügbar" chip correctly.
+        this.dispatchEvent(new CustomEvent("fd-refresh-done", {
+          detail: {
+            status: resultStatus,
+            ok: false,
+            reason: resp.reason,
+          },
+          bubbles: true,
+          composed: true,
+        }));
+      }
     } catch (e) {
-      console.warn("fd-data-provider: refresh_transactions failed:", e);
+      console.warn("fd-data-provider: /refresh endpoint failed:", e);
     }
+
     // Force immediate rebuild — allow API fallback for household/recurring
     this._prevStateHash = "";
     await this._rebuild(true);
+
+    if (resultStatus && resultStatus.stats) {
+      this.dispatchEvent(new CustomEvent("fd-refresh-done", {
+        detail: {
+          status: resultStatus,
+          ok: resultStatus.stats.outcome === "ok",
+          reason: resultStatus.stats.outcome,
+        },
+        bubbles: true,
+        composed: true,
+      }));
+    }
+    return resultStatus || {};
+  }
+
+  /** Fetch the current refresh status (cache-only, unbounded-safe). */
+  async fetchRefreshStatus() {
+    if (!this._hass) return null;
+    try {
+      return await this._hass.callApi("GET", `${DOMAIN}/refresh_status`);
+    } catch (e) {
+      console.warn("fd-data-provider: /refresh_status failed:", e);
+      return null;
+    }
   }
 
   /** Check if relevant entity states changed and rebuild if needed. */
@@ -267,6 +322,8 @@ class FdDataProvider extends HTMLElement {
         error: null,
         lastRefresh: null,
         rateLimitedUntil: null,
+        lastRefreshStats: null,
+        isRefreshing: false,
       };
 
       // 1. Read entities using registry-based lookup
@@ -346,6 +403,8 @@ class FdDataProvider extends HTMLElement {
           data.summary.year = sa.year || data.summary.year;
           data.lastRefresh = sa.last_refresh || null;
           data.rateLimitedUntil = sa.rate_limited_until || null;
+          data.lastRefreshStats = sa.last_refresh_stats || null;
+          data.isRefreshing = !!sa.is_refreshing;
 
           // Household and recurring from entity attrs (added in v0.7.9+)
           if (sa.household) data.household = sa.household;

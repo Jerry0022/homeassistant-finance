@@ -34,6 +34,8 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardBalanceView())
     hass.http.register_view(FinanceDashboardTransactionsView())
     hass.http.register_view(FinanceDashboardSummaryView())
+    hass.http.register_view(FinanceDashboardRefreshStatusView())
+    hass.http.register_view(FinanceDashboardRefreshTriggerView())
     # Setup wizard endpoints
     hass.http.register_view(FinanceDashboardSetupStatusView())
     hass.http.register_view(FinanceDashboardSetupInstitutionsView())
@@ -1143,3 +1145,100 @@ class FinanceDashboardSummaryView(HomeAssistantView):
 
         summary = await manager.async_get_monthly_summary()
         return self.json(summary)
+
+
+class FinanceDashboardRefreshStatusView(HomeAssistantView):
+    """Cache-only refresh status — safe for unbounded polling.
+
+    Returns the snapshot produced by ``manager.get_refresh_status()``.
+    Used by the frontend to poll while a refresh is in flight and to
+    render cache-age + last-stats in the header without ever hitting
+    the banking API.
+    """
+
+    url = f"/api/{DOMAIN}/refresh_status"
+    name = f"api:{DOMAIN}:refresh_status"
+    requires_auth = True
+
+    async def get(self, request: web.Request) -> web.Response:
+        """Return the current refresh snapshot (no API calls)."""
+        hass = request.app["hass"]
+        manager = _get_manager(hass)
+
+        if not manager:
+            return self.json(
+                {
+                    "is_refreshing": False,
+                    "has_cache": False,
+                    "error": "Not configured",
+                }
+            )
+
+        return self.json(manager.get_refresh_status())
+
+
+class FinanceDashboardRefreshTriggerView(HomeAssistantView):
+    """Explicit user-triggered refresh — the ONLY allowed live-fetch entry.
+
+    Blocks while the refresh is in flight and returns the final stats,
+    so the frontend can show a single "5 Konten, 243 Transaktionen"
+    toast instead of polling guesswork. Hard Rule: only invoked on
+    user-initiated actions (refresh button, manual service call).
+    """
+
+    url = f"/api/{DOMAIN}/refresh"
+    name = f"api:{DOMAIN}:refresh"
+    requires_auth = True
+
+    async def post(self, request: web.Request) -> web.Response:
+        """Run a refresh and return the stats when it finishes."""
+        hass = request.app["hass"]
+        manager = _get_manager(hass)
+
+        if not manager:
+            return self.json(
+                {"error": "Not configured"}, status_code=404
+            )
+
+        # Short-circuit when already rate-limited so the UI can show a
+        # clear message instead of waiting for an HTTP 429 round-trip.
+        if manager.rate_limited_until:
+            return self.json(
+                {
+                    "ok": False,
+                    "reason": "rate_limited",
+                    "status": manager.get_refresh_status(),
+                }
+            )
+
+        try:
+            await manager.async_refresh_transactions()
+        except Exception as exc:
+            _LOGGER.exception("Refresh trigger failed")
+            return self.json(
+                {
+                    "ok": False,
+                    "reason": "error",
+                    "message": str(exc)[:200],
+                    "status": manager.get_refresh_status(),
+                }
+            )
+
+        # Also push fresh data through the coordinator so entity states
+        # update in lockstep with the user's click.
+        domain_data = hass.data.get(DOMAIN, {})
+        entry = domain_data.get("entry")
+        if entry:
+            coordinator = domain_data.get(
+                f"{entry.entry_id}_coordinator"
+            )
+            if coordinator:
+                try:
+                    await coordinator.async_refresh()
+                except Exception:
+                    _LOGGER.exception(
+                        "Coordinator refresh after live fetch failed"
+                    )
+
+        status = manager.get_refresh_status()
+        return self.json({"ok": True, "status": status})

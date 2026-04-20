@@ -4,7 +4,9 @@
 
 ## Project Overview
 
-A secure Home Assistant add-on and integration for personal finance management. Pulls live banking data via GoCardless (Nordigen) Open Banking API, auto-categorizes transactions, and provides household budget tracking with configurable multi-person split models.
+A secure Home Assistant add-on and integration for personal finance management. Pulls live banking data via the Enable Banking PSD2 Open Banking API (JWT-signed), auto-categorizes transactions, and provides household budget tracking with configurable multi-person split models.
+
+**Hard rule — cache vs. live fetch**: Cache reads (HTTP endpoints, sensor attributes, coordinator state) are unbounded. Live Enable-Banking calls are ONLY allowed from explicit user-triggered paths (refresh button, service call, setup bootstrap). Enable Banking enforces a 4/day ASPSP rate limit, so background polling is forbidden.
 
 ## Architecture
 
@@ -16,10 +18,11 @@ homeassistant-finance/
 │   ├── config_flow.py           # Config + Options + Reconfigure flows
 │   ├── const.py                 # All constants, categories, service names
 │   ├── manager.py               # Core orchestrator (accounts, transactions, summaries)
-│   ├── credential_manager.py    # Fernet encryption, token rotation, audit log
-│   ├── gocardless_client.py     # GoCardless Bank Account Data API v2 client
+│   ├── credential_manager.py    # Fernet encryption, JWT signing key, audit log
+│   ├── enablebanking_client.py  # Enable Banking API client (PSD2, JWT RS256)
+│   ├── coordinator.py           # DataUpdateCoordinator (cache-only reads)
 │   ├── categorizer.py           # Rule-based transaction auto-categorization
-│   ├── api.py                   # HTTP API endpoints (balances, transactions, summary)
+│   ├── api.py                   # HTTP endpoints (balances, transactions, summary, refresh, refresh_status)
 │   ├── panel.py                 # Sidebar panel registration
 │   ├── repairs.py               # Restart notification repair flow
 │   ├── services.yaml            # Service definitions for HA
@@ -45,12 +48,13 @@ homeassistant-finance/
 
 1. **No financial data in git**: Zero runtime data (balances, transactions, account numbers, tokens) may ever be committed. The `.gitignore` enforces this.
 2. **Encrypted storage**: All credentials use Fernet symmetric encryption (AES-128-CBC + HMAC) on top of HA's `.storage/` directory.
-3. **Token rotation**: GoCardless tokens are refreshed 1 hour before expiry. Forced re-auth after 90 days.
+3. **JWT auth**: Short-lived (60s) RS256-signed JWTs per request — no long-lived bearer tokens stored. RSA private key held only in memory. PSU session validity capped at 180 days (Enable Banking / EU RTS 2022/2360), forced re-auth after 90 days by policy.
 4. **Session timeouts**: Credential access times out after 30 minutes of inactivity.
 5. **Audit trail**: Every credential operation is logged (timestamp + event type only, never values).
 6. **IBAN masking**: API responses truncate IBANs to last 4 digits for frontend display.
 7. **Header security**: API endpoints require HA Bearer token authentication.
-8. **No external calls**: Only GoCardless API is contacted. No telemetry, no analytics.
+8. **No external calls**: Only the Enable Banking API is contacted. No telemetry, no analytics.
+9. **Rate-limit discipline**: Live fetches only on explicit user action. Cache-read endpoints (`/balances`, `/summary`, `/refresh_status`) never hit the bank.
 
 **Before every commit, verify:**
 - `git diff --cached` contains zero financial data (account numbers, balances, tokens)
@@ -60,8 +64,8 @@ homeassistant-finance/
 ## Tech Stack
 
 - **Language**: Python 3.12+ (integration), JavaScript (frontend)
-- **Banking API**: GoCardless (Nordigen) Open Banking API v2
-- **Encryption**: `cryptography` library (Fernet)
+- **Banking API**: Enable Banking (PSD2, JWT-signed, RS256). 4/day/ASPSP rate limit.
+- **Encryption**: `cryptography` library (Fernet for storage, RSA for JWT signing)
 - **Frontend**: Vanilla Web Components (Custom Elements API)
 - **HA APIs**: Config Entries, Services, HTTP Views, Repairs, Frontend Panel
 - **CI**: GitHub Actions (Python/JS syntax, version alignment, payload sync)
@@ -89,10 +93,22 @@ The add-on is a thin installer — it copies the integration code into HA's `cus
 - Falls back to persistent notification via HA Supervisor API
 
 ### Config Flow
-Three-step flow: `user` (API credentials) → `link_bank` (bank authorization) → `options` (settings). Real-time validation with GoCardless API call during setup.
+Three-step flow: `user` (Enable Banking application_id + RSA private key) → `link_bank` (ASPSP authorization via PSU redirect) → `options` (settings). Real-time validation via Enable Banking API call during setup.
 
 ### Service API
-7 Services: `refresh_accounts`, `refresh_transactions`, `get_balance`, `get_monthly_summary`, `categorize_transactions`, `set_budget_limit`, `export_csv`. All callable from HA automations.
+7 Services: `refresh_accounts`, `refresh_transactions` (both return refresh-stats dict via `SupportsResponse.OPTIONAL`), `get_balance`, `get_monthly_summary`, `categorize_transactions`, `set_budget_limit`, `export_csv`. `refresh_transactions` is the only live-fetch entry point and always updates balances + transactions + recurring in one atomic round.
+
+### Refresh Flow (user-triggered)
+1. Frontend refresh button → `POST /api/finance_dashboard/refresh`
+2. Endpoint calls `manager.async_refresh_transactions()` (async-lock-guarded)
+3. Manager hits Enable Banking for transactions + balances in one pass
+4. On HTTP 429 → `_rate_limited_until = midnight`, persisted across HA restart
+5. Stats (`outcome`, `accounts`, `transactions`, `new`, `duration_ms`, `errors`) written to cache
+6. Coordinator pushes updated state to sensors
+7. Endpoint returns `{ok, status: {stats, rate_limited_until, cache_age_seconds, ...}}`
+8. Frontend shows toast: "5 Konten, 243 Transaktionen, 2 neu in 3.1s" or the rate-limit message
+
+Cache-read endpoints (`/balances`, `/summary`, `/refresh_status`, `/transactions`) are unbounded and never hit the bank.
 
 ### Entity Architecture
 - **Sensor** (per account): `sensor.fd_{bank}_{account}` — balance with bank logo, IBAN masked
@@ -153,7 +169,7 @@ node --check custom_components/finance_dashboard/frontend/finance-dashboard-pane
 
 ### Phase 1 (Current) — Scaffold + MVP
 - [x] Repository structure mirroring YouTube Music Connector golden sample
-- [x] GoCardless API client skeleton
+- [x] Enable Banking API client (replaced GoCardless skeleton)
 - [x] Credential manager with encryption + audit
 - [x] Transaction categorizer (rule-based, 9 categories from household sheet)
 - [x] Companion add-on with smart installer
@@ -161,7 +177,7 @@ node --check custom_components/finance_dashboard/frontend/finance-dashboard-pane
 - [x] CI/CD pipeline
 - [x] Branding (dual-tone coin icon)
 - [x] Design sprint (requirements, architecture, UI mockups)
-- [ ] End-to-end GoCardless OAuth flow (DE banks only)
+- [ ] End-to-end Enable Banking OAuth flow (DE banks only)
 - [ ] Account balance sensors (1 per account, bank logo, optional aggregate)
 - [ ] Monthly summary sensor
 - [ ] Privacy-first API responses (IBAN masking, admin-only details)
@@ -208,7 +224,7 @@ node --check custom_components/finance_dashboard/frontend/finance-dashboard-pane
 
 | Module | Scope |
 |--------|-------|
-| `module:gocardless` | Banking API integration |
+| `module:enablebanking` | Banking API integration |
 | `module:categorizer` | Transaction categorization |
 | `module:household` | Multi-person budget model |
 | `module:frontend` | UI components |

@@ -339,6 +339,28 @@ All notable changes to the Finance will be documented in this file.
 - Wizard polling stops on setup_error and shows the message instead of waiting for timeout
 - Data provider subscribes to entity_registry_updated events so newly created sensors appear without race-prone 4s timer
 
+## [0.11.0] — 2026-04-20
+
+### Added
+- Serialise user-triggered refreshes with `asyncio.Lock` to prevent double-click concurrent fetches
+- Persist `rate_limited_until` and `last_refresh_stats` across HA restart so the 4/day counter is not lost on reboot
+- Track structured refresh stats (outcome, accounts, transactions, new, duration_ms, errors) exposed via `manager.get_refresh_status()`
+- New `POST /api/finance_dashboard/refresh` endpoint — the single user-triggered live-fetch entry point, returns stats synchronously
+- New `GET /api/finance_dashboard/refresh_status` — cache-only polling endpoint, unbounded reads allowed
+- `refresh_transactions` service now uses `SupportsResponse.OPTIONAL` and returns stats so automations can react to the outcome
+- Refresh_transactions refreshes balances in the same user-triggered round — one click, one cache update
+- Refresh button now shows a result toast ("5 Konten, 243 Transaktionen, 2 neu in 3.1s" / rate-limit / partial / error)
+- Header timestamp shows live cache age ("Zuletzt 14:23 · vor 2 Std") and updates every minute
+- Rate-limit and loading states surfaced clearly next to the refresh button instead of silent "Aktualisieren" reverts
+
+### Changed
+- Remove staleness-based auto-refresh — coordinator is now a pure cache projection, live fetches only via dedicated endpoint
+- Docs(claude-md): replace stale GoCardless references with Enable Banking, document cache vs. live-fetch contract
+
+### Fixed
+- Separate cache-reads from live API fetches — `manager.async_get_balance()` now returns cached balances only (was hitting Enable Banking on every HTTP `/balances` call, burning the 4/day/ASPSP rate limit)
+- "Noch keine Daten" state now has explicit styling + hint to click Aktualisieren
+
 ### Fixed
 - Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
 - Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist — data provider always triggers initial rebuild
