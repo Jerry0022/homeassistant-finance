@@ -46,3 +46,4 @@ tokens.json
 htmlcov/
 .coverage
 .playwright-mcp/
+AUTONOMOUS-REPORT.html
