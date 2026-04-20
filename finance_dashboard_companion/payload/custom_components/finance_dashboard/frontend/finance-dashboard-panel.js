@@ -195,6 +195,15 @@ class FinanceDashboardPanel extends HTMLElement {
       return;
     }
 
+    // While a refresh is in flight and there's no data yet, keep the
+    // user on the "Lade Finanzdaten…" screen instead of flashing
+    // the onboarding prompt momentarily.
+    if (data.isRefreshing && data.accountCount === 0 && !data.demoMode) {
+      content.className = "loading";
+      content.innerHTML = "Daten werden geladen\u2026";
+      return;
+    }
+
     // Onboarding: no accounts and no demo → show welcome with inline wizard CTA
     if (data.accountCount === 0 && !data.demoMode) {
       content.className = "";

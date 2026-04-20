@@ -1,5 +1,14 @@
 # Build Log
 
+## 0.11.1 — 2026-04-20
+Version: 0.11.1
+Branch: claude/fix-refresh-demo-race-0-11-1
+PR: (pending)
+Changes:
+- fix(frontend): btn-demo now renders neutral/ghost by default — orange fill only when demo mode is active (btn-demo-active), preventing false "already in demo" appearance
+- fix(frontend): refresh race eliminated — after POST /refresh, poll for entity state change (≤5s, 500ms ticks) before calling _rebuild(), avoiding stale hass.states read that returned accountCount=0 and flashed onboarding screen
+- fix(frontend): _onHassChanged no longer advances _prevStateHash when _loading=true; instead sets _pendingRebuild=true so _rebuild retries immediately after the in-flight rebuild finishes, closing the concurrent-rebuild deadlock
+
 ## 0.11.0 — 2026-04-20
 Version: 0.11.0
 Branch: claude/bold-swirles-d0afe6

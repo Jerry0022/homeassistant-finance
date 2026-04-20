@@ -21,6 +21,7 @@ class FdDataProvider extends HTMLElement {
     this._prevStateHash = "";
     this._initialRebuildDone = false;
     this._loading = false;
+    this._pendingRebuild = false;
     this._demoMode = false;
     this._demoToggling = false;
     // Entity registry map: entity_id → unique_id (for our platform only)
@@ -212,6 +213,10 @@ class FdDataProvider extends HTMLElement {
     }));
 
     let resultStatus = null;
+    // Capture the current state hash so we can detect when coordinator
+    // has pushed fresh entity state after the refresh completes.
+    const preRefreshHash = this._computeStateHash();
+
     try {
       // Dedicated endpoint blocks until the refresh completes and
       // returns structured stats. Using this instead of the HA service
@@ -235,8 +240,35 @@ class FdDataProvider extends HTMLElement {
       console.warn("fd-data-provider: /refresh endpoint failed:", e);
     }
 
-    // Force immediate rebuild — allow API fallback for household/recurring
+    // Do NOT call _rebuild() immediately — the HA coordinator pushes entity
+    // state via WebSocket asynchronously, so hass.states may still be stale.
+    // Instead, reset the hash so the next set hass() tick triggers a rebuild
+    // with the fresh states. Also set _pendingRebuild so that if a rebuild
+    // is currently in flight it will re-run once it finishes.
     this._prevStateHash = "";
+    this._pendingRebuild = false; // clear any stale pending flag
+
+    // Poll for fresh states for up to 5 s (max ~10 ticks, 500 ms apart).
+    // As soon as the state hash changes (coordinator pushed new values) OR
+    // we time out, trigger one authoritative rebuild with API fallback.
+    // This terminates unconditionally — no infinite loops.
+    const POLL_INTERVAL = 500;
+    const POLL_MAX = 10;
+    let pollCount = 0;
+    await new Promise((resolve) => {
+      const poll = () => {
+        pollCount++;
+        const currentHash = this._computeStateHash();
+        if (currentHash !== preRefreshHash || pollCount >= POLL_MAX) {
+          resolve();
+        } else {
+          setTimeout(poll, POLL_INTERVAL);
+        }
+      };
+      // First tick after a short delay so the WS push can arrive
+      setTimeout(poll, POLL_INTERVAL);
+    });
+
     await this._rebuild(true);
 
     if (resultStatus && resultStatus.stats) {
@@ -271,6 +303,15 @@ class FdDataProvider extends HTMLElement {
     // First call must always trigger rebuild (even with empty hash)
     if (this._initialRebuildDone && hash === this._prevStateHash) return;
     this._initialRebuildDone = true;
+    // Only advance the hash AFTER rebuild completes — if _rebuild() bails
+    // early due to _loading=true (race with a concurrent rebuild), do NOT
+    // update _prevStateHash so the next hass tick will retry.
+    if (this._loading) {
+      // A rebuild is already in flight; schedule a retry after it finishes.
+      // _pendingRebuild is cleared inside _rebuild() in the finally block.
+      this._pendingRebuild = true;
+      return;
+    }
     this._prevStateHash = hash;
     this._rebuild();
   }
@@ -444,6 +485,15 @@ class FdDataProvider extends HTMLElement {
       }
     } finally {
       this._loading = false;
+      // If a hass-change arrived while we were loading, run a fresh rebuild
+      // now that the lock is released. This prevents the race where
+      // _onHassChanged saw _loading=true and skipped updating _prevStateHash,
+      // leaving the panel stuck on stale (empty) data after a refresh.
+      if (this._pendingRebuild) {
+        this._pendingRebuild = false;
+        // Re-enter _onHassChanged so hash comparison runs cleanly
+        this._onHassChanged();
+      }
     }
   }
 }
