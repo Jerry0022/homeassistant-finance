@@ -14,7 +14,7 @@ import logging
 from ha_customapps.restart import RestartNotifier
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, SupportsResponse
 
 from .const import (
     DOMAIN,
@@ -140,13 +140,18 @@ async def _async_register_services(
         SERVICE_EXPORT_CSV,
     )
 
-    async def handle_refresh_accounts(call) -> None:
+    async def handle_refresh_accounts(call) -> dict:
         await manager.async_refresh_accounts()
+        return manager.get_refresh_status()
 
-    async def handle_refresh_transactions(call) -> None:
+    async def handle_refresh_transactions(call) -> dict:
+        """User-triggered refresh — returns stats so automations and
+        the frontend can surface "5 Konten, 243 Tx, 2 neu" instead
+        of a silent OK."""
         await manager.async_refresh_transactions()
         # Push fresh data to all entities via coordinator
         await coordinator.async_refresh()
+        return manager.get_refresh_status()
 
     async def handle_get_balance(call) -> dict:
         return await manager.async_get_balance()
@@ -177,10 +182,16 @@ async def _async_register_services(
         await coordinator.async_refresh()
 
     hass.services.async_register(
-        DOMAIN, SERVICE_REFRESH_ACCOUNTS, handle_refresh_accounts
+        DOMAIN,
+        SERVICE_REFRESH_ACCOUNTS,
+        handle_refresh_accounts,
+        supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(
-        DOMAIN, SERVICE_REFRESH_TRANSACTIONS, handle_refresh_transactions
+        DOMAIN,
+        SERVICE_REFRESH_TRANSACTIONS,
+        handle_refresh_transactions,
+        supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(
         DOMAIN, SERVICE_GET_BALANCE, handle_get_balance

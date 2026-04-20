@@ -73,14 +73,13 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
 
         This method is ONLY reached when the user explicitly triggers
         a refresh (UI button or service call). It never runs automatically.
+
+        Cache-read only: balances and summary are read from the manager's
+        in-memory cache — no live API calls. Live fetches happen inside
+        ``manager.async_refresh_transactions`` (which also refreshes
+        balances) and are gated by an explicit user trigger.
         """
         try:
-            # Refresh raw transactions only when the cache is stale.
-            last = self._manager._last_refresh
-            if last is None or (datetime.now() - last) > TRANSACTION_REFRESH_STALENESS:
-                _LOGGER.debug("Transaction cache stale — refreshing from API")
-                await self._manager.async_refresh_transactions()
-
             balances = await self._manager.async_get_balance()
             summary = await self._manager.async_get_monthly_summary()
 
@@ -88,7 +87,10 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
             return {
                 "balances": balances,
                 "summary": summary,
-                "rate_limited_until": rate_limited.isoformat() if rate_limited else None,
+                "rate_limited_until": (
+                    rate_limited.isoformat() if rate_limited else None
+                ),
+                "refresh_status": self._manager.get_refresh_status(),
             }
         except Exception as exc:
             raise UpdateFailed(f"Finance data update failed: {exc}") from exc
