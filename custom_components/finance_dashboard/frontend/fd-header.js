@@ -189,21 +189,25 @@ h1 {
   font-weight: 600;
 }
 .btn-demo {
-  border-color: var(--demo);
-  background: rgba(243, 156, 18, 0.15);
-  color: var(--demo);
-  font-weight: 600;
+  /* Neutral ghost style — matches secondary buttons, no orange hint */
+  border-color: var(--bd);
+  background: var(--sf);
+  color: var(--tx2);
 }
 .btn-demo:hover {
-  background: rgba(243, 156, 18, 0.25);
+  background: var(--sf2);
+  color: var(--tx);
 }
 .btn-demo-active {
+  /* Filled orange only when demo mode is ON */
+  border-color: var(--demo);
   background: var(--demo);
   color: #0a0a0f;
   font-weight: 600;
 }
 .btn-demo-active:hover {
   background: #e67e22;
+  border-color: #e67e22;
 }
 .ts-stack {
   display: flex;

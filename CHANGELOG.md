@@ -361,6 +361,13 @@ All notable changes to the Finance will be documented in this file.
 - Separate cache-reads from live API fetches — `manager.async_get_balance()` now returns cached balances only (was hitting Enable Banking on every HTTP `/balances` call, burning the 4/day/ASPSP rate limit)
 - "Noch keine Daten" state now has explicit styling + hint to click Aktualisieren
 
+## [0.11.1] — 2026-04-20
+
+### Fixed
+- Btn-demo now renders neutral/ghost by default — orange fill only when demo mode is active (btn-demo-active), preventing false "already in demo" appearance
+- Refresh race eliminated — after POST /refresh, poll for entity state change (≤5s, 500ms ticks) before calling _rebuild(), avoiding stale hass.states read that returned accountCount=0 and flashed onboarding screen
+- _onHassChanged no longer advances _prevStateHash when _loading=true; instead sets _pendingRebuild=true so _rebuild retries immediately after the in-flight rebuild finishes, closing the concurrent-rebuild deadlock
+
 ### Fixed
 - Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
 - Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist — data provider always triggers initial rebuild
