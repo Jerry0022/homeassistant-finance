@@ -376,13 +376,3 @@ All notable changes to the Finance will be documented in this file.
 
 ### Changed
 - Register `fd-transactions-log.js` in `LOVELACE_COMPONENTS`, append component after `fd-recurring-list` in the shell's component tree
-
-### Fixed
-- Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
-- Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist — data provider always triggers initial rebuild
-- Restart notification no longer lost due to race condition in entry setup — preserves issue when marker file exists and polls immediately
-- Add DataUpdateCoordinator — entities no longer call banking API directly
-- Sensor update interval 10 min via coordinator (was ~30 s per entity → rate-limit exhaustion)
-- Panel refresh on connectedCallback + 10-min auto-timer instead of every hass setter
-- Lovelace card throttles API calls to max once per 10 min (was every hass setter)
-- Manual refresh_transactions service triggers coordinator push to entities
