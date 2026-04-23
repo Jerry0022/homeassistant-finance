@@ -29,6 +29,11 @@ class FdDataProvider extends HTMLElement {
     this._registryLoading = false;
     // Unsubscribe handle for entity_registry_updated subscription
     this._registryUnsub = null;
+    // Cached admin-only transaction list (from /transactions, cache-read).
+    // Kept across rebuilds so entity-only state changes don't trigger new
+    // fetches. Refreshed on first rebuild with accounts and on every
+    // user-triggered refresh().
+    this._cachedTransactions = [];
   }
 
   disconnectedCallback() {
@@ -285,6 +290,23 @@ class FdDataProvider extends HTMLElement {
     return resultStatus || {};
   }
 
+  /** Fetch cached transactions (admin-only, cache-read, unbounded-safe). */
+  async _fetchTransactions() {
+    if (!this._hass) return;
+    try {
+      const resp = await this._hass.callApi("GET", `${DOMAIN}/transactions`);
+      if (resp && resp.privacy === "admin_full"
+          && Array.isArray(resp.transactions)) {
+        this._cachedTransactions = resp.transactions;
+      } else {
+        // Non-admin or empty response → no detail view available
+        this._cachedTransactions = [];
+      }
+    } catch (e) {
+      console.warn("fd-data-provider: /transactions fetch failed:", e);
+    }
+  }
+
   /** Fetch the current refresh status (cache-only, unbounded-safe). */
   async fetchRefreshStatus() {
     if (!this._hass) return null;
@@ -470,6 +492,18 @@ class FdDataProvider extends HTMLElement {
           console.warn("fd-data-provider: API fallback for household/recurring failed:", e);
         }
       }
+
+      // 5. Transaction log (cache-read endpoint, unbounded-safe). Fetch on
+      // first rebuild with linked accounts and on every user-triggered
+      // refresh. Skip entirely in demo mode — demo data has no real txns.
+      if (!this._demoMode && data.accountCount > 0) {
+        if (allowApiFallback || this._cachedTransactions.length === 0) {
+          await this._fetchTransactions();
+        }
+      } else if (this._demoMode) {
+        this._cachedTransactions = [];
+      }
+      data.transactions = this._cachedTransactions;
 
       this._data = data;
       data.demoMode = this._demoMode;

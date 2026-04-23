@@ -368,12 +368,11 @@ All notable changes to the Finance will be documented in this file.
 - Refresh race eliminated — after POST /refresh, poll for entity state change (≤5s, 500ms ticks) before calling _rebuild(), avoiding stale hass.states read that returned accountCount=0 and flashed onboarding screen
 - _onHassChanged no longer advances _prevStateHash when _loading=true; instead sets _pendingRebuild=true so _rebuild retries immediately after the in-flight rebuild finishes, closing the concurrent-rebuild deadlock
 
-### Fixed
-- Prevent infinite loading spinner when no fd_ entities exist — data provider now always triggers initial rebuild
-- Dashboard no longer stuck on "Lade Finanzdaten..." when no finance entities exist — data provider always triggers initial rebuild
-- Restart notification no longer lost due to race condition in entry setup — preserves issue when marker file exists and polls immediately
-- Add DataUpdateCoordinator — entities no longer call banking API directly
-- Sensor update interval 10 min via coordinator (was ~30 s per entity → rate-limit exhaustion)
-- Panel refresh on connectedCallback + 10-min auto-timer instead of every hass setter
-- Lovelace card throttles API calls to max once per 10 min (was every hass setter)
-- Manual refresh_transactions service triggers coordinator push to entities
+## [0.12.0] — 2026-04-23
+
+### Added
+- New `fd-transactions-log` card shows imported (cached) transactions after at least one bank is linked and a refresh ran — date, counterparty, description, category badge, account, coloured amount, "vorgemerkt" flag for pending items; collapses to 25 rows with "Alle N anzeigen" toggle (cap 100 from the API)
+- `fd-data-provider` caches `/api/finance_dashboard/transactions` in-memory, refetches on user-triggered refresh and on first rebuild with linked accounts — entity-only state changes no longer trigger redundant fetches, and the endpoint is cache-read only (unbounded-safe, no Enable Banking call)
+
+### Changed
+- Register `fd-transactions-log.js` in `LOVELACE_COMPONENTS`, append component after `fd-recurring-list` in the shell's component tree
