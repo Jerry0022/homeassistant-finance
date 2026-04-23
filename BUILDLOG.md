@@ -1,5 +1,14 @@
 # Build Log
 
+## 0.12.0 — 2026-04-23
+Version: 0.12.0
+Branch: claude/gallant-mestorf-fcf6f0
+PR: (pending)
+Changes:
+- feat(frontend): new `fd-transactions-log` card shows imported (cached) transactions after at least one bank is linked and a refresh ran — date, counterparty, description, category badge, account, coloured amount, "vorgemerkt" flag for pending items; collapses to 25 rows with "Alle N anzeigen" toggle (cap 100 from the API)
+- feat(frontend): `fd-data-provider` caches `/api/finance_dashboard/transactions` in-memory, refetches on user-triggered refresh and on first rebuild with linked accounts — entity-only state changes no longer trigger redundant fetches, and the endpoint is cache-read only (unbounded-safe, no Enable Banking call)
+- refactor(panel): register `fd-transactions-log.js` in `LOVELACE_COMPONENTS`, append component after `fd-recurring-list` in the shell's component tree
+
 ## 0.11.1 — 2026-04-20
 Version: 0.11.1
 Branch: claude/fix-refresh-demo-race-0-11-1

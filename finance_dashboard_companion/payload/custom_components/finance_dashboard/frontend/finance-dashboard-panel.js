@@ -9,6 +9,7 @@
  *   fd-category-section  → donut chart + top-3 + fix/var
  *   fd-cost-distribution → category cost bar (when no household)
  *   fd-recurring-list    → recurring payments
+ *   fd-transactions-log  → imported transactions (admin, cache-only)
  *
  * Data flow: fd-data-provider reads HA entities + one API call,
  * dispatches "fd-data-updated" → shell pushes data to all children.
@@ -267,6 +268,12 @@ class FinanceDashboardPanel extends HTMLElement {
     const recurring = document.createElement("fd-recurring-list");
     recurring.data = data;
     content.appendChild(recurring);
+
+    // Transaction log (cached, admin-only). Gated inside the component:
+    // only renders after at least one bank is linked AND one refresh ran.
+    const txLog = document.createElement("fd-transactions-log");
+    txLog.data = data;
+    content.appendChild(txLog);
   }
 }
 
