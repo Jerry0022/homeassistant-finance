@@ -13,6 +13,8 @@ import random
 from datetime import datetime, timedelta
 from typing import Any
 
+from .utils import mask_iban
+
 
 # ---------------------------------------------------------------------------
 # Demo bank accounts
@@ -187,13 +189,12 @@ def generate_demo_data() -> dict[str, Any]:
         bal_val = 0.0
         if raw_bals:
             bal_val = float(raw_bals[0].get("balanceAmount", {}).get("amount", 0))
-        iban = acc.get("iban", "")
         fe_accounts.append({
             "entityId": f"sensor.fd_demo_{acc_id.replace('-', '_')}",
             "name": acc.get("custom_name") or acc.get("name", ""),
             "institution": acc.get("institution", ""),
             "balance": bal_val,
-            "ibanMasked": f"****{iban[-4:]}" if len(iban) >= 4 else "****",
+            "ibanMasked": mask_iban(acc.get("iban")),
             "currency": acc.get("currency", "EUR"),
             "person": acc.get("person", ""),
         })
@@ -327,7 +328,7 @@ def _build_balances(
         balances[acc_id] = {
             "account_name": acc.get("custom_name") or acc.get("name", ""),
             "iban": iban,
-            "iban_masked": f"****{iban[-4:]}" if len(iban) >= 4 else "****",
+            "iban_masked": mask_iban(iban),
             "institution": acc.get("institution", ""),
             "logo": acc.get("logo", ""),
             "balances": [

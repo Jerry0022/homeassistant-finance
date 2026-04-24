@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>fd-state-banner — harness</title>
+<style>
+  body {
+    margin: 0; padding: 24px;
+    background: #0a0a0f; color: #e0e0e0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  button {
+    padding: 8px 14px; background: #4ecca3; color: #0a0a0f;
+    border: none; border-radius: 8px; cursor: pointer; font-weight: 600;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  .note { color: #9898a8; font-size: 12px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1 style="font-size:20px;margin:0 0 16px">fd-state-banner — harness</h1>
+<p class="note">Klick durchschaltet die 4 Zustände. Banner ist idempotent — mehrfaches Feed mit demselben Zustand löst kein Re-Render aus.</p>
+<div class="row">
+  <button onclick="feed('none')">Alles OK (kein Banner)</button>
+  <button onclick="feed('rate_limited')">Rate Limit</button>
+  <button onclick="feed('cache_stale')">Cache stale</button>
+  <button onclick="feed('uncategorized')">8 Transaktionen uncategorized</button>
+  <button onclick="feed('uncategorized_low')">2 uncategorized (kein Banner, <5)</button>
+</div>
+<fd-state-banner id="b"></fd-state-banner>
+</div>
+
+<script>
+const CASES = {
+  none: {
+    is_refreshing: false, has_cache: true, rate_limited_until: null,
+    cache_stale: false, cache_age_seconds: 120, uncategorized_count: 0,
+    demo_mode: false,
+  },
+  rate_limited: {
+    is_refreshing: false, has_cache: true,
+    rate_limited_until: new Date(Date.now() + 3 * 3600 * 1000).toISOString(),
+    cache_stale: false, cache_age_seconds: 3600, uncategorized_count: 0,
+    demo_mode: false,
+  },
+  cache_stale: {
+    is_refreshing: false, has_cache: true, rate_limited_until: null,
+    cache_stale: true, cache_age_seconds: 30 * 3600, uncategorized_count: 0,
+    demo_mode: false,
+  },
+  uncategorized: {
+    is_refreshing: false, has_cache: true, rate_limited_until: null,
+    cache_stale: false, cache_age_seconds: 120, uncategorized_count: 8,
+    demo_mode: false,
+  },
+  uncategorized_low: {
+    is_refreshing: false, has_cache: true, rate_limited_until: null,
+    cache_stale: false, cache_age_seconds: 120, uncategorized_count: 2,
+    demo_mode: false,
+  },
+};
+
+function feed(k) {
+  document.getElementById("b").diag = CASES[k];
+}
+</script>
+<script type="module" src="../custom_components/finance_dashboard/frontend/fd-state-banner.js"></script>
+<script>
+window.addEventListener("load", () => feed("none"));
+</script>
+</body>
+</html>

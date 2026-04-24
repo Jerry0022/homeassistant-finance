@@ -22,7 +22,10 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
 
+from . import api_errors
+from .api_errors import FinanceApiError, error_response
 from .const import DOMAIN, SESSION_MAX_DAYS
+from .utils import mask_iban, shorten_error
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -85,14 +88,11 @@ class FinanceDashboardSetupStatusView(HomeAssistantView):
         raw_accounts = entry.data.get("accounts", [])
         safe_accounts = []
         for acc in raw_accounts:
-            iban = acc.get("iban", "")
             safe_accounts.append({
                 "id": acc.get("id", ""),
                 "name": acc.get("name", ""),
                 "custom_name": acc.get("custom_name", ""),
-                "iban_masked": (
-                    f"****{iban[-4:]}" if len(iban) >= 4 else "****"
-                ),
+                "iban_masked": mask_iban(acc.get("iban")),
                 "institution": acc.get("institution", ""),
                 "institution_id": acc.get("institution_id", ""),
                 "logo": acc.get("logo", ""),
@@ -151,9 +151,9 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
     async def get(self, request: web.Request) -> web.Response:
         """Fetch DE bank list from Enable Banking API.
 
-        Always returns HTTP 200 with error details in the body so the
-        frontend can inspect error_type reliably.  HA's callApi() throws
-        on non-200 responses, swallowing the JSON body.
+        Uses the unified error schema from ``api_errors`` — the
+        frontend can branch on ``body.error.code`` and rely on HTTP
+        status for success/failure distinction.
         """
         hass = request.app["hass"]
 
@@ -165,16 +165,7 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
             credentials = await cred_mgr.async_get_api_credentials()
 
             if not credentials:
-                _LOGGER.warning(
-                    "No Enable Banking credentials found — "
-                    "user must configure the integration first"
-                )
-                return self.json(
-                    {
-                        "error": "No API credentials stored",
-                        "error_type": "no_credentials",
-                    }
-                )
+                raise api_errors.no_credentials()
 
             from .enablebanking_client import EnableBankingClient
 
@@ -190,24 +181,19 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
             )
             return self.json({"institutions": institutions})
 
+        except FinanceApiError as err:
+            return error_response(self, err)
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout fetching institutions from Enable Banking API")
-            return self.json(
-                {
-                    "error": "Enable Banking API timeout — please try again",
-                    "error_type": "timeout",
-                }
-            )
+            return error_response(self, api_errors.upstream_timeout())
         except Exception as exc:
             _LOGGER.exception("Failed to fetch institutions")
-            error_type = "api_error"
-            error_msg = "Failed to fetch institutions"
             exc_msg = str(exc).lower()
             if "401" in exc_msg or "403" in exc_msg or "unauthorized" in exc_msg:
-                error_type = "invalid_credentials"
-                error_msg = "API credentials rejected by Enable Banking"
-            return self.json(
-                {"error": error_msg, "error_type": error_type}
+                return error_response(self, api_errors.invalid_credentials())
+            return error_response(
+                self,
+                api_errors.upstream_error(shorten_error(exc)),
             )
 
 
@@ -221,20 +207,27 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
     async def post(self, request: web.Request) -> web.Response:
         """Start bank auth and return the authorization URL.
 
-        Always returns HTTP 200 so the frontend can read error details.
+        Uses the unified error schema (``api_errors``) — the frontend
+        can branch on ``body.error.code``.
         """
         hass = request.app["hass"]
 
-        try:
-            body = await request.json()
-        except Exception:
-            return self.json({"error": "Invalid JSON body"})
-
-        institution_name = body.get("institution_name", "")
-        if not institution_name:
-            return self.json({"error": "institution_name required"})
+        # ------------------------------------------------------------------
+        # Build callback URL up-front — multiple error paths reference it.
+        # ------------------------------------------------------------------
+        base_url = f"{request.scheme}://{request.host}"
+        callback_url = f"{base_url}/api/{DOMAIN}/oauth/callback"
 
         try:
+            try:
+                body = await request.json()
+            except Exception as exc:
+                raise api_errors.invalid_body() from exc
+
+            institution_name = body.get("institution_name", "")
+            if not institution_name:
+                raise api_errors.missing_param("institution_name")
+
             from .credential_manager import CredentialManager
 
             cred_mgr = CredentialManager(hass)
@@ -242,9 +235,7 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
             credentials = await cred_mgr.async_get_api_credentials()
 
             if not credentials:
-                return self.json(
-                    {"error": "No API credentials stored"}
-                )
+                raise api_errors.no_credentials()
 
             from .enablebanking_client import EnableBankingClient
 
@@ -253,14 +244,6 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
                 credentials["private_key_pem"],
             )
 
-            # Build callback URL from the request origin — this
-            # ensures the URL matches how the user actually accesses
-            # HA (Nabu Casa, local HTTPS, etc.) rather than relying
-            # on hass.config which may be stale or "Automatic".
-            base_url = f"{request.scheme}://{request.host}"
-            callback_url = (
-                f"{base_url}/api/{DOMAIN}/oauth/callback"
-            )
             _LOGGER.info(
                 "Auth callback URL: %s (from request origin)",
                 callback_url,
@@ -271,17 +254,7 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
             # helpful message so the user knows what to fix instead of
             # waiting 5 min for the wizard to time out.
             if request.scheme != "https":
-                return self.json({
-                    "error": (
-                        "Bank-Autorisierung erfordert HTTPS. Aktuelle "
-                        f"Callback-URL '{callback_url}' ist HTTP — "
-                        "öffne das Finance-Panel über die HTTPS-URL "
-                        "deiner HA-Instanz (z. B. Nabu Casa) oder "
-                        "richte ein TLS-Zertifikat ein."
-                    ),
-                    "error_type": "callback_not_https",
-                    "callback_url": callback_url,
-                })
+                raise api_errors.callback_not_https(callback_url)
 
             valid_until = (
                 datetime.now(timezone.utc)
@@ -304,8 +277,8 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
                     "Enable Banking returned no auth URL: %s",
                     auth_data,
                 )
-                return self.json(
-                    {"error": "No authorization URL received"}
+                raise api_errors.upstream_error(
+                    "Keine Authorization-URL zurückgegeben."
                 )
 
             # Store pending auth for panel flow (not config flow)
@@ -325,40 +298,38 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
 
             return self.json({"auth_url": auth_url})
 
+        except FinanceApiError as err:
+            return error_response(self, err)
         except Exception as exc:
             _LOGGER.exception("Failed to create bank authorization")
             exc_msg = str(exc)
-            error_detail = f"Authorization failed: {exc_msg[:300]}"
 
-            # Try to extract structured error from Enable Banking
+            # Enable Banking usually returns JSON error bodies —
+            # decode when possible so the user sees the real field name.
             import json as _json
-
             try:
                 api_err = _json.loads(exc_msg)
                 detail = api_err.get("detail", [])
                 if detail:
-                    fields = ", ".join(
-                        d.get("msg", "") for d in detail
-                    )
-                    error_detail = (
-                        f"Enable Banking: {api_err.get('message', exc_msg)} "
-                        f"— {fields}"
+                    fields = ", ".join(d.get("msg", "") for d in detail)
+                    reason = (
+                        f"{api_err.get('message', exc_msg)} — {fields}"
                     )
                 elif api_err.get("error"):
-                    error_detail = (
-                        f"Enable Banking: {api_err['error']} "
+                    reason = (
+                        f"{api_err['error']} "
                         f"— {api_err.get('message', '')}"
-                    )
+                    ).strip(" —")
+                else:
+                    reason = shorten_error(exc_msg)
             except (ValueError, TypeError):
-                pass
+                reason = shorten_error(exc_msg)
 
             if "redirect" in exc_msg.lower():
-                error_detail = (
-                    f"Redirect URL nicht registriert — die Callback-URL "
-                    f"'{callback_url}' ist nicht bei Enable Banking "
-                    f"hinterlegt."
+                return error_response(
+                    self, api_errors.redirect_not_registered(callback_url)
                 )
-            return self.json({"error": error_detail})
+            return error_response(self, api_errors.upstream_error(reason))
 
 
 class FinanceDashboardSetupCompleteView(HomeAssistantView):
@@ -1244,33 +1215,28 @@ class FinanceDashboardRefreshTriggerView(HomeAssistantView):
         manager = _get_manager(hass)
 
         if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
+            return error_response(self, api_errors.not_configured())
 
-        # Short-circuit when already rate-limited so the UI can show a
-        # clear message instead of waiting for an HTTP 429 round-trip.
+        # Short-circuit when already rate-limited so the UI gets a clean
+        # HTTP 429 instead of a 200-with-error-in-body. Status snapshot
+        # is still included so the frontend can render the countdown.
         if manager.rate_limited_until:
-            return self.json(
-                {
-                    "ok": False,
-                    "reason": "rate_limited",
-                    "status": manager.get_refresh_status(),
-                }
+            status = manager.get_refresh_status()
+            err = api_errors.rate_limited(
+                status.get("rate_limited_until")
             )
+            body = err.to_dict()
+            body["status"] = status
+            return self.json(body, status_code=err.status)
 
         try:
             await manager.async_refresh_transactions()
         except Exception as exc:
             _LOGGER.exception("Refresh trigger failed")
-            return self.json(
-                {
-                    "ok": False,
-                    "reason": "error",
-                    "message": str(exc)[:200],
-                    "status": manager.get_refresh_status(),
-                }
-            )
+            err = api_errors.upstream_error(shorten_error(exc))
+            body = err.to_dict()
+            body["status"] = manager.get_refresh_status()
+            return self.json(body, status_code=err.status)
 
         # Also push fresh data through the coordinator so entity states
         # update in lockstep with the user's click.

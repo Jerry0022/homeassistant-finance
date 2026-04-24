@@ -2,6 +2,22 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.12.3] — 2026-04-25
+
+### Added
+- New `utils.py` module with shared helpers (`mask_iban`, `count_uncategorized`, `cache_age_seconds`, `is_cache_stale`, `shorten_error`) — removes 5 duplicate IBAN-masking implementations across `api.py`, `manager.py`, `sensor.py`, `demo.py` and establishes a single source of truth for cache-age / uncategorised thresholds
+- New `api_errors.py` with `ErrorCode` enum (`not_configured`, `rate_limited`, `invalid_credentials`, `callback_not_https`, `redirect_not_registered`, `upstream_timeout`, `upstream_error`, `admin_required`, `internal`, …), `FinanceApiError` exception carrying code + German user message + HTTP status + structured detail — API responses now follow a single versionable schema `{ok: false, error: {code, message, detail}}` with correct HTTP status codes (429, 404, 400, 502, 504) instead of always-HTTP-200 with free-form `{error, error_type}` strings
+- `manager.get_diagnostics()` now also returns `uncategorized_count`, `cache_stale`, and `cache_stale_threshold_seconds` so the dashboard can surface nudges without extra round-trips
+- New `fd-state-banner` web component — persistent top-of-dashboard banner that surfaces rate-limit / cache-stale / uncategorised-count states with dismiss-per-session, fed via a new `fd-diagnostics-updated` event so the widget reuses the existing `/diagnostics` fetch (no duplicate API call)
+- Test: new `tests/fd-state-banner-harness.html` covers all 4 banner states visually
+
+### Changed
+- `SetupInstitutionsView`, `SetupAuthorizeView`, `RefreshTriggerView` migrated to the unified error schema — rate-limit short-circuit now emits real HTTP 429, frontend can branch on `body.error.code` instead of parsing three different shapes
+- `fd-state-banner` mounted under `fd-header`, receives snapshot via event from `fd-diagnostics`; `panel.py` LOVELACE_COMPONENTS registers the new script
+
+### Fixed
+- Refresh lock acquisition bounded by a 90 s `asyncio.wait_for` — if a previous refresh hangs (Enable Banking stall, network freeze), the second caller returns cached transactions with a warning instead of deadlocking the event loop
+
 ## [0.12.2] — 2026-04-24
 
 ### Added

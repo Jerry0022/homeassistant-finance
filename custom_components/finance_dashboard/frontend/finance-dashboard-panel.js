@@ -73,6 +73,7 @@ class FinanceDashboardPanel extends HTMLElement {
 <fd-data-provider></fd-data-provider>
 <div class="fd">
   <fd-header></fd-header>
+  <fd-state-banner id="banner"></fd-state-banner>
   <div id="content" class="loading">Lade Finanzdaten\u2026</div>
   <fd-diagnostics id="diag"></fd-diagnostics>
 </div>`;
@@ -176,6 +177,14 @@ class FinanceDashboardPanel extends HTMLElement {
 
     this.shadowRoot.addEventListener("fd-setup-closed", () => {
       // Wizard removed itself, nothing extra needed
+    });
+
+    // Forward the fd-diagnostics snapshot to the top-of-page banner
+    // so rate-limit / cache-stale / uncategorized-count warnings are
+    // visible without the user having to expand the diagnostics card.
+    this.shadowRoot.addEventListener("fd-diagnostics-updated", (e) => {
+      const banner = this.shadowRoot.getElementById("banner");
+      if (banner) banner.diag = e.detail || null;
     });
   }
 

@@ -36,6 +36,13 @@ from .const import (
     STORAGE_KEY_TRANSFER_OVERRIDES,
     STORAGE_VERSION,
 )
+from .utils import (
+    CACHE_STALE_SECONDS,
+    cache_age_seconds,
+    count_uncategorized,
+    is_cache_stale,
+    mask_iban,
+)
 from .enablebanking_client import RateLimitExceeded
 from .household import HouseholdMember, HouseholdModel
 from .recurring import detect_recurring
@@ -50,6 +57,12 @@ _LOGGER = logging.getLogger(__name__)
 
 TRANSACTION_CACHE_KEY = f"{DOMAIN}_transactions"
 TRANSACTION_CACHE_VERSION = 1
+
+# Maximum time a second refresh will wait for the first one to finish
+# before giving up and returning the cached transactions. Prevents the
+# serialisation lock from turning into a deadlock when Enable Banking
+# stalls mid-fetch.
+REFRESH_LOCK_TIMEOUT_SEC = 90
 
 
 class FinanceDashboardManager:
@@ -285,8 +298,24 @@ class FinanceDashboardManager:
 
         Concurrent calls are serialised by ``_refresh_lock`` and stats
         are written to ``_last_refresh_stats`` regardless of outcome.
+        The lock acquisition has a 90 s timeout — if a previous refresh
+        hangs (slow Enable Banking endpoint, network stall), the second
+        caller raises instead of waiting forever.
         """
-        async with self._refresh_lock:
+        try:
+            await asyncio.wait_for(
+                self._refresh_lock.acquire(),
+                timeout=REFRESH_LOCK_TIMEOUT_SEC,
+            )
+        except asyncio.TimeoutError:
+            _LOGGER.warning(
+                "Refresh lock busy for >%ds — another refresh is still "
+                "running. Returning cached transactions.",
+                REFRESH_LOCK_TIMEOUT_SEC,
+            )
+            return self._transactions
+
+        try:
             self._refresh_in_flight = True
             started = datetime.now()
             t0 = time.monotonic()
@@ -294,6 +323,8 @@ class FinanceDashboardManager:
                 return await self._do_refresh(days, started, t0)
             finally:
                 self._refresh_in_flight = False
+        finally:
+            self._refresh_lock.release()
 
     async def _do_refresh(
         self, days: int, started: datetime, t0: float
@@ -562,11 +593,7 @@ class FinanceDashboardManager:
                 balances[account_id] = {
                     "account_name": account.get("name", "Unknown"),
                     "iban": iban,
-                    "iban_masked": (
-                        f"****{iban[-4:]}"
-                        if len(iban) >= 4
-                        else "****"
-                    ),
+                    "iban_masked": mask_iban(iban),
                     "institution": account.get("institution", ""),
                     "logo": account.get("logo", ""),
                     "balances": account_balances,
@@ -895,10 +922,7 @@ class FinanceDashboardManager:
                 bal_amount = first.get("balanceAmount", {}).get("amount")
                 bal_currency = first.get("balanceAmount", {}).get("currency")
 
-            iban = acc.get("iban", "")
-            iban_masked = (
-                f"****{iban[-4:]}" if len(iban) >= 4 else "****"
-            )
+            iban_masked = mask_iban(acc.get("iban"))
 
             inst_id = acc.get("institution_id", "")
             inst_name = acc.get("institution", "")
@@ -982,6 +1006,9 @@ class FinanceDashboardManager:
             "banks": banks,
             "entity_hints": entity_hints,
             "session_max_days": SESSION_MAX_DAYS,
+            "uncategorized_count": count_uncategorized(self._transactions),
+            "cache_stale": is_cache_stale(self._last_refresh),
+            "cache_stale_threshold_seconds": CACHE_STALE_SECONDS,
         }
 
     async def _async_get_client(self):

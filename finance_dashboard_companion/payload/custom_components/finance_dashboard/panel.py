@@ -33,6 +33,7 @@ LOVELACE_COMPONENTS = [
     f"{STATIC_BASE}/fd-cost-distribution.js",
     f"{STATIC_BASE}/fd-recurring-list.js",
     f"{STATIC_BASE}/fd-transactions-log.js",
+    f"{STATIC_BASE}/fd-state-banner.js",
     f"{STATIC_BASE}/fd-diagnostics.js",
     f"{STATIC_BASE}/fd-budget-config.js",
     f"{STATIC_BASE}/fd-categorize.js",

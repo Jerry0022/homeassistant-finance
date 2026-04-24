@@ -80,6 +80,13 @@ class FdDiagnostics extends HTMLElement {
       const resp = await this._hass.callApi("GET", `${DOMAIN}/diagnostics`);
       this._diag = resp;
       this._lastFetchFailed = false;
+      // Broadcast so the state-banner (or any other listener) can
+      // react without making its own API call.
+      this.dispatchEvent(new CustomEvent("fd-diagnostics-updated", {
+        detail: resp,
+        bubbles: true,
+        composed: true,
+      }));
     } catch (e) {
       console.warn("fd-diagnostics: /diagnostics fetch failed:", e);
       this._lastFetchFailed = true;

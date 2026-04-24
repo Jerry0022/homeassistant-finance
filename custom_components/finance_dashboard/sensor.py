@@ -27,6 +27,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import FinanceDashboardCoordinator
+from .utils import mask_iban
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -84,8 +85,7 @@ class AccountBalanceSensor(
         custom_name = account.get("custom_name", "")
         name = custom_name or account.get("name", "Account")
         institution = account.get("institution", "")
-        iban = account.get("iban", "")
-        iban_masked = f"****{iban[-4:]}" if len(iban) >= 4 else ""
+        iban_masked = mask_iban(account.get("iban"), fallback="")
 
         self._attr_name = f"{institution} {name}"
         self._attr_unique_id = f"{DOMAIN}_{self._account_id}_balance"
@@ -210,8 +210,7 @@ class TotalBalanceSensor(
         per_account: dict[str, float] = {}
         for account in self._accounts:
             acc_id = account["id"]
-            iban = account.get("iban", "")
-            masked = f"****{iban[-4:]}" if len(iban) >= 4 else "?"
+            masked = mask_iban(account.get("iban"), fallback="?")
             raw = balances_data.get(acc_id, {}).get("balances", [])
             if raw:
                 balance = AccountBalanceSensor._pick_balance(raw)
