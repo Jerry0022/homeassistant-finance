@@ -36,6 +36,7 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardSummaryView())
     hass.http.register_view(FinanceDashboardRefreshStatusView())
     hass.http.register_view(FinanceDashboardRefreshTriggerView())
+    hass.http.register_view(FinanceDashboardDiagnosticsView())
     # Setup wizard endpoints
     hass.http.register_view(FinanceDashboardSetupStatusView())
     hass.http.register_view(FinanceDashboardSetupInstitutionsView())
@@ -1189,6 +1190,39 @@ class FinanceDashboardRefreshStatusView(HomeAssistantView):
             )
 
         return self.json(manager.get_refresh_status())
+
+
+class FinanceDashboardDiagnosticsView(HomeAssistantView):
+    """Cache-only diagnostics snapshot — powers the transparency widget.
+
+    Returns per-account + per-bank info, cache age, rate-limit state,
+    refresh stats, and entity unique_id hints so the frontend can show
+    the user exactly what's cached and which entities are wired up.
+    Pure cache read, unbounded polling safe.
+    """
+
+    url = f"/api/{DOMAIN}/diagnostics"
+    name = f"api:{DOMAIN}:diagnostics"
+    requires_auth = True
+
+    async def get(self, request: web.Request) -> web.Response:
+        """Return the detailed diagnostics snapshot (no API calls)."""
+        hass = request.app["hass"]
+        manager = _get_manager(hass)
+
+        if not manager:
+            return self.json(
+                {
+                    "is_refreshing": False,
+                    "has_cache": False,
+                    "accounts": [],
+                    "banks": [],
+                    "entity_hints": [],
+                    "error": "Not configured",
+                }
+            )
+
+        return self.json(manager.get_diagnostics())
 
 
 class FinanceDashboardRefreshTriggerView(HomeAssistantView):

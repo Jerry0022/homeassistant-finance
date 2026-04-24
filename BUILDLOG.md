@@ -1,5 +1,17 @@
 # Build Log
 
+## 0.12.2 — 2026-04-24
+Version: 0.12.2
+Branch: claude/nostalgic-spence-59653c
+PR: (pending)
+Changes:
+- feat(frontend): new `fd-diagnostics` collapsible transparency widget at the bottom of the Finance Dashboard — always-visible summary bar ("Cache vor 12 Min · 3 Konten · 243 Tx" / "Tageslimit erreicht · neu ab DD.MM. 00:00") with an expandable detail view covering last-refresh result + duration + errors, rate-limit state + unlock countdown, per-bank session status, per-account cache contents (balance, transaction count, linked entity_id), and a grouped overview of all registered `finance_dashboard.*` entities resolved live from the HA entity registry
+- feat(api): new `GET /api/finance_dashboard/diagnostics` endpoint — cache-only detailed snapshot (accounts, banks, entity hints, session_max_days) that powers the transparency widget without any Enable Banking round-trip
+- feat(core): `manager.get_diagnostics()` builds the extended snapshot: per-account balance amount + currency + cached transaction count + entity unique_id, per-bank institution name + logo + session_configured flag, and entity_hints with prefix/suffix/explicit patterns so the frontend can look up entity_ids via the registry
+- feat(frontend): refresh toast now surfaces the exact rate-limit unlock date from the response (`"neue Live-Daten ab 25.04.2026 00:00"`) instead of the generic "morgen 00:00", and error toasts point the user to the diagnose panel
+- feat(frontend): `fd-diagnostics` auto-refreshes after every user-triggered refresh plus every 60 s while mounted; subscribes to the entity registry for live entity_id rendering
+- refactor(panel-shell): `fd-diagnostics` mounted outside the rebuildable content div so its expanded/collapsed state persists across data updates; `LOVELACE_COMPONENTS` registers `fd-diagnostics.js` alongside the other dashboard cards
+
 ## 0.12.1 — 2026-04-24
 Version: 0.12.1
 Branch: claude/charming-cohen-05563c

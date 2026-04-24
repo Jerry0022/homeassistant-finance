@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>fd-diagnostics — harness</title>
+<style>
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #0a0a0f;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+  }
+  .case {
+    margin-bottom: 32px;
+    padding: 16px;
+    border: 1px dashed rgba(255,255,255,0.1);
+    border-radius: 8px;
+  }
+  .case h2 {
+    font-size: 14px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #9898a8;
+    margin: 0 0 12px;
+  }
+  button {
+    margin: 4px 8px 16px 0;
+    padding: 8px 14px;
+    background: #4ecca3;
+    color: #0a0a0f;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<h1 style="font-size:20px;margin:0 0 16px">fd-diagnostics — visual test harness</h1>
+
+<div class="row">
+  <button onclick="setCase('ok')">Erfolgreich</button>
+  <button onclick="setCase('rate')">Rate Limit</button>
+  <button onclick="setCase('partial')">Teilweise</button>
+  <button onclick="setCase('error')">Fehler</button>
+  <button onclick="setCase('empty')">Leer (kein Cache)</button>
+  <button onclick="setCase('demo')">Demo</button>
+</div>
+
+<div class="case">
+  <h2>fd-diagnostics</h2>
+  <fd-diagnostics id="diag"></fd-diagnostics>
+</div>
+
+<script>
+// Mock HA bridge — simulates the minimum surface fd-diagnostics uses.
+const CASES = {
+  ok: {
+    is_refreshing: false,
+    has_cache: true,
+    last_refresh: new Date(Date.now() - 12 * 60000).toISOString(),
+    cache_age_seconds: 12 * 60,
+    rate_limited_until: null,
+    stats: {
+      outcome: "ok",
+      accounts: 3,
+      transactions: 243,
+      new: 12,
+      duration_ms: 3120,
+      errors: [],
+    },
+    account_count: 3,
+    transaction_count: 243,
+    demo_mode: false,
+    session_max_days: 180,
+    banks: [
+      { institution_id: "DE_INGBA", institution_name: "ING", account_count: 2, session_configured: true, logo: "" },
+      { institution_id: "DE_COBA", institution_name: "Commerzbank", account_count: 1, session_configured: true, logo: "" },
+    ],
+    accounts: [
+      { id: "acc1", name: "Girokonto", institution: "ING", institution_id: "DE_INGBA", iban_masked: "****1234", type: "personal", person: "Jerry", has_balance: true, balance_amount: "3420.55", balance_currency: "EUR", transaction_count: 120, entity_unique_id: "finance_dashboard_acc1_balance" },
+      { id: "acc2", name: "Gemeinsam", institution: "ING", institution_id: "DE_INGBA", iban_masked: "****5678", type: "shared", person: "Household", has_balance: true, balance_amount: "812.00", balance_currency: "EUR", transaction_count: 83, entity_unique_id: "finance_dashboard_acc2_balance" },
+      { id: "acc3", name: "Tagesgeld", institution: "Commerzbank", institution_id: "DE_COBA", iban_masked: "****0077", type: "personal", person: "Partner", has_balance: true, balance_amount: "15000.00", balance_currency: "EUR", transaction_count: 40, entity_unique_id: "finance_dashboard_acc3_balance" },
+    ],
+    entity_hints: [
+      { group: "balances", label: "Kontostand-Sensoren", pattern_suffix: "_balance", count_hint: 3 },
+      { group: "aggregate", label: "Gesamt-Kontostand", unique_id: "finance_dashboard_total_balance", count_hint: 1 },
+      { group: "summary", label: "Monatsübersicht", unique_id: "finance_dashboard_monthly_summary", count_hint: 1 },
+      { group: "budgets", label: "Kategorie-Budgets", pattern_prefix: "finance_dashboard_budget_", count_hint: null },
+      { group: "controls", label: "Steuerung (Split, Remainder)", unique_ids: ["finance_dashboard_split_model", "finance_dashboard_remainder_mode"], count_hint: 2 },
+    ],
+  },
+  rate: {
+    is_refreshing: false,
+    has_cache: true,
+    last_refresh: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
+    cache_age_seconds: 6 * 3600,
+    rate_limited_until: new Date(Date.now() + 3 * 3600 * 1000).toISOString(),
+    stats: {
+      outcome: "rate_limited",
+      accounts: 0,
+      transactions: 0,
+      new: 0,
+      duration_ms: 180,
+      errors: ["HTTP 429 — daily quota exhausted for institution DE_INGBA"],
+    },
+    account_count: 3,
+    transaction_count: 243,
+    demo_mode: false,
+    session_max_days: 180,
+    banks: [
+      { institution_id: "DE_INGBA", institution_name: "ING", account_count: 2, session_configured: true, logo: "" },
+      { institution_id: "DE_COBA", institution_name: "Commerzbank", account_count: 1, session_configured: true, logo: "" },
+    ],
+    accounts: [
+      { id: "acc1", name: "Girokonto", institution: "ING", institution_id: "DE_INGBA", iban_masked: "****1234", type: "personal", person: "Jerry", has_balance: true, balance_amount: "3420.55", balance_currency: "EUR", transaction_count: 120, entity_unique_id: "finance_dashboard_acc1_balance" },
+    ],
+    entity_hints: [
+      { group: "balances", label: "Kontostand-Sensoren", pattern_suffix: "_balance", count_hint: 3 },
+    ],
+  },
+  partial: {
+    is_refreshing: false,
+    has_cache: true,
+    last_refresh: new Date(Date.now() - 30 * 60000).toISOString(),
+    cache_age_seconds: 30 * 60,
+    rate_limited_until: null,
+    stats: {
+      outcome: "partial",
+      accounts: 2,
+      transactions: 150,
+      new: 4,
+      duration_ms: 4800,
+      errors: ["acc3: timeout after 30s", "acc3: retrying next round"],
+    },
+    account_count: 3,
+    transaction_count: 243,
+    demo_mode: false,
+    session_max_days: 180,
+    banks: [
+      { institution_id: "DE_INGBA", institution_name: "ING", account_count: 2, session_configured: true, logo: "" },
+    ],
+    accounts: [
+      { id: "acc3", name: "Tagesgeld", institution: "Commerzbank", institution_id: "DE_COBA", iban_masked: "****0077", type: "personal", person: "Partner", has_balance: false, balance_amount: null, balance_currency: "EUR", transaction_count: 0, entity_unique_id: "finance_dashboard_acc3_balance" },
+    ],
+    entity_hints: [],
+  },
+  error: {
+    is_refreshing: false,
+    has_cache: false,
+    last_refresh: null,
+    cache_age_seconds: null,
+    rate_limited_until: null,
+    stats: {
+      outcome: "error",
+      accounts: 0,
+      transactions: 0,
+      new: 0,
+      duration_ms: 450,
+      errors: ["Enable Banking API unreachable: DNS resolution failed"],
+    },
+    account_count: 1,
+    transaction_count: 0,
+    demo_mode: false,
+    session_max_days: 180,
+    banks: [{ institution_id: "DE_INGBA", institution_name: "ING", account_count: 1, session_configured: false, logo: "" }],
+    accounts: [
+      { id: "acc1", name: "Girokonto", institution: "ING", institution_id: "DE_INGBA", iban_masked: "****1234", type: "personal", person: "Jerry", has_balance: false, balance_amount: null, balance_currency: "EUR", transaction_count: 0, entity_unique_id: "finance_dashboard_acc1_balance" },
+    ],
+    entity_hints: [],
+  },
+  empty: {
+    is_refreshing: false,
+    has_cache: false,
+    last_refresh: null,
+    cache_age_seconds: null,
+    rate_limited_until: null,
+    stats: {},
+    account_count: 0,
+    transaction_count: 0,
+    demo_mode: false,
+    session_max_days: 180,
+    banks: [],
+    accounts: [],
+    entity_hints: [
+      { group: "balances", label: "Kontostand-Sensoren", pattern_suffix: "_balance", count_hint: 0 },
+    ],
+  },
+  demo: {
+    is_refreshing: false,
+    has_cache: true,
+    last_refresh: new Date().toISOString(),
+    cache_age_seconds: 5,
+    rate_limited_until: null,
+    stats: { outcome: "demo", accounts: 2, transactions: 80, new: 0, duration_ms: 0, errors: [] },
+    account_count: 2,
+    transaction_count: 80,
+    demo_mode: true,
+    session_max_days: 180,
+    banks: [],
+    accounts: [],
+    entity_hints: [],
+  },
+};
+
+let current = "ok";
+
+const mockHass = {
+  connection: {
+    async sendMessagePromise(msg) {
+      if (msg.type === "config/entity_registry/list") {
+        return [
+          { entity_id: "sensor.fd_ing_girokonto", unique_id: "finance_dashboard_acc1_balance", platform: "finance_dashboard" },
+          { entity_id: "sensor.fd_ing_gemeinsam", unique_id: "finance_dashboard_acc2_balance", platform: "finance_dashboard" },
+          { entity_id: "sensor.fd_coba_tagesgeld", unique_id: "finance_dashboard_acc3_balance", platform: "finance_dashboard" },
+          { entity_id: "sensor.fd_total_balance", unique_id: "finance_dashboard_total_balance", platform: "finance_dashboard" },
+          { entity_id: "sensor.fd_monthly_summary", unique_id: "finance_dashboard_monthly_summary", platform: "finance_dashboard" },
+          { entity_id: "number.fd_budget_food", unique_id: "finance_dashboard_budget_food", platform: "finance_dashboard" },
+          { entity_id: "number.fd_budget_housing", unique_id: "finance_dashboard_budget_housing", platform: "finance_dashboard" },
+          { entity_id: "select.fd_split_model", unique_id: "finance_dashboard_split_model", platform: "finance_dashboard" },
+          { entity_id: "select.fd_remainder_mode", unique_id: "finance_dashboard_remainder_mode", platform: "finance_dashboard" },
+        ];
+      }
+      return null;
+    },
+  },
+  async callApi(method, path) {
+    if (path.endsWith("/diagnostics")) return CASES[current];
+    throw new Error("unknown path: " + path);
+  },
+};
+
+function setCase(name) {
+  current = name;
+  const old = document.getElementById("diag");
+  const next = document.createElement("fd-diagnostics");
+  next.id = "diag";
+  old.parentNode.replaceChild(next, old);
+  next.hass = mockHass;
+  // Auto-expand for visual QA
+  setTimeout(() => {
+    next._expanded = true;
+    next._render();
+  }, 80);
+}
+</script>
+<script type="module" src="../custom_components/finance_dashboard/frontend/fd-diagnostics.js"></script>
+<script>
+  // initial
+  window.addEventListener("load", () => setCase("ok"));
+</script>
+</body>
+</html>

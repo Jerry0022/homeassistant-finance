@@ -34,6 +34,9 @@ class FinanceDashboardPanel extends HTMLElement {
     // Forward hass to data provider (drives entity subscriptions)
     const dp = this.shadowRoot.querySelector("fd-data-provider");
     if (dp) dp.hass = hass;
+    // Forward hass to the always-mounted diagnostics widget
+    const diag = this.shadowRoot.getElementById("diag");
+    if (diag) diag.hass = hass;
   }
 
   _render() {
@@ -71,6 +74,7 @@ class FinanceDashboardPanel extends HTMLElement {
 <div class="fd">
   <fd-header></fd-header>
   <div id="content" class="loading">Lade Finanzdaten\u2026</div>
+  <fd-diagnostics id="diag"></fd-diagnostics>
 </div>`;
 
     // Wire events
@@ -104,6 +108,11 @@ class FinanceDashboardPanel extends HTMLElement {
 
     this.shadowRoot.addEventListener("fd-refresh-done", (e) => {
       const header = this.shadowRoot.querySelector("fd-header");
+      const diag = this.shadowRoot.getElementById("diag");
+      // Always refresh the diagnostics snapshot after a refresh attempt —
+      // the user should see the new stats/rate-limit immediately without
+      // waiting for the 60 s poll.
+      if (diag && diag.refresh) diag.refresh();
       if (!header || !header.showToast) return;
       const d = e.detail || {};
       const s = d.status?.stats || {};
@@ -115,7 +124,8 @@ class FinanceDashboardPanel extends HTMLElement {
         if (s.new) parts.push(`${s.new} neu`);
         const dur = s.duration_ms ? ` in ${(s.duration_ms / 1000).toFixed(1)}s` : "";
         header.showToast(
-          `Aktualisiert \u2014 ${parts.join(", ") || "keine Daten"}${dur}`,
+          `Aktualisiert \u2014 ${parts.join(", ") || "keine Daten"}${dur}`
+          + "\nDetails: Diagnose-Panel unten \u00f6ffnen.",
           "success",
         );
       } else if (reason === "partial") {
@@ -124,16 +134,21 @@ class FinanceDashboardPanel extends HTMLElement {
           + `${(s.errors || []).join(" \u00b7 ")}`.trim();
         header.showToast(msg, "warn");
       } else if (reason === "rate_limited") {
+        const rlIso = d.status?.rate_limited_until;
+        const end = rlIso ? new Date(rlIso) : null;
+        const dateStr = end
+          ? `${end.toLocaleDateString("de-DE")} 00:00`
+          : "morgen 00:00";
         header.showToast(
-          "Tageslimit der Bank-API erreicht. Cache bleibt aktiv, "
-          + "neue Live-Daten morgen ab 00:00.",
+          `Tageslimit der Bank-API erreicht (4/Tag).\n`
+          + `Cache bleibt aktiv, neue Live-Daten ab ${dateStr}.`,
           "warn",
         );
       } else if (reason === "demo") {
         header.showToast("Demo-Daten neu generiert.", "info");
       } else {
         const errs = (s.errors || []).slice(0, 2).join(" \u00b7 ")
-          || "Unbekannter Fehler";
+          || "Unbekannter Fehler \u2014 siehe Diagnose-Panel";
         header.showToast(`Aktualisierung fehlgeschlagen \u2014 ${errs}`, "error");
       }
     });
