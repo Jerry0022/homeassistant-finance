@@ -561,11 +561,13 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
             # response reaches the frontend before unload kills
             # the HTTP endpoints.  The frontend polls /setup/status
             # until configured=true after the reload completes.
-            # After reload, trigger ONE coordinator refresh so the
-            # newly created entities are populated immediately —
-            # without this the user sees "unavailable" until they
-            # click "Aktualisieren". This is a single user-initiated
-            # call (not a periodic auto-refresh).
+            # After reload, trigger ONE live refresh so the newly
+            # created entities are populated with real bank data
+            # immediately — without this the user sees "unavailable"
+            # (cache is empty on first setup) until they click
+            # "Aktualisieren". This is a single user-initiated call
+            # (completing the setup wizard counts), NOT a periodic
+            # auto-refresh, so it stays inside the 4/day policy.
             async def _deferred_reload() -> None:
                 import asyncio as _aio
 
@@ -578,14 +580,23 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                     _LOGGER.exception("Deferred entry reload failed")
                     return
                 try:
-                    coordinator = hass.data.get(DOMAIN, {}).get(
+                    domain_data = hass.data.get(DOMAIN, {})
+                    new_manager = domain_data.get(entry.entry_id)
+                    coordinator = domain_data.get(
                         f"{entry.entry_id}_coordinator"
                     )
-                    if coordinator:
+                    if new_manager is not None:
+                        # Explicit live fetch — the setup wizard click
+                        # is the user-initiated trigger. Populates both
+                        # transactions and balances in one round.
+                        await new_manager.async_refresh_transactions()
+                    if coordinator is not None:
+                        # Push the fresh cache through the coordinator so
+                        # all entities pick up the new values at once.
                         await coordinator.async_refresh()
-                        _LOGGER.info(
-                            "Initial post-setup refresh completed"
-                        )
+                    _LOGGER.info(
+                        "Initial post-setup refresh completed"
+                    )
                 except Exception:
                     _LOGGER.exception(
                         "Initial post-setup refresh failed"
@@ -1078,33 +1089,36 @@ class FinanceDashboardDemoToggleView(HomeAssistantView):
 
         manager = _get_manager(hass)
 
-        if manager:
-            enabled = not manager.demo_mode
-            manager.set_demo_mode(enabled)
-
-            # Persist to entry.options so demo survives HA restarts
-            entry = hass.data.get(DOMAIN, {}).get("entry")
-            if entry:
-                new_options = {**entry.options, "demo_mode": enabled}
-                hass.config_entries.async_update_entry(
-                    entry, options=new_options
-                )
-
-            # Trigger coordinator refresh so entities update
-            domain_data = hass.data.get(DOMAIN, {})
-            coordinator = (
-                domain_data.get(f"{entry.entry_id}_coordinator")
-                if entry
-                else None
+        if not manager:
+            # Without a manager, demo mode has no meaning — there is no
+            # coordinator to push into, no entities to update, and no
+            # persistence path. Return 503 so the frontend can guide the
+            # user to complete the setup wizard first.
+            return self.json(
+                {"error": "Not configured"}, status_code=503
             )
-            if coordinator:
-                await coordinator.async_refresh()
-            return self.json({"demo_mode": enabled})
 
-        # No manager — toggle in hass.data for API-only demo
-        current = hass.data.get(DOMAIN, {}).get("demo_mode", False)
-        hass.data.setdefault(DOMAIN, {})["demo_mode"] = not current
-        return self.json({"demo_mode": not current})
+        enabled = not manager.demo_mode
+        manager.set_demo_mode(enabled)
+
+        # Persist to entry.options so demo survives HA restarts
+        entry = hass.data.get(DOMAIN, {}).get("entry")
+        if entry:
+            new_options = {**entry.options, "demo_mode": enabled}
+            hass.config_entries.async_update_entry(
+                entry, options=new_options
+            )
+
+        # Trigger coordinator refresh so entities update
+        domain_data = hass.data.get(DOMAIN, {})
+        coordinator = (
+            domain_data.get(f"{entry.entry_id}_coordinator")
+            if entry
+            else None
+        )
+        if coordinator:
+            await coordinator.async_refresh()
+        return self.json({"demo_mode": enabled})
 
 
 class FinanceDashboardDemoDataView(HomeAssistantView):

@@ -184,6 +184,20 @@ class FinanceDashboardManager:
             # Cached balances survive restart so the UI shows something
             # immediately — they're only reset by an explicit live refresh.
             self._balances = cached.get("balances", {}) or {}
+            # Rebuild the balance-change baseline from the cache, otherwise
+            # the first refresh after every HA restart fires a
+            # fd_balance_changed event for every account (stale baseline =
+            # 0.00 vs. cached value) and spams user automations.
+            for acc_id, data in self._balances.items():
+                raw = data.get("balances") if isinstance(data, dict) else None
+                if not raw:
+                    continue
+                try:
+                    self._previous_balances[acc_id] = float(
+                        raw[0].get("balanceAmount", {}).get("amount", 0)
+                    )
+                except (TypeError, ValueError, IndexError, AttributeError):
+                    continue
             # Rate-limit state must survive restart — otherwise a user
             # who hit HTTP 429 at 23:59 would "reset" by bouncing HA.
             rl = cached.get("rate_limited_until")
@@ -561,7 +575,15 @@ class FinanceDashboardManager:
                     f"Rate-Limit beim Saldo für "
                     f"{account.get('name', account_id)}"
                 )
-                # Serve the cache we have — no further API calls today
+                # Preserve the partial batch we already fetched — without
+                # this, accounts that succeeded BEFORE the 429 would lose
+                # their fresh balance and the UI would show stale numbers
+                # until the next day. Merge into existing cache so other
+                # accounts (not reached this round) keep their last value.
+                if balances:
+                    merged = dict(self._balances)
+                    merged.update(balances)
+                    self._balances = merged
                 return self._balances
             except Exception as exc:
                 _LOGGER.exception(
@@ -596,7 +618,12 @@ class FinanceDashboardManager:
             _LOGGER.exception("Balance change event firing failed — skipping")
 
         if balances:
-            self._balances = balances
+            # Merge so accounts that errored this round keep their
+            # last known cached value instead of silently disappearing
+            # from the dashboard.
+            merged = dict(self._balances)
+            merged.update(balances)
+            self._balances = merged
         return self._balances
 
     async def async_get_balance(self) -> dict[str, Any]:
