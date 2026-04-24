@@ -23,18 +23,16 @@ from typing import Any
 import uuid
 
 import aiohttp
-
-from .const import ENABLEBANKING_RATE_LIMIT_DAILY
-
-
-class RateLimitExceeded(Exception):
-    """Raised when the banking API returns HTTP 429 (daily quota exhausted)."""
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
 
 from .const import ENABLEBANKING_BASE_URL
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class RateLimitExceeded(Exception):
+    """Raised when the banking API returns HTTP 429 (daily quota exhausted)."""
 
 
 class EnableBankingClient:

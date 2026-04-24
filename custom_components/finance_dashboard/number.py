@@ -14,6 +14,7 @@ from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import DEFAULT_CATEGORIES, DOMAIN
 
@@ -47,8 +48,13 @@ async def async_setup_entry(
     async_add_entities(entities, update_before_add=True)
 
 
-class BudgetLimitNumber(NumberEntity):
-    """Number entity for a category budget limit."""
+class BudgetLimitNumber(NumberEntity, RestoreEntity):
+    """Number entity for a category budget limit.
+
+    Inherits from RestoreEntity so user-set limits survive HA restarts —
+    without this the limits silently reset to 0 on every reload, which
+    is data loss from the user's point of view.
+    """
 
     _attr_mode = NumberMode.BOX
     _attr_native_min_value = 0
@@ -66,12 +72,35 @@ class BudgetLimitNumber(NumberEntity):
         self._attr_unique_id = f"{DOMAIN}_budget_{category}"
         self._attr_name = f"Budget {category.replace('_', ' ').title()}"
         self._attr_icon = CATEGORY_ICONS.get(category, "mdi:cash")
-        # Default value: 0 = no limit set
+        # Default value: 0 = no limit set. Overridden from restored
+        # state in async_added_to_hass() if the entity has been seen
+        # before.
         self._attr_native_value = 0.0
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the previously set budget limit, if any."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state is None or last_state.state in (None, "unknown", "unavailable"):
+            return
+        try:
+            self._attr_native_value = float(last_state.state)
+            _LOGGER.debug(
+                "Restored budget limit for %s: %.2f EUR",
+                self._category,
+                self._attr_native_value,
+            )
+        except (TypeError, ValueError):
+            _LOGGER.debug(
+                "Could not parse restored budget limit for %s: %r",
+                self._category,
+                last_state.state,
+            )
 
     async def async_set_native_value(self, value: float) -> None:
         """Update the budget limit."""
         self._attr_native_value = value
+        self.async_write_ha_state()
         _LOGGER.debug(
             "Budget limit for %s set to %.2f EUR",
             self._category,

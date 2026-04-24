@@ -1,10 +1,14 @@
 """Finance Dashboard — Home Assistant Integration.
 
-Provides a secure finance overview with live banking data via GoCardless/Nordigen
-Open Banking API. Tracks accounts, transactions, and household budgets.
+Provides a secure finance overview with live banking data via the Enable
+Banking PSD2 Open Banking API (JWT-signed RS256). Tracks accounts,
+transactions, and household budgets.
 
 SECURITY: No financial data is ever stored in git or logs.
 All credentials and tokens are stored in HA's encrypted .storage/ directory.
+Live banking calls are gated behind explicit user-triggered paths
+(refresh button, service call, setup bootstrap) to respect Enable
+Banking's 4/day/ASPSP rate limit.
 """
 
 from __future__ import annotations
@@ -88,21 +92,24 @@ async def async_setup_entry(
     # Entities are populated immediately from the transaction cache
     # that was loaded in manager.async_initialize(). The user must
     # click "Aktualisieren" to trigger real banking API calls.
-    if entry.data.get("configured") or manager.demo_mode:
-        async def _initial_load() -> None:
-            try:
-                await coordinator.async_load_cached()
-                _LOGGER.info("Initial cached data loaded (no API calls)")
-            except Exception:
-                _LOGGER.exception("Initial cached data load failed")
+    # Run for ALL entry states (configured / pending / demo) so sensors
+    # always have a valid coordinator snapshot — without this,
+    # half-configured setups leave entities permanently "unavailable"
+    # until a full HA restart.
+    async def _initial_load() -> None:
+        try:
+            await coordinator.async_load_cached()
+            _LOGGER.info("Initial cached data loaded (no API calls)")
+        except Exception:
+            _LOGGER.exception("Initial cached data load failed")
 
-        if hass.is_running:
-            hass.async_create_task(_initial_load())
-        else:
-            hass.bus.async_listen_once(
-                "homeassistant_started",
-                lambda _event: hass.async_create_task(_initial_load()),
-            )
+    if hass.is_running:
+        hass.async_create_task(_initial_load())
+    else:
+        hass.bus.async_listen_once(
+            "homeassistant_started",
+            lambda _event: hass.async_create_task(_initial_load()),
+        )
 
     _LOGGER.info("Finance Dashboard v%s loaded", entry.version)
     return True
@@ -142,6 +149,16 @@ async def _async_register_services(
 
     async def handle_refresh_accounts(call) -> dict:
         await manager.async_refresh_accounts()
+        # Keep entity state in lockstep with the account metadata we
+        # just refreshed — otherwise the next dashboard render reads
+        # stale account data from the coordinator and the user sees
+        # no change despite a successful service call.
+        try:
+            await coordinator.async_refresh()
+        except Exception:
+            _LOGGER.exception(
+                "Coordinator refresh after refresh_accounts failed"
+            )
         return manager.get_refresh_status()
 
     async def handle_refresh_transactions(call) -> dict:
