@@ -30,6 +30,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
+from homeassistant.util import dt as dt_util
+
 from ..const import DOMAIN, STORAGE_KEY_TRANSFER_OVERRIDES, STORAGE_VERSION
 from ..enablebanking_client import RateLimitExceeded
 from ..household import HouseholdMember, HouseholdModel
@@ -108,7 +110,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
     @property
     def rate_limited_until(self) -> datetime | None:
         """Return the datetime until which the API is rate-limited, or None."""
-        if self._rate_limited_until and datetime.now() < self._rate_limited_until:
+        if self._rate_limited_until and dt_util.now() < self._rate_limited_until:
             return self._rate_limited_until
         return None
 
@@ -150,7 +152,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             self._accounts = data["_demo_accounts"]
             self._transactions = data["_demo_transactions"]
             self._balances = data["_demo_balances"]
-            self._last_refresh = datetime.now()
+            self._last_refresh = dt_util.now()
             self._recurring_patterns = data.get("recurring", [])
             self._last_refresh_stats = self._build_stats(
                 outcome="demo",
@@ -251,7 +253,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             if rl:
                 try:
                     rl_dt = datetime.fromisoformat(rl)
-                    if rl_dt > datetime.now():
+                    if rl_dt > dt_util.now():
                         self._rate_limited_until = rl_dt
                 except ValueError:
                     pass

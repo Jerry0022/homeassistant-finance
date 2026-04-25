@@ -16,6 +16,8 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
+from homeassistant.util import dt as dt_util
+
 if TYPE_CHECKING:
     pass
 
@@ -44,7 +46,7 @@ class RefreshMixin:
                 than midnight but may wait less when the API signals a shorter
                 window.  Falls back to midnight when ``None``.
         """
-        now = datetime.now()
+        now = dt_util.now()
         midnight = (now + timedelta(days=1)).replace(
             hour=0, minute=0, second=0, microsecond=0,
         )
@@ -87,7 +89,7 @@ class RefreshMixin:
         """
         async with self._refresh_lock:
             self._refresh_in_flight = True
-            started = datetime.now()
+            started = dt_util.now()
             t0 = time.monotonic()
             try:
                 return await self._do_refresh(days, started, t0, psu_ip=psu_ip)
@@ -116,7 +118,7 @@ class RefreshMixin:
             data = generate_demo_data()
             self._transactions = data["_demo_transactions"]
             self._balances = data["_demo_balances"]
-            self._last_refresh = datetime.now()
+            self._last_refresh = dt_util.now()
             self._recurring_patterns = data.get("recurring", [])
             self._last_refresh_stats = self._build_stats(
                 outcome="demo",
@@ -159,10 +161,10 @@ class RefreshMixin:
             )
             return []
 
-        date_from = (datetime.now() - timedelta(days=days)).strftime(
+        date_from = (dt_util.now() - timedelta(days=days)).strftime(
             "%Y-%m-%d"
         )
-        date_to = datetime.now().strftime("%Y-%m-%d")
+        date_to = dt_util.now().strftime("%Y-%m-%d")
 
         errors: list[str] = []
         accounts_hit = 0
@@ -212,7 +214,7 @@ class RefreshMixin:
                 )
                 retry_after_dt = None
                 if _rle.retry_after_seconds is not None:
-                    retry_after_dt = datetime.now() + timedelta(
+                    retry_after_dt = dt_util.now() + timedelta(
                         seconds=_rle.retry_after_seconds
                     )
                 self._set_rate_limited(retry_after_dt)
@@ -265,7 +267,7 @@ class RefreshMixin:
         ]
 
         self._transactions = all_transactions
-        self._last_refresh = datetime.now()
+        self._last_refresh = dt_util.now()
 
         # Detect recurring payment patterns — must not crash transaction refresh
         try:
@@ -348,7 +350,7 @@ class RefreshMixin:
         errors: list[str],
     ) -> dict[str, Any]:
         """Assemble a refresh-stats dict for the status endpoint."""
-        finished = datetime.now()
+        finished = dt_util.now()
         return {
             "outcome": outcome,
             "accounts": accounts,
@@ -403,7 +405,7 @@ class RefreshMixin:
                 )
                 retry_after_dt = None
                 if _rle.retry_after_seconds is not None:
-                    retry_after_dt = datetime.now() + timedelta(
+                    retry_after_dt = dt_util.now() + timedelta(
                         seconds=_rle.retry_after_seconds
                     )
                 self._set_rate_limited(retry_after_dt)
