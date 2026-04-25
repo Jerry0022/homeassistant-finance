@@ -19,5 +19,5 @@
     "ha-customapps>=0.3.0",
     "PyJWT[crypto]>=2.8.0"
   ],
-  "version": "0.12.1"
+  "version": "0.13.0"
 }
