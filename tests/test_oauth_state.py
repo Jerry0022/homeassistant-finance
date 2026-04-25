@@ -6,6 +6,8 @@ Covers:
 3. register → wait TTL → validate (fails — expired)
 4. validate without prior register (fails)
 5. Multiple states: validate correct one, others unaffected
+6. Timezone mismatch: UTC-stored state validated with naive timestamp (F3)
+7. Unbounded dict eviction: capped at _OAUTH_STATES_MAX (F5)
 """
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -94,3 +96,50 @@ async def test_multiple_states_only_correct_consumed():
     # Both now consumed
     assert await mgr.async_validate_oauth_state(state_a) is False
     assert await mgr.async_validate_oauth_state(state_b) is False
+
+
+@pytest.mark.asyncio
+async def test_timezone_mismatch_safe():
+    """Naive timestamp in _oauth_states must not raise TypeError (F3).
+
+    Simulates a state stored by older code (naive datetime, no tzinfo) and
+    verifies that async_validate_oauth_state still succeeds without a
+    TypeError from naive vs. aware subtraction.
+    """
+    mgr = _make_manager()
+    state = "tz-safe-state"
+
+    # Inject a NAIVE timestamp — as if stored before the F3 fix
+    naive_ts = datetime.utcnow().isoformat()  # noqa: DTZ003 — intentionally naive to test F3 guard
+    mgr._oauth_states[state] = naive_ts
+
+    # Must not raise, must return True (state is fresh)
+    result = await mgr.async_validate_oauth_state(state)
+    assert result is True
+
+
+@pytest.mark.asyncio
+async def test_oauth_states_dict_bounded():
+    """_oauth_states must evict oldest entries when cap is reached (F5)."""
+    from custom_components.finance_dashboard.manager._refresh import (
+        _OAUTH_STATES_EVICT,
+        _OAUTH_STATES_MAX,
+    )
+
+    mgr = _make_manager()
+
+    # Fill to exactly the cap
+    for i in range(_OAUTH_STATES_MAX):
+        await mgr.async_register_oauth_state(f"state-{i:04d}")
+
+    assert len(mgr._oauth_states) == _OAUTH_STATES_MAX
+
+    # One more insertion must trigger eviction
+    await mgr.async_register_oauth_state("state-overflow")
+
+    # After eviction, size must be <= MAX - EVICT + 1
+    expected_max = _OAUTH_STATES_MAX - _OAUTH_STATES_EVICT + 1
+    assert len(mgr._oauth_states) <= expected_max
+
+    # The newly inserted state must still be present
+    assert "state-overflow" in mgr._oauth_states
