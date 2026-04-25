@@ -23,7 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -241,8 +241,16 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             if rl:
                 try:
                     rl_dt = datetime.fromisoformat(rl)
+                    # Ensure UTC-aware for comparison (F3)
+                    if rl_dt.tzinfo is None:
+                        rl_dt = rl_dt.replace(tzinfo=timezone.utc)
                     if rl_dt > dt_util.now():
                         self._rate_limited_until = rl_dt
+                        # Mirror to hass.data so the fresh-setup client gate
+                        # can enforce the quota even before manager is reached (F2).
+                        self._hass.data.setdefault(DOMAIN, {})[
+                            "_global_rate_limit_until"
+                        ] = rl_dt.isoformat()
                 except ValueError:
                     pass
             stats = cached.get("last_refresh_stats")
