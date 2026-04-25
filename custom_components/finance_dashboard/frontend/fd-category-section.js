@@ -53,13 +53,17 @@ class FdCategorySection extends HTMLElement {
     const LOCAL_CSS = `
 :host {
   margin-bottom: 20px;
+  container-type: inline-size;
 }
 .grid {
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: 16px;
 }
-@media (max-width: 768px) {
+@container (max-width: 980px) {
+  .grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 980px) {
   .grid { grid-template-columns: 1fr; }
 }
 .neg { color: var(--dg); }
@@ -151,8 +155,9 @@ class FdCategorySection extends HTMLElement {
 `;
     this.shadowRoot.innerHTML = `
 <style>${SHARED_CSS}${shimmerCss}
-:host { margin-bottom: 20px; }
+:host { margin-bottom: 20px; container-type: inline-size; }
 .grid { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+@container (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
 @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
 </style>
 <div class="grid" aria-busy="true" aria-label="Wird geladen…">
