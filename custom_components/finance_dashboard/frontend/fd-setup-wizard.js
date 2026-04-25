@@ -38,6 +38,8 @@ class FdSetupWizard extends HTMLElement {
     this._pollTimer = null;
     this._error = null;
     this._loading = false;
+    this._boundTrapFocus = this._trapFocus.bind(this);
+    this._boundEsc = this._handleEsc.bind(this);
   }
 
   set hass(hass) {
@@ -47,10 +49,54 @@ class FdSetupWizard extends HTMLElement {
   connectedCallback() {
     this._render();
     this._loadInstitutions();
+    document.addEventListener("keydown", this._boundTrapFocus);
+    document.addEventListener("keydown", this._boundEsc);
+    // Move focus into modal after render
+    requestAnimationFrame(() => {
+      const first = this._getFocusable()[0];
+      if (first) first.focus();
+    });
   }
 
   disconnectedCallback() {
     this._stopPolling();
+    document.removeEventListener("keydown", this._boundTrapFocus);
+    document.removeEventListener("keydown", this._boundEsc);
+  }
+
+  _getFocusable() {
+    const selectors = "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])";
+    return Array.from(this.shadowRoot.querySelectorAll(selectors)).filter(
+      (el) => !el.disabled && !el.closest("[hidden]")
+    );
+  }
+
+  _trapFocus(e) {
+    if (e.key !== "Tab") return;
+    const focusable = this._getFocusable();
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    // Determine what is currently focused inside the shadow root
+    const active = this.shadowRoot.activeElement;
+    if (e.shiftKey) {
+      if (active === first || !active) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (active === last || !active) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
+
+  _handleEsc(e) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      this.close();
+    }
   }
 
   close() {
@@ -474,10 +520,10 @@ class FdSetupWizard extends HTMLElement {
 }
 </style>
 <div class="backdrop"></div>
-<div class="modal">
+<div class="modal" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
   <div class="modal-header">
-    <h2>Bankkonto verbinden</h2>
-    <button class="close-btn" id="closeBtn">&times;</button>
+    <h2 id="wizard-title">Bankkonto verbinden</h2>
+    <button class="close-btn" id="closeBtn" aria-label="Dialog schließen">&times;</button>
   </div>
   <div class="modal-body" id="body"></div>
 </div>`;
@@ -517,6 +563,15 @@ class FdSetupWizard extends HTMLElement {
       body.innerHTML = `${stepsHtml}${this._renderStep4()}`;
       this._bindStep4();
     }
+
+    // Keep focus inside dialog after re-render
+    requestAnimationFrame(() => {
+      const active = this.shadowRoot.activeElement;
+      if (!active || active === this.shadowRoot) {
+        const first = this._getFocusable()[0];
+        if (first) first.focus();
+      }
+    });
   }
 
   _renderInstitutionList() {
