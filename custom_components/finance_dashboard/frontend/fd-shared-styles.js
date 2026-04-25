@@ -1,8 +1,9 @@
 /**
  * Shared styles, formatters, and utilities for Finance Dashboard components.
  *
- * All dashboard components import from this module to ensure visual
+ * All dashboard components read from window._fd to ensure visual
  * consistency and avoid duplicating CSS / helper functions.
+ * The export keywords also remain for future ES-module migration.
  */
 
 /** EUR currency formatter (German locale). */
@@ -24,6 +25,19 @@ export function esc(s) {
   const d = document.createElement("div");
   d.textContent = s;
   return d.innerHTML;
+}
+
+/**
+ * Escape HTML without DOM round-trip (hot-path safe).
+ * Replaces &, <, >, ", ' with named entities.
+ */
+export function escHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /** Category color mapping. */
@@ -49,10 +63,10 @@ export const CAT_LABELS = {
   utilities: "Nebenkosten",
   insurance: "Versicherung",
   subscriptions: "Abos",
-  transport: "Mobilit\u00e4t",
+  transport: "Mobilität",
   cleaning: "Reinigung",
   income: "Einkommen",
-  transfers: "\u00dcbertr\u00e4ge",
+  transfers: "Überträge",
   other: "Sonstiges",
 };
 
@@ -63,13 +77,13 @@ export const MEMBER_COLORS = [
 
 /** German month names (abbreviated). */
 export const MONTH_NAMES = [
-  "Jan", "Feb", "M\u00e4r", "Apr", "Mai", "Jun",
+  "Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
   "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
 ];
 
 /**
  * CSS custom properties and base styles shared across all dashboard components.
- * Components include this via: `<style>${SHARED_CSS}</style>` in their shadow root.
+ * Components include this via: `<style>${window._fd.SHARED_CSS}${LOCAL_CSS}</style>` in their shadow root.
  */
 export const SHARED_CSS = `
 :host {
@@ -107,3 +121,20 @@ export const SHARED_CSS = `
   align-items: center;
 }
 `;
+
+/**
+ * Attach shared constants to window._fd so classic-script components
+ * (loaded via add_extra_js_url without type="module") can access them.
+ * fd-shared-styles.js is always loaded first in LOVELACE_COMPONENTS.
+ */
+window._fd = {
+  escHtml,
+  esc,
+  eur,
+  pct,
+  CAT_COLORS,
+  CAT_LABELS,
+  MEMBER_COLORS,
+  MONTH_NAMES,
+  SHARED_CSS,
+};
