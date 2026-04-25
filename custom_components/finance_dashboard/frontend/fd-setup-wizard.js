@@ -36,6 +36,8 @@ class FdSetupWizard extends HTMLElement {
     this._authUrl = null;
     this._pendingAccounts = [];
     this._pollTimer = null;
+    this._countdownTimer = null;
+    this._countdownSec = POLL_MAX_MS / 1000; // 300 seconds
     this._error = null;
     this._loading = false;
     this._initialStep = 1; // Override with initialStep property
@@ -68,6 +70,7 @@ class FdSetupWizard extends HTMLElement {
 
   disconnectedCallback() {
     this._stopPolling();
+    this._stopCountdown();
     document.removeEventListener("keydown", this._boundTrapFocus);
     document.removeEventListener("keydown", this._boundEsc);
   }
@@ -176,6 +179,7 @@ class FdSetupWizard extends HTMLElement {
   }
 
   _startPolling() {
+    this._startCountdown();
     const startTime = Date.now();
     this._pollTimer = setInterval(async () => {
       if (Date.now() - startTime > POLL_MAX_MS) {
@@ -219,6 +223,32 @@ class FdSetupWizard extends HTMLElement {
     if (this._pollTimer) {
       clearInterval(this._pollTimer);
       this._pollTimer = null;
+    }
+    this._stopCountdown();
+  }
+
+  _startCountdown() {
+    this._countdownSec = POLL_MAX_MS / 1000;
+    this._stopCountdown(); // Prevent duplicate timers
+    this._countdownTimer = setInterval(() => {
+      this._countdownSec = Math.max(0, this._countdownSec - 1);
+      // Update countdown display in-place without full re-render
+      const el = this.shadowRoot.getElementById("countdown");
+      if (el) {
+        const min = Math.floor(this._countdownSec / 60);
+        const sec = String(this._countdownSec % 60).padStart(2, "0");
+        el.textContent = `Noch ${min}:${sec} Minuten — falls die Bankseite nicht reagiert, hier abbrechen`;
+      }
+      if (this._countdownSec === 0) {
+        this._stopCountdown();
+      }
+    }, 1000);
+  }
+
+  _stopCountdown() {
+    if (this._countdownTimer) {
+      clearInterval(this._countdownTimer);
+      this._countdownTimer = null;
     }
   }
 
@@ -436,6 +466,13 @@ class FdSetupWizard extends HTMLElement {
   font-size: 13px;
   margin-top: 20px;
 }
+.countdown {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--secondary-text-color, #9898a8);
+  text-align: center;
+  line-height: 1.4;
+}
 .btn-primary {
   display: inline-block;
   padding: 12px 24px;
@@ -575,6 +612,7 @@ class FdSetupWizard extends HTMLElement {
       this._bindStep1();
     } else if (this._step === 2) {
       body.innerHTML = `${stepsHtml}${errorHtml}${this._renderStep2()}`;
+      this._bindStep2();
     } else if (this._step === 3) {
       body.innerHTML = `${stepsHtml}${errorHtml}${this._renderStep3()}`;
       this._bindStep3();
@@ -676,6 +714,8 @@ class FdSetupWizard extends HTMLElement {
       return `<div class="loading-spinner">Autorisierung wird vorbereitet\u2026</div>`;
     }
     const bankName = this._selectedInstitution ? this._selectedInstitution.name : "Bank";
+    const min = Math.floor(this._countdownSec / 60);
+    const sec = String(this._countdownSec % 60).padStart(2, "0");
     return `
       <div class="auth-card">
         <p>Autorisiere den Zugriff bei <strong>${this._esc(bankName)}</strong>.<br>
@@ -685,8 +725,25 @@ class FdSetupWizard extends HTMLElement {
           <span>\u23f3</span>
           <span>Warte auf Best\u00e4tigung von der Bank\u2026</span>
         </div>
+        <div class="countdown" id="countdown" role="timer" aria-live="off">
+          Noch ${min}:${sec} Minuten \u2014 falls die Bankseite nicht reagiert, hier abbrechen
+        </div>
+        <button class="btn-secondary" id="cancelAuthBtn" style="margin-top:12px">Abbrechen</button>
       </div>
     `;
+  }
+
+  _bindStep2() {
+    const cancelBtn = this.shadowRoot.getElementById("cancelAuthBtn");
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", () => {
+        this._stopPolling();
+        this._step = 1;
+        this._error = null;
+        this._authUrl = null;
+        this._renderContent();
+      });
+    }
   }
 
   _renderStep3() {
