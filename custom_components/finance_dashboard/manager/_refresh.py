@@ -14,7 +14,7 @@ import logging
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     pass
@@ -32,16 +32,30 @@ class RefreshMixin:
     # Rate-limit helpers
     # ------------------------------------------------------------------
 
-    def _set_rate_limited(self) -> None:
-        """Mark API as rate-limited until midnight (next calendar day)."""
+    def _set_rate_limited(
+        self, retry_after_dt: Optional[datetime] = None
+    ) -> None:
+        """Mark API as rate-limited.
+
+        Args:
+            retry_after_dt: Optional earlier reset datetime derived from the
+                ``Retry-After`` response header.  When provided the reset is
+                ``min(midnight, retry_after_dt)`` so we never wait *longer*
+                than midnight but may wait less when the API signals a shorter
+                window.  Falls back to midnight when ``None``.
+        """
         now = datetime.now()
-        tomorrow = (now + timedelta(days=1)).replace(
+        midnight = (now + timedelta(days=1)).replace(
             hour=0, minute=0, second=0, microsecond=0,
         )
-        self._rate_limited_until = tomorrow
+        if retry_after_dt is not None:
+            reset_at = min(midnight, retry_after_dt)
+        else:
+            reset_at = midnight
+        self._rate_limited_until = reset_at
         _LOGGER.warning(
             "API rate-limited — serving cached data until %s",
-            tomorrow.isoformat(),
+            reset_at.isoformat(),
         )
 
     # ------------------------------------------------------------------
@@ -181,12 +195,17 @@ class RefreshMixin:
                     len(booked),
                     len(pending),
                 )
-            except RateLimitExceeded:
+            except RateLimitExceeded as _rle:
                 _LOGGER.warning(
                     "Rate limit hit for account %s — stopping all fetches",
                     account_id,
                 )
-                self._set_rate_limited()
+                retry_after_dt = None
+                if _rle.retry_after_seconds is not None:
+                    retry_after_dt = datetime.now() + timedelta(
+                        seconds=_rle.retry_after_seconds
+                    )
+                self._set_rate_limited(retry_after_dt)
                 errors.append(
                     f"Rate-Limit bei {account.get('name', account_id)} — "
                     "Tageslimit (4/Tag) aufgebraucht"
@@ -365,11 +384,16 @@ class RefreshMixin:
                     "logo": account.get("logo", ""),
                     "balances": account_balances,
                 }
-            except RateLimitExceeded:
+            except RateLimitExceeded as _rle:
                 _LOGGER.warning(
                     "Rate limit hit fetching balance for %s", account_id
                 )
-                self._set_rate_limited()
+                retry_after_dt = None
+                if _rle.retry_after_seconds is not None:
+                    retry_after_dt = datetime.now() + timedelta(
+                        seconds=_rle.retry_after_seconds
+                    )
+                self._set_rate_limited(retry_after_dt)
                 errors.append(
                     f"Rate-Limit beim Saldo für "
                     f"{account.get('name', account_id)}"

@@ -60,7 +60,18 @@ def _sanitize_log(text: str) -> str:
 
 
 class RateLimitExceeded(Exception):
-    """Raised when the banking API returns HTTP 429 (daily quota exhausted)."""
+    """Raised when the banking API returns HTTP 429 (daily quota exhausted).
+
+    Attributes:
+        retry_after_seconds: Value from the ``Retry-After`` response header
+            (seconds), or ``None`` when the header was absent/unparseable.
+            Callers should use ``min(midnight, now + retry_after_seconds)``
+            as the rate-limit reset time when this value is set.
+    """
+
+    def __init__(self, message: str = "", retry_after_seconds: int | None = None) -> None:
+        super().__init__(message)
+        self.retry_after_seconds: int | None = retry_after_seconds
 
 
 class EnableBankingClient:
@@ -505,9 +516,22 @@ class EnableBankingClient:
                     )
                     # Daily consent quota exhausted — signal callers to
                     # stop retrying and serve cached data until tomorrow.
+                    # Honor the Retry-After header when present so the
+                    # reset time can be earlier than midnight.
                     if resp.status == 429:
+                        retry_after_seconds: int | None = None
+                        raw_retry = resp.headers.get("Retry-After")
+                        if raw_retry:
+                            try:
+                                retry_after_seconds = int(raw_retry)
+                            except (ValueError, TypeError):
+                                _LOGGER.debug(
+                                    "Could not parse Retry-After header: %s",
+                                    raw_retry,
+                                )
                         raise RateLimitExceeded(
-                            f"Daily API quota exhausted (HTTP 429)"
+                            "Daily API quota exhausted (HTTP 429)",
+                            retry_after_seconds,
                         )
                     # Include a sanitized excerpt in the exception message
                     # so callers can surface a safe error to the user.
