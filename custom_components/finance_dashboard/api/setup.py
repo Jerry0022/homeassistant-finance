@@ -15,7 +15,7 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 
 from ..const import DOMAIN, SESSION_MAX_DAYS
-from ._helpers import _get_manager, _get_setup_client, _validate_oauth_state
+from ._helpers import _get_manager, _get_setup_client, _register_oauth_state, _validate_oauth_state
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -117,8 +117,17 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
         try:
             from ..enablebanking_client import RateLimitExceeded
 
+            # Route through manager.async_make_setup_call when available so
+            # the rate-limit gate is always enforced (F4).  Fall back to the
+            # direct setup client for fresh-setup flows.
+            manager = _get_manager(hass)
             client = await _get_setup_client(hass)
-            institutions = await client.async_get_institutions("DE")
+            if manager is not None:
+                institutions = await manager.async_make_setup_call(
+                    "async_get_institutions", "DE", client=client
+                )
+            else:
+                institutions = await client.async_get_institutions("DE")
             _LOGGER.debug(
                 "Fetched %d institutions from Enable Banking",
                 len(institutions),
@@ -220,25 +229,32 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
 
             state = str(uuid.uuid4())
 
-            # Register the state token for CSRF validation in the callback.
-            # If no manager is available (fresh setup) we fall back to storing
-            # the state in hass.data so the callback can still validate it.
+            # Register the state token in BOTH the manager store AND the
+            # hass.data fallback store so that a manager reload between
+            # authorize and callback cannot cause invalid_state (F1).
+            await _register_oauth_state(hass, state)
+
+            # Route through manager.async_make_setup_call when available so
+            # the rate-limit gate is enforced centrally (F4).
             manager = _get_manager(hass)
             if manager is not None:
-                await manager.async_register_oauth_state(state)
+                auth_data = await manager.async_make_setup_call(
+                    "async_create_auth",
+                    client=client,
+                    aspsp_name=institution_name,
+                    aspsp_country="DE",
+                    redirect_url=callback_url,
+                    valid_until=valid_until,
+                    state=state,
+                )
             else:
-                hass.data.setdefault(DOMAIN, {})
-                hass.data[DOMAIN].setdefault("_oauth_states", {})[state] = datetime.now(
-                    UTC
-                ).isoformat()
-
-            auth_data = await client.async_create_auth(
-                aspsp_name=institution_name,
-                aspsp_country="DE",
-                redirect_url=callback_url,
-                valid_until=valid_until,
-                state=state,
-            )
+                auth_data = await client.async_create_auth(
+                    aspsp_name=institution_name,
+                    aspsp_country="DE",
+                    redirect_url=callback_url,
+                    valid_until=valid_until,
+                    state=state,
+                )
 
             auth_url = auth_data.get("url", "")
             if not auth_url:
