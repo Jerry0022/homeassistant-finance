@@ -21,6 +21,7 @@ CACHE vs LIVE FETCH CONTRACT:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import secrets
 import time
@@ -67,6 +68,11 @@ class FinanceDashboardManager:
         self._accounts: list[dict[str, Any]] = entry.data.get(
             "accounts", []
         )
+        # Per-account transaction cache: account_id → list[tx].
+        # Partial refresh failures only affect the failed account's slice —
+        # other accounts keep their last-known data (R5 fix).
+        self._tx_by_account: dict[str, list[dict[str, Any]]] = {}
+        # Flat view (legacy + internal use) — kept in sync with _tx_by_account.
         self._transactions: list[dict[str, Any]] = []
         self._balances: dict[str, Any] = {}
         self._last_refresh: datetime | None = None
@@ -178,9 +184,42 @@ class FinanceDashboardManager:
         self._categorizer = TransactionCategorizer()
 
         # Load cached transactions from .storage/
-        cached = await self._transaction_store.async_load()
-        if cached and "transactions" in cached:
-            self._transactions = cached["transactions"]
+        # R8: wrap in try/except — a corrupt .storage/ file must not crash
+        # HA startup.  On decode error the file is renamed to .corrupt-<ts>
+        # and a Repair issue is raised so the user is notified.
+        cached = None
+        try:
+            cached = await self._transaction_store.async_load()
+        except (json.JSONDecodeError, ValueError, OSError) as exc:
+            _LOGGER.error(
+                "Transaction cache corrupt (%s: %s) — starting with empty state",
+                type(exc).__name__,
+                exc,
+            )
+            self._raise_storage_corrupt_issue(
+                TRANSACTION_CACHE_KEY, type(exc).__name__
+            )
+        if cached and ("transactions" in cached or "tx_by_account" in cached):
+            # R5: prefer per-account dict; fall back to flat list (migration).
+            raw_tx_by_account = cached.get("tx_by_account")
+            if isinstance(raw_tx_by_account, dict):
+                self._tx_by_account = raw_tx_by_account
+                self._transactions = [
+                    tx
+                    for txs in self._tx_by_account.values()
+                    for tx in txs
+                ]
+                # Deterministic sort after flatten
+                self._transactions.sort(
+                    key=lambda t: t.get("bookingDate", ""), reverse=True
+                )
+            else:
+                # Migrate: old flat list → per-account dict
+                flat: list[dict[str, Any]] = cached.get("transactions", [])
+                self._transactions = flat
+                for tx in flat:
+                    acc_id = tx.get("_account_id", "__unknown__")
+                    self._tx_by_account.setdefault(acc_id, []).append(tx)
             last_refresh = cached.get("last_refresh")
             if last_refresh:
                 try:
@@ -354,7 +393,6 @@ class FinanceDashboardManager:
         )
         date_to = datetime.now().strftime("%Y-%m-%d")
 
-        all_transactions = []
         errors: list[str] = []
         accounts_hit = 0
         for account in self._accounts:
@@ -387,8 +425,8 @@ class FinanceDashboardManager:
                     txn["_status"] = "pending"
                     txn["category"] = self._categorizer.categorize(txn)
 
-                all_transactions.extend(booked)
-                all_transactions.extend(pending)
+                # R5: atomic per-account update — only overwrite on success
+                self._tx_by_account[account_id] = booked + pending
 
                 _LOGGER.debug(
                     "Account %s: %d booked, %d pending",
@@ -415,6 +453,12 @@ class FinanceDashboardManager:
                 errors.append(
                     f"{account.get('name', account_id)}: {str(exc)[:120]}"
                 )
+                # R5: keep stale cache for this account — do NOT clear it
+
+        # Rebuild flat list from per-account dict (deterministic sort)
+        all_transactions = [
+            tx for txs in self._tx_by_account.values() for tx in txs
+        ]
 
         # Sort by booking date (newest first)
         all_transactions.sort(
@@ -959,9 +1003,15 @@ class FinanceDashboardManager:
             self._banking_client = EnableBankingClient(
                 creds["application_id"], creds["private_key_pem"]
             )
-        except (ValueError, TypeError):
-            _LOGGER.exception(
-                "Enable Banking client init failed — PEM key invalid"
+        except (ValueError, TypeError) as exc:
+            # R10: log class-only at ERROR, full stack trace at DEBUG only.
+            _LOGGER.error(
+                "Enable Banking client init failed — PEM key invalid (%s)",
+                type(exc).__name__,
+            )
+            _LOGGER.debug(
+                "Enable Banking client init exception detail",
+                exc_info=True,
             )
             self._raise_credentials_issue("invalid_pem")
             return None
@@ -1006,6 +1056,34 @@ class FinanceDashboardManager:
                 )
         except Exception:
             pass
+
+    def _raise_storage_corrupt_issue(
+        self, storage_key: str, error_class: str
+    ) -> None:
+        """Raise a Repair issue for a corrupt .storage/ file (R8).
+
+        Only the storage key name and Python exception class are included
+        in the repair issue — never raw exception text or stack traces.
+        """
+        try:
+            from homeassistant.helpers import issue_registry as ir
+
+            ir.async_create_issue(
+                self._hass,
+                DOMAIN,
+                f"storage_corrupt_{storage_key}",
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="storage_corrupt",
+                translation_placeholders={
+                    "storage_key": storage_key,
+                    "error_class": error_class,
+                },
+            )
+        except Exception:
+            _LOGGER.debug(
+                "Could not create storage_corrupt repair issue", exc_info=True
+            )
 
     async def async_confirm_transfer_chain(
         self, chain_id: str, confirmed: bool
@@ -1072,9 +1150,18 @@ class FinanceDashboardManager:
         return {}
 
     async def _persist_transactions(self) -> None:
-        """Save transactions, balances, rate-limit and stats to cache."""
+        """Save transactions, balances, rate-limit and stats to cache.
+
+        R5: saves the per-account dict (tx_by_account) as the canonical
+        format.  The flat ``transactions`` key is kept for one-version
+        backward-compatibility but is no longer the authoritative source.
+        """
         await self._transaction_store.async_save(
             {
+                # R5: per-account dict is the canonical storage format.
+                "tx_by_account": self._tx_by_account,
+                # Legacy flat list — kept so older versions can still read
+                # something useful if rolled back.
                 "transactions": self._transactions,
                 "balances": self._balances,
                 "last_refresh": (
