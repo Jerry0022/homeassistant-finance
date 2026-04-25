@@ -100,8 +100,21 @@ class EnableBankingClient:
 
     @staticmethod
     def _reconstruct_pem(raw: str) -> str:
-        """Reconstruct PEM with proper line breaks."""
+        """Reconstruct PEM with proper line breaks.
+
+        C9: Marker-type detection (PKCS1 vs PKCS8) is performed BEFORE
+        stripping the markers so the check is not confused by partial or
+        escaped header text.
+        """
+        # Normalize escaped newlines first so marker strings are intact.
         raw = raw.replace("\\n", "\n")
+        # C9: detect key type BEFORE stripping markers — once the header
+        # lines are removed the type information is gone.
+        is_pkcs1 = (
+            "RSA PRIVATE KEY" in raw
+            or "BEGIN RSA PRIVATE KEY" in raw
+        )
+        # Strip all known PEM header/footer lines.
         for marker in (
             "-----BEGIN PRIVATE KEY-----",
             "-----END PRIVATE KEY-----",
@@ -110,10 +123,12 @@ class EnableBankingClient:
         ):
             raw = raw.replace(marker, "")
         body = raw.replace("\n", "").replace("\r", "").replace(" ", "")
-        if "RSA PRIVATE KEY" in raw:
-            h, f = "-----BEGIN RSA PRIVATE KEY-----", "-----END RSA PRIVATE KEY-----"
+        if is_pkcs1:
+            h = "-----BEGIN RSA PRIVATE KEY-----"
+            f = "-----END RSA PRIVATE KEY-----"
         else:
-            h, f = "-----BEGIN PRIVATE KEY-----", "-----END PRIVATE KEY-----"
+            h = "-----BEGIN PRIVATE KEY-----"
+            f = "-----END PRIVATE KEY-----"
         lines = [body[i : i + 64] for i in range(0, len(body), 64)]
         return f"{h}\n" + "\n".join(lines) + f"\n{f}"
 
