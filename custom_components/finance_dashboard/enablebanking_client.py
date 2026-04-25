@@ -14,18 +14,17 @@ SECURITY:
 
 from __future__ import annotations
 
-import base64
-import json
 import logging
 import re
+import secrets
 import time
 from typing import Any
 
 import uuid
 
 import aiohttp
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding
+import jwt
+from cryptography.hazmat.primitives import serialization
 
 from .const import ENABLEBANKING_BASE_URL
 
@@ -411,39 +410,30 @@ class EnableBankingClient:
     def _generate_jwt(self) -> str:
         """Generate a short-lived JWT for API authentication.
 
-        Creates an RS256-signed JWT with 60-second validity.
-        No external JWT library required — uses cryptography directly.
+        Creates an RS256-signed JWT with 60-second validity using PyJWT.
+        Each token includes a unique ``jti`` claim to prevent replay attacks.
         """
-        header = {
-            "alg": "RS256",
-            "typ": "JWT",
-            "kid": self._application_id,
-        }
+        now = int(time.time())
         payload = {
-            "iss": "enablebanking.com",
-            "aud": "api.enablebanking.com",
-            "iat": int(time.time()),
-            "exp": int(time.time()) + 60,
+            "iss": self._application_id,
+            "aud": "api.tilisy.com",
+            "iat": now,
+            "exp": now + 60,
+            "jti": secrets.token_hex(16),
         }
-
-        def b64url(data: bytes) -> str:
-            return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
-
-        header_b64 = b64url(
-            json.dumps(header, separators=(",", ":")).encode()
+        # Export the RSA private key in PEM format so PyJWT can use it.
+        # The cryptography key object is already loaded in __init__.
+        pem = self._private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
         )
-        payload_b64 = b64url(
-            json.dumps(payload, separators=(",", ":")).encode()
+        return jwt.encode(
+            payload,
+            pem,
+            algorithm="RS256",
+            headers={"kid": self._application_id},
         )
-        signing_input = f"{header_b64}.{payload_b64}"
-
-        signature = self._private_key.sign(
-            signing_input.encode(),
-            padding.PKCS1v15(),
-            hashes.SHA256(),
-        )
-
-        return f"{signing_input}.{b64url(signature)}"
 
     async def _async_request(
         self, method: str, endpoint: str, **kwargs: Any
