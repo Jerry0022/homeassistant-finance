@@ -7,13 +7,11 @@ completion, and account-settings update.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from aiohttp import web
-
 from homeassistant.components.http import HomeAssistantView
 
 from ..const import DOMAIN, SESSION_MAX_DAYS
@@ -35,38 +33,32 @@ class FinanceDashboardSetupStatusView(HomeAssistantView):
         entry = hass.data.get(DOMAIN, {}).get("entry")
 
         if not entry:
-            return self.json(
-                {"configured": False, "has_entry": False}
-            )
+            return self.json({"configured": False, "has_entry": False})
 
         configured = entry.data.get("configured", False)
-        has_pending_code = bool(
-            hass.data.get(DOMAIN, {}).get("pending_auth_code")
-        )
+        has_pending_code = bool(hass.data.get(DOMAIN, {}).get("pending_auth_code"))
         # Include pending session accounts for step 3 of wizard
-        pending_accounts = hass.data.get(DOMAIN, {}).get(
-            "pending_accounts", []
-        )
+        pending_accounts = hass.data.get(DOMAIN, {}).get("pending_accounts", [])
 
         # Sanitize account details for frontend (no raw IBANs)
         raw_accounts = entry.data.get("accounts", [])
         safe_accounts = []
         for acc in raw_accounts:
             iban = acc.get("iban", "")
-            safe_accounts.append({
-                "id": acc.get("id", ""),
-                "name": acc.get("name", ""),
-                "custom_name": acc.get("custom_name", ""),
-                "iban_masked": (
-                    f"****{iban[-4:]}" if len(iban) >= 4 else "****"
-                ),
-                "institution": acc.get("institution", ""),
-                "institution_id": acc.get("institution_id", ""),
-                "logo": acc.get("logo", ""),
-                "type": acc.get("type", "personal"),
-                "ha_users": acc.get("ha_users", []),
-                "person": acc.get("person", ""),
-            })
+            safe_accounts.append(
+                {
+                    "id": acc.get("id", ""),
+                    "name": acc.get("name", ""),
+                    "custom_name": acc.get("custom_name", ""),
+                    "iban_masked": (f"****{iban[-4:]}" if len(iban) >= 4 else "****"),
+                    "institution": acc.get("institution", ""),
+                    "institution_id": acc.get("institution_id", ""),
+                    "logo": acc.get("logo", ""),
+                    "type": acc.get("type", "personal"),
+                    "ha_users": acc.get("ha_users", []),
+                    "person": acc.get("person", ""),
+                }
+            )
 
         # Surface any error from the OAuth callback so the wizard can
         # stop polling and display a meaningful message instead of timing
@@ -76,9 +68,7 @@ class FinanceDashboardSetupStatusView(HomeAssistantView):
         result = {
             "configured": configured,
             "has_entry": True,
-            "institution_name": entry.data.get(
-                "institution_name", ""
-            ),
+            "institution_name": entry.data.get("institution_name", ""),
             "account_count": len(raw_accounts),
             "accounts": safe_accounts,
             "pending_auth_code": has_pending_code,
@@ -151,7 +141,7 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
                     "error_type": "no_credentials",
                 }
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             _LOGGER.error("Timeout fetching institutions from Enable Banking API")
             return self.json(
                 {
@@ -167,9 +157,7 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
             if "401" in exc_msg or "403" in exc_msg or "unauthorized" in exc_msg:
                 error_type = "invalid_credentials"
                 error_msg = "API credentials rejected by Enable Banking"
-            return self.json(
-                {"error": error_msg, "error_type": error_type}
-            )
+            return self.json({"error": error_msg, "error_type": error_type})
 
 
 class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
@@ -196,8 +184,6 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
             return self.json({"error": "institution_name required"})
 
         try:
-            from ..enablebanking_client import RateLimitExceeded
-
             client = await _get_setup_client(hass)
 
             # Build callback URL from the request origin — this
@@ -205,9 +191,7 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
             # HA (Nabu Casa, local HTTPS, etc.) rather than relying
             # on hass.config which may be stale or "Automatic".
             base_url = f"{request.scheme}://{request.host}"
-            callback_url = (
-                f"{base_url}/api/{DOMAIN}/oauth/callback"
-            )
+            callback_url = f"{base_url}/api/{DOMAIN}/oauth/callback"
             _LOGGER.info(
                 "Auth callback URL: %s (from request origin)",
                 callback_url,
@@ -218,22 +202,21 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
             # helpful message so the user knows what to fix instead of
             # waiting 5 min for the wizard to time out.
             if request.scheme != "https":
-                return self.json({
-                    "error": (
-                        "Bank-Autorisierung erfordert HTTPS. Aktuelle "
-                        f"Callback-URL '{callback_url}' ist HTTP — "
-                        "öffne das Finance-Panel über die HTTPS-URL "
-                        "deiner HA-Instanz (z. B. Nabu Casa) oder "
-                        "richte ein TLS-Zertifikat ein."
-                    ),
-                    "error_type": "callback_not_https",
-                    "callback_url": callback_url,
-                })
+                return self.json(
+                    {
+                        "error": (
+                            "Bank-Autorisierung erfordert HTTPS. Aktuelle "
+                            f"Callback-URL '{callback_url}' ist HTTP — "
+                            "öffne das Finance-Panel über die HTTPS-URL "
+                            "deiner HA-Instanz (z. B. Nabu Casa) oder "
+                            "richte ein TLS-Zertifikat ein."
+                        ),
+                        "error_type": "callback_not_https",
+                        "callback_url": callback_url,
+                    }
+                )
 
-            valid_until = (
-                datetime.now(timezone.utc)
-                + timedelta(days=SESSION_MAX_DAYS)
-            ).isoformat()
+            valid_until = (datetime.now(UTC) + timedelta(days=SESSION_MAX_DAYS)).isoformat()
 
             state = str(uuid.uuid4())
 
@@ -245,9 +228,9 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
                 await manager.async_register_oauth_state(state)
             else:
                 hass.data.setdefault(DOMAIN, {})
-                hass.data[DOMAIN].setdefault("_oauth_states", {})[state] = (
-                    datetime.now(timezone.utc).isoformat()
-                )
+                hass.data[DOMAIN].setdefault("_oauth_states", {})[state] = datetime.now(
+                    UTC
+                ).isoformat()
 
             auth_data = await client.async_create_auth(
                 aspsp_name=institution_name,
@@ -263,9 +246,7 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
                     "Enable Banking returned no auth URL: %s",
                     auth_data,
                 )
-                return self.json(
-                    {"error": "No authorization URL received"}
-                )
+                return self.json({"error": "No authorization URL received"})
 
             # Store pending auth for panel flow (not config flow)
             hass.data.setdefault(DOMAIN, {})
@@ -273,9 +254,7 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
                 "auth_id": auth_data.get("auth_id", ""),
                 "institution_name": institution_name,
                 "institution_id": body.get("institution_id", ""),
-                "institution_logo": body.get(
-                    "institution_logo", ""
-                ),
+                "institution_logo": body.get("institution_logo", ""),
             }
             # Clear any stale auth code / error from previous attempts
             hass.data[DOMAIN].pop("pending_auth_code", None)
@@ -289,6 +268,7 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
             return self.json({"error": str(exc), "error_type": "no_credentials"})
         except Exception as exc:
             from ..enablebanking_client import RateLimitExceeded as _RLE
+
             if isinstance(exc, _RLE):
                 return self.json({"error": str(exc), "error_type": "rate_limited"})
             _LOGGER.exception("Failed to create bank authorization")
@@ -302,17 +282,11 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
                 api_err = _json.loads(exc_msg)
                 detail = api_err.get("detail", [])
                 if detail:
-                    fields = ", ".join(
-                        d.get("msg", "") for d in detail
-                    )
-                    error_detail = (
-                        f"Enable Banking: {api_err.get('message', exc_msg)} "
-                        f"— {fields}"
-                    )
+                    fields = ", ".join(d.get("msg", "") for d in detail)
+                    error_detail = f"Enable Banking: {api_err.get('message', exc_msg)} — {fields}"
                 elif api_err.get("error"):
                     error_detail = (
-                        f"Enable Banking: {api_err['error']} "
-                        f"— {api_err.get('message', '')}"
+                        f"Enable Banking: {api_err['error']} — {api_err.get('message', '')}"
                     )
             except (ValueError, TypeError):
                 pass
@@ -340,19 +314,13 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
         try:
             body = await request.json()
         except Exception:
-            return self.json(
-                {"error": "Invalid JSON body"}, status_code=400
-            )
+            return self.json({"error": "Invalid JSON body"}, status_code=400)
 
         account_assignments = body.get("accounts", [])
 
         # Session was already created in OAuth callback
-        session_id = hass.data.get(DOMAIN, {}).get(
-            "pending_session_id"
-        )
-        raw_accounts = hass.data.get(DOMAIN, {}).get(
-            "pending_accounts", []
-        )
+        session_id = hass.data.get(DOMAIN, {}).get("pending_session_id")
+        raw_accounts = hass.data.get(DOMAIN, {}).get("pending_accounts", [])
 
         if not session_id or not raw_accounts:
             return self.json(
@@ -360,13 +328,9 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                 status_code=400,
             )
 
-        pending_auth = hass.data.get(DOMAIN, {}).get(
-            "pending_setup_auth", {}
-        )
+        pending_auth = hass.data.get(DOMAIN, {}).get("pending_setup_auth", {})
 
         try:
-            from ..enablebanking_client import RateLimitExceeded
-
             client = await _get_setup_client(hass)
 
             if not raw_accounts:
@@ -388,9 +352,7 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                         break
 
                 try:
-                    details = await client.async_get_account_details(
-                        acc_id
-                    )
+                    details = await client.async_get_account_details(acc_id)
                     acct = details.get("account", {})
                 except Exception:
                     _LOGGER.warning(
@@ -403,31 +365,17 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                 ha_users = assignment.get("ha_users", [])
                 person = assignment.get("person", "")
                 if ha_users and not person:
-                    person = ", ".join(
-                        u.get("name", "") for u in ha_users
-                    )
+                    person = ", ".join(u.get("name", "") for u in ha_users)
 
                 account_config.append(
                     {
                         "id": acc_id,
-                        "iban": acct.get(
-                            "iban", raw_acc.get("iban", "")
-                        ),
-                        "name": acct.get(
-                            "name", raw_acc.get("name", "")
-                        ),
-                        "custom_name": assignment.get(
-                            "custom_name", ""
-                        ),
-                        "institution": pending_auth.get(
-                            "institution_name", ""
-                        ),
-                        "institution_id": pending_auth.get(
-                            "institution_id", ""
-                        ),
-                        "logo": pending_auth.get(
-                            "institution_logo", ""
-                        ),
+                        "iban": acct.get("iban", raw_acc.get("iban", "")),
+                        "name": acct.get("name", raw_acc.get("name", "")),
+                        "custom_name": assignment.get("custom_name", ""),
+                        "institution": pending_auth.get("institution_name", ""),
+                        "institution_id": pending_auth.get("institution_id", ""),
+                        "logo": pending_auth.get("institution_logo", ""),
                         "currency": acct.get(
                             "currency",
                             raw_acc.get("currency", "EUR"),
@@ -444,41 +392,34 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
             cred_mgr = CredentialManager(hass)
             await cred_mgr.async_initialize()
 
-            valid_until = (
-                datetime.now() + timedelta(days=SESSION_MAX_DAYS)
-            ).isoformat()
+            valid_until = (datetime.now() + timedelta(days=SESSION_MAX_DAYS)).isoformat()
             if session_id:
-                await cred_mgr.async_store_session(
-                    session_id, valid_until
-                )
+                await cred_mgr.async_store_session(session_id, valid_until)
 
             # Update config entry — merge with existing data to
             # preserve accounts from previously connected banks.
             entry = hass.data.get(DOMAIN, {}).get("entry")
             if entry:
-                institution_name = pending_auth.get(
-                    "institution_name", ""
-                )
-                institution_id = pending_auth.get(
-                    "institution_id", ""
-                )
+                institution_name = pending_auth.get("institution_name", "")
+                institution_id = pending_auth.get("institution_id", "")
 
                 # Merge accounts: keep existing accounts from other
                 # banks, replace accounts that share the same
                 # institution_id (re-auth of same bank).
                 existing_accounts = list(entry.data.get("accounts", []))
                 existing_accounts = [
-                    acc for acc in existing_accounts
-                    if acc.get("institution_id") != institution_id
+                    acc for acc in existing_accounts if acc.get("institution_id") != institution_id
                 ]
                 merged_accounts = existing_accounts + account_config
 
                 # Build multi-bank title
-                bank_names = sorted({
-                    acc.get("institution", "")
-                    for acc in merged_accounts
-                    if acc.get("institution")
-                })
+                bank_names = sorted(
+                    {
+                        acc.get("institution", "")
+                        for acc in merged_accounts
+                        if acc.get("institution")
+                    }
+                )
                 title = (
                     f"Finance ({', '.join(bank_names)})"
                     if bank_names
@@ -486,9 +427,7 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                 )
 
                 # Merge sessions: store one session_id per bank
-                existing_sessions = dict(
-                    entry.data.get("sessions", {})
-                )
+                existing_sessions = dict(entry.data.get("sessions", {}))
                 existing_sessions[institution_id] = session_id
 
                 hass.config_entries.async_update_entry(
@@ -499,9 +438,7 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                         "configured": True,
                         "institution_id": institution_id,
                         "institution_name": institution_name,
-                        "institution_logo": pending_auth.get(
-                            "institution_logo", ""
-                        ),
+                        "institution_logo": pending_auth.get("institution_logo", ""),
                         "session_id": session_id,
                         "sessions": existing_sessions,
                         "accounts": merged_accounts,
@@ -529,18 +466,14 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
 
                 await _aio.sleep(1)
                 try:
-                    await hass.config_entries.async_reload(
-                        entry.entry_id
-                    )
+                    await hass.config_entries.async_reload(entry.entry_id)
                 except Exception:
                     _LOGGER.exception("Deferred entry reload failed")
                     return
                 try:
                     domain_data = hass.data.get(DOMAIN, {})
                     new_manager = domain_data.get(entry.entry_id)
-                    coordinator = domain_data.get(
-                        f"{entry.entry_id}_coordinator"
-                    )
+                    coordinator = domain_data.get(f"{entry.entry_id}_coordinator")
                     if new_manager is not None:
                         # Explicit live fetch — the setup wizard click
                         # is the user-initiated trigger. Populates both
@@ -550,13 +483,9 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                         # Push the fresh cache through the coordinator so
                         # all entities pick up the new values at once.
                         await coordinator.async_refresh()
-                    _LOGGER.info(
-                        "Initial post-setup refresh completed"
-                    )
+                    _LOGGER.info("Initial post-setup refresh completed")
                 except Exception:
-                    _LOGGER.exception(
-                        "Initial post-setup refresh failed"
-                    )
+                    _LOGGER.exception("Initial post-setup refresh failed")
 
             hass.async_create_task(_deferred_reload())
 
@@ -585,16 +514,12 @@ class FinanceDashboardSetupUpdateAccountsView(HomeAssistantView):
         entry = hass.data.get(DOMAIN, {}).get("entry")
 
         if not entry:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
+            return self.json({"error": "Not configured"}, status_code=404)
 
         try:
             body = await request.json()
         except Exception:
-            return self.json(
-                {"error": "Invalid JSON body"}, status_code=400
-            )
+            return self.json({"error": "Invalid JSON body"}, status_code=400)
 
         updates = body.get("accounts", [])
         if not updates:
@@ -623,9 +548,7 @@ class FinanceDashboardSetupUpdateAccountsView(HomeAssistantView):
 
         # Update config entry
         new_data = {**entry.data, "accounts": existing}
-        hass.config_entries.async_update_entry(
-            entry, data=new_data
-        )
+        hass.config_entries.async_update_entry(entry, data=new_data)
 
         # Update manager if running
         manager = _get_manager(hass)
@@ -660,12 +583,8 @@ class FinanceDashboardOAuthCallbackView(HomeAssistantView):
         if state_param:
             state_valid = await _validate_oauth_state(hass, state_param)
             if not state_valid:
-                _LOGGER.error(
-                    "OAuth callback rejected: invalid or expired state parameter"
-                )
-                return self.json(
-                    {"ok": False, "error": "invalid_state"}, status_code=400
-                )
+                _LOGGER.error("OAuth callback rejected: invalid or expired state parameter")
+                return self.json({"ok": False, "error": "invalid_state"}, status_code=400)
         else:
             _LOGGER.warning(
                 "OAuth callback received without state parameter — "
@@ -676,14 +595,10 @@ class FinanceDashboardOAuthCallbackView(HomeAssistantView):
         if code:
             hass.data.setdefault(DOMAIN, {})
             hass.data[DOMAIN]["pending_auth_code"] = code
-            _LOGGER.info(
-                "OAuth callback received with authorization code"
-            )
+            _LOGGER.info("OAuth callback received with authorization code")
 
             # Check if this is a panel-driven flow
-            pending_setup = hass.data.get(DOMAIN, {}).get(
-                "pending_setup_auth"
-            )
+            pending_setup = hass.data.get(DOMAIN, {}).get("pending_setup_auth")
             if pending_setup:
                 # Panel flow — also fetch accounts for the wizard.
                 # On failure, store the error so /setup/status can
@@ -695,50 +610,36 @@ class FinanceDashboardOAuthCallbackView(HomeAssistantView):
                     accounts = session_data.get("accounts", [])
                     if not accounts:
                         hass.data[DOMAIN]["pending_setup_error"] = (
-                            "Bank hat keine Konten zurückgegeben. "
-                            "Bitte Bankvertrag/Konsent prüfen."
+                            "Bank hat keine Konten zurückgegeben. Bitte Bankvertrag/Konsent prüfen."
                         )
                     else:
                         hass.data[DOMAIN]["pending_accounts"] = accounts
-                        hass.data[DOMAIN]["pending_session_id"] = (
-                            session_data.get("session_id", "")
-                        )
+                        hass.data[DOMAIN]["pending_session_id"] = session_data.get("session_id", "")
                 except Exception as exc:
                     from ..enablebanking_client import RateLimitExceeded
+
                     if isinstance(exc, RateLimitExceeded):
-                        hass.data[DOMAIN]["pending_setup_error"] = (
-                            f"API-Tageslimit erreicht: {exc}"
-                        )
+                        hass.data[DOMAIN]["pending_setup_error"] = f"API-Tageslimit erreicht: {exc}"
                     elif isinstance(exc, RuntimeError):
                         hass.data[DOMAIN]["pending_setup_error"] = (
-                            "Keine API-Credentials gespeichert — "
-                            "Integration neu einrichten."
+                            "Keine API-Credentials gespeichert — Integration neu einrichten."
                         )
                     else:
-                        _LOGGER.exception(
-                            "Failed to fetch accounts after OAuth callback"
-                        )
+                        _LOGGER.exception("Failed to fetch accounts after OAuth callback")
                         hass.data[DOMAIN]["pending_setup_error"] = (
-                            f"Session-Erstellung fehlgeschlagen: "
-                            f"{str(exc)[:300]}"
+                            f"Session-Erstellung fehlgeschlagen: {str(exc)[:300]}"
                         )
             else:
                 # Legacy config flow — resume it
-                pending_auth = hass.data.get(DOMAIN, {}).get(
-                    "pending_auth"
-                )
+                pending_auth = hass.data.get(DOMAIN, {}).get("pending_auth")
                 if pending_auth and "flow_id" in pending_auth:
-                    await hass.config_entries.flow.async_configure(
-                        flow_id=pending_auth["flow_id"]
-                    )
+                    await hass.config_entries.flow.async_configure(flow_id=pending_auth["flow_id"])
                     _LOGGER.info(
                         "Config flow %s resumed after bank auth",
                         pending_auth["flow_id"],
                     )
         else:
-            _LOGGER.warning(
-                "OAuth callback received without authorization code"
-            )
+            _LOGGER.warning("OAuth callback received without authorization code")
 
         html = """<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Finance</title>
@@ -760,6 +661,4 @@ p { color: #9898a8; font-size: 14px; line-height: 1.6; }
 </div>
 </body></html>"""
 
-        return web.Response(
-            text=html, content_type="text/html", status=200
-        )
+        return web.Response(text=html, content_type="text/html", status=200)

@@ -10,7 +10,7 @@ Handles:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     pass
@@ -36,15 +36,9 @@ class PersistenceMixin:
                 # something useful if rolled back.
                 "transactions": self._transactions,
                 "balances": self._balances,
-                "last_refresh": (
-                    self._last_refresh.isoformat()
-                    if self._last_refresh
-                    else None
-                ),
+                "last_refresh": (self._last_refresh.isoformat() if self._last_refresh else None),
                 "rate_limited_until": (
-                    self._rate_limited_until.isoformat()
-                    if self._rate_limited_until
-                    else None
+                    self._rate_limited_until.isoformat() if self._rate_limited_until else None
                 ),
                 "last_refresh_stats": self._last_refresh_stats,
                 "account_count": len(self._accounts),
@@ -61,9 +55,7 @@ class PersistenceMixin:
             return data
         return {}
 
-    def _raise_storage_corrupt_issue(
-        self, storage_key: str, error_class: str
-    ) -> None:
+    def _raise_storage_corrupt_issue(self, storage_key: str, error_class: str) -> None:
         """Raise a Repair issue for a corrupt .storage/ file (R8).
 
         Only the storage key name and Python exception class are included
@@ -75,6 +67,7 @@ class PersistenceMixin:
         """
         try:
             from homeassistant.helpers import issue_registry as ir
+
             from ..const import DOMAIN
 
             ir.async_create_issue(
@@ -91,6 +84,4 @@ class PersistenceMixin:
                 },
             )
         except Exception:
-            _LOGGER.debug(
-                "Could not create storage_corrupt repair issue", exc_info=True
-            )
+            _LOGGER.debug("Could not create storage_corrupt repair issue", exc_info=True)

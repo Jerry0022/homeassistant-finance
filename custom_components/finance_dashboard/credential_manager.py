@@ -11,28 +11,22 @@ SECURITY ARCHITECTURE:
 
 from __future__ import annotations
 
-import json
 import logging
 import time
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import datetime
 from typing import Any
 
 from cryptography.fernet import Fernet, MultiFernet
-
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .const import (
     AUDIT_MAX_ENTRIES,
-    DOMAIN,
+    SESSION_TIMEOUT_MINUTES,
     STORAGE_KEY_AUDIT,
     STORAGE_KEY_CREDENTIALS,
     STORAGE_KEY_TOKENS,
     STORAGE_VERSION,
-    TOKEN_MAX_AGE_DAYS,
-    SESSION_MAX_DAYS,
-    SESSION_TIMEOUT_MINUTES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -56,17 +50,11 @@ class CredentialManager:
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize credential manager."""
         self._hass = hass
-        self._cred_store = Store(
-            hass, STORAGE_VERSION, STORAGE_KEY_CREDENTIALS
-        )
-        self._token_store = Store(
-            hass, STORAGE_VERSION, STORAGE_KEY_TOKENS
-        )
+        self._cred_store = Store(hass, STORAGE_VERSION, STORAGE_KEY_CREDENTIALS)
+        self._token_store = Store(hass, STORAGE_VERSION, STORAGE_KEY_TOKENS)
         # Single Store instance reused by every _audit_log() call to avoid
         # creating a new Store object on every audit write (performance).
-        self._audit_store = Store(
-            hass, STORAGE_VERSION, STORAGE_KEY_AUDIT
-        )
+        self._audit_store = Store(hass, STORAGE_VERSION, STORAGE_KEY_AUDIT)
         self._fernet: MultiFernet | None = None
         self._last_activity: float = 0
         self._session_active: bool = False
@@ -141,7 +129,7 @@ class CredentialManager:
         }
 
         # Prepend new key (becomes primary), prune history
-        keys = [new_entry] + keys
+        keys = [new_entry, *keys]
         keys = keys[: self._MAX_KEY_HISTORY]
 
         key_data["keys"] = keys
@@ -160,9 +148,7 @@ class CredentialManager:
         """Build a MultiFernet from the ordered key list."""
         return MultiFernet([Fernet(k["key"].encode()) for k in keys])
 
-    async def async_store_api_credentials(
-        self, application_id: str, private_key_pem: str
-    ) -> None:
+    async def async_store_api_credentials(self, application_id: str, private_key_pem: str) -> None:
         """Store Enable Banking API credentials (encrypted)."""
         self._ensure_initialized()
         encrypted_id = self._fernet.encrypt(application_id.encode()).decode()
@@ -211,15 +197,11 @@ class CredentialManager:
             await self._audit_log("api_credentials_decrypt_failed")
             return None
 
-    async def async_store_session(
-        self, session_id: str, valid_until: str
-    ) -> None:
+    async def async_store_session(self, session_id: str, valid_until: str) -> None:
         """Store Enable Banking session (encrypted)."""
         self._ensure_initialized()
         token_data = await self._token_store.async_load() or {}
-        token_data["eb_session_id"] = self._fernet.encrypt(
-            session_id.encode()
-        ).decode()
+        token_data["eb_session_id"] = self._fernet.encrypt(session_id.encode()).decode()
         token_data["eb_session_valid_until"] = valid_until  # ISO datetime string, not secret
         token_data["eb_session_stored_at"] = datetime.now().isoformat()
         await self._token_store.async_save(token_data)
@@ -250,9 +232,7 @@ class CredentialManager:
             return None
 
         try:
-            session_id = self._fernet.decrypt(
-                encrypted_session.encode()
-            ).decode()
+            session_id = self._fernet.decrypt(encrypted_session.encode()).decode()
             self._touch_session()
             await self._audit_log("session_accessed")
             return {"session_id": session_id, "valid_until": valid_until}
@@ -266,9 +246,7 @@ class CredentialManager:
         await self._audit_log("all_credentials_cleared")
         _LOGGER.info("All credentials cleared")
 
-    async def async_get_audit_log(
-        self, limit: int = 50
-    ) -> list[dict[str, Any]]:
+    async def async_get_audit_log(self, limit: int = 50) -> list[dict[str, Any]]:
         """Get recent audit log entries."""
         data = await self._audit_store.async_load() or {"entries": []}
         return data["entries"][-limit:]
@@ -276,9 +254,7 @@ class CredentialManager:
     def _ensure_initialized(self) -> None:
         """Ensure the credential manager is initialized."""
         if self._fernet is None:
-            raise RuntimeError(
-                "CredentialManager not initialized. Call async_initialize() first."
-            )
+            raise RuntimeError("CredentialManager not initialized. Call async_initialize() first.")
 
     def _touch_session(self) -> None:
         """Update last activity timestamp."""

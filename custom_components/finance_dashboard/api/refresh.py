@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 
 from aiohttp import web
-
 from homeassistant.components.http import HomeAssistantView
 
 from ..const import DOMAIN
@@ -71,16 +70,12 @@ class FinanceDashboardRefreshTriggerView(HomeAssistantView):
         # /balances, /summary, /transactions (aggregate view).
         user = request.get("hass_user")
         if not user or not user.is_admin:
-            return self.json(
-                {"ok": False, "error": "admin_required"}, status_code=403
-            )
+            return self.json({"ok": False, "error": "admin_required"}, status_code=403)
 
         manager = _get_manager(hass)
 
         if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
+            return self.json({"error": "Not configured"}, status_code=404)
 
         # Short-circuit when already rate-limited so the UI can show a
         # clear message instead of waiting for an HTTP 429 round-trip.
@@ -117,16 +112,12 @@ class FinanceDashboardRefreshTriggerView(HomeAssistantView):
         domain_data = hass.data.get(DOMAIN, {})
         entry = domain_data.get("entry")
         if entry:
-            coordinator = domain_data.get(
-                f"{entry.entry_id}_coordinator"
-            )
+            coordinator = domain_data.get(f"{entry.entry_id}_coordinator")
             if coordinator:
                 try:
                     await coordinator.async_refresh()
                 except Exception:
-                    _LOGGER.exception(
-                        "Coordinator refresh after live fetch failed"
-                    )
+                    _LOGGER.exception("Coordinator refresh after live fetch failed")
 
         status = manager.get_refresh_status()
         return self.json({"ok": True, "status": status})

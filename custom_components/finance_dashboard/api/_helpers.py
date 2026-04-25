@@ -7,7 +7,7 @@ used across multiple view modules.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -57,9 +57,10 @@ async def _validate_oauth_state(hass: HomeAssistant, state: str) -> bool:
         return False
 
     # Expire old entries
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     expired = [
-        s for s, created in oauth_states.items()
+        s
+        for s, created in oauth_states.items()
         if (now - datetime.fromisoformat(created)).total_seconds() > _OAUTH_STATE_TTL
     ]
     for s in expired:
@@ -96,9 +97,7 @@ async def _get_setup_client(hass: HomeAssistant):
     # --- Rate-limit gate via manager (preferred) ---
     manager = _get_manager(hass)
     if manager is not None and manager.rate_limited_until:
-        raise RateLimitExceeded(
-            f"API rate-limited until {manager.rate_limited_until.isoformat()}"
-        )
+        raise RateLimitExceeded(f"API rate-limited until {manager.rate_limited_until.isoformat()}")
 
     # --- Credentials ---
     from ..credential_manager import CredentialManager

@@ -23,8 +23,6 @@ from homeassistant.core import HomeAssistant, SupportsResponse
 from .const import (
     DOMAIN,
     SERVICE_TOGGLE_DEMO,
-    STORAGE_KEY_AUDIT,
-    STORAGE_VERSION,
 )
 
 PLATFORMS: list[Platform] = [
@@ -44,9 +42,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     return True
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: FinanceDashboardConfigEntry
-) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEntry) -> bool:
     """Set up Finance Dashboard from a config entry."""
     # Restart notification via ha-customapps (marker polling + Repairs issue)
     notifier = RestartNotifier(hass, DOMAIN)
@@ -115,13 +111,9 @@ async def async_setup_entry(
     return True
 
 
-async def async_unload_entry(
-    hass: HomeAssistant, entry: FinanceDashboardConfigEntry
-) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEntry) -> bool:
     """Unload a config entry."""
-    unload_ok = await hass.config_entries.async_unload_platforms(
-        entry, PLATFORMS
-    )
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
         manager = hass.data[DOMAIN].pop(entry.entry_id, None)
         hass.data[DOMAIN].pop(f"{entry.entry_id}_coordinator", None)
@@ -133,18 +125,16 @@ async def async_unload_entry(
     return unload_ok
 
 
-async def _async_register_services(
-    hass: HomeAssistant, manager, coordinator
-) -> None:
+async def _async_register_services(hass: HomeAssistant, manager, coordinator) -> None:
     """Register integration services."""
     from .const import (
-        SERVICE_REFRESH_ACCOUNTS,
-        SERVICE_REFRESH_TRANSACTIONS,
+        SERVICE_CATEGORIZE,
+        SERVICE_EXPORT_CSV,
         SERVICE_GET_BALANCE,
         SERVICE_GET_SUMMARY,
-        SERVICE_CATEGORIZE,
+        SERVICE_REFRESH_ACCOUNTS,
+        SERVICE_REFRESH_TRANSACTIONS,
         SERVICE_SET_BUDGET_LIMIT,
-        SERVICE_EXPORT_CSV,
     )
 
     async def handle_refresh_accounts(call) -> dict:
@@ -156,9 +146,7 @@ async def _async_register_services(
         try:
             await coordinator.async_refresh()
         except Exception:
-            _LOGGER.exception(
-                "Coordinator refresh after refresh_accounts failed"
-            )
+            _LOGGER.exception("Coordinator refresh after refresh_accounts failed")
         return manager.get_refresh_status()
 
     async def handle_refresh_transactions(call) -> dict:
@@ -211,13 +199,12 @@ async def _async_register_services(
             manager._demo_backup_tx_by_account = dict(manager._tx_by_account)
             manager._demo_backup_balances = dict(manager._balances)
             manager._demo_backup_last_refresh = manager._last_refresh
-        else:
-            # Restore real data when disabling demo
-            if hasattr(manager, "_demo_backup_transactions"):
-                manager._transactions = manager._demo_backup_transactions
-                manager._tx_by_account = manager._demo_backup_tx_by_account
-                manager._balances = manager._demo_backup_balances
-                manager._last_refresh = manager._demo_backup_last_refresh
+        # Restore real data when disabling demo
+        elif hasattr(manager, "_demo_backup_transactions"):
+            manager._transactions = manager._demo_backup_transactions
+            manager._tx_by_account = manager._demo_backup_tx_by_account
+            manager._balances = manager._demo_backup_balances
+            manager._last_refresh = manager._demo_backup_last_refresh
         manager.set_demo_mode(enabled)
         await coordinator.async_refresh()
 
@@ -233,21 +220,9 @@ async def _async_register_services(
         handle_refresh_transactions,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
-        DOMAIN, SERVICE_GET_BALANCE, handle_get_balance
-    )
-    hass.services.async_register(
-        DOMAIN, SERVICE_GET_SUMMARY, handle_get_summary
-    )
-    hass.services.async_register(
-        DOMAIN, SERVICE_CATEGORIZE, handle_categorize
-    )
-    hass.services.async_register(
-        DOMAIN, SERVICE_SET_BUDGET_LIMIT, handle_set_budget_limit
-    )
-    hass.services.async_register(
-        DOMAIN, SERVICE_EXPORT_CSV, handle_export_csv
-    )
-    hass.services.async_register(
-        DOMAIN, SERVICE_TOGGLE_DEMO, handle_toggle_demo
-    )
+    hass.services.async_register(DOMAIN, SERVICE_GET_BALANCE, handle_get_balance)
+    hass.services.async_register(DOMAIN, SERVICE_GET_SUMMARY, handle_get_summary)
+    hass.services.async_register(DOMAIN, SERVICE_CATEGORIZE, handle_categorize)
+    hass.services.async_register(DOMAIN, SERVICE_SET_BUDGET_LIMIT, handle_set_budget_limit)
+    hass.services.async_register(DOMAIN, SERVICE_EXPORT_CSV, handle_export_csv)
+    hass.services.async_register(DOMAIN, SERVICE_TOGGLE_DEMO, handle_toggle_demo)

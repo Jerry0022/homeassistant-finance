@@ -18,18 +18,17 @@ import logging
 import re
 import secrets
 import time
-from typing import Any
-
 import uuid
+from typing import Any
 
 import aiohttp
 import jwt
 from cryptography.hazmat.primitives import serialization
 
+from .const import ENABLEBANKING_BASE_URL, VERSION
+
 # Type alias for optional injected session
 _SessionType = aiohttp.ClientSession | None
-
-from .const import DOMAIN, ENABLEBANKING_BASE_URL, VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,9 +36,9 @@ _LOGGER = logging.getLogger(__name__)
 # Log sanitizer — strips PII from error response bodies before any logging.
 # ---------------------------------------------------------------------------
 
-_RE_IBAN = re.compile(r'\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7,25}\b')
-_RE_ACCOUNT_ID = re.compile(r'\b\d{16,19}\b')
-_RE_AMOUNT = re.compile(r'\b\d+[.,]\d{2}\s*(?:EUR|€)\b', re.IGNORECASE)
+_RE_IBAN = re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7,25}\b")
+_RE_ACCOUNT_ID = re.compile(r"\b\d{16,19}\b")
+_RE_AMOUNT = re.compile(r"\b\d+[.,]\d{2}\s*(?:EUR|€)\b", re.IGNORECASE)
 
 
 def _sanitize_log(text: str) -> str:
@@ -102,22 +101,16 @@ class EnableBankingClient:
         """
         self._application_id = application_id
         pem_bytes = (
-            private_key_pem.encode()
-            if isinstance(private_key_pem, str)
-            else private_key_pem
+            private_key_pem.encode() if isinstance(private_key_pem, str) else private_key_pem
         )
         try:
-            self._private_key = serialization.load_pem_private_key(
-                pem_bytes, password=None
-            )
+            self._private_key = serialization.load_pem_private_key(pem_bytes, password=None)
         except (ValueError, TypeError):
             # PEM may have lost newlines — try to reconstruct
             _LOGGER.debug("PEM load failed, attempting newline reconstruction")
             pem_str = pem_bytes.decode() if isinstance(pem_bytes, bytes) else pem_bytes
             pem_str = self._reconstruct_pem(pem_str)
-            self._private_key = serialization.load_pem_private_key(
-                pem_str.encode(), password=None
-            )
+            self._private_key = serialization.load_pem_private_key(pem_str.encode(), password=None)
         # Session management: injected → caller-owned; None → we own it.
         self._session: aiohttp.ClientSession | None = session
         self._session_owner: bool = session is None  # True → we must close
@@ -143,10 +136,7 @@ class EnableBankingClient:
         raw = raw.replace("\\n", "\n")
         # C9: detect key type BEFORE stripping markers — once the header
         # lines are removed the type information is gone.
-        is_pkcs1 = (
-            "RSA PRIVATE KEY" in raw
-            or "BEGIN RSA PRIVATE KEY" in raw
-        )
+        is_pkcs1 = "RSA PRIVATE KEY" in raw or "BEGIN RSA PRIVATE KEY" in raw
         # Strip all known PEM header/footer lines.
         for marker in (
             "-----BEGIN PRIVATE KEY-----",
@@ -181,9 +171,7 @@ class EnableBankingClient:
             _LOGGER.exception("Enable Banking connection test failed")
             return False
 
-    async def async_get_institutions(
-        self, country: str = "DE"
-    ) -> list[dict[str, Any]]:
+    async def async_get_institutions(self, country: str = "DE") -> list[dict[str, Any]]:
         """Get available banks (ASPSPs) for a country.
 
         Args:
@@ -193,9 +181,7 @@ class EnableBankingClient:
             List of institution dicts with keys: id, name, bic, logo, countries
             (normalized from Enable Banking ASPSP format).
         """
-        result = await self._async_request(
-            "GET", f"/aspsps?country={country}"
-        )
+        result = await self._async_request("GET", f"/aspsps?country={country}")
         aspsps = result if isinstance(result, list) else result.get("aspsps", [])
         return [self._normalize_institution(a) for a in aspsps]
 
@@ -233,19 +219,13 @@ class EnableBankingClient:
         if valid_until:
             payload["access"] = {"valid_until": valid_until}
 
-        result = await self._async_request(
-            "POST", "/auth", json=payload
-        )
+        result = await self._async_request("POST", "/auth", json=payload)
         return {
             "url": result.get("url", ""),
-            "auth_id": result.get(
-                "authorization_id", result.get("auth_id", "")
-            ),
+            "auth_id": result.get("authorization_id", result.get("auth_id", "")),
         }
 
-    async def async_create_session(
-        self, auth_code: str
-    ) -> dict[str, Any]:
+    async def async_create_session(self, auth_code: str) -> dict[str, Any]:
         """Exchange authorization code for a session.
 
         Args:
@@ -256,9 +236,7 @@ class EnableBankingClient:
             - session_id: Enable Banking session identifier
             - accounts: list of {id, iban, name, currency}
         """
-        result = await self._async_request(
-            "POST", "/sessions", json={"code": auth_code}
-        )
+        result = await self._async_request("POST", "/sessions", json={"code": auth_code})
 
         session_id = result.get("session_id", result.get("id", ""))
         raw_accounts = result.get("accounts", [])
@@ -272,18 +250,18 @@ class EnableBankingClient:
                 if isinstance(account_id_obj, dict)
                 else acct.get("iban", "")
             )
-            accounts.append({
-                "id": acct.get("uid", acct.get("id", "")),
-                "iban": iban,
-                "name": acct.get("account_name", acct.get("name", "")),
-                "currency": acct.get("currency", "EUR"),
-            })
+            accounts.append(
+                {
+                    "id": acct.get("uid", acct.get("id", "")),
+                    "iban": iban,
+                    "name": acct.get("account_name", acct.get("name", "")),
+                    "currency": acct.get("currency", "EUR"),
+                }
+            )
 
         return {"session_id": session_id, "accounts": accounts}
 
-    async def async_get_account_details(
-        self, account_id: str
-    ) -> dict[str, Any]:
+    async def async_get_account_details(self, account_id: str) -> dict[str, Any]:
         """Get account metadata.
 
         Args:
@@ -293,9 +271,7 @@ class EnableBankingClient:
             Dict normalized to GoCardless format:
             {account: {iban, name, currency, ...}}
         """
-        result = await self._async_request(
-            "GET", f"/accounts/{account_id}"
-        )
+        result = await self._async_request("GET", f"/accounts/{account_id}")
         acct = result if "iban" in result else result.get("account", result)
         return {
             "account": {
@@ -372,18 +348,13 @@ class EnableBankingClient:
         )
 
         transactions = (
-            result if isinstance(result, dict) and ("booked" in result or "pending" in result)
+            result
+            if isinstance(result, dict) and ("booked" in result or "pending" in result)
             else result.get("transactions", {})
         )
 
-        booked = [
-            self._normalize_transaction(t)
-            for t in transactions.get("booked", [])
-        ]
-        pending = [
-            self._normalize_transaction(t)
-            for t in transactions.get("pending", [])
-        ]
+        booked = [self._normalize_transaction(t) for t in transactions.get("booked", [])]
+        pending = [self._normalize_transaction(t) for t in transactions.get("pending", [])]
         return {"booked": booked, "pending": pending}
 
     # ------------------------------------------------------------------
@@ -402,9 +373,7 @@ class EnableBankingClient:
         debtor = txn.get("debtor")
 
         return {
-            "transactionId": txn.get(
-                "entry_reference", txn.get("transaction_id", "")
-            ),
+            "transactionId": txn.get("entry_reference", txn.get("transaction_id", "")),
             "bookingDate": txn.get("booking_date", ""),
             "bookingDateTime": txn.get("booking_date_time", ""),
             "valueDate": txn.get("value_date", ""),
@@ -418,9 +387,7 @@ class EnableBankingClient:
                 else txn.get("creditor_name", "")
             ),
             "debtorName": (
-                debtor.get("name", "")
-                if isinstance(debtor, dict)
-                else txn.get("debtor_name", "")
+                debtor.get("name", "") if isinstance(debtor, dict) else txn.get("debtor_name", "")
             ),
             "remittanceInformationUnstructured": (
                 txn.get("remittance_information", "")
@@ -526,51 +493,51 @@ class EnableBankingClient:
         async with self._session.request(
             method, url, headers=headers, timeout=timeout, **kwargs
         ) as resp:
-                _LOGGER.debug(
-                    "Enable Banking response: HTTP %s for %s %s",
+            _LOGGER.debug(
+                "Enable Banking response: HTTP %s for %s %s",
+                resp.status,
+                method,
+                url,
+            )
+            if not resp.ok:
+                body = await resp.text()
+                # Log only sanitized form at ERROR level to prevent PII
+                # (IBANs, account IDs, amounts) reaching the HA log file.
+                _LOGGER.error(
+                    "Enable Banking API error: HTTP %s %s %s",
                     resp.status,
                     method,
-                    url,
+                    endpoint,
                 )
-                if not resp.ok:
-                    body = await resp.text()
-                    # Log only sanitized form at ERROR level to prevent PII
-                    # (IBANs, account IDs, amounts) reaching the HA log file.
-                    _LOGGER.error(
-                        "Enable Banking API error: HTTP %s %s %s",
-                        resp.status,
-                        method,
-                        endpoint,
+                _LOGGER.debug(
+                    "Enable Banking error body (sanitized): %s",
+                    _sanitize_log(body[:500]),
+                )
+                # Daily consent quota exhausted — signal callers to
+                # stop retrying and serve cached data until tomorrow.
+                # Honor the Retry-After header when present so the
+                # reset time can be earlier than midnight.
+                if resp.status == 429:
+                    retry_after_seconds: int | None = None
+                    raw_retry = resp.headers.get("Retry-After")
+                    if raw_retry:
+                        try:
+                            retry_after_seconds = int(raw_retry)
+                        except (ValueError, TypeError):
+                            _LOGGER.debug(
+                                "Could not parse Retry-After header: %s",
+                                raw_retry,
+                            )
+                    raise RateLimitExceeded(
+                        "Daily API quota exhausted (HTTP 429)",
+                        retry_after_seconds,
                     )
-                    _LOGGER.debug(
-                        "Enable Banking error body (sanitized): %s",
-                        _sanitize_log(body[:500]),
-                    )
-                    # Daily consent quota exhausted — signal callers to
-                    # stop retrying and serve cached data until tomorrow.
-                    # Honor the Retry-After header when present so the
-                    # reset time can be earlier than midnight.
-                    if resp.status == 429:
-                        retry_after_seconds: int | None = None
-                        raw_retry = resp.headers.get("Retry-After")
-                        if raw_retry:
-                            try:
-                                retry_after_seconds = int(raw_retry)
-                            except (ValueError, TypeError):
-                                _LOGGER.debug(
-                                    "Could not parse Retry-After header: %s",
-                                    raw_retry,
-                                )
-                        raise RateLimitExceeded(
-                            "Daily API quota exhausted (HTTP 429)",
-                            retry_after_seconds,
-                        )
-                    # Include a sanitized excerpt in the exception message
-                    # so callers can surface a safe error to the user.
-                    raise aiohttp.ClientResponseError(
-                        resp.request_info,
-                        resp.history,
-                        status=resp.status,
-                        message=_sanitize_log(body[:500]),
-                    )
-                return await resp.json()
+                # Include a sanitized excerpt in the exception message
+                # so callers can surface a safe error to the user.
+                raise aiohttp.ClientResponseError(
+                    resp.request_info,
+                    resp.history,
+                    status=resp.status,
+                    message=_sanitize_log(body[:500]),
+                )
+            return await resp.json()

@@ -22,8 +22,20 @@ jobs:
       - name: Install test dependencies
         run: pip install -r requirements_test.txt
 
-      - name: Run pytest
-        run: pytest tests/ -v
+      - name: Run pytest with coverage
+        run: |
+          pytest tests/ -v \
+            --cov=custom_components/finance_dashboard \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term-missing
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 7
 
   validate:
     runs-on: ubuntu-latest

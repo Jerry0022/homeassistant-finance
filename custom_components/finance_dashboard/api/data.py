@@ -14,7 +14,6 @@ from __future__ import annotations
 import logging
 
 from aiohttp import web
-
 from homeassistant.components.http import HomeAssistantView
 
 from ..const import DOMAIN
@@ -36,9 +35,7 @@ class FinanceDashboardBalanceView(HomeAssistantView):
         manager = _get_manager(hass)
 
         if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
+            return self.json({"error": "Not configured"}, status_code=404)
 
         balances = await manager.async_get_balance()
 
@@ -73,9 +70,7 @@ class FinanceDashboardTransactionsView(HomeAssistantView):
         manager = _get_manager(hass)
 
         if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
+            return self.json({"error": "Not configured"}, status_code=404)
 
         user = request.get("hass_user")
         is_admin = user and user.is_admin if user else False
@@ -88,12 +83,8 @@ class FinanceDashboardTransactionsView(HomeAssistantView):
                     "message": "Individual transactions require admin access.",
                     "categories": summary.get("categories", {}),
                     "total_income": summary.get("total_income", 0),
-                    "total_expenses": summary.get(
-                        "total_expenses", 0
-                    ),
-                    "transaction_count": summary.get(
-                        "transaction_count", 0
-                    ),
+                    "total_expenses": summary.get("total_expenses", 0),
+                    "transaction_count": summary.get("transaction_count", 0),
                 }
             )
 
@@ -103,15 +94,9 @@ class FinanceDashboardTransactionsView(HomeAssistantView):
         for txn in transactions:
             entry = {
                 "date": txn.get("bookingDate", ""),
-                "amount": txn.get("transactionAmount", {}).get(
-                    "amount", "0"
-                ),
-                "currency": txn.get("transactionAmount", {}).get(
-                    "currency", "EUR"
-                ),
-                "description": txn.get(
-                    "remittanceInformationUnstructured", ""
-                ),
+                "amount": txn.get("transactionAmount", {}).get("amount", "0"),
+                "currency": txn.get("transactionAmount", {}).get("currency", "EUR"),
+                "description": txn.get("remittanceInformationUnstructured", ""),
                 "creditor": txn.get("creditorName", ""),
                 "category": txn.get("category", "other"),
                 "status": txn.get("_status", "booked"),
@@ -122,15 +107,9 @@ class FinanceDashboardTransactionsView(HomeAssistantView):
             chain_id = txn.get("_transfer_chain_id")
             if chain_id:
                 entry["transfer_chain_id"] = chain_id
-                entry["transfer_role"] = txn.get(
-                    "_transfer_role", ""
-                )
-                entry["transfer_confidence"] = txn.get(
-                    "_transfer_confidence"
-                )
-                entry["transfer_confirmed"] = txn.get(
-                    "_transfer_confirmed"
-                )
+                entry["transfer_role"] = txn.get("_transfer_role", "")
+                entry["transfer_confidence"] = txn.get("_transfer_confidence")
+                entry["transfer_confirmed"] = txn.get("_transfer_confirmed")
 
             # Refund metadata
             refund_id = txn.get("_refund_pair_id")
@@ -140,9 +119,7 @@ class FinanceDashboardTransactionsView(HomeAssistantView):
 
             sanitized.append(entry)
 
-        return self.json(
-            {"privacy": "admin_full", "transactions": sanitized}
-        )
+        return self.json({"privacy": "admin_full", "transactions": sanitized})
 
 
 class FinanceDashboardTransferChainsView(HomeAssistantView):
@@ -162,9 +139,7 @@ class FinanceDashboardTransferChainsView(HomeAssistantView):
         manager = _get_manager(hass)
 
         if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
+            return self.json({"error": "Not configured"}, status_code=404)
 
         user = request.get("hass_user")
         is_admin = user and user.is_admin if user else False
@@ -184,9 +159,7 @@ class FinanceDashboardTransferChainsView(HomeAssistantView):
         manager = _get_manager(hass)
 
         if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
+            return self.json({"error": "Not configured"}, status_code=404)
 
         user = request.get("hass_user")
         is_admin = user and user.is_admin if user else False
@@ -200,9 +173,7 @@ class FinanceDashboardTransferChainsView(HomeAssistantView):
         try:
             body = await request.json()
         except Exception:
-            return self.json(
-                {"error": "Invalid JSON body"}, status_code=400
-            )
+            return self.json({"error": "Invalid JSON body"}, status_code=400)
 
         chain_id = body.get("chain_id", "")
         confirmed = body.get("confirmed")
@@ -213,12 +184,8 @@ class FinanceDashboardTransferChainsView(HomeAssistantView):
                 status_code=400,
             )
 
-        await manager.async_confirm_transfer_chain(
-            chain_id, bool(confirmed)
-        )
-        return self.json(
-            {"success": True, "chain_id": chain_id}
-        )
+        await manager.async_confirm_transfer_chain(chain_id, bool(confirmed))
+        return self.json({"success": True, "chain_id": chain_id})
 
 
 class FinanceDashboardSummaryView(HomeAssistantView):
@@ -234,9 +201,7 @@ class FinanceDashboardSummaryView(HomeAssistantView):
         manager = _get_manager(hass)
 
         if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
+            return self.json({"error": "Not configured"}, status_code=404)
 
         summary = await manager.async_get_monthly_summary()
         return self.json(summary)

@@ -23,22 +23,19 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
-
 from homeassistant.util import dt as dt_util
 
 from ..const import (
     DOMAIN,
     ENABLEBANKING_RATE_LIMIT_DAILY,
     STORAGE_KEY_TRANSFER_OVERRIDES,
-    STORAGE_VERSION,
 )
-from ..enablebanking_client import RateLimitExceeded
 from ..household import HouseholdMember, HouseholdModel
 from ..transfer_detector import (
     apply_overrides,
@@ -71,12 +68,8 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         self._credential_manager = None
         self._banking_client = None
         self._categorizer = None
-        self._transaction_store = Store(
-            hass, TRANSACTION_CACHE_VERSION, TRANSACTION_CACHE_KEY
-        )
-        self._accounts: list[dict[str, Any]] = entry.data.get(
-            "accounts", []
-        )
+        self._transaction_store = Store(hass, TRANSACTION_CACHE_VERSION, TRANSACTION_CACHE_KEY)
+        self._accounts: list[dict[str, Any]] = entry.data.get("accounts", [])
         # Per-account transaction cache: account_id → list[tx].
         # Partial refresh failures only affect the failed account's slice —
         # other accounts keep their last-known data (R5 fix).
@@ -86,9 +79,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         self._balances: dict[str, Any] = {}
         self._last_refresh: datetime | None = None
         self._rate_limited_until: datetime | None = None
-        self._transfer_override_store = Store(
-            hass, 1, STORAGE_KEY_TRANSFER_OVERRIDES
-        )
+        self._transfer_override_store = Store(hass, 1, STORAGE_KEY_TRANSFER_OVERRIDES)
         self._transfer_overrides: dict[str, bool] = {}
         self._recurring_patterns: list[dict[str, Any]] = []
         self._previous_balances: dict[str, float] = {}
@@ -184,8 +175,8 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
 
     async def async_initialize(self) -> None:
         """Initialize all sub-components."""
-        from ..credential_manager import CredentialManager
         from ..categorizer import TransactionCategorizer
+        from ..credential_manager import CredentialManager
 
         self._credential_manager = CredentialManager(self._hass)
         await self._credential_manager.async_initialize()
@@ -205,23 +196,15 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
                 type(exc).__name__,
                 exc,
             )
-            self._raise_storage_corrupt_issue(
-                TRANSACTION_CACHE_KEY, type(exc).__name__
-            )
+            self._raise_storage_corrupt_issue(TRANSACTION_CACHE_KEY, type(exc).__name__)
         if cached and ("transactions" in cached or "tx_by_account" in cached):
             # R5: prefer per-account dict; fall back to flat list (migration).
             raw_tx_by_account = cached.get("tx_by_account")
             if isinstance(raw_tx_by_account, dict):
                 self._tx_by_account = raw_tx_by_account
-                self._transactions = [
-                    tx
-                    for txs in self._tx_by_account.values()
-                    for tx in txs
-                ]
+                self._transactions = [tx for txs in self._tx_by_account.values() for tx in txs]
                 # Deterministic sort after flatten
-                self._transactions.sort(
-                    key=lambda t: t.get("bookingDate", ""), reverse=True
-                )
+                self._transactions.sort(key=lambda t: t.get("bookingDate", ""), reverse=True)
             else:
                 # Migrate: old flat list → per-account dict
                 flat: list[dict[str, Any]] = cached.get("transactions", [])
@@ -294,16 +277,12 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         config-entry data so the new assignments survive an HA restart.
         """
         if not isinstance(accounts, list):
-            raise TypeError(
-                f"async_set_accounts: expected list, got {type(accounts).__name__}"
-            )
+            raise TypeError(f"async_set_accounts: expected list, got {type(accounts).__name__}")
         self._accounts = accounts
         # Mirror to config-entry data so accounts survive HA restart
         try:
             new_data = {**self._entry.data, "accounts": accounts}
-            self._hass.config_entries.async_update_entry(
-                self._entry, data=new_data
-            )
+            self._hass.config_entries.async_update_entry(self._entry, data=new_data)
         except Exception:
             _LOGGER.warning(
                 "async_set_accounts: failed to persist to config entry",
@@ -340,9 +319,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
                 acc_data["logo"] = account.get("logo", "")
                 refreshed.append(acc_data)
             except Exception:
-                _LOGGER.warning(
-                    "Failed to refresh account %s", acc_id
-                )
+                _LOGGER.warning("Failed to refresh account %s", acc_id)
                 refreshed.append(account)
 
         self._accounts = refreshed
@@ -382,25 +359,23 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         monthly_txns = [
             txn
             for txn in effective
-            if self._is_in_month(txn, target_month, target_year)
-            and txn.get("_status") == "booked"
+            if self._is_in_month(txn, target_month, target_year) and txn.get("_status") == "booked"
         ]
 
         # Count excluded transfers for transparency
         all_monthly = [
             txn
             for txn in self._transactions
-            if self._is_in_month(txn, target_month, target_year)
-            and txn.get("_status") == "booked"
+            if self._is_in_month(txn, target_month, target_year) and txn.get("_status") == "booked"
         ]
         excluded_chain_txns = [
-            txn for txn in all_monthly
+            txn
+            for txn in all_monthly
             if txn.get("_transfer_role") in ("intermediate", "destination")
             and txn.get("_transfer_confirmed") is not False
         ]
         excluded_amount = sum(
-            abs(float(t.get("transactionAmount", {}).get("amount", 0)))
-            for t in excluded_chain_txns
+            abs(float(t.get("transactionAmount", {}).get("amount", 0))) for t in excluded_chain_txns
         )
 
         # Group by category
@@ -409,9 +384,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         total_expenses = 0.0
 
         for txn in monthly_txns:
-            amount = float(
-                txn.get("transactionAmount", {}).get("amount", 0)
-            )
+            amount = float(txn.get("transactionAmount", {}).get("amount", 0))
             category = txn.get("category", "other")
 
             if amount > 0:
@@ -419,9 +392,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             else:
                 total_expenses += abs(amount)
 
-            category_totals[category] = (
-                category_totals.get(category, 0) + amount
-            )
+            category_totals[category] = category_totals.get(category, 0) + amount
 
         # Build household split data from per-person accounts
         # Graceful degradation: household features must never crash the coordinator
@@ -436,9 +407,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
 
         # Fixed vs variable costs
         fixed_cats = {"housing", "loans", "utilities", "insurance"}
-        fixed_total = sum(
-            abs(category_totals.get(c, 0)) for c in fixed_cats
-        )
+        fixed_total = sum(abs(category_totals.get(c, 0)) for c in fixed_cats)
         variable_total = total_expenses - fixed_total
 
         # Budget exceeded check — must not crash the coordinator
@@ -453,15 +422,15 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             "total_income": round(total_income, 2),
             "total_expenses": round(total_expenses, 2),
             "balance": round(total_income - total_expenses, 2),
-            "categories": {
-                k: round(v, 2) for k, v in category_totals.items()
-            },
+            "categories": {k: round(v, 2) for k, v in category_totals.items()},
             "transaction_count": len(monthly_txns),
             "excluded_transfers": {
                 "chain_count": len(
-                    {t.get("_transfer_chain_id")
-                     for t in excluded_chain_txns
-                     if t.get("_transfer_chain_id")}
+                    {
+                        t.get("_transfer_chain_id")
+                        for t in excluded_chain_txns
+                        if t.get("_transfer_chain_id")
+                    }
                 ),
                 "excluded_amount": round(excluded_amount, 2),
                 "excluded_txn_count": len(excluded_chain_txns),
@@ -480,15 +449,9 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             ],
             "fixed_costs": round(fixed_total, 2),
             "variable_costs": round(variable_total, 2),
-            "last_refresh": (
-                self._last_refresh.isoformat()
-                if self._last_refresh
-                else None
-            ),
+            "last_refresh": (self._last_refresh.isoformat() if self._last_refresh else None),
             "rate_limited_until": (
-                self._rate_limited_until.isoformat()
-                if self.rate_limited_until
-                else None
+                self._rate_limited_until.isoformat() if self.rate_limited_until else None
             ),
             "last_refresh_stats": dict(self._last_refresh_stats),
             "is_refreshing": self._refresh_in_flight,
@@ -501,13 +464,9 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         for txn in self._transactions:
             txn["category"] = self._categorizer.categorize(txn)
         await self._persist_transactions()
-        _LOGGER.info(
-            "Re-categorized %d transactions", len(self._transactions)
-        )
+        _LOGGER.info("Re-categorized %d transactions", len(self._transactions))
 
-    async def async_set_budget_limit(
-        self, category: str, limit: float
-    ) -> None:
+    async def async_set_budget_limit(self, category: str, limit: float) -> None:
         """Set a budget limit for a category via the Number entity."""
         entity_id = f"number.fd_budget_{category}"
         state = self._hass.states.get(entity_id)
@@ -517,13 +476,9 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
                 "set_value",
                 {"entity_id": entity_id, "value": limit},
             )
-            _LOGGER.info(
-                "Budget limit for %s set to %.2f", category, limit
-            )
+            _LOGGER.info("Budget limit for %s set to %.2f", category, limit)
         else:
-            _LOGGER.warning(
-                "Budget entity %s not found", entity_id
-            )
+            _LOGGER.warning("Budget entity %s not found", entity_id)
 
     async def async_export_csv(
         self,
@@ -542,9 +497,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             categories=categories,
         )
 
-    def get_cached_transactions(
-        self, limit: int = 100
-    ) -> list[dict[str, Any]]:
+    def get_cached_transactions(self, limit: int = 100) -> list[dict[str, Any]]:
         """Get cached transactions (no API call).
 
         Returns sanitized transactions for API responses.
@@ -566,25 +519,15 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         cache_age_seconds: int | None = None
         cache_is_stale: bool = False
         if self._last_refresh:
-            cache_age_seconds = int(
-                (now - self._last_refresh).total_seconds()
-            )
-            cache_is_stale = (
-                cache_age_seconds > self._CACHE_STALE_THRESHOLD_SECONDS
-            )
+            cache_age_seconds = int((now - self._last_refresh).total_seconds())
+            cache_is_stale = cache_age_seconds > self._CACHE_STALE_THRESHOLD_SECONDS
         return {
             "is_refreshing": self._refresh_in_flight,
-            "last_refresh": (
-                self._last_refresh.isoformat()
-                if self._last_refresh
-                else None
-            ),
+            "last_refresh": (self._last_refresh.isoformat() if self._last_refresh else None),
             "cache_age_seconds": cache_age_seconds,
             "cache_is_stale": cache_is_stale,
             "rate_limited_until": (
-                self._rate_limited_until.isoformat()
-                if self.rate_limited_until
-                else None
+                self._rate_limited_until.isoformat() if self.rate_limited_until else None
             ),
             "stats": dict(self._last_refresh_stats),
             "account_count": len(self._accounts),
@@ -600,9 +543,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
     # Transfer chain management
     # ------------------------------------------------------------------
 
-    async def async_confirm_transfer_chain(
-        self, chain_id: str, confirmed: bool
-    ) -> None:
+    async def async_confirm_transfer_chain(self, chain_id: str, confirmed: bool) -> None:
         """Confirm or reject a detected transfer chain.
 
         Args:
@@ -610,9 +551,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             confirmed: True = user agrees it's a chain, False = reject
         """
         self._transfer_overrides[chain_id] = confirmed
-        await self._transfer_override_store.async_save(
-            self._transfer_overrides
-        )
+        await self._transfer_override_store.async_save(self._transfer_overrides)
         # Apply to in-memory transactions immediately
         apply_overrides(self._transactions, self._transfer_overrides)
         _LOGGER.info(
@@ -637,20 +576,18 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
                     "transactions": [],
                 }
 
-            amount = float(
-                txn.get("transactionAmount", {}).get("amount", 0)
+            amount = float(txn.get("transactionAmount", {}).get("amount", 0))
+            chains[chain_id]["transactions"].append(
+                {
+                    "transactionId": txn.get("transactionId", ""),
+                    "role": txn.get("_transfer_role", ""),
+                    "account_name": txn.get("_account_name", ""),
+                    "amount": amount,
+                    "date": txn.get("bookingDate", ""),
+                    "creditor": txn.get("creditorName", ""),
+                    "description": txn.get("remittanceInformationUnstructured", ""),
+                }
             )
-            chains[chain_id]["transactions"].append({
-                "transactionId": txn.get("transactionId", ""),
-                "role": txn.get("_transfer_role", ""),
-                "account_name": txn.get("_account_name", ""),
-                "amount": amount,
-                "date": txn.get("bookingDate", ""),
-                "creditor": txn.get("creditorName", ""),
-                "description": txn.get(
-                    "remittanceInformationUnstructured", ""
-                ),
-            })
 
         return list(chains.values())
 
@@ -693,9 +630,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         shared_cost_items: list[dict[str, Any]] = []
 
         for txn in monthly_txns:
-            amount = float(
-                txn.get("transactionAmount", {}).get("amount", 0)
-            )
+            amount = float(txn.get("transactionAmount", {}).get("amount", 0))
             acc_type = txn.get("_account_type", "personal")
             person = txn.get("_account_person", "")
             category = txn.get("category", "other")
@@ -704,10 +639,12 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
                 # Shared account — costs are split among all members
                 if amount < 0:
                     shared_costs += abs(amount)
-                    shared_cost_items.append({
-                        "category": category,
-                        "amount": amount,
-                    })
+                    shared_cost_items.append(
+                        {
+                            "category": category,
+                            "amount": amount,
+                        }
+                    )
             elif person and person in persons:
                 if amount > 0:
                     persons[person]["income"] += amount
@@ -736,9 +673,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             remainder_mode=remainder_mode,
         )
 
-        results = model.calculate_split(
-            shared_costs, shared_cost_items or None
-        )
+        results = model.calculate_split(shared_costs, shared_cost_items or None)
 
         return {
             "members": [
@@ -759,9 +694,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             "total_shared_costs": round(shared_costs, 2),
         }
 
-    def _check_budget_limits(
-        self, category_totals: dict[str, float]
-    ) -> None:
+    def _check_budget_limits(self, category_totals: dict[str, float]) -> None:
         """Check if any category exceeds its budget limit and fire events."""
         from ..events import fire_budget_exceeded
 
@@ -786,9 +719,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
                 )
 
     @staticmethod
-    def _is_in_month(
-        txn: dict[str, Any], month: int, year: int
-    ) -> bool:
+    def _is_in_month(txn: dict[str, Any], month: int, year: int) -> bool:
         """Check if a transaction belongs to the given month."""
         booking_date = txn.get("bookingDate", "")
         if not booking_date:

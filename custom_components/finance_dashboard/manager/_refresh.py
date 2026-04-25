@@ -13,8 +13,8 @@ from __future__ import annotations
 import logging
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING, Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.util import dt as dt_util
 
@@ -34,9 +34,7 @@ class RefreshMixin:
     # Rate-limit helpers
     # ------------------------------------------------------------------
 
-    def _set_rate_limited(
-        self, retry_after_dt: Optional[datetime] = None
-    ) -> None:
+    def _set_rate_limited(self, retry_after_dt: datetime | None = None) -> None:
         """Mark API as rate-limited.
 
         Args:
@@ -48,7 +46,10 @@ class RefreshMixin:
         """
         now = dt_util.now()
         midnight = (now + timedelta(days=1)).replace(
-            hour=0, minute=0, second=0, microsecond=0,
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
         )
         if retry_after_dt is not None:
             reset_at = min(midnight, retry_after_dt)
@@ -161,9 +162,7 @@ class RefreshMixin:
             )
             return []
 
-        date_from = (dt_util.now() - timedelta(days=days)).strftime(
-            "%Y-%m-%d"
-        )
+        date_from = (dt_util.now() - timedelta(days=days)).strftime("%Y-%m-%d")
         date_to = dt_util.now().strftime("%Y-%m-%d")
 
         errors: list[str] = []
@@ -214,9 +213,7 @@ class RefreshMixin:
                 )
                 retry_after_dt = None
                 if _rle.retry_after_seconds is not None:
-                    retry_after_dt = dt_util.now() + timedelta(
-                        seconds=_rle.retry_after_seconds
-                    )
+                    retry_after_dt = dt_util.now() + timedelta(seconds=_rle.retry_after_seconds)
                 self._set_rate_limited(retry_after_dt)
                 errors.append(
                     f"Rate-Limit bei {account.get('name', account_id)} — "
@@ -228,15 +225,11 @@ class RefreshMixin:
                     "Failed to fetch transactions for account %s",
                     account_id,
                 )
-                errors.append(
-                    f"{account.get('name', account_id)}: {str(exc)[:120]}"
-                )
+                errors.append(f"{account.get('name', account_id)}: {str(exc)[:120]}")
                 # R5: keep stale cache for this account — do NOT clear it
 
         # Rebuild flat list from per-account dict (deterministic sort)
-        all_transactions = [
-            tx for txs in self._tx_by_account.values() for tx in txs
-        ]
+        all_transactions = [tx for txs in self._tx_by_account.values() for tx in txs]
 
         # Sort by booking date (newest first)
         all_transactions.sort(
@@ -245,24 +238,18 @@ class RefreshMixin:
         )
 
         # Detect cascading transfers and refunds
-        chains, refunds = detect_transfer_chains(
-            all_transactions, self._accounts
-        )
-        all_transactions = enrich_transactions(
-            all_transactions, chains, refunds
-        )
+        chains, refunds = detect_transfer_chains(all_transactions, self._accounts)
+        all_transactions = enrich_transactions(all_transactions, chains, refunds)
 
         # Apply user overrides (confirmed/rejected chains)
         overrides = await self._async_load_transfer_overrides()
         apply_overrides(all_transactions, overrides)
 
         # Detect new transactions (compare with previous set)
-        old_ids = {
-            t.get("transactionId") for t in self._transactions
-            if t.get("transactionId")
-        }
+        old_ids = {t.get("transactionId") for t in self._transactions if t.get("transactionId")}
         new_txns = [
-            t for t in all_transactions
+            t
+            for t in all_transactions
             if t.get("transactionId") and t["transactionId"] not in old_ids
         ]
 
@@ -284,9 +271,7 @@ class RefreshMixin:
             from ..events import fire_transaction_new
 
             for txn in new_txns:
-                amount = float(
-                    txn.get("transactionAmount", {}).get("amount", 0)
-                )
+                amount = float(txn.get("transactionAmount", {}).get("amount", 0))
                 fire_transaction_new(
                     self._hass,
                     amount=amount,
@@ -297,9 +282,7 @@ class RefreshMixin:
         except Exception:
             _LOGGER.exception("Transaction event firing failed — skipping")
 
-        await self._credential_manager._audit_log(
-            "transactions_refreshed"
-        )
+        await self._credential_manager._audit_log("transactions_refreshed")
         _LOGGER.info(
             "Refreshed %d transactions across %d accounts (%d new, %d recurring patterns)",
             len(all_transactions),
@@ -383,36 +366,23 @@ class RefreshMixin:
                 continue
 
             try:
-                account_balances = await client.async_get_balances(
-                    account_id, psu_ip=psu_ip
-                )
+                account_balances = await client.async_get_balances(account_id, psu_ip=psu_ip)
                 iban = account.get("iban", "")
                 balances[account_id] = {
                     "account_name": account.get("name", "Unknown"),
                     "iban": iban,
-                    "iban_masked": (
-                        f"****{iban[-4:]}"
-                        if len(iban) >= 4
-                        else "****"
-                    ),
+                    "iban_masked": (f"****{iban[-4:]}" if len(iban) >= 4 else "****"),
                     "institution": account.get("institution", ""),
                     "logo": account.get("logo", ""),
                     "balances": account_balances,
                 }
             except RateLimitExceeded as _rle:
-                _LOGGER.warning(
-                    "Rate limit hit fetching balance for %s", account_id
-                )
+                _LOGGER.warning("Rate limit hit fetching balance for %s", account_id)
                 retry_after_dt = None
                 if _rle.retry_after_seconds is not None:
-                    retry_after_dt = dt_util.now() + timedelta(
-                        seconds=_rle.retry_after_seconds
-                    )
+                    retry_after_dt = dt_util.now() + timedelta(seconds=_rle.retry_after_seconds)
                 self._set_rate_limited(retry_after_dt)
-                errors.append(
-                    f"Rate-Limit beim Saldo für "
-                    f"{account.get('name', account_id)}"
-                )
+                errors.append(f"Rate-Limit beim Saldo für {account.get('name', account_id)}")
                 # Preserve the partial batch we already fetched — without
                 # this, accounts that succeeded BEFORE the 429 would lose
                 # their fresh balance and the UI would show stale numbers
@@ -428,10 +398,7 @@ class RefreshMixin:
                     "Failed to fetch balance for account %s",
                     account_id,
                 )
-                errors.append(
-                    f"Saldo {account.get('name', account_id)}: "
-                    f"{str(exc)[:120]}"
-                )
+                errors.append(f"Saldo {account.get('name', account_id)}: {str(exc)[:120]}")
 
         # Fire balance-change events — must never crash the refresh
         try:
@@ -440,9 +407,7 @@ class RefreshMixin:
             for acc_id, data in balances.items():
                 raw = data.get("balances", [])
                 if raw:
-                    new_bal = float(
-                        raw[0].get("balanceAmount", {}).get("amount", 0)
-                    )
+                    new_bal = float(raw[0].get("balanceAmount", {}).get("amount", 0))
                     old_bal = self._previous_balances.get(acc_id)
                     if old_bal is not None and abs(new_bal - old_bal) >= 1.0:
                         fire_balance_changed(
@@ -474,7 +439,7 @@ class RefreshMixin:
         The state is stored in memory only (not persisted) with a creation
         timestamp so it can be expired after ``_OAUTH_STATE_TTL`` seconds.
         """
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         self._oauth_states[state] = now
         _LOGGER.debug("OAuth state registered (total: %d)", len(self._oauth_states))
 
@@ -489,9 +454,10 @@ class RefreshMixin:
             False otherwise (unknown state, already consumed, or TTL exceeded).
         """
         # Purge all expired states first
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expired = [
-            s for s, created in self._oauth_states.items()
+            s
+            for s, created in self._oauth_states.items()
             if (now - datetime.fromisoformat(created)).total_seconds() > _OAUTH_STATE_TTL
         ]
         for s in expired:
@@ -566,8 +532,9 @@ class RefreshMixin:
             self._raise_credentials_issue("missing")
             return None
 
-        from ..enablebanking_client import EnableBankingClient
         from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+        from ..enablebanking_client import EnableBankingClient
 
         try:
             self._banking_client = EnableBankingClient(
@@ -602,12 +569,11 @@ class RefreshMixin:
         """
         try:
             from homeassistant.helpers import issue_registry as ir
+
             from ..const import DOMAIN
 
             translation_key = (
-                "credentials_missing"
-                if kind == "missing"
-                else "credentials_invalid_pem"
+                "credentials_missing" if kind == "missing" else "credentials_invalid_pem"
             )
             ir.async_create_issue(
                 self._hass,
@@ -617,23 +583,19 @@ class RefreshMixin:
                 is_persistent=True,
                 severity=ir.IssueSeverity.ERROR,
                 translation_key=translation_key,
-                learn_more_url=(
-                    "https://enablebanking.com/docs/api/reference/"
-                ),
+                learn_more_url=("https://enablebanking.com/docs/api/reference/"),
             )
         except Exception:
-            _LOGGER.debug("Could not create credentials repair issue",
-                          exc_info=True)
+            _LOGGER.debug("Could not create credentials repair issue", exc_info=True)
 
     def _clear_credentials_issue(self) -> None:
         """Remove credential-related repair issues after recovery."""
         try:
             from homeassistant.helpers import issue_registry as ir
+
             from ..const import DOMAIN
 
             for kind in ("missing", "invalid_pem"):
-                ir.async_delete_issue(
-                    self._hass, DOMAIN, f"credentials_{kind}"
-                )
+                ir.async_delete_issue(self._hass, DOMAIN, f"credentials_{kind}")
         except Exception:
             pass

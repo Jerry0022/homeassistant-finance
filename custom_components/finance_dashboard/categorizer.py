@@ -10,7 +10,6 @@ transparency. Categories are deterministic and auditable.
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any
 
 from .const import CATEGORIZATION_RULES, CATEGORY_OTHER
@@ -21,9 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 class TransactionCategorizer:
     """Categorize banking transactions by keyword matching."""
 
-    def __init__(
-        self, custom_rules: dict[str, list[str]] | None = None
-    ) -> None:
+    def __init__(self, custom_rules: dict[str, list[str]] | None = None) -> None:
         """Initialize with default + optional custom rules."""
         self._rules = dict(CATEGORIZATION_RULES)
         if custom_rules:
@@ -51,9 +48,7 @@ class TransactionCategorizer:
         search_lower = search_text.lower()
 
         # Check amount direction for income detection
-        amount = float(
-            transaction.get("transactionAmount", {}).get("amount", 0)
-        )
+        amount = float(transaction.get("transactionAmount", {}).get("amount", 0))
 
         # Match against rules
         for category, keywords in self._rules.items():
@@ -67,9 +62,7 @@ class TransactionCategorizer:
 
         return CATEGORY_OTHER
 
-    def update_rules(
-        self, category: str, keywords: list[str]
-    ) -> None:
+    def update_rules(self, category: str, keywords: list[str]) -> None:
         """Add or update categorization rules for a category."""
         existing = self._rules.get(category, [])
         self._rules[category] = list(set(existing + keywords))
@@ -90,9 +83,7 @@ class TransactionCategorizer:
         if remittance:
             parts.append(remittance)
 
-        remittance_array = transaction.get(
-            "remittanceInformationUnstructuredArray", []
-        )
+        remittance_array = transaction.get("remittanceInformationUnstructuredArray", [])
         if remittance_array:
             parts.extend(remittance_array)
 

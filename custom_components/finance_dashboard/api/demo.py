@@ -10,7 +10,6 @@ from __future__ import annotations
 import logging
 
 from aiohttp import web
-
 from homeassistant.components.http import HomeAssistantView
 
 from ..const import DOMAIN
@@ -45,9 +44,7 @@ class FinanceDashboardDemoToggleView(HomeAssistantView):
             # coordinator to push into, no entities to update, and no
             # persistence path. Return 503 so the frontend can guide the
             # user to complete the setup wizard first.
-            return self.json(
-                {"error": "Not configured"}, status_code=503
-            )
+            return self.json({"error": "Not configured"}, status_code=503)
 
         enabled = not manager.demo_mode
         manager.set_demo_mode(enabled)
@@ -56,17 +53,11 @@ class FinanceDashboardDemoToggleView(HomeAssistantView):
         entry = hass.data.get(DOMAIN, {}).get("entry")
         if entry:
             new_options = {**entry.options, "demo_mode": enabled}
-            hass.config_entries.async_update_entry(
-                entry, options=new_options
-            )
+            hass.config_entries.async_update_entry(entry, options=new_options)
 
         # Trigger coordinator refresh so entities update
         domain_data = hass.data.get(DOMAIN, {})
-        coordinator = (
-            domain_data.get(f"{entry.entry_id}_coordinator")
-            if entry
-            else None
-        )
+        coordinator = domain_data.get(f"{entry.entry_id}_coordinator") if entry else None
         if coordinator:
             await coordinator.async_refresh()
         return self.json({"demo_mode": enabled})

@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 
 from ha_customapps.panel import PanelRegistrar
-from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.core import HomeAssistant
 
 from .const import (
@@ -51,9 +50,7 @@ async def async_register_panel(hass: HomeAssistant) -> None:
             panel_icon=PANEL_ICON,
             panel_url_path=PANEL_URL_PATH,
             module_url=PANEL_MODULE_PATH,
-            frontend_dir=hass.config.path(
-                "custom_components", DOMAIN, "frontend"
-            ),
+            frontend_dir=hass.config.path("custom_components", DOMAIN, "frontend"),
             lovelace_urls=LOVELACE_COMPONENTS,
         )
         await registrar.async_register()

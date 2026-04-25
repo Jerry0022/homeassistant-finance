@@ -40,7 +40,7 @@ from .static import FinanceDashboardStaticView
 
 _LOGGER = logging.getLogger(__name__)
 
-__all__ = [
+__all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
     "async_register_api",
     # Helpers (re-exported for backwards-compat with tests that import from .api)
     "_get_manager",

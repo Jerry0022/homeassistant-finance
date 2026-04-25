@@ -6,7 +6,6 @@ import logging
 from pathlib import Path
 
 from aiohttp import web
-
 from homeassistant.components.http import HomeAssistantView
 
 from ..const import DOMAIN
@@ -28,13 +27,11 @@ class FinanceDashboardStaticView(HomeAssistantView):
     name = f"api:{DOMAIN}:static"
     requires_auth = False  # Static JS/CSS files
 
-    # LRU cache: filename → (mtime_ns, bytes)
-    _cache: dict[str, tuple[int, bytes]] = {}
+    # LRU cache: filename -> (mtime_ns, bytes)
+    _cache: dict[str, tuple[int, bytes]] = {}  # noqa: RUF012
     _CACHE_MAX = 16
 
-    async def get(
-        self, request: web.Request, filename: str
-    ) -> web.Response:
+    async def get(self, request: web.Request, filename: str) -> web.Response:
         """Serve a static file from the frontend directory."""
         hass = request.app["hass"]
         frontend_dir = Path(__file__).parent.parent / "frontend"
@@ -62,9 +59,7 @@ class FinanceDashboardStaticView(HomeAssistantView):
         cached = self._cache.get(filename)
         if cached is not None:
             cached_mtime, cached_data = cached
-            current_mtime = await hass.async_add_executor_job(
-                lambda: file_path.stat().st_mtime_ns
-            )
+            current_mtime = await hass.async_add_executor_job(lambda: file_path.stat().st_mtime_ns)
             if current_mtime == cached_mtime:
                 data = cached_data
             else:

@@ -5,3 +5,7 @@ pytest-homeassistant-custom-component
 ruff
 mypy
 ha-customapps>=0.3.0
+# Direct test dependencies (imported by tests or the integration code under test)
+PyJWT>=2.8
+cryptography>=42.0
+aiohttp>=3.9
