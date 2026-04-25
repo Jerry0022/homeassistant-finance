@@ -30,6 +30,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN, STORAGE_KEY_TRANSFER_OVERRIDES, STORAGE_VERSION
@@ -1001,7 +1002,9 @@ class FinanceDashboardManager:
 
         try:
             self._banking_client = EnableBankingClient(
-                creds["application_id"], creds["private_key_pem"]
+                creds["application_id"],
+                creds["private_key_pem"],
+                session=async_get_clientsession(self._hass),
             )
         except (ValueError, TypeError) as exc:
             # R10: log class-only at ERROR, full stack trace at DEBUG only.

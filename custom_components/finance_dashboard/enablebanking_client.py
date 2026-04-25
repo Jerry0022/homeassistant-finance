@@ -26,6 +26,9 @@ import aiohttp
 import jwt
 from cryptography.hazmat.primitives import serialization
 
+# Type alias for optional injected session
+_SessionType = aiohttp.ClientSession | None
+
 from .const import ENABLEBANKING_BASE_URL
 
 _LOGGER = logging.getLogger(__name__)
@@ -70,13 +73,21 @@ class EnableBankingClient:
     """
 
     def __init__(
-        self, application_id: str, private_key_pem: str
+        self,
+        application_id: str,
+        private_key_pem: str,
+        session: aiohttp.ClientSession | None = None,
     ) -> None:
         """Initialize with Enable Banking credentials.
 
         Args:
             application_id: Enable Banking application ID (used as JWT kid).
             private_key_pem: RSA private key in PEM format for JWT signing.
+            session: Optional shared aiohttp ClientSession.  When provided the
+                caller is responsible for lifecycle management (HA-owned sessions
+                must not be closed by this client).  When omitted a private
+                session is created lazily on first request and closed on
+                ``async_close()``.
         """
         self._application_id = application_id
         pem_bytes = (
@@ -96,6 +107,18 @@ class EnableBankingClient:
             self._private_key = serialization.load_pem_private_key(
                 pem_str.encode(), password=None
             )
+        # Session management: injected → caller-owned; None → we own it.
+        self._session: aiohttp.ClientSession | None = session
+        self._session_owner: bool = session is None  # True → we must close
+
+    async def async_close(self) -> None:
+        """Close the private session if we own it.
+
+        No-op when an external session was injected at construction time.
+        """
+        if self._session_owner and self._session is not None:
+            await self._session.close()
+            self._session = None
 
     @staticmethod
     def _reconstruct_pem(raw: str) -> str:
@@ -453,10 +476,13 @@ class EnableBankingClient:
         _LOGGER.debug("Enable Banking request: %s %s", method, url)
 
         timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.request(
-                method, url, headers=headers, **kwargs
-            ) as resp:
+        # Lazily create a private session if none was injected.
+        if self._session is None:
+            self._session = aiohttp.ClientSession(timeout=timeout)
+
+        async with self._session.request(
+            method, url, headers=headers, timeout=timeout, **kwargs
+        ) as resp:
                 _LOGGER.debug(
                     "Enable Banking response: HTTP %s for %s %s",
                     resp.status,

@@ -21,6 +21,7 @@ from aiohttp import web
 
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import DOMAIN, SESSION_MAX_DAYS
 
@@ -972,6 +973,7 @@ async def _get_setup_client(hass):
     return EnableBankingClient(
         credentials["application_id"],
         credentials["private_key_pem"],
+        session=async_get_clientsession(hass),
     )
 
 
