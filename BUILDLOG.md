@@ -8,6 +8,18 @@ Changes:
 - refactor(api): A1 — split 1373-line api.py into api/ package: _helpers.py (shared utils), setup.py (7 setup-wizard views + OAuth callback), refresh.py (RefreshTriggerView + RefreshStatusView), data.py (BalancesView, TransactionsView, SummaryView, TransferChainsView), static.py (LRU file serving), demo.py (DemoToggleView + DemoDataView), __init__.py (async_register_api + full re-exports); from .api import async_register_api still works; test patch target updated to api.refresh._get_manager
 - refactor(manager): A2 — split 1321-line manager.py into manager/ package with two mixins: RefreshMixin (_refresh.py: async_refresh_transactions, _do_refresh, _async_refresh_balances_live, _set_rate_limited, OAuth state, setup proxy, client factory, credential issue helpers), PersistenceMixin (_persistence.py: _persist_transactions, _async_load_transfer_overrides, storage corrupt issue); FinanceDashboardManager inherits both (MRO: Manager → RefreshMixin → PersistenceMixin); from .manager import FinanceDashboardManager unchanged
 
+## Wave A — Test Infrastructure — 2026-04-25
+Version: 0.12.1 (no bump)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- test(infra): scaffold tests/ directory — __init__.py, conftest.py with Windows-compatible event loop policy fix (pytest-homeassistant-custom-component uses HassEventLoopPolicy + socket guard that conflicts with Windows ProactorEventLoop socketpair; fixed via event_loop_policy fixture wrapping new_event_loop with socket enable/disable)
+- test(infra): pyproject.toml with pytest asyncio_mode=auto, ruff lint config (E/F/W/I/B/UP/PLR/RUF, line-length=100, py312), mypy strict for custom_components/
+- test(infra): requirements_test.txt (pytest>=8.0, pytest-asyncio, pytest-cov, pytest-homeassistant-custom-component, ruff, mypy, ha-customapps>=0.3.0)
+- test(smoke): test_smoke.py — import smoke test, DOMAIN/VERSION/SERVICE_* constants validation
+- test(coordinator): test_coordinator_contract.py — GUARDIAN tests asserting coordinator._async_update_data() and async_load_cached() never call any EnableBankingClient live method (async_get_transactions, async_get_balances, async_get_account_details, async_get_institutions, async_create_auth, async_create_session, async_test_connection); update_interval=None assertion
+- ci: add pytest job to validate.yml (parallel to validate, Python 3.12, pip install requirements_test.txt, pytest tests/ -v)
+- Result: 7/7 tests pass locally
+
 ## [unreleased] Wave C — Security Audit (R5, R8, R9, R10, R11, R12, R14, C9)
 Branch: claude/eager-nobel-e572f9
 Changes:
