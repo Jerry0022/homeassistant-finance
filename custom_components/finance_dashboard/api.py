@@ -269,6 +269,18 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
 
             state = str(uuid.uuid4())
 
+            # Register the state token for CSRF validation in the callback.
+            # If no manager is available (fresh setup) we fall back to storing
+            # the state in hass.data so the callback can still validate it.
+            manager = _get_manager(hass)
+            if manager is not None:
+                await manager.async_register_oauth_state(state)
+            else:
+                hass.data.setdefault(DOMAIN, {})
+                hass.data[DOMAIN].setdefault("_oauth_states", {})[state] = (
+                    datetime.now(timezone.utc).isoformat()
+                )
+
             auth_data = await client.async_create_auth(
                 aspsp_name=institution_name,
                 aspsp_country="DE",
@@ -675,6 +687,23 @@ class FinanceDashboardOAuthCallbackView(HomeAssistantView):
         """Handle GET redirect from bank after authorization."""
         hass = request.app["hass"]
 
+        # --- CSRF: validate state parameter before processing code ---
+        state_param = request.query.get("state", "")
+        if state_param:
+            state_valid = await _validate_oauth_state(hass, state_param)
+            if not state_valid:
+                _LOGGER.error(
+                    "OAuth callback rejected: invalid or expired state parameter"
+                )
+                return self.json(
+                    {"ok": False, "error": "invalid_state"}, status_code=400
+                )
+        else:
+            _LOGGER.warning(
+                "OAuth callback received without state parameter — "
+                "possible CSRF or direct-link access"
+            )
+
         code = request.query.get("code")
         if code:
             hass.data.setdefault(DOMAIN, {})
@@ -825,6 +854,48 @@ def _get_manager(hass):
         if isinstance(val, FinanceDashboardManager):
             return val
     return None
+
+
+async def _validate_oauth_state(hass, state: str) -> bool:
+    """Validate and consume an OAuth state token (timing-safe, one-time-use).
+
+    Delegates to the manager when available; falls back to the hass.data
+    ``_oauth_states`` dict for fresh-setup flows where no manager exists yet.
+    """
+    import secrets as _secrets
+    from datetime import timezone as _tz
+
+    _OAUTH_STATE_TTL = 600  # 10 minutes
+
+    manager = _get_manager(hass)
+    if manager is not None:
+        return await manager.async_validate_oauth_state(state)
+
+    # Fallback: hass.data-backed state store (fresh setup, no manager)
+    domain_data = hass.data.get(DOMAIN, {})
+    oauth_states: dict = domain_data.get("_oauth_states", {})
+
+    if not oauth_states:
+        return False
+
+    # Expire old entries
+    now = datetime.now(timezone.utc)
+    expired = [
+        s for s, created in oauth_states.items()
+        if (now - datetime.fromisoformat(created)).total_seconds() > _OAUTH_STATE_TTL
+    ]
+    for s in expired:
+        oauth_states.pop(s, None)
+
+    # Timing-safe match
+    matched: str | None = None
+    for registered in list(oauth_states.keys()):
+        if _secrets.compare_digest(registered, state):
+            matched = registered
+            oauth_states.pop(registered, None)
+            break
+
+    return matched is not None
 
 
 async def _get_setup_client(hass):
