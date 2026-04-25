@@ -48,7 +48,12 @@ class FdCostDistribution extends HTMLElement {
 
     const costBar = sorted.map(([cat, amt]) => {
       const p = totalExp > 0 ? Math.abs(amt) / totalExp * 100 : 0;
-      return `<div style="width:${p}%;background:${CAT_COLORS[cat] || "#6b7280"}"></div>`;
+      const pRounded = totalExp > 0 ? Math.round(Math.abs(amt) / totalExp * 100) : 0;
+      return `<div
+        style="width:${p}%;background:${CAT_COLORS[cat] || "#6b7280"}"
+        role="img"
+        aria-label="${escHtml(CAT_LABELS[cat] || cat)}: ${eur(Math.abs(amt))} (${pRounded}%)"
+      ></div>`;
     }).join("");
 
     const costLegend = sorted.slice(0, 6).map(([cat, amt]) =>
@@ -57,6 +62,12 @@ class FdCostDistribution extends HTMLElement {
         ${escHtml(CAT_LABELS[cat] || cat)} ${eur(Math.abs(amt))}
       </div>`
     ).join("");
+
+    // Visually-hidden table fallback
+    const tableRows = sorted.map(([cat, amt]) => {
+      const p = totalExp > 0 ? Math.round(Math.abs(amt) / totalExp * 100) : 0;
+      return `<tr><td>${escHtml(CAT_LABELS[cat] || cat)}</td><td>${eur(Math.abs(amt))}</td><td>${p}%</td></tr>`;
+    }).join("");
 
     const LOCAL_CSS = `
 :host {
@@ -80,6 +91,15 @@ class FdCostDistribution extends HTMLElement {
 }
 .legend-item { display: flex; align-items: center; gap: 5px; }
 .legend-dot { width: 7px; height: 7px; border-radius: 2px; }
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
 `;
 
     this.shadowRoot.innerHTML = `
@@ -87,10 +107,17 @@ class FdCostDistribution extends HTMLElement {
 <div class="card">
   <div class="card-h">Kostenverteilung</div>
   <div style="padding:14px 18px">
-    <div class="cost-bar">${costBar || `<div style="width:100%;background:var(--sf2)"></div>`}</div>
+    <div class="cost-bar" role="group" aria-label="Kostenverteilung nach Kategorie">
+      ${costBar || `<div style="width:100%;background:var(--sf2)" role="img" aria-label="Keine Ausgaben"></div>`}
+    </div>
   </div>
   <div class="cost-legend">${costLegend}</div>
-</div>`;
+</div>
+<table class="visually-hidden" aria-label="Kostenverteilung Tabelle">
+  <caption>Kostenverteilung nach Kategorie</caption>
+  <thead><tr><th>Kategorie</th><th>Betrag</th><th>Anteil</th></tr></thead>
+  <tbody>${tableRows || "<tr><td colspan='3'>Keine Ausgaben</td></tr>"}</tbody>
+</table>`;
   }
 }
 
