@@ -75,8 +75,8 @@ class TransactionCategorizer:
         self._rules[category] = list(set(existing + keywords))
 
     def get_rules(self) -> dict[str, list[str]]:
-        """Get current categorization rules."""
-        return dict(self._rules)
+        """Get current categorization rules (deep copy — mutations are safe)."""
+        return {category: list(keywords) for category, keywords in self._rules.items()}
 
     @staticmethod
     def _extract_searchable_text(
