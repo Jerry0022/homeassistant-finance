@@ -96,7 +96,7 @@ The add-on is a thin installer — it copies the integration code into HA's `cus
 Three-step flow: `user` (Enable Banking application_id + RSA private key) → `link_bank` (ASPSP authorization via PSU redirect) → `options` (settings). Real-time validation via Enable Banking API call during setup.
 
 ### Service API
-7 Services: `refresh_accounts`, `refresh_transactions` (both return refresh-stats dict via `SupportsResponse.OPTIONAL`), `get_balance`, `get_monthly_summary`, `categorize_transactions`, `set_budget_limit`, `export_csv`. `refresh_transactions` is the only live-fetch entry point and always updates balances + transactions + recurring in one atomic round.
+8 Services: `refresh_accounts`, `refresh_transactions` (both return refresh-stats dict via `SupportsResponse.OPTIONAL`), `get_balance`, `get_monthly_summary`, `categorize_transactions`, `set_budget_limit`, `export_csv`, `toggle_demo`. `refresh_transactions` is the only live-fetch entry point and always updates balances + transactions + recurring in one atomic round.
 
 ### Refresh Flow (user-triggered)
 1. Frontend refresh button → `POST /api/finance_dashboard/refresh`
