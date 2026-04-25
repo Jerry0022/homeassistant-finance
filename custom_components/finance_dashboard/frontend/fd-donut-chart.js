@@ -64,6 +64,20 @@ class FdDonutChart extends HTMLElement {
       </li>`;
     }).join("");
 
+    // Build aria-label from sorted categories
+    const ariaLabel = sorted.length
+      ? "Kategorie-Verteilung: " + sorted.map(([cat, amt]) => {
+          const p = totalExpenses > 0 ? Math.round(Math.abs(amt) / totalExpenses * 100) : 0;
+          return `${escHtml(catLabels[cat] || cat)} ${p}%`;
+        }).join(", ")
+      : "Keine Ausgaben";
+
+    // Visually-hidden table for screen-readers
+    const tableRows = sorted.map(([cat, amt]) => {
+      const p = totalExpenses > 0 ? Math.round(Math.abs(amt) / totalExpenses * 100) : 0;
+      return `<tr><td>${escHtml(catLabels[cat] || cat)}</td><td>${eur(Math.abs(amt))}</td><td>${p}%</td></tr>`;
+    }).join("");
+
     const LOCAL_CSS = `
 .donut-wrap {
   display: flex;
@@ -98,6 +112,15 @@ class FdDonutChart extends HTMLElement {
 .cat-n { flex: 1; }
 .cat-a { font-weight: 600; }
 .cat-p { color: var(--tx2); width: 36px; text-align: right; }
+.visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
 @media (max-width: 768px) {
   .donut-wrap { flex-direction: column; }
 }
@@ -107,14 +130,19 @@ class FdDonutChart extends HTMLElement {
 <style>${SHARED_CSS}${LOCAL_CSS}</style>
 <div class="donut-wrap">
   <div class="donut">
-    <svg viewBox="0 0 100 100">${donutSvg}</svg>
-    <div class="donut-c">
+    <svg viewBox="0 0 100 100" role="img" aria-label="${ariaLabel}">${donutSvg}</svg>
+    <div class="donut-c" aria-hidden="true">
       <div class="v">${eur(totalExpenses)}</div>
       <div class="l">Gesamt</div>
     </div>
   </div>
   <ul class="cat-list">${catList || `<li style="color:var(--tx2);font-size:13px">Keine Ausgaben</li>`}</ul>
-</div>`;
+</div>
+<table class="visually-hidden" aria-label="Kategorie-Verteilung Tabelle">
+  <caption>Ausgaben nach Kategorie</caption>
+  <thead><tr><th>Kategorie</th><th>Betrag</th><th>Anteil</th></tr></thead>
+  <tbody>${tableRows || "<tr><td colspan='3'>Keine Ausgaben</td></tr>"}</tbody>
+</table>`;
   }
 }
 
