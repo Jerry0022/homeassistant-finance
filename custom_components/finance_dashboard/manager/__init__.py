@@ -32,7 +32,12 @@ from homeassistant.helpers.storage import Store
 
 from homeassistant.util import dt as dt_util
 
-from ..const import DOMAIN, STORAGE_KEY_TRANSFER_OVERRIDES, STORAGE_VERSION
+from ..const import (
+    DOMAIN,
+    ENABLEBANKING_RATE_LIMIT_DAILY,
+    STORAGE_KEY_TRANSFER_OVERRIDES,
+    STORAGE_VERSION,
+)
 from ..enablebanking_client import RateLimitExceeded
 from ..household import HouseholdMember, HouseholdModel
 from ..transfer_detector import (
@@ -577,6 +582,9 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             "transaction_count": len(self._transactions),
             "has_cache": bool(self._transactions) or bool(self._balances),
             "demo_mode": self._demo_mode,
+            # Expose the daily rate-limit cap so the frontend can render
+            # the "4/day" label dynamically instead of hardcoding it.
+            "rate_limit_per_day": ENABLEBANKING_RATE_LIMIT_DAILY,
         }
 
     # ------------------------------------------------------------------
