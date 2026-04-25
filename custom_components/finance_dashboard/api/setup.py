@@ -1,12 +1,8 @@
-"""HTTP API endpoints for Finance.
+"""Setup-wizard HTTP endpoints for Finance.
 
-Provides REST endpoints for the frontend panel and Lovelace cards
-to interact with the integration.
-
-SECURITY:
-- All endpoints require HA authentication (Bearer token) except OAuth callback
-- No financial data in URL parameters
-- Responses stripped of sensitive fields (tokens, IBANs truncated)
+Covers the full bank-connection wizard: status check, HA-user listing,
+institution search, authorization initiation, OAuth callback, setup
+completion, and account-settings update.
 """
 
 from __future__ import annotations
@@ -15,44 +11,15 @@ import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 from aiohttp import web
 
 from homeassistant.components.http import HomeAssistantView
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, SESSION_MAX_DAYS
+from ..const import DOMAIN, SESSION_MAX_DAYS
+from ._helpers import _get_manager, _get_setup_client, _validate_oauth_state
 
 _LOGGER = logging.getLogger(__name__)
-
-
-async def async_register_api(hass: HomeAssistant) -> None:
-    """Register HTTP API endpoints."""
-    hass.http.register_view(FinanceDashboardOAuthCallbackView())
-    hass.http.register_view(FinanceDashboardStaticView())
-    hass.http.register_view(FinanceDashboardBalanceView())
-    hass.http.register_view(FinanceDashboardTransactionsView())
-    hass.http.register_view(FinanceDashboardSummaryView())
-    hass.http.register_view(FinanceDashboardRefreshStatusView())
-    hass.http.register_view(FinanceDashboardRefreshTriggerView())
-    # Setup wizard endpoints
-    hass.http.register_view(FinanceDashboardSetupStatusView())
-    hass.http.register_view(FinanceDashboardSetupInstitutionsView())
-    hass.http.register_view(FinanceDashboardSetupAuthorizeView())
-    hass.http.register_view(FinanceDashboardSetupCompleteView())
-    hass.http.register_view(FinanceDashboardSetupUsersView())
-    hass.http.register_view(FinanceDashboardSetupUpdateAccountsView())
-    hass.http.register_view(FinanceDashboardTransferChainsView())
-    hass.http.register_view(FinanceDashboardDemoToggleView())
-    hass.http.register_view(FinanceDashboardDemoDataView())
-    _LOGGER.debug("Finance API endpoints registered")
-
-
-# ------------------------------------------------------------------
-# Setup wizard endpoints (used by panel overlay)
-# ------------------------------------------------------------------
 
 
 class FinanceDashboardSetupStatusView(HomeAssistantView):
@@ -158,7 +125,7 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
         hass = request.app["hass"]
 
         try:
-            from .enablebanking_client import RateLimitExceeded
+            from ..enablebanking_client import RateLimitExceeded
 
             client = await _get_setup_client(hass)
             institutions = await client.async_get_institutions("DE")
@@ -229,7 +196,7 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
             return self.json({"error": "institution_name required"})
 
         try:
-            from .enablebanking_client import RateLimitExceeded
+            from ..enablebanking_client import RateLimitExceeded
 
             client = await _get_setup_client(hass)
 
@@ -321,7 +288,7 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
             # Credentials missing — surface cleanly without stack trace
             return self.json({"error": str(exc), "error_type": "no_credentials"})
         except Exception as exc:
-            from .enablebanking_client import RateLimitExceeded as _RLE
+            from ..enablebanking_client import RateLimitExceeded as _RLE
             if isinstance(exc, _RLE):
                 return self.json({"error": str(exc), "error_type": "rate_limited"})
             _LOGGER.exception("Failed to create bank authorization")
@@ -398,7 +365,7 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
         )
 
         try:
-            from .enablebanking_client import RateLimitExceeded
+            from ..enablebanking_client import RateLimitExceeded
 
             client = await _get_setup_client(hass)
 
@@ -472,6 +439,11 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                 )
 
             # Store session encrypted
+            from ..credential_manager import CredentialManager
+
+            cred_mgr = CredentialManager(hass)
+            await cred_mgr.async_initialize()
+
             valid_until = (
                 datetime.now() + timedelta(days=SESSION_MAX_DAYS)
             ).isoformat()
@@ -667,11 +639,6 @@ class FinanceDashboardSetupUpdateAccountsView(HomeAssistantView):
         return self.json({"success": True})
 
 
-# ------------------------------------------------------------------
-# OAuth callback (bank redirect)
-# ------------------------------------------------------------------
-
-
 class FinanceDashboardOAuthCallbackView(HomeAssistantView):
     """Handle OAuth callback from Enable Banking bank authorization.
 
@@ -737,7 +704,7 @@ class FinanceDashboardOAuthCallbackView(HomeAssistantView):
                             session_data.get("session_id", "")
                         )
                 except Exception as exc:
-                    from .enablebanking_client import RateLimitExceeded
+                    from ..enablebanking_client import RateLimitExceeded
                     if isinstance(exc, RateLimitExceeded):
                         hass.data[DOMAIN]["pending_setup_error"] = (
                             f"API-Tageslimit erreicht: {exc}"
@@ -796,580 +763,3 @@ p { color: #9898a8; font-size: 14px; line-height: 1.6; }
         return web.Response(
             text=html, content_type="text/html", status=200
         )
-
-
-# ------------------------------------------------------------------
-# Data endpoints (used by dashboard panel)
-# ------------------------------------------------------------------
-
-
-class FinanceDashboardStaticView(HomeAssistantView):
-    """Serve static frontend files.
-
-    R12: file I/O is dispatched to the thread pool via
-    ``hass.async_add_executor_job`` so the async event loop is never
-    blocked by synchronous ``read_bytes()`` calls.  A small LRU cache
-    (16 entries, mtime-aware) avoids redundant disk reads for hot files
-    like the main JS bundle.
-    """
-
-    url = f"/api/{DOMAIN}/static/{{filename}}"
-    name = f"api:{DOMAIN}:static"
-    requires_auth = False  # Static JS/CSS files
-
-    # LRU cache: filename → (mtime_ns, bytes)
-    _cache: dict[str, tuple[int, bytes]] = {}
-    _CACHE_MAX = 16
-
-    async def get(
-        self, request: web.Request, filename: str
-    ) -> web.Response:
-        """Serve a static file from the frontend directory."""
-        hass = request.app["hass"]
-        frontend_dir = Path(__file__).parent / "frontend"
-        file_path = frontend_dir / filename
-
-        if not file_path.exists() or not file_path.is_file():
-            return web.Response(status=404)
-
-        try:
-            file_path.resolve().relative_to(frontend_dir.resolve())
-        except ValueError:
-            return web.Response(status=403)
-
-        content_type = "application/javascript"
-        if filename.endswith(".css"):
-            content_type = "text/css"
-        elif filename.endswith(".html"):
-            content_type = "text/html"
-
-        # R12: async file read + mtime-aware LRU cache.
-        def _read() -> tuple[int, bytes]:
-            mtime = file_path.stat().st_mtime_ns
-            return mtime, file_path.read_bytes()
-
-        cached = self._cache.get(filename)
-        if cached is not None:
-            cached_mtime, cached_data = cached
-            current_mtime = await hass.async_add_executor_job(
-                lambda: file_path.stat().st_mtime_ns
-            )
-            if current_mtime == cached_mtime:
-                data = cached_data
-            else:
-                mtime, data = await hass.async_add_executor_job(_read)
-                self._cache[filename] = (mtime, data)
-        else:
-            mtime, data = await hass.async_add_executor_job(_read)
-            # Evict oldest entry if cache is full
-            if len(self._cache) >= self._CACHE_MAX:
-                oldest = next(iter(self._cache))
-                del self._cache[oldest]
-            self._cache[filename] = (mtime, data)
-
-        return web.Response(
-            body=data,
-            content_type=content_type,
-            headers={
-                "Cache-Control": "public, max-age=3600",
-            },
-        )
-
-
-def _get_manager(hass):
-    """Find the FinanceDashboardManager in hass.data."""
-    domain_data = hass.data.get(DOMAIN, {})
-    entry = domain_data.get("entry")
-    if entry:
-        mgr = domain_data.get(entry.entry_id)
-        if mgr is not None:
-            return mgr
-    # Fallback: scan for manager by type
-    from .manager import FinanceDashboardManager
-
-    for val in domain_data.values():
-        if isinstance(val, FinanceDashboardManager):
-            return val
-    return None
-
-
-async def _validate_oauth_state(hass, state: str) -> bool:
-    """Validate and consume an OAuth state token (timing-safe, one-time-use).
-
-    Delegates to the manager when available; falls back to the hass.data
-    ``_oauth_states`` dict for fresh-setup flows where no manager exists yet.
-    """
-    import secrets as _secrets
-    from datetime import timezone as _tz
-
-    _OAUTH_STATE_TTL = 600  # 10 minutes
-
-    manager = _get_manager(hass)
-    if manager is not None:
-        return await manager.async_validate_oauth_state(state)
-
-    # Fallback: hass.data-backed state store (fresh setup, no manager)
-    domain_data = hass.data.get(DOMAIN, {})
-    oauth_states: dict = domain_data.get("_oauth_states", {})
-
-    if not oauth_states:
-        return False
-
-    # Expire old entries
-    now = datetime.now(timezone.utc)
-    expired = [
-        s for s, created in oauth_states.items()
-        if (now - datetime.fromisoformat(created)).total_seconds() > _OAUTH_STATE_TTL
-    ]
-    for s in expired:
-        oauth_states.pop(s, None)
-
-    # Timing-safe match
-    matched: str | None = None
-    for registered in list(oauth_states.keys()):
-        if _secrets.compare_digest(registered, state):
-            matched = registered
-            oauth_states.pop(registered, None)
-            break
-
-    return matched is not None
-
-
-async def _get_setup_client(hass):
-    """Return an EnableBankingClient for setup-wizard endpoints.
-
-    Enforces the 4/day ASPSP rate-limit gate before handing back a client.
-    If the integration manager already exists the gate is delegated to it;
-    otherwise the cached ``rate_limited_until`` timestamp in hass.data is
-    checked directly so that the quota cannot be bypassed by re-running the
-    wizard.
-
-    Returns:
-        EnableBankingClient instance.
-
-    Raises:
-        RuntimeError: when rate-limited or credentials are unavailable.
-    """
-    from .enablebanking_client import RateLimitExceeded
-
-    # --- Rate-limit gate via manager (preferred) ---
-    manager = _get_manager(hass)
-    if manager is not None and manager.rate_limited_until:
-        raise RateLimitExceeded(
-            f"API rate-limited until {manager.rate_limited_until.isoformat()}"
-        )
-
-    # --- Credentials ---
-    from .credential_manager import CredentialManager
-    from .enablebanking_client import EnableBankingClient
-
-    cred_mgr = CredentialManager(hass)
-    await cred_mgr.async_initialize()
-    credentials = await cred_mgr.async_get_api_credentials()
-
-    if not credentials:
-        raise RuntimeError("No Enable Banking credentials stored")
-
-    return EnableBankingClient(
-        credentials["application_id"],
-        credentials["private_key_pem"],
-        session=async_get_clientsession(hass),
-    )
-
-
-class FinanceDashboardBalanceView(HomeAssistantView):
-    """API endpoint for account balances."""
-
-    url = f"/api/{DOMAIN}/balances"
-    name = f"api:{DOMAIN}:balances"
-    requires_auth = True
-
-    async def get(self, request: web.Request) -> web.Response:
-        """Get balances for all linked accounts."""
-        hass = request.app["hass"]
-        manager = _get_manager(hass)
-
-        if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
-
-        balances = await manager.async_get_balance()
-
-        sanitized = {}
-        for account_id, data in balances.items():
-            sanitized[account_id] = {
-                "account_name": data.get("account_name", "Unknown"),
-                "iban_masked": data.get("iban_masked", "****"),
-                "institution": data.get("institution", ""),
-                "logo": data.get("logo", ""),
-                "balances": data.get("balances", []),
-            }
-
-        return self.json(sanitized)
-
-
-class FinanceDashboardTransactionsView(HomeAssistantView):
-    """API endpoint for transactions.
-
-    PRIVACY-FIRST: Individual transaction details are only returned
-    to HA admin users. Non-admin users receive only aggregated
-    category summaries — no individual transaction data.
-    """
-
-    url = f"/api/{DOMAIN}/transactions"
-    name = f"api:{DOMAIN}:transactions"
-    requires_auth = True
-
-    async def get(self, request: web.Request) -> web.Response:
-        """Get recent transactions (admin-only detail view)."""
-        hass = request.app["hass"]
-        manager = _get_manager(hass)
-
-        if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
-
-        user = request.get("hass_user")
-        is_admin = user and user.is_admin if user else False
-
-        if not is_admin:
-            summary = await manager.async_get_monthly_summary()
-            return self.json(
-                {
-                    "privacy": "aggregate_only",
-                    "message": "Individual transactions require admin access.",
-                    "categories": summary.get("categories", {}),
-                    "total_income": summary.get("total_income", 0),
-                    "total_expenses": summary.get(
-                        "total_expenses", 0
-                    ),
-                    "transaction_count": summary.get(
-                        "transaction_count", 0
-                    ),
-                }
-            )
-
-        transactions = manager.get_cached_transactions(limit=100)
-
-        sanitized = []
-        for txn in transactions:
-            entry = {
-                "date": txn.get("bookingDate", ""),
-                "amount": txn.get("transactionAmount", {}).get(
-                    "amount", "0"
-                ),
-                "currency": txn.get("transactionAmount", {}).get(
-                    "currency", "EUR"
-                ),
-                "description": txn.get(
-                    "remittanceInformationUnstructured", ""
-                ),
-                "creditor": txn.get("creditorName", ""),
-                "category": txn.get("category", "other"),
-                "status": txn.get("_status", "booked"),
-                "account_name": txn.get("_account_name", ""),
-            }
-
-            # Transfer chain metadata
-            chain_id = txn.get("_transfer_chain_id")
-            if chain_id:
-                entry["transfer_chain_id"] = chain_id
-                entry["transfer_role"] = txn.get(
-                    "_transfer_role", ""
-                )
-                entry["transfer_confidence"] = txn.get(
-                    "_transfer_confidence"
-                )
-                entry["transfer_confirmed"] = txn.get(
-                    "_transfer_confirmed"
-                )
-
-            # Refund metadata
-            refund_id = txn.get("_refund_pair_id")
-            if refund_id:
-                entry["refund_pair_id"] = refund_id
-                entry["refund_role"] = txn.get("_refund_role", "")
-
-            sanitized.append(entry)
-
-        return self.json(
-            {"privacy": "admin_full", "transactions": sanitized}
-        )
-
-
-class FinanceDashboardTransferChainsView(HomeAssistantView):
-    """API endpoint for transfer chain data.
-
-    Returns detected cascading transfer chains for the frontend.
-    Supports confirming/rejecting chains via POST.
-    """
-
-    url = f"/api/{DOMAIN}/transfer_chains"
-    name = f"api:{DOMAIN}:transfer_chains"
-    requires_auth = True
-
-    async def get(self, request: web.Request) -> web.Response:
-        """Get all detected transfer chains."""
-        hass = request.app["hass"]
-        manager = _get_manager(hass)
-
-        if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
-
-        user = request.get("hass_user")
-        is_admin = user and user.is_admin if user else False
-
-        if not is_admin:
-            return self.json(
-                {"error": "Admin access required"},
-                status_code=403,
-            )
-
-        chains = manager.get_transfer_chains()
-        return self.json({"chains": chains})
-
-    async def post(self, request: web.Request) -> web.Response:
-        """Confirm or reject a transfer chain."""
-        hass = request.app["hass"]
-        manager = _get_manager(hass)
-
-        if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
-
-        user = request.get("hass_user")
-        is_admin = user and user.is_admin if user else False
-
-        if not is_admin:
-            return self.json(
-                {"error": "Admin access required"},
-                status_code=403,
-            )
-
-        try:
-            body = await request.json()
-        except Exception:
-            return self.json(
-                {"error": "Invalid JSON body"}, status_code=400
-            )
-
-        chain_id = body.get("chain_id", "")
-        confirmed = body.get("confirmed")
-
-        if not chain_id or confirmed is None:
-            return self.json(
-                {"error": "chain_id and confirmed required"},
-                status_code=400,
-            )
-
-        await manager.async_confirm_transfer_chain(
-            chain_id, bool(confirmed)
-        )
-        return self.json(
-            {"success": True, "chain_id": chain_id}
-        )
-
-
-class FinanceDashboardDemoToggleView(HomeAssistantView):
-    """Toggle demo mode on/off (admin only)."""
-
-    url = f"/api/{DOMAIN}/demo/toggle"
-    name = f"api:{DOMAIN}:demo_toggle"
-    requires_auth = True
-
-    async def post(self, request: web.Request) -> web.Response:
-        """Toggle demo mode and return new state."""
-        hass = request.app["hass"]
-
-        user = request.get("hass_user")
-        is_admin = user and user.is_admin if user else False
-        if not is_admin:
-            return self.json(
-                {"error": "Admin access required"},
-                status_code=403,
-            )
-
-        manager = _get_manager(hass)
-
-        if not manager:
-            # Without a manager, demo mode has no meaning — there is no
-            # coordinator to push into, no entities to update, and no
-            # persistence path. Return 503 so the frontend can guide the
-            # user to complete the setup wizard first.
-            return self.json(
-                {"error": "Not configured"}, status_code=503
-            )
-
-        enabled = not manager.demo_mode
-        manager.set_demo_mode(enabled)
-
-        # Persist to entry.options so demo survives HA restarts
-        entry = hass.data.get(DOMAIN, {}).get("entry")
-        if entry:
-            new_options = {**entry.options, "demo_mode": enabled}
-            hass.config_entries.async_update_entry(
-                entry, options=new_options
-            )
-
-        # Trigger coordinator refresh so entities update
-        domain_data = hass.data.get(DOMAIN, {})
-        coordinator = (
-            domain_data.get(f"{entry.entry_id}_coordinator")
-            if entry
-            else None
-        )
-        if coordinator:
-            await coordinator.async_refresh()
-        return self.json({"demo_mode": enabled})
-
-
-class FinanceDashboardDemoDataView(HomeAssistantView):
-    """Return demo data — works with or without a config entry."""
-
-    url = f"/api/{DOMAIN}/demo/data"
-    name = f"api:{DOMAIN}:demo_data"
-    requires_auth = True
-
-    async def get(self, request: web.Request) -> web.Response:
-        """Return a fresh demo dataset."""
-        from .demo import generate_demo_data
-
-        data = generate_demo_data()
-        # Strip internal keys
-        data.pop("_demo_accounts", None)
-        data.pop("_demo_transactions", None)
-        data.pop("_demo_balances", None)
-        return self.json(data)
-
-
-class FinanceDashboardSummaryView(HomeAssistantView):
-    """API endpoint for monthly summary."""
-
-    url = f"/api/{DOMAIN}/summary"
-    name = f"api:{DOMAIN}:summary"
-    requires_auth = True
-
-    async def get(self, request: web.Request) -> web.Response:
-        """Get monthly spending summary."""
-        hass = request.app["hass"]
-        manager = _get_manager(hass)
-
-        if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
-
-        summary = await manager.async_get_monthly_summary()
-        return self.json(summary)
-
-
-class FinanceDashboardRefreshStatusView(HomeAssistantView):
-    """Cache-only refresh status — safe for unbounded polling.
-
-    Returns the snapshot produced by ``manager.get_refresh_status()``.
-    Used by the frontend to poll while a refresh is in flight and to
-    render cache-age + last-stats in the header without ever hitting
-    the banking API.
-    """
-
-    url = f"/api/{DOMAIN}/refresh_status"
-    name = f"api:{DOMAIN}:refresh_status"
-    requires_auth = True
-
-    async def get(self, request: web.Request) -> web.Response:
-        """Return the current refresh snapshot (no API calls)."""
-        hass = request.app["hass"]
-        manager = _get_manager(hass)
-
-        if not manager:
-            return self.json(
-                {
-                    "is_refreshing": False,
-                    "has_cache": False,
-                    "error": "Not configured",
-                }
-            )
-
-        return self.json(manager.get_refresh_status())
-
-
-class FinanceDashboardRefreshTriggerView(HomeAssistantView):
-    """Explicit user-triggered refresh — the ONLY allowed live-fetch entry.
-
-    Blocks while the refresh is in flight and returns the final stats,
-    so the frontend can show a single "5 Konten, 243 Transaktionen"
-    toast instead of polling guesswork. Hard Rule: only invoked on
-    user-initiated actions (refresh button, manual service call).
-    """
-
-    url = f"/api/{DOMAIN}/refresh"
-    name = f"api:{DOMAIN}:refresh"
-    requires_auth = True
-
-    async def post(self, request: web.Request) -> web.Response:
-        """Run a refresh and return the stats when it finishes."""
-        hass = request.app["hass"]
-
-        # R9: live bank fetches are admin-only — only admins may consume the
-        # 4/day rate limit.  Non-admin users can still read cached data via
-        # /balances, /summary, /transactions (aggregate view).
-        user = request.get("hass_user")
-        if not user or not user.is_admin:
-            return self.json(
-                {"ok": False, "error": "admin_required"}, status_code=403
-            )
-
-        manager = _get_manager(hass)
-
-        if not manager:
-            return self.json(
-                {"error": "Not configured"}, status_code=404
-            )
-
-        # Short-circuit when already rate-limited so the UI can show a
-        # clear message instead of waiting for an HTTP 429 round-trip.
-        if manager.rate_limited_until:
-            return self.json(
-                {
-                    "ok": False,
-                    "reason": "rate_limited",
-                    "status": manager.get_refresh_status(),
-                }
-            )
-
-        try:
-            await manager.async_refresh_transactions()
-        except Exception as exc:
-            _LOGGER.exception("Refresh trigger failed")
-            return self.json(
-                {
-                    "ok": False,
-                    "reason": "error",
-                    "message": str(exc)[:200],
-                    "status": manager.get_refresh_status(),
-                }
-            )
-
-        # Also push fresh data through the coordinator so entity states
-        # update in lockstep with the user's click.
-        domain_data = hass.data.get(DOMAIN, {})
-        entry = domain_data.get("entry")
-        if entry:
-            coordinator = domain_data.get(
-                f"{entry.entry_id}_coordinator"
-            )
-            if coordinator:
-                try:
-                    await coordinator.async_refresh()
-                except Exception:
-                    _LOGGER.exception(
-                        "Coordinator refresh after live fetch failed"
-                    )
-
-        status = manager.get_refresh_status()
-        return self.json({"ok": True, "status": status})

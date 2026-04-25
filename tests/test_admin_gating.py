@@ -87,9 +87,9 @@ async def test_refresh_admin_passes_gating() -> None:
 
     request = _make_request(is_admin=True)
 
-    # Patch _get_manager to return None so we get a clean 404 (not 403)
+    # Patch _get_manager where it is *used* by the refresh view.
     with patch(
-        "custom_components.finance_dashboard.api._get_manager",
+        "custom_components.finance_dashboard.api.refresh._get_manager",
         return_value=None,
     ):
         response = await view.post(request)
