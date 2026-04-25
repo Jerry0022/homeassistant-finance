@@ -203,6 +203,17 @@ h1 {
   background: color-mix(in srgb, var(--demo) 85%, black);
   border-color: color-mix(in srgb, var(--demo) 85%, black);
 }
+.month-label {
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--bd);
+  background: var(--sf);
+  color: var(--tx2);
+  font-size: 13px;
+  cursor: default;
+  user-select: none;
+  font-family: inherit;
+}
 .ts-stack {
   display: flex;
   flex-direction: column;
@@ -268,7 +279,7 @@ h1 {
       <span class="ts-stats" id="tsStats"></span>
     </div>
     <button class="btn btn-demo" id="demoBtn" aria-label="Demo-Modus umschalten" aria-pressed="false">Demo</button>
-    <button class="btn" id="monthBtn">${monthLabel}</button>
+    <span class="month-label" id="monthLabel" aria-label="Aktueller Monat: ${monthLabel}">${monthLabel}</span>
     <button class="btn btn-p" id="refreshBtn">Aktualisieren</button>
     <button class="btn" id="addAccountBtn" title="Bankkonto hinzuf\u00fcgen">+ Konto</button>
   </div>
