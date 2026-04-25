@@ -17,12 +17,18 @@ class FdPersonCard extends HTMLElement {
   set member(v) { this._member = v; this._render(); }
   set splitModel(v) { this._splitModel = v; this._render(); }
 
+  disconnectedCallback() {
+    // No timers or observers to clean up in this component.
+  }
+
   _render() {
     const m = this._member;
     if (!m) {
       this.shadowRoot.innerHTML = "";
       return;
     }
+
+    const { SHARED_CSS, escHtml } = window._fd;
 
     const eur = (v) => new Intl.NumberFormat("de-DE", {
       style: "currency", currency: "EUR",
@@ -36,18 +42,7 @@ class FdPersonCard extends HTMLElement {
       ? `<li class="row"><span class="l">Bonus (erkannt)</span><span class="pos">${eur(m.bonus_amount)}</span></li>`
       : "";
 
-    this.shadowRoot.innerHTML = `
-<style>
-:host {
-  --sf: var(--card-background-color, #12121a);
-  --bd: rgba(255,255,255,0.06);
-  --tx: var(--primary-text-color, #e0e0e0);
-  --tx2: var(--secondary-text-color, #9898a8);
-  --ac: var(--accent-color, #4ecca3);
-  --dg: #e74c3c;
-  --r: 14px;
-  display: block;
-}
+    const LOCAL_CSS = `
 .person {
   background: var(--sf);
   border: 1px solid var(--bd);
@@ -76,12 +71,13 @@ class FdPersonCard extends HTMLElement {
 }
 .saldo .l { font-size: 14px; font-weight: 600; }
 .saldo .v { font-size: 22px; font-weight: 700; }
-.pos { color: var(--ac); }
-.neg { color: var(--dg); }
-</style>
+`;
+
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${LOCAL_CSS}</style>
 <div class="person">
-  <div class="name">${this._esc(m.person)}</div>
-  <div class="ratio">Einkommensanteil: ${(m.income_ratio || 0).toFixed(1)}% &middot; ${splitLabel}</div>
+  <div class="name">${escHtml(m.person)}</div>
+  <div class="ratio">Einkommensanteil: ${(m.income_ratio || 0).toFixed(1)}% &middot; ${escHtml(splitLabel)}</div>
   <ul class="rows">
     <li class="row"><span class="l">Einkommen (netto)</span><span>${eur(m.net_income)}</span></li>
     <li class="row"><span class="l">Anteil Fixkosten</span><span class="neg">${eur(m.shared_costs_share)}</span></li>
@@ -93,13 +89,6 @@ class FdPersonCard extends HTMLElement {
     <span class="v ${spielgeldClass}">${eur(m.spielgeld)}</span>
   </div>
 </div>`;
-  }
-
-  _esc(s) {
-    if (!s) return "";
-    const d = document.createElement("div");
-    d.textContent = s;
-    return d.innerHTML;
   }
 }
 

@@ -13,10 +13,11 @@
   ],
   "integration_type": "service",
   "documentation": "https://github.com/Jerry0022/homeassistant-finance",
-  "iot_class": "cloud_polling",
+  "iot_class": "cloud_push",
   "requirements": [
     "cryptography>=42.0.0",
-    "ha-customapps>=0.3.0"
+    "ha-customapps>=0.3.0",
+    "PyJWT[crypto]>=2.8.0"
   ],
   "version": "0.12.1"
 }

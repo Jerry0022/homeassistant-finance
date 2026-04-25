@@ -93,6 +93,9 @@ class FdHeader extends HTMLElement {
     if (!toast) return;
     toast.textContent = message;
     toast.className = `toast toast-${kind || "info"} show`;
+    // aria-live: assertive for warn/error, polite for info/success
+    const liveValue = (kind === "warn" || kind === "error") ? "assertive" : "polite";
+    toast.setAttribute("aria-live", liveValue);
     if (this._toastTimer) clearTimeout(this._toastTimer);
     this._toastTimer = setTimeout(() => {
       toast.classList.remove("show");
@@ -116,22 +119,13 @@ class FdHeader extends HTMLElement {
   }
 
   _render() {
-    const monthNames = ["Jan", "Feb", "M\u00e4r", "Apr", "Mai", "Jun",
-      "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+    const { MONTH_NAMES, SHARED_CSS } = window._fd;
     const now = new Date();
-    const monthLabel = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+    const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 
-    this.shadowRoot.innerHTML = `
-<style>
+    const LOCAL_CSS = `
 :host {
-  --sf: var(--card-background-color, #12121a);
-  --bd: rgba(255,255,255,0.06);
-  --sf2: #1a1a28;
-  --tx: var(--primary-text-color, #e0e0e0);
-  --tx2: var(--secondary-text-color, #9898a8);
-  --ac: var(--accent-color, #4ecca3);
-  --demo: #f39c12;
-  display: block;
+  --demo: var(--wn, #f39c12);
   margin-bottom: 24px;
 }
 .hdr {
@@ -155,7 +149,7 @@ h1 {
   padding: 3px 10px;
   border-radius: 6px;
   background: var(--demo);
-  color: #0a0a0f;
+  color: var(--bg, #0a0a0f);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -184,7 +178,7 @@ h1 {
 .btn:disabled { opacity: .5; cursor: default; }
 .btn-p {
   background: var(--ac);
-  color: #0a0a0f;
+  color: var(--bg, #0a0a0f);
   border-color: var(--ac);
   font-weight: 600;
 }
@@ -202,12 +196,23 @@ h1 {
   /* Filled orange only when demo mode is ON */
   border-color: var(--demo);
   background: var(--demo);
-  color: #0a0a0f;
+  color: var(--bg, #0a0a0f);
   font-weight: 600;
 }
 .btn-demo-active:hover {
-  background: #e67e22;
-  border-color: #e67e22;
+  background: color-mix(in srgb, var(--demo) 85%, black);
+  border-color: color-mix(in srgb, var(--demo) 85%, black);
+}
+.month-label {
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--bd);
+  background: var(--sf);
+  color: var(--tx2);
+  font-size: 13px;
+  cursor: default;
+  user-select: none;
+  font-family: inherit;
 }
 .ts-stack {
   display: flex;
@@ -248,9 +253,9 @@ h1 {
 }
 .toast.show { opacity: 1; transform: translateY(0); }
 .toast-success { border-color: var(--ac); }
-.toast-info    { border-color: rgba(78,204,163,0.3); }
+.toast-info    { border-color: color-mix(in srgb, var(--ac) 30%, transparent); }
 .toast-warn    { border-color: var(--demo); color: var(--demo); }
-.toast-error   { border-color: #e74c3c; color: #e74c3c; }
+.toast-error   { border-color: var(--dg); color: var(--dg); }
 
 @media (max-width: 600px) {
   .hdr { flex-wrap: wrap; gap: 10px; }
@@ -258,8 +263,11 @@ h1 {
   h1 { font-size: 20px; }
   .btn { padding: 6px 10px; font-size: 12px; }
 }
-</style>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+`;
+
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${LOCAL_CSS}</style>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <div class="hdr">
   <div class="title-row">
     <h1>Finance Dashboard</h1>
@@ -271,7 +279,7 @@ h1 {
       <span class="ts-stats" id="tsStats"></span>
     </div>
     <button class="btn btn-demo" id="demoBtn" aria-label="Demo-Modus umschalten" aria-pressed="false">Demo</button>
-    <button class="btn" id="monthBtn">${monthLabel}</button>
+    <span class="month-label" id="monthLabel" aria-label="Aktueller Monat: ${monthLabel}">${monthLabel}</span>
     <button class="btn btn-p" id="refreshBtn">Aktualisieren</button>
     <button class="btn" id="addAccountBtn" title="Bankkonto hinzuf\u00fcgen">+ Konto</button>
   </div>

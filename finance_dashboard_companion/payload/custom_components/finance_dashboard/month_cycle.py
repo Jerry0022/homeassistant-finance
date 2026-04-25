@@ -46,9 +46,7 @@ def get_month_range(
     return _calendar_month_range(target_month, target_year)
 
 
-def _calendar_month_range(
-    month: int, year: int
-) -> tuple[date, date]:
+def _calendar_month_range(month: int, year: int) -> tuple[date, date]:
     """Standard calendar month: 1st to last day."""
     start = date(year, month, 1)
     # Last day = first of next month - 1 day
@@ -59,9 +57,7 @@ def _calendar_month_range(
     return start, end
 
 
-def _salary_month_range(
-    month: int, year: int, salary_day: int
-) -> tuple[date, date]:
+def _salary_month_range(month: int, year: int, salary_day: int) -> tuple[date, date]:
     """Salary-based month: from salary date to next salary date - 1.
 
     For month=3, salary_day=25:
@@ -160,9 +156,7 @@ def is_salary_candidate(
     Returns:
         True if transaction matches salary pattern
     """
-    amount = float(
-        transaction.get("transactionAmount", {}).get("amount", 0)
-    )
+    amount = float(transaction.get("transactionAmount", {}).get("amount", 0))
     if amount <= 0:
         return False  # Salary must be incoming (positive)
 
@@ -211,9 +205,7 @@ def detect_salary_day(
     day_counts: dict[int, int] = {}
 
     for txn in transactions:
-        amount = float(
-            txn.get("transactionAmount", {}).get("amount", 0)
-        )
+        amount = float(txn.get("transactionAmount", {}).get("amount", 0))
         if amount < min_amount:
             continue
 
@@ -222,9 +214,7 @@ def detect_salary_day(
             continue
 
         try:
-            day = datetime.strptime(
-                booking_date_str, "%Y-%m-%d"
-            ).day
+            day = datetime.strptime(booking_date_str, "%Y-%m-%d").day
             day_counts[day] = day_counts.get(day, 0) + 1
         except ValueError:
             continue

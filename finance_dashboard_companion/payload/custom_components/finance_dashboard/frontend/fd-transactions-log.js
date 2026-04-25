@@ -9,11 +9,7 @@
  * (up to 100 items returned by /api/finance_dashboard/transactions).
  */
 
-const TX_CAT_LABELS = {
-  housing: "Wohnen", loans: "Kredite", food: "Lebensmittel", utilities: "Nebenkosten",
-  insurance: "Versicherung", subscriptions: "Abos", transport: "Mobilit\u00e4t",
-  cleaning: "Reinigung", income: "Einkommen", transfers: "\u00dcbertr\u00e4ge", other: "Sonstiges",
-};
+// TX_CAT_LABELS comes from window._fd.CAT_LABELS (set by fd-shared-styles.js).
 
 const DEFAULT_LIMIT = 25;
 
@@ -48,6 +44,8 @@ class FdTransactionsLog extends HTMLElement {
       return;
     }
 
+    const { CAT_LABELS, SHARED_CSS, escHtml } = window._fd;
+
     const total = txs.length;
     const limit = this._expanded ? total : DEFAULT_LIMIT;
     const visible = txs.slice(0, limit);
@@ -61,25 +59,25 @@ class FdTransactionsLog extends HTMLElement {
       const isPositive = !isNaN(amount) && amount > 0;
       const amountClass = isPositive ? "pos" : "neg";
       const sign = isPositive ? "+" : "";
-      const label = t.creditor || t.description || "\u2014";
+      const label = t.creditor || t.description || "—";
       const sub = t.creditor && t.description && t.creditor !== t.description
         ? t.description : "";
-      const cat = TX_CAT_LABELS[t.category] || t.category || "Sonstiges";
+      const cat = CAT_LABELS[t.category] || t.category || "Sonstiges";
       const dateStr = this._formatDate(t.date);
       const pending = t.status === "pending"
         ? `<span class="tx-pending" title="Vorgemerkt (noch nicht gebucht)">vorgemerkt</span>`
         : "";
       const account = t.account_name
-        ? `<span class="tx-acc">${this._esc(t.account_name)}</span>`
+        ? `<span class="tx-acc">${escHtml(t.account_name)}</span>`
         : "";
 
       return `<div class="tx-item">
-        <div class="tx-date">${this._esc(dateStr)}</div>
+        <div class="tx-date">${escHtml(dateStr)}</div>
         <div class="tx-main">
-          <div class="tx-label">${this._esc(label)} ${pending}</div>
-          ${sub ? `<div class="tx-sub">${this._esc(sub)}</div>` : ""}
+          <div class="tx-label">${escHtml(label)} ${pending}</div>
+          ${sub ? `<div class="tx-sub">${escHtml(sub)}</div>` : ""}
           <div class="tx-meta">
-            <span class="tx-cat">${this._esc(cat)}</span>
+            <span class="tx-cat">${escHtml(cat)}</span>
             ${account}
           </div>
         </div>
@@ -94,37 +92,12 @@ class FdTransactionsLog extends HTMLElement {
       : "";
 
     const emptyState = total === 0
-      ? `<div class="tx-empty">Noch keine Transaktionen im Cache. Nach der n\u00e4chsten Aktualisierung erscheinen sie hier.</div>`
+      ? `<div class="tx-empty">Noch keine Transaktionen im Cache. Nach der nächsten Aktualisierung erscheinen sie hier.</div>`
       : "";
 
-    this.shadowRoot.innerHTML = `
-<style>
+    const LOCAL_CSS = `
 :host {
-  --sf: var(--card-background-color, #12121a);
-  --sf2: #1a1a28;
-  --bd: rgba(255,255,255,0.06);
-  --tx2: var(--secondary-text-color, #9898a8);
-  --dg: #e74c3c;
-  --gn: #4ecca3;
-  --wn: #f39c12;
-  --r: 14px;
-  display: block;
   margin-bottom: 20px;
-}
-.card {
-  background: var(--sf);
-  border: 1px solid var(--bd);
-  border-radius: var(--r);
-}
-.card-h {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--bd);
-  font-size: 14px;
-  font-weight: 600;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
 }
 .card-h .count {
   font-weight: 400;
@@ -204,7 +177,7 @@ class FdTransactionsLog extends HTMLElement {
   white-space: nowrap;
   padding-top: 2px;
 }
-.tx-amount.pos { color: var(--gn); }
+.tx-amount.pos { color: var(--ac); }
 .tx-amount.neg { color: var(--dg); }
 .tx-toggle {
   display: block;
@@ -225,7 +198,10 @@ class FdTransactionsLog extends HTMLElement {
   font-size: 13px;
   text-align: center;
 }
-</style>
+`;
+
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${LOCAL_CSS}</style>
 <div class="card">
   <div class="card-h">
     <span>Importierte Transaktionen</span>
@@ -249,13 +225,6 @@ class FdTransactionsLog extends HTMLElement {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
     if (!m) return iso;
     return `${m[3]}.${m[2]}.`;
-  }
-
-  _esc(s) {
-    if (s === null || s === undefined) return "";
-    const d = document.createElement("div");
-    d.textContent = String(s);
-    return d.innerHTML;
   }
 }
 

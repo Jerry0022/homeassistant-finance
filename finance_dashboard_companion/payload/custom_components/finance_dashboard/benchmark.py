@@ -19,11 +19,10 @@ is sent to any external service. Cached in .storage/.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 import aiohttp
-
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
@@ -192,9 +191,7 @@ class BenchmarkProvider:
                 return b
         return None
 
-    def compare(
-        self, category: str, user_value: float
-    ) -> dict[str, Any] | None:
+    def compare(self, category: str, user_value: float) -> dict[str, Any] | None:
         """Compare a user's value against the national average.
 
         Returns comparison result with formatted text.
@@ -245,16 +242,12 @@ class BenchmarkProvider:
             "source": benchmark["source"],
             "survey_year": benchmark["survey_year"],
             "fetch_date": (
-                self._last_check.strftime("%Y-%m-%d")
-                if self._last_check
-                else "embedded"
+                self._last_check.strftime("%Y-%m-%d") if self._last_check else "embedded"
             ),
             "text": text,
         }
 
-    def _update_value(
-        self, benchmark_id: str, new_value: float
-    ) -> None:
+    def _update_value(self, benchmark_id: str, new_value: float) -> None:
         """Update a benchmark value."""
         for b in self._data:
             if b["id"] == benchmark_id:
@@ -313,10 +306,6 @@ class BenchmarkProvider:
         await self._store.async_save(
             {
                 "benchmarks": self._data,
-                "last_check": (
-                    self._last_check.isoformat()
-                    if self._last_check
-                    else None
-                ),
+                "last_check": (self._last_check.isoformat() if self._last_check else None),
             }
         )

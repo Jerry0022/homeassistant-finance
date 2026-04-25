@@ -17,9 +17,12 @@ class FdStatsRow extends HTMLElement {
   _render() {
     const d = this._data;
     if (!d) {
-      this.shadowRoot.innerHTML = "";
+      // Show skeleton cards while data is loading
+      this._renderSkeleton();
       return;
     }
+
+    const { SHARED_CSS } = window._fd;
 
     const eur = (v) => new Intl.NumberFormat("de-DE", {
       style: "currency", currency: "EUR",
@@ -33,9 +36,10 @@ class FdStatsRow extends HTMLElement {
     const accountCount = d.accountCount || 0;
     const savingsRate = totalInc > 0 ? Math.round(surplus / totalInc * 100) : 0;
 
-    this.shadowRoot.innerHTML = `
-<style>
-:host { display: block; margin-bottom: 20px; }
+    const LOCAL_CSS = `
+:host {
+  margin-bottom: 20px;
+}
 .stats {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -44,7 +48,10 @@ class FdStatsRow extends HTMLElement {
 @media (max-width: 768px) {
   .stats { grid-template-columns: repeat(2, 1fr); }
 }
-</style>
+`;
+
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${LOCAL_CSS}</style>
 <div class="stats">
   <fd-stat-card id="balance"></fd-stat-card>
   <fd-stat-card id="expenses"></fd-stat-card>
@@ -63,22 +70,51 @@ class FdStatsRow extends HTMLElement {
     expenses.label = "Ausgaben";
     expenses.value = eur(totalExp);
     expenses.subtitle = `${txnCount} Transaktionen`;
-    expenses.accent = "#e74c3c";
+    expenses.accent = "var(--dg, #e74c3c)";
     expenses.valclass = "neg";
 
     const income = this.shadowRoot.getElementById("income");
     income.label = "Einnahmen";
     income.value = eur(totalInc);
     income.subtitle = "Netto";
-    income.accent = "#3b82f6";
+    income.accent = "var(--bl, #3b82f6)";
     income.valclass = "";
 
     const savings = this.shadowRoot.getElementById("savings");
     savings.label = "Sparquote";
     savings.value = `${savingsRate}%`;
     savings.subtitle = `${surplus >= 0 ? "+" : ""}${eur(surplus)} Monatssaldo`;
-    savings.accent = "#8b5cf6";
+    savings.accent = "var(--pp, #8b5cf6)";
     savings.valclass = "";
+  }
+  _renderSkeleton() {
+    const { SHARED_CSS } = window._fd;
+    const LOCAL_CSS = `
+:host { margin-bottom: 20px; }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+@media (max-width: 768px) {
+  .stats { grid-template-columns: repeat(2, 1fr); }
+}
+`;
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${LOCAL_CSS}</style>
+<div class="stats">
+  <fd-stat-card id="balance"></fd-stat-card>
+  <fd-stat-card id="expenses"></fd-stat-card>
+  <fd-stat-card id="income"></fd-stat-card>
+  <fd-stat-card id="savings"></fd-stat-card>
+</div>`;
+    ["balance", "expenses", "income", "savings"].forEach((id) => {
+      const el = this.shadowRoot.getElementById(id);
+      if (el) {
+        el.label = { balance: "Gesamtsaldo", expenses: "Ausgaben", income: "Einnahmen", savings: "Sparquote" }[id];
+        el.setData(null); // triggers skeleton
+      }
+    });
   }
 }
 
