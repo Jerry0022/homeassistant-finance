@@ -1,0 +1,38 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+# pytest-homeassistant-custom-component sets a Windows-incompatible event loop
+# policy at module-load time (HassEventLoopPolicy → ProactorEventLoop needs
+# socketpair which pytest-socket blocks).  We disable it here so unit/contract
+# tests run on all platforms.  Integration tests that need a real HA instance
+# should be placed in tests/integration/ and run with a separate config.
+# Socket guard note: pytest-socket is bundled with pytest-homeassistant-custom-component.
+# allow_unix_socket=true lets Unix-domain sockets (loopback) through so HA's
+# SelectorEventLoop self-pipe works on Linux CI.  The conftest.py pytest_configure
+# hook handles the Windows ProactorEventLoop / socketpair incompatibility.
+addopts = "--allow-unix-socket"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "PLR", "RUF"]
+ignore = ["PLR2004"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "PLR2004", "PLR0913"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "homeassistant.*",
+    "pytest_homeassistant_custom_component.*",
+]
+ignore_missing_imports = true
