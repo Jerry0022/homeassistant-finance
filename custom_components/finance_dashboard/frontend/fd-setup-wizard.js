@@ -38,8 +38,14 @@ class FdSetupWizard extends HTMLElement {
     this._pollTimer = null;
     this._error = null;
     this._loading = false;
+    this._initialStep = 1; // Override with initialStep property
     this._boundTrapFocus = this._trapFocus.bind(this);
     this._boundEsc = this._handleEsc.bind(this);
+  }
+
+  /** Set to 2 to open directly at bank selection (credentials already present). */
+  set initialStep(v) {
+    this._initialStep = parseInt(v) || 1;
   }
 
   set hass(hass) {
@@ -47,7 +53,9 @@ class FdSetupWizard extends HTMLElement {
   }
 
   connectedCallback() {
+    this._step = this._initialStep;
     this._render();
+    // If opening at step 1 or at step 2 (add-account flow), load institutions
     this._loadInstitutions();
     document.addEventListener("keydown", this._boundTrapFocus);
     document.addEventListener("keydown", this._boundEsc);

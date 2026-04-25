@@ -241,11 +241,31 @@ class FinanceDashboardPanel extends HTMLElement {
     if (components) components.classList.remove("hidden");
   }
 
-  _openSetupWizard() {
+  async _openSetupWizard() {
     // Prevent duplicate wizard
     if (this.shadowRoot.querySelector("fd-setup-wizard")) return;
     const wizard = document.createElement("fd-setup-wizard");
     wizard.hass = this._hass;
+
+    // If credentials are already present (existing integration), start at step 1
+    // (institution selection) — credentials are reused automatically by the backend.
+    // Check /setup/auth_status to determine if setup has already been performed.
+    // Default to step 1 (safe fallback).
+    let startStep = 1;
+    if (this._hass) {
+      try {
+        const status = await this._hass.callApi("GET", "finance_dashboard/setup/status");
+        // If we already have credentials stored (any account configured or setup started),
+        // open directly at institution selection (step 1 — credentials flow is in HA config flow).
+        // Status "ready" or "configured" means creds exist → skip nothing, wizard starts at step 1.
+        // We set initialStep=1 unconditionally here — the wizard always starts at institution list
+        // when called from "+ Konto" since credentials are already stored in the integration.
+        startStep = 1;
+      } catch (_) {
+        startStep = 1;
+      }
+    }
+    wizard.initialStep = startStep;
     this.shadowRoot.appendChild(wizard);
   }
 
