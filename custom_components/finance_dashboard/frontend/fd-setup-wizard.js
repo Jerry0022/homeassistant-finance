@@ -370,9 +370,20 @@ class FdSetupWizard extends HTMLElement {
   cursor: pointer;
   border: 1px solid transparent;
 }
-.institution-item:hover {
+.institution-item:hover,
+.institution-item:focus {
   background: rgba(255,255,255,0.04);
   border-color: rgba(255,255,255,0.08);
+  outline: none;
+}
+.institution-item[aria-selected="true"] {
+  background: rgba(78,204,163,0.1);
+  border-color: var(--accent-color, #4ecca3);
+}
+.institution-item .selected-mark {
+  margin-left: auto;
+  color: var(--accent-color, #4ecca3);
+  font-size: 14px;
 }
 .institution-item img {
   width: 32px;
@@ -575,12 +586,24 @@ class FdSetupWizard extends HTMLElement {
   }
 
   _renderInstitutionList() {
-    const items = this._filteredInstitutions.map((inst) => `
-      <div class="institution-item" data-name="${this._esc(inst.name)}" data-id="${this._esc(inst.id || "")}" data-logo="${this._esc(inst.logo || "")}">
+    const selected = this._selectedInstitution;
+    const items = this._filteredInstitutions.map((inst, idx) => {
+      const isSel = selected && selected.name === inst.name;
+      return `
+      <div class="institution-item"
+        role="option"
+        aria-selected="${isSel ? "true" : "false"}"
+        tabindex="${isSel ? "0" : "-1"}"
+        data-idx="${idx}"
+        data-name="${this._esc(inst.name)}"
+        data-id="${this._esc(inst.id || "")}"
+        data-logo="${this._esc(inst.logo || "")}">
         ${inst.logo ? `<img src="${this._esc(inst.logo)}" alt="">` : `<div style="width:32px;height:32px;border-radius:6px;background:#333;"></div>`}
         <span class="name">${this._esc(inst.name)}</span>
+        ${isSel ? `<span class="selected-mark" aria-hidden="true">&#x2713;</span>` : ""}
       </div>
-    `).join("");
+    `;
+    }).join("");
     return items || '<div style="padding:20px;text-align:center;color:var(--secondary-text-color);">Keine Banken gefunden</div>';
   }
 
@@ -593,6 +616,24 @@ class FdSetupWizard extends HTMLElement {
           logo: el.dataset.logo,
         });
       });
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          this._authorize({
+            name: el.dataset.name,
+            id: el.dataset.id,
+            logo: el.dataset.logo,
+          });
+        } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          const items = Array.from(this.shadowRoot.querySelectorAll(".institution-item"));
+          const curr = parseInt(el.dataset.idx);
+          const next = e.key === "ArrowDown" ? curr + 1 : curr - 1;
+          if (next >= 0 && next < items.length) {
+            items[next].focus();
+          }
+        }
+      });
     });
   }
 
@@ -601,8 +642,8 @@ class FdSetupWizard extends HTMLElement {
       return `<div class="loading-spinner">Banken werden geladen\u2026</div>`;
     }
     return `
-      <input type="text" class="search-input" id="searchInput" placeholder="Bank suchen\u2026" autocomplete="off">
-      <div class="institution-list">${this._renderInstitutionList()}</div>
+      <input type="text" class="search-input" id="searchInput" placeholder="Bank suchen\u2026" autocomplete="off" aria-label="Bank suchen">
+      <div class="institution-list" role="listbox" aria-label="Bank ausw\u00e4hlen">${this._renderInstitutionList()}</div>
     `;
   }
 
@@ -610,6 +651,13 @@ class FdSetupWizard extends HTMLElement {
     const input = this.shadowRoot.getElementById("searchInput");
     if (input) {
       input.addEventListener("input", (e) => this._filterInstitutions(e.target.value));
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          const first = this.shadowRoot.querySelector(".institution-item");
+          if (first) first.focus();
+        }
+      });
       input.focus();
     }
     this._bindInstitutionClicks();
