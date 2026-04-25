@@ -65,6 +65,7 @@ class FinanceDashboardPanel extends HTMLElement {
   }
 
   _render() {
+    const { tSync } = window._fd;
     this.shadowRoot.innerHTML = `
 <style>
 :host {
@@ -104,7 +105,7 @@ class FinanceDashboardPanel extends HTMLElement {
 <fd-data-provider></fd-data-provider>
 <div class="fd">
   <fd-header></fd-header>
-  <div id="overlay" class="loading">Lade Finanzdaten…</div>
+  <div id="overlay" class="loading">${tSync("panel.loading")}</div>
   <div id="components" class="hidden"></div>
 </div>`;
 
@@ -124,8 +125,7 @@ class FinanceDashboardPanel extends HTMLElement {
           new Date(header._rateLimitedUntil) > new Date()) {
         if (header.showToast) {
           header.showToast(
-            "Tageslimit der Bank-API ist erreicht (4/Tag pro Konto). "
-            + "Neue Abfragen sind erst ab morgen 00:00 möglich.",
+            window._fd.tSync("header.refresh.toast_rate_limited"),
             "warn",
           );
         }
@@ -142,36 +142,36 @@ class FinanceDashboardPanel extends HTMLElement {
     this.shadowRoot.addEventListener("fd-refresh-done", (e) => {
       const header = this.shadowRoot.querySelector("fd-header");
       if (!header || !header.showToast) return;
+      const { tSync } = window._fd;
       const d = e.detail || {};
       const s = d.status?.stats || {};
       const reason = d.reason || s.outcome || "error";
       if (reason === "ok") {
         const parts = [];
-        if (s.accounts) parts.push(`${s.accounts} Konten`);
-        if (s.transactions) parts.push(`${s.transactions} Transaktionen`);
-        if (s.new) parts.push(`${s.new} neu`);
+        if (s.accounts) parts.push(`${s.accounts} ${tSync("general.accounts_plural")}`);
+        if (s.transactions) parts.push(`${s.transactions} ${tSync("general.transactions")}`);
+        if (s.new) parts.push(`${s.new} ${tSync("general.new")}`);
         const dur = s.duration_ms ? ` in ${(s.duration_ms / 1000).toFixed(1)}s` : "";
         header.showToast(
-          `Aktualisiert — ${parts.join(", ") || "keine Daten"}${dur}`,
+          `${tSync("panel.loading.refresh").replace(/…$/, "")} — ${parts.join(", ") || tSync("transactions.empty")}${dur}`,
           "success",
         );
       } else if (reason === "partial") {
-        const msg = `Teilweise aktualisiert — `
-          + `${s.accounts || 0} Konten, ${s.transactions || 0} Tx. `
+        const msg = `${tSync("general.partial_error")} — `
+          + `${s.accounts || 0} ${tSync("general.accounts_plural")}, ${s.transactions || 0} Tx. `
           + `${(s.errors || []).join(" · ")}`.trim();
         header.showToast(msg, "warn");
       } else if (reason === "rate_limited") {
         header.showToast(
-          "Tageslimit der Bank-API erreicht. Cache bleibt aktiv, "
-          + "neue Live-Daten morgen ab 00:00.",
+          tSync("header.refresh.toast_rate_limited"),
           "warn",
         );
       } else if (reason === "demo") {
-        header.showToast("Demo-Daten neu generiert.", "info");
+        header.showToast(tSync("toast.demo_started"), "info");
       } else {
         const errs = (s.errors || []).slice(0, 2).join(" · ")
-          || "Unbekannter Fehler";
-        header.showToast(`Aktualisierung fehlgeschlagen — ${errs}`, "error");
+          || tSync("general.error");
+        header.showToast(`${tSync("general.error")} — ${errs}`, "error");
       }
     });
 
@@ -181,6 +181,12 @@ class FinanceDashboardPanel extends HTMLElement {
       if (dp) {
         dp.toggleDemo().then((enabled) => {
           if (header) header.demoMode = enabled;
+          if (header && header.showToast) {
+            header.showToast(
+              window._fd.tSync(enabled ? "toast.demo_started" : "toast.demo_stopped"),
+              "info",
+            );
+          }
         });
       }
     });
@@ -281,6 +287,8 @@ class FinanceDashboardPanel extends HTMLElement {
   }
 
   _onData(data) {
+    const { tSync } = window._fd;
+
     // Update header timestamp, rate limit, and demo state
     const header = this.shadowRoot.querySelector("fd-header");
     if (header) {
@@ -292,23 +300,23 @@ class FinanceDashboardPanel extends HTMLElement {
 
     // Loading state (e.g. during demo toggle)
     if (data.loading) {
-      this._showOverlay("loading", "Lade Finanzdaten…");
+      this._showOverlay("loading", tSync("panel.loading"));
       return;
     }
 
     if (data.error) {
       this._showOverlay("error",
-        `<div>Keine Verbindung möglich. <button id="errorWizardBtn" style="background:none;border:none;color:var(--accent-color,#4ecca3);cursor:pointer;text-decoration:underline;font-size:inherit;font-family:inherit;">Bankkonto verbinden</button></div>`);
+        `<div>${tSync("panel.error")} <button id="errorWizardBtn" style="background:none;border:none;color:var(--accent-color,#4ecca3);cursor:pointer;text-decoration:underline;font-size:inherit;font-family:inherit;">${tSync("panel.error.connect")}</button></div>`);
       this._overlay.querySelector("#errorWizardBtn")
         ?.addEventListener("click", () => this._openSetupWizard());
       return;
     }
 
     // While a refresh is in flight and there's no data yet, keep the
-    // user on the "Lade Finanzdaten…" screen instead of flashing
-    // the onboarding prompt momentarily.
+    // user on the loading screen instead of flashing the onboarding
+    // prompt momentarily.
     if (data.isRefreshing && data.accountCount === 0 && !data.demoMode) {
-      this._showOverlay("loading", "Daten werden geladen…");
+      this._showOverlay("loading", tSync("panel.loading.refresh"));
       return;
     }
 
@@ -318,21 +326,21 @@ class FinanceDashboardPanel extends HTMLElement {
       this._showOverlay("onboarding", `
 <div style="text-align:center;padding:60px 20px;max-width:480px;margin:0 auto;">
   <div style="font-size:48px;margin-bottom:16px;">&#x1F3E6;</div>
-  <h2 style="margin:0 0 8px;font-size:20px;font-weight:600;">Willkommen beim Finance Dashboard</h2>
+  <h2 style="margin:0 0 8px;font-size:20px;font-weight:600;">${tSync("panel.onboarding.title")}</h2>
   <p style="color:var(--tx2);margin:0 0 24px;line-height:1.5;">
-    Noch keine Bankkonten verbunden. Verbinde jetzt dein Konto oder starte den Demo-Modus.
+    ${tSync("panel.onboarding.body")}
   </p>
   <button id="onboardingConnectBtn" style="
     padding:12px 28px;border-radius:12px;border:none;
     background:var(--accent-color,#4ecca3);color:var(--primary-background-color,#0a0a0f);font-size:15px;font-weight:700;
     cursor:pointer;font-family:inherit;margin-bottom:12px;
-  ">Bankkonto verbinden</button>
+  ">${tSync("panel.onboarding.cta_link")}</button>
   <div style="margin-top:12px;">
     <button id="onboardingDemoBtn" style="
       padding:10px 24px;border-radius:10px;border:2px solid var(--warning-color,#f39c12);
       background:transparent;color:var(--warning-color,#f39c12);font-size:14px;font-weight:600;
       cursor:pointer;font-family:inherit;
-    ">Demo starten</button>
+    ">${tSync("panel.onboarding.cta_demo")}</button>
   </div>
 </div>`);
       if (needsRebind) {

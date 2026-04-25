@@ -56,18 +56,19 @@ class FdHeader extends HTMLElement {
   _updateRefreshBtn() {
     const btn = this.shadowRoot.getElementById("refreshBtn");
     if (!btn) return;
+    const { tSync } = window._fd;
     if (this._rateLimitedUntil && new Date(this._rateLimitedUntil) > new Date()) {
       btn.disabled = true;
-      btn.textContent = "Morgen verf\u00fcgbar";
-      btn.title = "Tageslimit der Bank-API erreicht (4/Tag pro Konto). N\u00e4chste Aktualisierung ab morgen.";
+      btn.textContent = tSync("header.refresh.rate_limited");
+      btn.title = tSync("header.refresh.rate_limited_title");
     } else if (this._refreshing) {
       btn.disabled = true;
-      btn.textContent = "L\u00e4dt\u2026";
-      btn.title = "Bank-API wird abgefragt\u2014dies kann einige Sekunden dauern.";
+      btn.textContent = tSync("header.refresh.refreshing");
+      btn.title = tSync("header.refresh.refreshing");
     } else {
       btn.disabled = false;
-      btn.textContent = "Aktualisieren";
-      btn.title = "Live-Daten von der Bank-API holen";
+      btn.textContent = tSync("header.refresh.button");
+      btn.title = tSync("header.refresh.button_title");
     }
   }
 
@@ -81,7 +82,7 @@ class FdHeader extends HTMLElement {
   }
 
   _scheduleTimestampTick() {
-    // Once we have a timestamp, update the "vor N min" label every 60s
+    // Once we have a timestamp, update the "N min ago" label every 60s
     // so the user always sees the current cache age without reloading.
     if (this._timestampTimer || !this._lastRefresh) return;
     this._timestampTimer = setInterval(() => this._updateTimestamp(), 60000);
@@ -106,22 +107,25 @@ class FdHeader extends HTMLElement {
     const btn = this.shadowRoot.getElementById("demoBtn");
     const badge = this.shadowRoot.getElementById("demoBadge");
     if (!btn) return;
+    const { tSync } = window._fd;
     btn.setAttribute("aria-pressed", String(this._demoMode));
     if (this._demoMode) {
-      btn.textContent = "Demo aus";
+      btn.textContent = tSync("header.demo_on");
       btn.classList.add("btn-demo-active");
       if (badge) badge.style.display = "inline-block";
     } else {
-      btn.textContent = "Demo";
+      btn.textContent = tSync("header.demo_off");
       btn.classList.remove("btn-demo-active");
       if (badge) badge.style.display = "none";
     }
   }
 
   _render() {
-    const { MONTH_NAMES, SHARED_CSS } = window._fd;
+    const { SHARED_CSS, tSync } = window._fd;
     const now = new Date();
-    const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+    const lang = (window._fd._hass && window._fd._hass.language)
+      || navigator.language || "en";
+    const monthLabel = now.toLocaleDateString(lang, { month: "short", year: "numeric" });
 
     const LOCAL_CSS = `
 :host {
@@ -275,13 +279,13 @@ h1 {
   </div>
   <div class="right">
     <div class="ts-stack">
-      <span class="ts empty" id="ts">Noch keine Daten \u2014 klicke "Aktualisieren"</span>
+      <span class="ts empty" id="ts">${tSync("header.ts.empty")}</span>
       <span class="ts-stats" id="tsStats"></span>
     </div>
-    <button class="btn btn-demo" id="demoBtn" aria-label="Demo-Modus umschalten" aria-pressed="false">Demo</button>
+    <button class="btn btn-demo" id="demoBtn" aria-label="${tSync("header.demo_toggle")}" aria-pressed="false">${tSync("header.demo_off")}</button>
     <span class="month-label" id="monthLabel" aria-label="Aktueller Monat: ${monthLabel}">${monthLabel}</span>
-    <button class="btn btn-p" id="refreshBtn">Aktualisieren</button>
-    <button class="btn" id="addAccountBtn" title="Bankkonto hinzuf\u00fcgen">+ Konto</button>
+    <button class="btn btn-p" id="refreshBtn">${tSync("header.refresh.button")}</button>
+    <button class="btn" id="addAccountBtn" title="${tSync("header.add_account_title")}">${tSync("header.add_account")}</button>
   </div>
 </div>`;
 
@@ -317,11 +321,14 @@ h1 {
     const el = this.shadowRoot.getElementById("ts");
     const statsEl = this.shadowRoot.getElementById("tsStats");
     if (!el) return;
+    const { tSync } = window._fd;
+    const lang = (window._fd._hass && window._fd._hass.language)
+      || navigator.language || "en";
 
     // Refresh in flight takes priority over everything else.
     if (this._refreshing) {
       el.className = "ts loading";
-      el.textContent = "Aktualisiere\u2026 Bank-API wird abgefragt";
+      el.textContent = tSync("header.ts.loading");
       if (statsEl) statsEl.textContent = "";
       return;
     }
@@ -329,48 +336,50 @@ h1 {
     // Hard rate-limit state — surface it where the user looks first.
     if (this._rateLimitedUntil && new Date(this._rateLimitedUntil) > new Date()) {
       el.className = "ts rate";
-      el.textContent = "Tageslimit erreicht \u2014 Cache wird genutzt";
+      el.textContent = tSync("header.ts.rate");
       if (statsEl) {
         const next = new Date(this._rateLimitedUntil);
-        statsEl.textContent = `Neue Abfragen ab ${next.toLocaleDateString("de-DE")} 00:00`;
+        statsEl.textContent = tSync("header.ts.rate_next", {
+          date: next.toLocaleDateString(lang),
+        });
       }
       return;
     }
 
     if (this._lastRefresh) {
       const d = new Date(this._lastRefresh);
-      const timeStr = d.toLocaleTimeString("de-DE", {
+      const timeStr = d.toLocaleTimeString(lang, {
         hour: "2-digit", minute: "2-digit",
       });
-      const dayStr = d.toLocaleDateString("de-DE", {
+      const dayStr = d.toLocaleDateString(lang, {
         day: "2-digit", month: "2-digit",
       });
       const ageMin = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
       let ageLabel;
-      if (ageMin < 1) ageLabel = "gerade eben";
-      else if (ageMin < 60) ageLabel = `vor ${ageMin} Min`;
+      if (ageMin < 1) ageLabel = tSync("header.ts.age.now");
+      else if (ageMin < 60) ageLabel = tSync("header.ts.age.min", { n: ageMin });
       else if (ageMin < 1440) {
         const h = Math.round(ageMin / 60);
-        ageLabel = `vor ${h} Std`;
+        ageLabel = tSync("header.ts.age.hour", { n: h });
       } else {
         const days = Math.round(ageMin / 1440);
-        ageLabel = `vor ${days} Tg`;
+        ageLabel = tSync("header.ts.age.day", { n: days });
       }
       el.className = "ts";
-      el.textContent = `Zuletzt: ${timeStr} (${ageLabel})`;
-      el.title = `Letzte Aktualisierung: ${dayStr} ${timeStr}`;
+      el.textContent = tSync("header.ts.last", { time: timeStr, age: ageLabel });
+      el.title = `${dayStr} ${timeStr}`;
 
       if (statsEl) {
         const s = this._lastRefreshStats;
         if (s && s.outcome) {
           const parts = [];
-          if (s.accounts != null) parts.push(`${s.accounts} Konten`);
+          if (s.accounts != null) parts.push(`${s.accounts} ${tSync("general.accounts_plural")}`);
           if (s.transactions != null) parts.push(`${s.transactions} Tx`);
-          if (s.new) parts.push(`${s.new} neu`);
-          if (s.outcome === "partial") parts.push("teilweise Fehler");
-          else if (s.outcome === "rate_limited") parts.push("Rate-Limit");
-          else if (s.outcome === "error") parts.push("Fehler");
-          statsEl.textContent = parts.join(" \u00b7 ");
+          if (s.new) parts.push(`${s.new} ${tSync("general.new")}`);
+          if (s.outcome === "partial") parts.push(tSync("general.partial_error"));
+          else if (s.outcome === "rate_limited") parts.push(tSync("general.rate_limit"));
+          else if (s.outcome === "error") parts.push(tSync("general.error"));
+          statsEl.textContent = parts.join(" · ");
         } else {
           statsEl.textContent = "";
         }
@@ -380,7 +389,7 @@ h1 {
 
     // No cache at all.
     el.className = "ts empty";
-    el.textContent = "Noch keine Daten \u2014 klicke \"Aktualisieren\"";
+    el.textContent = tSync("header.ts.empty");
     if (statsEl) statsEl.textContent = "";
   }
 }
