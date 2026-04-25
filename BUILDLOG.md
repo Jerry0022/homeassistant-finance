@@ -1,5 +1,13 @@
 # Build Log
 
+## [unreleased] Wave D — Architecture Refactors (A1, A2, A4, A5)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- feat(security): A4 — replace manual base64/cryptography JWT with PyJWT[crypto]>=2.8.0; iss=application_id, aud=api.tilisy.com per current Enable Banking docs; adds unique jti per request (replay protection); adds tests/test_jwt.py (8 cases: decode, iss, aud, TTL, jti presence, jti uniqueness, kid header, RS256 algorithm)
+- refactor(banking): A5 — EnableBankingClient accepts optional session parameter; HA-managed session injected via async_get_clientsession in both manager.py and api/_helpers.py; private session lazily created only when none injected; async_close() cleans up private session only (owner=True); eliminates per-request TCP handshake overhead
+- refactor(api): A1 — split 1373-line api.py into api/ package: _helpers.py (shared utils), setup.py (7 setup-wizard views + OAuth callback), refresh.py (RefreshTriggerView + RefreshStatusView), data.py (BalancesView, TransactionsView, SummaryView, TransferChainsView), static.py (LRU file serving), demo.py (DemoToggleView + DemoDataView), __init__.py (async_register_api + full re-exports); from .api import async_register_api still works; test patch target updated to api.refresh._get_manager
+- refactor(manager): A2 — split 1321-line manager.py into manager/ package with two mixins: RefreshMixin (_refresh.py: async_refresh_transactions, _do_refresh, _async_refresh_balances_live, _set_rate_limited, OAuth state, setup proxy, client factory, credential issue helpers), PersistenceMixin (_persistence.py: _persist_transactions, _async_load_transfer_overrides, storage corrupt issue); FinanceDashboardManager inherits both (MRO: Manager → RefreshMixin → PersistenceMixin); from .manager import FinanceDashboardManager unchanged
+
 ## [unreleased] Wave C — Security Audit (R5, R8, R9, R10, R11, R12, R14, C9)
 Branch: claude/eager-nobel-e572f9
 Changes:
