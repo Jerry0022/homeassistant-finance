@@ -344,7 +344,7 @@ class FdSetupWizard extends HTMLElement {
   border-radius: 10px;
   background: rgba(231,76,60,0.1);
   border: 1px solid rgba(231,76,60,0.3);
-  color: #e74c3c;
+  color: var(--error-color, #e74c3c);
   font-size: 13px;
   margin-bottom: 16px;
 }
@@ -376,7 +376,7 @@ class FdSetupWizard extends HTMLElement {
   padding: 12px 24px;
   border-radius: 10px;
   background: var(--accent-color, #4ecca3);
-  color: #0a0a0f;
+  color: var(--primary-background-color, #0a0a0f);
   font-size: 14px;
   font-weight: 700;
   border: none;

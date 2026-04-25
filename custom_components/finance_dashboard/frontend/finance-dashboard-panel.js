@@ -43,7 +43,7 @@ class FinanceDashboardPanel extends HTMLElement {
   --bg: var(--primary-background-color, #0a0a0f);
   --tx: var(--primary-text-color, #e0e0e0);
   --tx2: var(--secondary-text-color, #9898a8);
-  --dg: #e74c3c;
+  --dg: var(--error-color, #e74c3c);
   display: block;
   font-family: 'Segoe UI', system-ui, sans-serif;
   background: var(--bg);
@@ -217,13 +217,13 @@ class FinanceDashboardPanel extends HTMLElement {
   </p>
   <button id="onboardingConnectBtn" style="
     padding:12px 28px;border-radius:12px;border:none;
-    background:var(--accent-color,#4ecca3);color:#0a0a0f;font-size:15px;font-weight:700;
+    background:var(--accent-color,#4ecca3);color:var(--primary-background-color,#0a0a0f);font-size:15px;font-weight:700;
     cursor:pointer;font-family:inherit;margin-bottom:12px;
   ">Bankkonto verbinden</button>
   <div style="margin-top:12px;">
     <button id="onboardingDemoBtn" style="
-      padding:10px 24px;border-radius:10px;border:2px solid #f39c12;
-      background:transparent;color:#f39c12;font-size:14px;font-weight:600;
+      padding:10px 24px;border-radius:10px;border:2px solid var(--warning-color,#f39c12);
+      background:transparent;color:var(--warning-color,#f39c12);font-size:14px;font-weight:600;
       cursor:pointer;font-family:inherit;
     ">Demo starten</button>
   </div>
