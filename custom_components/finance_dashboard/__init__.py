@@ -194,7 +194,30 @@ async def _async_register_services(
         return {"path": path}
 
     async def handle_toggle_demo(call) -> None:
+        # R14: admin-only gate — toggling demo mode modifies global state
+        # and replaces cached transaction data.
+        from homeassistant.exceptions import HomeAssistantError
+
+        if not call.context or not call.context.user_id:
+            raise HomeAssistantError("admin_required")
+        user = await hass.auth.async_get_user(call.context.user_id)
+        if user is None or not user.is_admin:
+            raise HomeAssistantError("admin_required")
+
         enabled = not manager.demo_mode
+        if enabled:
+            # Back up real data before overwriting with demo
+            manager._demo_backup_transactions = list(manager._transactions)
+            manager._demo_backup_tx_by_account = dict(manager._tx_by_account)
+            manager._demo_backup_balances = dict(manager._balances)
+            manager._demo_backup_last_refresh = manager._last_refresh
+        else:
+            # Restore real data when disabling demo
+            if hasattr(manager, "_demo_backup_transactions"):
+                manager._transactions = manager._demo_backup_transactions
+                manager._tx_by_account = manager._demo_backup_tx_by_account
+                manager._balances = manager._demo_backup_balances
+                manager._last_refresh = manager._demo_backup_last_refresh
         manager.set_demo_mode(enabled)
         await coordinator.async_refresh()
 
