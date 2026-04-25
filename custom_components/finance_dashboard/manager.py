@@ -22,8 +22,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import secrets
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -45,6 +46,9 @@ _LOGGER = logging.getLogger(__name__)
 
 TRANSACTION_CACHE_KEY = f"{DOMAIN}_transactions"
 TRANSACTION_CACHE_VERSION = 1
+
+# OAuth state token TTL in seconds (10 minutes)
+_OAUTH_STATE_TTL = 600
 
 
 class FinanceDashboardManager:
@@ -86,6 +90,8 @@ class FinanceDashboardManager:
         # ``is_refreshing`` so the frontend can poll for completion.
         self._refresh_lock = asyncio.Lock()
         self._refresh_in_flight: bool = False
+        # OAuth state tokens: {state_str: created_iso} — one-time-use, 10min TTL
+        self._oauth_states: dict[str, str] = {}
 
     @property
     def rate_limited_until(self) -> datetime | None:
@@ -858,6 +864,83 @@ class FinanceDashboardManager:
             "has_cache": bool(self._transactions) or bool(self._balances),
             "demo_mode": self._demo_mode,
         }
+
+    async def async_register_oauth_state(self, state: str) -> None:
+        """Register an OAuth state token for later CSRF validation.
+
+        The state is stored in memory only (not persisted) with a creation
+        timestamp so it can be expired after ``_OAUTH_STATE_TTL`` seconds.
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        self._oauth_states[state] = now
+        _LOGGER.debug("OAuth state registered (total: %d)", len(self._oauth_states))
+
+    async def async_validate_oauth_state(self, state: str) -> bool:
+        """Validate and consume an OAuth state token (CSRF protection).
+
+        Uses ``secrets.compare_digest`` for timing-safe comparison to prevent
+        timing-based enumeration of valid state tokens.
+
+        Returns:
+            True if the state was registered, not yet consumed, and not expired.
+            False otherwise (unknown state, already consumed, or TTL exceeded).
+        """
+        # Purge all expired states first
+        now = datetime.now(timezone.utc)
+        expired = [
+            s for s, created in self._oauth_states.items()
+            if (now - datetime.fromisoformat(created)).total_seconds() > _OAUTH_STATE_TTL
+        ]
+        for s in expired:
+            del self._oauth_states[s]
+
+        if not self._oauth_states:
+            return False
+
+        # Timing-safe search: compare against every registered state so the
+        # response time does not leak whether the prefix matched.
+        matched_key: str | None = None
+        for registered in list(self._oauth_states.keys()):
+            if secrets.compare_digest(registered, state):
+                matched_key = registered
+                # One-time-use: delete immediately on match
+                del self._oauth_states[registered]
+                break
+
+        if matched_key is None:
+            _LOGGER.warning("OAuth callback received with unknown/invalid state")
+            return False
+
+        _LOGGER.debug("OAuth state validated and consumed")
+        return True
+
+    async def async_make_setup_call(self, method_name: str, *args, **kwargs):
+        """Invoke an EnableBankingClient method through the rate-limit gate.
+
+        Setup-wizard endpoints (institutions, authorize, OAuth callback) must
+        go through here instead of instantiating EnableBankingClient directly.
+        This ensures that the 4/day ASPSP quota is respected even during the
+        onboarding flow — a user who hit the limit cannot bypass it by
+        re-running the wizard.
+
+        Raises:
+            RateLimitExceeded: when the API is still rate-limited.
+            RuntimeError: when no credentials are available.
+        """
+        if self.rate_limited_until:
+            raise RateLimitExceeded(
+                f"API rate-limited until {self._rate_limited_until.isoformat()} "
+                "— bitte morgen erneut versuchen."
+            )
+
+        client = await self._async_get_client()
+        if not client:
+            raise RuntimeError(
+                "Enable Banking client not available — credentials missing or invalid."
+            )
+
+        method = getattr(client, method_name)
+        return await method(*args, **kwargs)
 
     async def _async_get_client(self):
         """Get or create Enable Banking client with current credentials."""

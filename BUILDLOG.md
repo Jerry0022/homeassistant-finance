@@ -1,5 +1,13 @@
 # Build Log
 
+## [unreleased] Wave B — Security-Critical (S1-S4)
+Branch: security/wave-b-s1-s4
+Changes:
+- fix(security): sanitize banking responses in error logs (S1) — _LOGGER.error no longer emits raw response body; IBANs, 16-19 digit account IDs, and EUR amounts are masked via _sanitize_log() before reaching DEBUG-level log; exception messages also sanitized
+- feat(security): MultiFernet with key rotation + migration (S2) — credential_manager.py now stores keys as a versioned list (schema v2); async_rotate_key() prepends a new primary key, retains max 3; legacy v1 "encryption_key" string auto-migrated on init; audit entry "key_rotated" on every rotation
+- fix(security): route setup-wizard live calls through rate-limit gate (S3) — all 4 direct EnableBankingClient() instantiations in setup-wizard endpoints replaced with _get_setup_client(hass); checks manager.rate_limited_until before issuing any live call; async_make_setup_call() added to FinanceDashboardManager as the canonical gate
+- fix(security): validate OAuth state with timing-safe compare (S4) — async_register_oauth_state() / async_validate_oauth_state() added to FinanceDashboardManager using secrets.compare_digest() with 10min TTL and one-time-use; OAuth callback validates state before processing authorization code
+
 ## 0.12.1 — 2026-04-24
 Version: 0.12.1
 Branch: claude/charming-cohen-05563c
