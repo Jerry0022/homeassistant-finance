@@ -277,6 +277,33 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         _LOGGER.info("Finance Manager shut down")
 
     # ------------------------------------------------------------------
+    # Account management
+    # ------------------------------------------------------------------
+
+    def async_set_accounts(self, accounts: list[dict[str, Any]]) -> None:
+        """Update the in-memory account list (encapsulated write path).
+
+        Validates that *accounts* is a list; persists immediately to the
+        config-entry data so the new assignments survive an HA restart.
+        """
+        if not isinstance(accounts, list):
+            raise TypeError(
+                f"async_set_accounts: expected list, got {type(accounts).__name__}"
+            )
+        self._accounts = accounts
+        # Mirror to config-entry data so accounts survive HA restart
+        try:
+            new_data = {**self._entry.data, "accounts": accounts}
+            self._hass.config_entries.async_update_entry(
+                self._entry, data=new_data
+            )
+        except Exception:
+            _LOGGER.warning(
+                "async_set_accounts: failed to persist to config entry",
+                exc_info=True,
+            )
+
+    # ------------------------------------------------------------------
     # Account refresh
     # ------------------------------------------------------------------
 

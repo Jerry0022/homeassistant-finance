@@ -630,7 +630,7 @@ class FinanceDashboardSetupUpdateAccountsView(HomeAssistantView):
         # Update manager if running
         manager = _get_manager(hass)
         if manager:
-            manager._accounts = existing
+            manager.async_set_accounts(existing)
 
         _LOGGER.info(
             "Updated account settings for %d accounts",
