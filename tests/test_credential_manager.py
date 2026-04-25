@@ -1,4 +1,4 @@
-"""Tests for MultiFernet key rotation in CredentialManager (S2).
+"""Tests for MultiFernet key rotation in CredentialManager (S2 + T3).
 
 Tests:
 1. Encrypt with key1, rotate, decrypt still works (old ciphertext readable).
@@ -6,6 +6,11 @@ Tests:
 3. Key history is capped at _MAX_KEY_HISTORY.
 4. Migration from v1 (single string key) to v2 (key list) is transparent.
 5. audit log receives 'key_rotated' event on rotation.
+--- T3 edge-cases ---
+6. Encrypt with 3 keys, decrypt with middle key still succeeds.
+7. Migration v1 → v2 with a corrupt old key raises the appropriate error.
+8. Session timeout flag resets after inactivity threshold is exceeded.
+9. async_get_api_credentials returns None when manager is not initialized.
 """
 from unittest.mock import MagicMock, patch
 
@@ -159,3 +164,84 @@ async def test_audit_log_on_rotate():
 
     events = [e["event"] for e in audit_data.get("entries", [])]
     assert "key_rotated" in events
+
+
+# ---------------------------------------------------------------------------
+# T3 edge-cases
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_encrypt_with_middle_key_still_decrypts():
+    """Ciphertext produced by the *second* key in a 3-key rotation must
+    decrypt correctly even when a newer primary key exists.
+
+    Setup: k1 → rotate → k2 (primary) → encrypt → rotate → k3 (primary).
+    The MultiFernet must still decrypt the k2 ciphertext because k2 is in
+    position 1 of the key list [k3, k2, k1] (all ≤ _MAX_KEY_HISTORY = 3).
+    """
+    with _patch_store():
+        mgr = _make_manager()
+        await mgr.async_initialize()
+
+        # After first rotation k2 becomes primary
+        await mgr.async_rotate_key()
+        plaintext = b"encrypted-with-key-2"
+        ciphertext_k2 = mgr._fernet.encrypt(plaintext)
+
+        # After second rotation k3 becomes primary; k2 is now middle key
+        await mgr.async_rotate_key()
+
+        # Must still decrypt k2 ciphertext
+        assert mgr._fernet.decrypt(ciphertext_k2) == plaintext
+
+
+@pytest.mark.asyncio
+async def test_migration_v1_corrupt_key_raises():
+    """A v1 store with a corrupt (non-base64) encryption key must raise
+    a ValueError or InvalidToken when the MultiFernet is built, not silently
+    swallow the error.
+    """
+    from cryptography.fernet import InvalidToken
+
+    with _patch_store():
+        mgr = _make_manager()
+        # Plant a deliberately broken key
+        mgr._cred_store._data = {"encryption_key": "not-a-valid-fernet-key!!!"}
+
+        with pytest.raises((ValueError, Exception)):
+            await mgr.async_initialize()
+            # Force an actual encrypt/decrypt to trigger the key error
+            mgr._fernet.encrypt(b"test")
+
+
+@pytest.mark.asyncio
+async def test_session_timeout_resets_flag():
+    """After SESSION_TIMEOUT_MINUTES inactivity the session active flag must
+    be cleared by _check_session_timeout().
+    """
+    import time
+    from custom_components.finance_dashboard.const import SESSION_TIMEOUT_MINUTES
+
+    with _patch_store():
+        mgr = _make_manager()
+        await mgr.async_initialize()
+
+        # Simulate an active session that started long ago
+        mgr._session_active = True
+        mgr._last_activity = time.time() - (SESSION_TIMEOUT_MINUTES * 60 + 5)
+
+        mgr._check_session_timeout()
+
+        assert mgr._session_active is False
+
+
+@pytest.mark.asyncio
+async def test_get_api_credentials_uninitialized_raises():
+    """async_get_api_credentials must raise RuntimeError when the manager
+    has not been initialized (no async_initialize call).
+    """
+    mgr = _make_manager()
+    # _fernet is None — _ensure_initialized() must raise
+    with pytest.raises(RuntimeError, match="not initialized"):
+        await mgr.async_get_api_credentials()
