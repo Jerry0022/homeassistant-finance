@@ -43,6 +43,7 @@ def _make_manager():
     mgr._hass = MagicMock()
     mgr._cred_store = FakeStore()
     mgr._token_store = FakeStore()
+    mgr._audit_store = FakeStore()
     mgr._fernet = None
     mgr._last_activity = 0.0
     mgr._session_active = False
@@ -134,7 +135,13 @@ async def test_migration_v1_to_v2():
 
 @pytest.mark.asyncio
 async def test_audit_log_on_rotate():
-    """async_rotate_key must write a 'key_rotated' audit entry."""
+    """async_rotate_key must write a 'key_rotated' audit entry.
+
+    Since F7 the CredentialManager reuses a single ``_audit_store`` instance
+    created in ``__init__`` (rather than calling ``Store()`` inside
+    ``_audit_log``).  We therefore wire the spy store directly on the manager
+    instance instead of patching the ``Store`` constructor.
+    """
     audit_data = {}
 
     class SpyStore(FakeStore):
@@ -143,13 +150,12 @@ async def test_audit_log_on_rotate():
             if "entries" in data:
                 audit_data.update(data)
 
-    with patch(
-        "custom_components.finance_dashboard.credential_manager.Store",
-        side_effect=lambda *a, **kw: SpyStore(),
-    ):
-        mgr = _make_manager()
-        await mgr.async_initialize()
-        await mgr.async_rotate_key()
+    mgr = _make_manager()
+    # Replace the pre-created audit store with the spy variant so writes
+    # are captured without patching the Store constructor.
+    mgr._audit_store = SpyStore()
+    await mgr.async_initialize()
+    await mgr.async_rotate_key()
 
     events = [e["event"] for e in audit_data.get("entries", [])]
     assert "key_rotated" in events
