@@ -157,31 +157,9 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
         hass = request.app["hass"]
 
         try:
-            from .credential_manager import CredentialManager
+            from .enablebanking_client import RateLimitExceeded
 
-            cred_mgr = CredentialManager(hass)
-            await cred_mgr.async_initialize()
-            credentials = await cred_mgr.async_get_api_credentials()
-
-            if not credentials:
-                _LOGGER.warning(
-                    "No Enable Banking credentials found — "
-                    "user must configure the integration first"
-                )
-                return self.json(
-                    {
-                        "error": "No API credentials stored",
-                        "error_type": "no_credentials",
-                    }
-                )
-
-            from .enablebanking_client import EnableBankingClient
-
-            client = EnableBankingClient(
-                credentials["application_id"],
-                credentials["private_key_pem"],
-            )
-
+            client = await _get_setup_client(hass)
             institutions = await client.async_get_institutions("DE")
             _LOGGER.debug(
                 "Fetched %d institutions from Enable Banking",
@@ -189,6 +167,22 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
             )
             return self.json({"institutions": institutions})
 
+        except RateLimitExceeded as exc:
+            return self.json(
+                {
+                    "error": str(exc),
+                    "error_type": "rate_limited",
+                }
+            )
+        except RuntimeError as exc:
+            error_msg = str(exc)
+            _LOGGER.warning("Setup client error: %s", error_msg)
+            return self.json(
+                {
+                    "error": error_msg,
+                    "error_type": "no_credentials",
+                }
+            )
         except asyncio.TimeoutError:
             _LOGGER.error("Timeout fetching institutions from Enable Banking API")
             return self.json(
@@ -234,23 +228,9 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
             return self.json({"error": "institution_name required"})
 
         try:
-            from .credential_manager import CredentialManager
+            from .enablebanking_client import RateLimitExceeded
 
-            cred_mgr = CredentialManager(hass)
-            await cred_mgr.async_initialize()
-            credentials = await cred_mgr.async_get_api_credentials()
-
-            if not credentials:
-                return self.json(
-                    {"error": "No API credentials stored"}
-                )
-
-            from .enablebanking_client import EnableBankingClient
-
-            client = EnableBankingClient(
-                credentials["application_id"],
-                credentials["private_key_pem"],
-            )
+            client = await _get_setup_client(hass)
 
             # Build callback URL from the request origin — this
             # ensures the URL matches how the user actually accesses
@@ -324,7 +304,13 @@ class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
 
             return self.json({"auth_url": auth_url})
 
+        except RuntimeError as exc:
+            # Credentials missing — surface cleanly without stack trace
+            return self.json({"error": str(exc), "error_type": "no_credentials"})
         except Exception as exc:
+            from .enablebanking_client import RateLimitExceeded as _RLE
+            if isinstance(exc, _RLE):
+                return self.json({"error": str(exc), "error_type": "rate_limited"})
             _LOGGER.exception("Failed to create bank authorization")
             exc_msg = str(exc)
             error_detail = f"Authorization failed: {exc_msg[:300]}"
@@ -399,24 +385,9 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
         )
 
         try:
-            from .credential_manager import CredentialManager
+            from .enablebanking_client import RateLimitExceeded
 
-            cred_mgr = CredentialManager(hass)
-            await cred_mgr.async_initialize()
-            credentials = await cred_mgr.async_get_api_credentials()
-
-            if not credentials:
-                return self.json(
-                    {"error": "No API credentials stored"},
-                    status_code=400,
-                )
-
-            from .enablebanking_client import EnableBankingClient
-
-            client = EnableBankingClient(
-                credentials["application_id"],
-                credentials["private_key_pem"],
-            )
+            client = await _get_setup_client(hass)
 
             if not raw_accounts:
                 return self.json(
@@ -722,52 +693,38 @@ class FinanceDashboardOAuthCallbackView(HomeAssistantView):
                 # surface it to the wizard (which polls until it sees
                 # either pending_accounts OR setup_error).
                 try:
-                    from .credential_manager import CredentialManager
-
-                    cred_mgr = CredentialManager(hass)
-                    await cred_mgr.async_initialize()
-                    credentials = (
-                        await cred_mgr.async_get_api_credentials()
-                    )
-
-                    if not credentials:
+                    client = await _get_setup_client(hass)
+                    session_data = await client.async_create_session(code)
+                    accounts = session_data.get("accounts", [])
+                    if not accounts:
+                        hass.data[DOMAIN]["pending_setup_error"] = (
+                            "Bank hat keine Konten zurückgegeben. "
+                            "Bitte Bankvertrag/Konsent prüfen."
+                        )
+                    else:
+                        hass.data[DOMAIN]["pending_accounts"] = accounts
+                        hass.data[DOMAIN]["pending_session_id"] = (
+                            session_data.get("session_id", "")
+                        )
+                except Exception as exc:
+                    from .enablebanking_client import RateLimitExceeded
+                    if isinstance(exc, RateLimitExceeded):
+                        hass.data[DOMAIN]["pending_setup_error"] = (
+                            f"API-Tageslimit erreicht: {exc}"
+                        )
+                    elif isinstance(exc, RuntimeError):
                         hass.data[DOMAIN]["pending_setup_error"] = (
                             "Keine API-Credentials gespeichert — "
                             "Integration neu einrichten."
                         )
                     else:
-                        from .enablebanking_client import (
-                            EnableBankingClient,
+                        _LOGGER.exception(
+                            "Failed to fetch accounts after OAuth callback"
                         )
-
-                        client = EnableBankingClient(
-                            credentials["application_id"],
-                            credentials["private_key_pem"],
+                        hass.data[DOMAIN]["pending_setup_error"] = (
+                            f"Session-Erstellung fehlgeschlagen: "
+                            f"{str(exc)[:300]}"
                         )
-                        session_data = (
-                            await client.async_create_session(code)
-                        )
-                        accounts = session_data.get("accounts", [])
-                        if not accounts:
-                            hass.data[DOMAIN]["pending_setup_error"] = (
-                                "Bank hat keine Konten zurückgegeben. "
-                                "Bitte Bankvertrag/Konsent prüfen."
-                            )
-                        else:
-                            hass.data[DOMAIN]["pending_accounts"] = (
-                                accounts
-                            )
-                            hass.data[DOMAIN]["pending_session_id"] = (
-                                session_data.get("session_id", "")
-                            )
-                except Exception as exc:
-                    _LOGGER.exception(
-                        "Failed to fetch accounts after OAuth callback"
-                    )
-                    hass.data[DOMAIN]["pending_setup_error"] = (
-                        f"Session-Erstellung fehlgeschlagen: "
-                        f"{str(exc)[:300]}"
-                    )
             else:
                 # Legacy config flow — resume it
                 pending_auth = hass.data.get(DOMAIN, {}).get(
@@ -868,6 +825,47 @@ def _get_manager(hass):
         if isinstance(val, FinanceDashboardManager):
             return val
     return None
+
+
+async def _get_setup_client(hass):
+    """Return an EnableBankingClient for setup-wizard endpoints.
+
+    Enforces the 4/day ASPSP rate-limit gate before handing back a client.
+    If the integration manager already exists the gate is delegated to it;
+    otherwise the cached ``rate_limited_until`` timestamp in hass.data is
+    checked directly so that the quota cannot be bypassed by re-running the
+    wizard.
+
+    Returns:
+        EnableBankingClient instance.
+
+    Raises:
+        RuntimeError: when rate-limited or credentials are unavailable.
+    """
+    from .enablebanking_client import RateLimitExceeded
+
+    # --- Rate-limit gate via manager (preferred) ---
+    manager = _get_manager(hass)
+    if manager is not None and manager.rate_limited_until:
+        raise RateLimitExceeded(
+            f"API rate-limited until {manager.rate_limited_until.isoformat()}"
+        )
+
+    # --- Credentials ---
+    from .credential_manager import CredentialManager
+    from .enablebanking_client import EnableBankingClient
+
+    cred_mgr = CredentialManager(hass)
+    await cred_mgr.async_initialize()
+    credentials = await cred_mgr.async_get_api_credentials()
+
+    if not credentials:
+        raise RuntimeError("No Enable Banking credentials stored")
+
+    return EnableBankingClient(
+        credentials["application_id"],
+        credentials["private_key_pem"],
+    )
 
 
 class FinanceDashboardBalanceView(HomeAssistantView):

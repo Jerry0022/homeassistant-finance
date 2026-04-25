@@ -859,6 +859,34 @@ class FinanceDashboardManager:
             "demo_mode": self._demo_mode,
         }
 
+    async def async_make_setup_call(self, method_name: str, *args, **kwargs):
+        """Invoke an EnableBankingClient method through the rate-limit gate.
+
+        Setup-wizard endpoints (institutions, authorize, OAuth callback) must
+        go through here instead of instantiating EnableBankingClient directly.
+        This ensures that the 4/day ASPSP quota is respected even during the
+        onboarding flow — a user who hit the limit cannot bypass it by
+        re-running the wizard.
+
+        Raises:
+            RateLimitExceeded: when the API is still rate-limited.
+            RuntimeError: when no credentials are available.
+        """
+        if self.rate_limited_until:
+            raise RateLimitExceeded(
+                f"API rate-limited until {self._rate_limited_until.isoformat()} "
+                "— bitte morgen erneut versuchen."
+            )
+
+        client = await self._async_get_client()
+        if not client:
+            raise RuntimeError(
+                "Enable Banking client not available — credentials missing or invalid."
+            )
+
+        method = getattr(client, method_name)
+        return await method(*args, **kwargs)
+
     async def _async_get_client(self):
         """Get or create Enable Banking client with current credentials."""
         if self._banking_client:
