@@ -1,5 +1,16 @@
 # Build Log
 
+## [unreleased] Wave F — Frontend Refactors (A3, F2, F3, F4, F5, F8)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- refactor(frontend): F8 — escHtml() (regex-based, no DOM round-trip) exported from fd-shared-styles.js; window._fd object exposes all shared constants (CAT_COLORS, CAT_LABELS, MEMBER_COLORS, MONTH_NAMES, SHARED_CSS, escHtml, esc, eur, pct) for classic-script consumers
+- refactor(frontend): F2 — local TX_CAT_LABELS, REC_CAT_LABELS, DIST_CAT_COLORS/LABELS, CAT_COLORS/LABELS, MONTH_NAMES duplicates removed from fd-transactions-log, fd-recurring-list, fd-cost-distribution, fd-category-section, fd-categorize, fd-header; all read from window._fd
+- refactor(frontend): F3 — SHARED_CSS adopted via <style>${SHARED_CSS}${LOCAL_CSS}</style> in fd-stats-row, fd-stat-card, fd-household-section, fd-person-card, fd-donut-chart, fd-category-section, fd-cost-distribution, fd-recurring-list, fd-transactions-log, fd-header; removes ~120 lines of duplicated :host token definitions
+- refactor(frontend): F4 — hard-coded #e74c3c, #0a0a0f, #f39c12, #12121a literals replaced with var(--dg/--error-color), var(--bg/--primary-background-color), var(--warning-color) tokens in fd-budget-config, fd-setup-wizard, finance-dashboard-panel, fd-header; fd-categorize catColors now reads window._fd.CAT_COLORS
+- refactor(frontend): F5 — disconnectedCallback added to finance-status-chip (clears _successTimer); stub disconnectedCallbacks in fd-stat-card, fd-household-section, fd-person-card, fd-donut-chart (no active cleanup, guards future additions)
+- refactor(frontend): A3 — FinanceDashboardPanel._onData() no longer rebuilds DOM on every fd-data-updated event; _ensureComponents() creates 6 child components once; _onData() pushes .data to persistent refs; loading/error/onboarding states use #overlay div toggled via .hidden class; onboarding listener rebind guarded by overlayState check
+- Result: 49/49 tests pass; all 17 frontend JS files pass node --check
+
 ## [unreleased] Wave E — Backend Refactor + Polish (F1, F6, F7, D1-D12)
 Branch: claude/eager-nobel-e572f9
 Changes:
