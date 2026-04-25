@@ -93,6 +93,9 @@ class FdHeader extends HTMLElement {
     if (!toast) return;
     toast.textContent = message;
     toast.className = `toast toast-${kind || "info"} show`;
+    // aria-live: assertive for warn/error, polite for info/success
+    const liveValue = (kind === "warn" || kind === "error") ? "assertive" : "polite";
+    toast.setAttribute("aria-live", liveValue);
     if (this._toastTimer) clearTimeout(this._toastTimer);
     this._toastTimer = setTimeout(() => {
       toast.classList.remove("show");
@@ -253,7 +256,7 @@ h1 {
 
     this.shadowRoot.innerHTML = `
 <style>${SHARED_CSS}${LOCAL_CSS}</style>
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <div class="hdr">
   <div class="title-row">
     <h1>Finance Dashboard</h1>
