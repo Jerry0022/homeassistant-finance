@@ -31,7 +31,7 @@ class FdRecurringList extends HTMLElement {
       return;
     }
 
-    const { CAT_LABELS, SHARED_CSS, escHtml } = window._fd;
+    const { CAT_LABELS, SHARED_CSS, escHtml, tSync } = window._fd;
 
     const eur = (v) => new Intl.NumberFormat("de-DE", {
       style: "currency", currency: "EUR",
@@ -80,14 +80,14 @@ class FdRecurringList extends HTMLElement {
     this.shadowRoot.innerHTML = `
 <style>${SHARED_CSS}${LOCAL_CSS}</style>
 <div class="card">
-  <div class="card-h">Wiederkehrende Zahlungen
-    <span style="font-weight:400;font-size:12px;color:var(--tx2)">${recurring.length} erkannt</span>
+  <div class="card-h">${tSync("recurring.title")}
+    <span style="font-weight:400;font-size:12px;color:var(--tx2)">${recurring.length} ${tSync("recurring.detected")}</span>
   </div>
   <div class="rec-list">${items}</div>
 </div>`;
   }
   _renderSkeleton() {
-    const { SHARED_CSS } = window._fd;
+    const { SHARED_CSS, tSync } = window._fd;
     const shimmerCss = `
 @keyframes fd-shimmer {
   0%   { background-position: -400px 0; }
@@ -109,8 +109,8 @@ class FdRecurringList extends HTMLElement {
 <style>${SHARED_CSS}${shimmerCss}
 :host { margin-bottom: 20px; }
 </style>
-<div class="card" aria-busy="true" aria-label="Wird geladen…">
-  <div class="card-h">Wiederkehrende Zahlungen</div>
+<div class="card" aria-busy="true" aria-label="${tSync("recurring.loading")}">
+  <div class="card-h">${tSync("recurring.title")}</div>
   <div style="padding:18px">${rows}</div>
 </div>`;
   }

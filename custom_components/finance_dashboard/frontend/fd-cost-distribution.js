@@ -33,7 +33,7 @@ class FdCostDistribution extends HTMLElement {
       return;
     }
 
-    const { CAT_COLORS, CAT_LABELS, SHARED_CSS, escHtml } = window._fd;
+    const { CAT_COLORS, CAT_LABELS, SHARED_CSS, escHtml, tSync } = window._fd;
 
     const eur = (v) => new Intl.NumberFormat("de-DE", {
       style: "currency", currency: "EUR",
@@ -102,21 +102,23 @@ class FdCostDistribution extends HTMLElement {
 }
 `;
 
+    const costDistLabel = tSync("cost.dist_label");
+    const noneLabel = tSync("cost.empty");
     this.shadowRoot.innerHTML = `
 <style>${SHARED_CSS}${LOCAL_CSS}</style>
 <div class="card">
-  <div class="card-h">Kostenverteilung</div>
+  <div class="card-h">${costDistLabel}</div>
   <div style="padding:14px 18px">
-    <div class="cost-bar" role="group" aria-label="Kostenverteilung nach Kategorie">
-      ${costBar || `<div style="width:100%;background:var(--sf2)" role="img" aria-label="Keine Ausgaben"></div>`}
+    <div class="cost-bar" role="group" aria-label="${costDistLabel}">
+      ${costBar || `<div style="width:100%;background:var(--sf2)" role="img" aria-label="${noneLabel}"></div>`}
     </div>
   </div>
   <div class="cost-legend">${costLegend}</div>
 </div>
-<table class="visually-hidden" aria-label="Kostenverteilung Tabelle">
-  <caption>Kostenverteilung nach Kategorie</caption>
-  <thead><tr><th>Kategorie</th><th>Betrag</th><th>Anteil</th></tr></thead>
-  <tbody>${tableRows || "<tr><td colspan='3'>Keine Ausgaben</td></tr>"}</tbody>
+<table class="visually-hidden" aria-label="${costDistLabel}">
+  <caption>${costDistLabel}</caption>
+  <thead><tr><th>${tSync("cost.col_category")}</th><th>${tSync("cost.col_amount")}</th><th>${tSync("cost.col_share")}</th></tr></thead>
+  <tbody>${tableRows || `<tr><td colspan='3'>${noneLabel}</td></tr>`}</tbody>
 </table>`;
   }
 }

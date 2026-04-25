@@ -44,7 +44,7 @@ class FdTransactionsLog extends HTMLElement {
       return;
     }
 
-    const { CAT_LABELS, SHARED_CSS, escHtml } = window._fd;
+    const { CAT_LABELS, SHARED_CSS, escHtml, tSync } = window._fd;
 
     const total = txs.length;
     const limit = this._expanded ? total : DEFAULT_LIMIT;
@@ -62,10 +62,10 @@ class FdTransactionsLog extends HTMLElement {
       const label = t.creditor || t.description || "—";
       const sub = t.creditor && t.description && t.creditor !== t.description
         ? t.description : "";
-      const cat = CAT_LABELS[t.category] || t.category || "Sonstiges";
+      const cat = CAT_LABELS[t.category] || t.category || tSync("general.other");
       const dateStr = this._formatDate(t.date);
       const pending = t.status === "pending"
-        ? `<span class="tx-pending" title="Vorgemerkt (noch nicht gebucht)">vorgemerkt</span>`
+        ? `<span class="tx-pending" title="${tSync("transactions.pending_title")}">${tSync("transactions.pending")}</span>`
         : "";
       const account = t.account_name
         ? `<span class="tx-acc">${escHtml(t.account_name)}</span>`
@@ -87,12 +87,12 @@ class FdTransactionsLog extends HTMLElement {
 
     const toggleBtn = total > DEFAULT_LIMIT
       ? `<button class="tx-toggle" id="toggleBtn">
-          ${this._expanded ? "Weniger anzeigen" : `Alle ${total} anzeigen`}
+          ${this._expanded ? tSync("transactions.show_less") : tSync("transactions.show_all", { count: String(total) })}
         </button>`
       : "";
 
     const emptyState = total === 0
-      ? `<div class="tx-empty">Noch keine Transaktionen im Cache. Nach der nächsten Aktualisierung erscheinen sie hier.</div>`
+      ? `<div class="tx-empty">${tSync("transactions.empty_cache")}</div>`
       : "";
 
     const LOCAL_CSS = `
@@ -204,8 +204,8 @@ class FdTransactionsLog extends HTMLElement {
 <style>${SHARED_CSS}${LOCAL_CSS}</style>
 <div class="card">
   <div class="card-h">
-    <span>Importierte Transaktionen</span>
-    <span class="count">${total} im Cache</span>
+    <span>${tSync("transactions.title")}</span>
+    <span class="count">${total} ${tSync("transactions.in_cache")}</span>
   </div>
   ${total === 0 ? emptyState : `<div class="tx-list">${rows}</div>${toggleBtn}`}
 </div>`;

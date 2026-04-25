@@ -133,7 +133,7 @@ class FdSetupWizard extends HTMLElement {
         this._filteredInstitutions = this._institutions;
       }
     } catch (e) {
-      this._error = "Banken konnten nicht geladen werden";
+      this._error = window._fd.tSync("wizard.step.1.loading");
     }
     this._loading = false;
     this._renderContent();
@@ -172,7 +172,7 @@ class FdSetupWizard extends HTMLElement {
       // Start polling for callback completion
       this._startPolling();
     } catch (e) {
-      this._error = "Autorisierung fehlgeschlagen";
+      this._error = window._fd.tSync("wizard.step.2.loading");
       this._loading = false;
       this._renderContent();
     }
@@ -184,7 +184,7 @@ class FdSetupWizard extends HTMLElement {
     this._pollTimer = setInterval(async () => {
       if (Date.now() - startTime > POLL_MAX_MS) {
         this._stopPolling();
-        this._error = "Zeitlimit erreicht. Bitte erneut versuchen.";
+        this._error = window._fd.tSync("wizard.step.2.timeout_expired");
         this._renderContent();
         return;
       }
@@ -237,7 +237,10 @@ class FdSetupWizard extends HTMLElement {
       if (el) {
         const min = Math.floor(this._countdownSec / 60);
         const sec = String(this._countdownSec % 60).padStart(2, "0");
-        el.textContent = `Noch ${min}:${sec} Minuten — falls die Bankseite nicht reagiert, hier abbrechen`;
+        el.textContent = window._fd.tSync("wizard.step.2.timeout_label", {
+          min: String(min),
+          sec,
+        });
       }
       if (this._countdownSec === 0) {
         this._stopCountdown();
@@ -283,7 +286,7 @@ class FdSetupWizard extends HTMLElement {
         composed: true,
       }));
     } catch (e) {
-      this._error = "Setup konnte nicht abgeschlossen werden";
+      this._error = window._fd.tSync("wizard.step.3.connect");
       this._loading = false;
       this._renderContent();
     }
@@ -307,6 +310,7 @@ class FdSetupWizard extends HTMLElement {
   }
 
   _render() {
+    const { tSync } = window._fd;
     this.shadowRoot.innerHTML = `
 <style>
 :host {
@@ -578,8 +582,8 @@ class FdSetupWizard extends HTMLElement {
 <div class="backdrop"></div>
 <div class="modal" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
   <div class="modal-header">
-    <h2 id="wizard-title">Bankkonto verbinden</h2>
-    <button class="close-btn" id="closeBtn" aria-label="Dialog schließen">&times;</button>
+    <h2 id="wizard-title">${tSync("wizard.title")}</h2>
+    <button class="close-btn" id="closeBtn" aria-label="${tSync("wizard.close")}">&times;</button>
   </div>
   <div class="modal-body" id="body"></div>
 </div>`;
@@ -632,6 +636,7 @@ class FdSetupWizard extends HTMLElement {
   }
 
   _renderInstitutionList() {
+    const { tSync, escHtml } = window._fd;
     const selected = this._selectedInstitution;
     const items = this._filteredInstitutions.map((inst, idx) => {
       const isSel = selected && selected.name === inst.name;
@@ -650,7 +655,7 @@ class FdSetupWizard extends HTMLElement {
       </div>
     `;
     }).join("");
-    return items || '<div style="padding:20px;text-align:center;color:var(--secondary-text-color);">Keine Banken gefunden</div>';
+    return items || `<div style="padding:20px;text-align:center;color:var(--secondary-text-color);">${tSync("wizard.step.1.empty")}</div>`;
   }
 
   _bindInstitutionClicks() {
@@ -684,12 +689,16 @@ class FdSetupWizard extends HTMLElement {
   }
 
   _renderStep1() {
+    const { tSync } = window._fd;
     if (this._loading) {
-      return `<div class="loading-spinner">Banken werden geladen\u2026</div>`;
+      return `<div class="loading-spinner">${tSync("wizard.step.1.loading")}</div>`;
     }
     return `
-      <input type="text" class="search-input" id="searchInput" placeholder="Bank suchen\u2026" autocomplete="off" aria-label="Bank suchen">
-      <div class="institution-list" role="listbox" aria-label="Bank ausw\u00e4hlen">${this._renderInstitutionList()}</div>
+      <input type="text" class="search-input" id="searchInput"
+        placeholder="${tSync("wizard.step.1.search_placeholder")}"
+        autocomplete="off"
+        aria-label="${tSync("wizard.step.1.search_label")}">
+      <div class="institution-list" role="listbox" aria-label="${tSync("wizard.step.1.listbox_label")}">${this._renderInstitutionList()}</div>
     `;
   }
 
@@ -710,25 +719,25 @@ class FdSetupWizard extends HTMLElement {
   }
 
   _renderStep2() {
+    const { tSync } = window._fd;
     if (this._loading) {
-      return `<div class="loading-spinner">Autorisierung wird vorbereitet\u2026</div>`;
+      return `<div class="loading-spinner">${tSync("wizard.step.2.loading")}</div>`;
     }
     const bankName = this._selectedInstitution ? this._selectedInstitution.name : "Bank";
     const min = Math.floor(this._countdownSec / 60);
     const sec = String(this._countdownSec % 60).padStart(2, "0");
     return `
       <div class="auth-card">
-        <p>Autorisiere den Zugriff bei <strong>${this._esc(bankName)}</strong>.<br>
-        Ein neues Fenster wurde ge\u00f6ffnet. Schlie\u00dfe es nach der Best\u00e4tigung.</p>
-        ${this._authUrl && /^https?:\/\//.test(this._authUrl) ? `<a href="${this._esc(this._authUrl)}" target="_blank" class="btn-primary">Erneut \u00f6ffnen</a>` : ""}
+        <p>${tSync("wizard.step.2.instruction", { bank: this._esc(bankName) })}</p>
+        ${this._authUrl && /^https?:\/\//.test(this._authUrl) ? `<a href="${this._esc(this._authUrl)}" target="_blank" class="btn-primary">${tSync("wizard.step.2.reopen")}</a>` : ""}
         <div class="waiting">
-          <span>\u23f3</span>
-          <span>Warte auf Best\u00e4tigung von der Bank\u2026</span>
+          <span>&#x23f3;</span>
+          <span>${tSync("wizard.step.2.waiting")}</span>
         </div>
         <div class="countdown" id="countdown" role="timer" aria-live="off">
-          Noch ${min}:${sec} Minuten \u2014 falls die Bankseite nicht reagiert, hier abbrechen
+          ${tSync("wizard.step.2.timeout_label", { min: String(min), sec })}
         </div>
-        <button class="btn-secondary" id="cancelAuthBtn" style="margin-top:12px">Abbrechen</button>
+        <button class="btn-secondary" id="cancelAuthBtn" style="margin-top:12px">${tSync("wizard.step.2.cancel")}</button>
       </div>
     `;
   }
@@ -747,6 +756,7 @@ class FdSetupWizard extends HTMLElement {
   }
 
   _renderStep3() {
+    const { tSync } = window._fd;
     const accountCards = this._pendingAccounts.map((acc, idx) => {
       const iban = acc.iban || "";
       const ibanMasked = iban.length >= 4 ? `****${iban.slice(-4)}` : "****";
@@ -756,27 +766,27 @@ class FdSetupWizard extends HTMLElement {
           <div class="acc-header">
             ${acc.logo ? `<img src="${this._esc(acc.logo)}" alt="">` : ""}
             <div>
-              <div class="acc-name">${this._esc(acc.name || "Konto")}</div>
+              <div class="acc-name">${this._esc(acc.name || tSync("general.accounts_singular"))}</div>
               <div class="acc-iban">${ibanMasked}</div>
             </div>
           </div>
           <div class="form-row">
             <div class="form-field">
-              <label>Anzeigename</label>
+              <label>${tSync("wizard.step.3.name_label")}</label>
               <input type="text" data-field="custom_name" data-idx="${idx}" value="${this._esc(acc.custom_name)}" placeholder="${this._esc(acc.name)}">
             </div>
             <div class="form-field">
-              <label>Kontotyp</label>
+              <label>${tSync("wizard.step.3.type_label")}</label>
               <select data-field="type" data-idx="${idx}">
-                <option value="personal" ${acc.type === "personal" ? "selected" : ""}>Privat</option>
-                <option value="shared" ${acc.type === "shared" ? "selected" : ""}>Gemeinsam</option>
+                <option value="personal" ${acc.type === "personal" ? "selected" : ""}>${tSync("wizard.step.3.type_personal")}</option>
+                <option value="shared" ${acc.type === "shared" ? "selected" : ""}>${tSync("wizard.step.3.type_shared")}</option>
               </select>
             </div>
           </div>
           <div class="form-row">
             <div class="form-field">
-              <label>Person</label>
-              <input type="text" data-field="person" data-idx="${idx}" value="${this._esc(acc.person)}" placeholder="Name der Person">
+              <label>${tSync("wizard.step.3.person_label")}</label>
+              <input type="text" data-field="person" data-idx="${idx}" value="${this._esc(acc.person)}" placeholder="${tSync("wizard.step.3.person_placeholder")}">
             </div>
           </div>
         </div>
@@ -785,12 +795,12 @@ class FdSetupWizard extends HTMLElement {
 
     return `
       <p style="margin:0 0 16px;color:var(--secondary-text-color);font-size:13px;">
-        ${this._pendingAccounts.length} Konto(en) gefunden. Weise sie zu:
+        ${tSync("wizard.step.3.found", { count: String(this._pendingAccounts.length) })}
       </p>
       ${accountCards}
       <div class="actions">
-        <button class="btn-secondary" id="backBtn">Zur\u00fcck</button>
-        <button class="btn-primary" id="completeBtn">Verbinden</button>
+        <button class="btn-secondary" id="backBtn">${tSync("wizard.step.3.back")}</button>
+        <button class="btn-primary" id="completeBtn">${tSync("wizard.step.3.connect")}</button>
       </div>
     `;
   }
@@ -830,13 +840,14 @@ class FdSetupWizard extends HTMLElement {
   }
 
   _renderStep4() {
+    const { tSync } = window._fd;
     const count = this._pendingAccounts.length;
     return `
       <div class="success-card">
         <div class="icon">&#x2705;</div>
-        <h3>Verbindung erfolgreich</h3>
-        <p>${count} Konto(en) wurden verbunden. Die Daten werden jetzt geladen.</p>
-        <button class="btn-primary" id="doneBtn">Fertig</button>
+        <h3>${tSync("wizard.step.4.title")}</h3>
+        <p>${tSync("wizard.step.4.body", { count: String(count) })}</p>
+        <button class="btn-primary" id="doneBtn">${tSync("wizard.step.4.done")}</button>
       </div>
     `;
   }
