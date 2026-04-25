@@ -1,5 +1,18 @@
 # Build Log
 
+## [unreleased] Wave G2 — Phase-4 RedTeam Security Fixes (F1–F5, F10)
+Version: 0.12.1 (no bump)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- fix(security): F1 — OAuth state cross-scope race eliminated; _register_oauth_state() writes to BOTH manager._oauth_states AND hass.data[DOMAIN]["_oauth_states"]; _validate_oauth_state() checks both stores and removes on match from both; setup.py uses _register_oauth_state() exclusively
+- fix(security): F2 — fresh-setup rate-limit gate added; _set_rate_limited() mirrors reset timestamp to hass.data["_global_rate_limit_until"]; async_initialize() mirrors on storage load; _get_setup_client() checks hass.data global key before creating client
+- fix(security): F3 — UTC-aware OAuth state timestamps throughout; assume-UTC logic for naive timestamps in async_validate_oauth_state() and _parse_utc_dt() helper in api/_helpers.py; TypeError on naive/aware subtraction impossible
+- fix(security): F4 — async_make_setup_call() wired into setup wizard; gains optional client= param for setup-credential bypass; institutions and authorize endpoints route through manager gate when available
+- chore(security): F5 — _oauth_states dict bounded at 32 entries; oldest 16 evicted on cap; hass.data fallback also enforces 32-entry cap in _register_oauth_state()
+- fix(banking): F10 — __unknown__ tx bucket dropped after first successful live refresh (accounts_hit > 0); migration-era legacy data no longer pollutes flat transaction list
+- test: 2 new tests in test_oauth_state.py: test_timezone_mismatch_safe (F3 guard), test_oauth_states_dict_bounded (F5 eviction)
+- Result: 165/165 tests pass; all changed files pass py_compile
+
 ## [unreleased] Wave F — Backend Test-Detail (T3, T4, T5, T6, T7)
 Version: 0.12.1 (no bump)
 Branch: claude/eager-nobel-e572f9
