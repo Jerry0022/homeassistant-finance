@@ -68,6 +68,10 @@ class PersistenceMixin:
 
         Only the storage key name and Python exception class are included
         in the repair issue — never raw exception text or stack traces.
+
+        Marked ``is_persistent=True`` — a corrupt cache file requires manual
+        intervention (the user must delete the corrupt file or re-configure)
+        and must remain visible across HA restarts.
         """
         try:
             from homeassistant.helpers import issue_registry as ir
@@ -78,6 +82,7 @@ class PersistenceMixin:
                 DOMAIN,
                 f"storage_corrupt_{storage_key}",
                 is_fixable=False,
+                is_persistent=True,
                 severity=ir.IssueSeverity.WARNING,
                 translation_key="storage_corrupt",
                 translation_placeholders={

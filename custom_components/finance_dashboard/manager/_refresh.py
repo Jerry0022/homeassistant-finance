@@ -591,7 +591,13 @@ class RefreshMixin:
         return self._banking_client
 
     def _raise_credentials_issue(self, kind: str) -> None:
-        """Surface credential problems via the Repairs flow."""
+        """Surface credential problems via the Repairs flow.
+
+        Auth/credential issues are marked ``is_persistent=True`` — they
+        survive HA restarts and remain visible until the user fixes their
+        credentials.  Transient issues (rate-limit) should NOT use this
+        method; they are surfaced inline in the refresh status instead.
+        """
         try:
             from homeassistant.helpers import issue_registry as ir
             from ..const import DOMAIN
@@ -606,6 +612,7 @@ class RefreshMixin:
                 DOMAIN,
                 f"credentials_{kind}",
                 is_fixable=False,
+                is_persistent=True,
                 severity=ir.IssueSeverity.ERROR,
                 translation_key=translation_key,
                 learn_more_url=(
