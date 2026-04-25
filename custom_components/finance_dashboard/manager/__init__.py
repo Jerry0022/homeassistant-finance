@@ -552,17 +552,25 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         """
         return self._transactions[:limit]
 
+    # Cache staleness threshold — matches the coordinator constant.
+    # Cache is considered stale when older than this value.
+    _CACHE_STALE_THRESHOLD_SECONDS: int = 6 * 3600  # 6 hours
+
     def get_refresh_status(self) -> dict[str, Any]:
         """Return a compact status snapshot for the UI status endpoint.
 
         Pure cache read — NEVER touches the banking API. Safe for
         unbounded polling while a refresh is in flight.
         """
-        now = datetime.now()
+        now = dt_util.now()
         cache_age_seconds: int | None = None
+        cache_is_stale: bool = False
         if self._last_refresh:
             cache_age_seconds = int(
                 (now - self._last_refresh).total_seconds()
+            )
+            cache_is_stale = (
+                cache_age_seconds > self._CACHE_STALE_THRESHOLD_SECONDS
             )
         return {
             "is_refreshing": self._refresh_in_flight,
@@ -572,6 +580,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
                 else None
             ),
             "cache_age_seconds": cache_age_seconds,
+            "cache_is_stale": cache_is_stale,
             "rate_limited_until": (
                 self._rate_limited_until.isoformat()
                 if self.rate_limited_until
