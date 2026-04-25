@@ -1,5 +1,22 @@
 # Build Log
 
+## [unreleased] Wave C — Security Audit (R5, R8, R9, R10, R11, R12, R14, C9)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- fix(core): R5 — per-account transaction cache (`_tx_by_account: dict[str, list]`); partial refresh failure leaves intact account untouched, stale data preserved; storage migrates old flat-list format on load; flat `_transactions` rebuilt deterministically from dict
+- fix(core): R8 — wrap `async_load()` in `async_initialize` with try/except (JSONDecodeError, ValueError, OSError); on decode error log sanitized ERROR + full stack at DEBUG only; raise `storage_corrupt` Repair issue with error_class only (no str(exc) leakage)
+- fix(api): R9 — `FinanceDashboardRefreshTriggerView.post` gated by `user.is_admin`; non-admin returns 403 admin_required before any API call
+- fix(services): R14 — `handle_toggle_demo` service checks `call.context.user_id`, fetches user via `hass.auth.async_get_user`, raises `HomeAssistantError("admin_required")` for non-admin; backup/restore real transaction data around demo enable/disable
+- fix(enablebanking): C9 — `_reconstruct_pem` detects PKCS1/PKCS8 marker BEFORE stripping headers; is_pkcs1 flag set on raw string, not residue
+- fix(api): R12 — `FinanceDashboardStaticView` uses `hass.async_add_executor_job(file_path.read_bytes)` instead of synchronous read; mtime-aware LRU cache (16 entries) for hot files
+- fix(core): R10 — Repair issues never include `str(exc)` or tracebacks in `translation_placeholders`; only `error_class = type(exc).__name__`; PEM-load failure logs class-only at ERROR, full stack at DEBUG; `storage_corrupt` and `credentials_invalid_pem` issues use translation-key-only pattern; new `storage_corrupt` translation key added to en.json + de.json
+- feat(precommit): R11 — `.pre-commit-config.yaml` with standard hooks + local `no-banking-data` hook; `scripts/check_no_banking_data.py` blocks real DE IBANs / long account numbers / EUR amounts; allowlists tests/ path and DE89370400440532013000 (public test IBAN); exits 0 for clean files, 1 for violations
+- test: R5 — `tests/test_partial_refresh.py` (3 cases: partial success, full success, migration)
+- test: R8 — `tests/test_storage_recovery.py` (2 cases: corrupt → starts empty + repair, valid → loads normally)
+- test: R9 — `tests/test_admin_gating.py` (3 cases: non-admin 403, no-user 403, admin passes gate)
+- test: C9 — `tests/test_pem_reconstruct.py` (5 cases: PKCS8 detection, PKCS1 detection, escaped newlines both formats, 64-char chunking)
+- test: R11 — `tests/test_banking_data_hook.py` (6 cases: clean, real IBAN blocked, test IBAN allowed, path allowlist, main exit codes)
+
 ## [unreleased] Wave B — Security-Critical (S1-S4)
 Branch: security/wave-b-s1-s4
 Changes:
