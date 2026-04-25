@@ -24,7 +24,9 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 
 from .const import (
+    AUDIT_MAX_ENTRIES,
     DOMAIN,
+    STORAGE_KEY_AUDIT,
     STORAGE_KEY_CREDENTIALS,
     STORAGE_KEY_TOKENS,
     STORAGE_VERSION,
@@ -59,6 +61,11 @@ class CredentialManager:
         )
         self._token_store = Store(
             hass, STORAGE_VERSION, STORAGE_KEY_TOKENS
+        )
+        # Single Store instance reused by every _audit_log() call to avoid
+        # creating a new Store object on every audit write (performance).
+        self._audit_store = Store(
+            hass, STORAGE_VERSION, STORAGE_KEY_AUDIT
         )
         self._fernet: MultiFernet | None = None
         self._last_activity: float = 0
@@ -263,8 +270,7 @@ class CredentialManager:
         self, limit: int = 50
     ) -> list[dict[str, Any]]:
         """Get recent audit log entries."""
-        store = Store(self._hass, STORAGE_VERSION, f"{DOMAIN}_audit_log")
-        data = await store.async_load() or {"entries": []}
+        data = await self._audit_store.async_load() or {"entries": []}
         return data["entries"][-limit:]
 
     def _ensure_initialized(self) -> None:
@@ -292,11 +298,12 @@ class CredentialManager:
             )
 
     async def _audit_log(self, event: str) -> None:
-        """Write an entry to the audit log."""
-        from .const import AUDIT_MAX_ENTRIES
+        """Write an entry to the audit log.
 
-        store = Store(self._hass, STORAGE_VERSION, f"{DOMAIN}_audit_log")
-        data = await store.async_load() or {"entries": []}
+        Reuses ``self._audit_store`` (created once in __init__) to avoid
+        instantiating a new Store on every call (performance + consistency).
+        """
+        data = await self._audit_store.async_load() or {"entries": []}
 
         data["entries"].append(
             {
@@ -310,4 +317,4 @@ class CredentialManager:
         if len(data["entries"]) > AUDIT_MAX_ENTRIES:
             data["entries"] = data["entries"][-AUDIT_MAX_ENTRIES:]
 
-        await store.async_save(data)
+        await self._audit_store.async_save(data)
