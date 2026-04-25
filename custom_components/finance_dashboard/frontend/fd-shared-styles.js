@@ -123,6 +123,74 @@ export const SHARED_CSS = `
 `;
 
 /**
+ * i18n helper — lazy-loads locale JSON and resolves keys with placeholder substitution.
+ *
+ * Usage:
+ *   await window._fd.t("header.refresh.button")
+ *   await window._fd.t("header.refresh.toast_success", { accounts: 3, tx: 50, new: 2, duration: "1.2s" })
+ *
+ * Language resolution order:
+ *   1. hass.language (if hass is provided via window._fd._hass)
+ *   2. navigator.language
+ *   3. Fallback: "en"
+ *
+ * Supported languages: "de", "en". Unknown languages fall back to "en".
+ */
+const _i18nCache = {};
+
+async function _loadLocale(lang) {
+  if (_i18nCache[lang]) return _i18nCache[lang];
+  const STATIC_BASE = "/api/finance_dashboard/static";
+  try {
+    const resp = await fetch(`${STATIC_BASE}/locales/${lang}.json`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    _i18nCache[lang] = await resp.json();
+  } catch (_) {
+    _i18nCache[lang] = null;
+  }
+  return _i18nCache[lang];
+}
+
+function _resolveLang() {
+  const hassLang = window._fd && window._fd._hass && window._fd._hass.language;
+  const raw = hassLang || navigator.language || "en";
+  const base = raw.toLowerCase().split("-")[0];
+  return ["de", "en"].includes(base) ? base : "en";
+}
+
+/**
+ * Translate a key with optional variable substitution.
+ * Variables replace $key occurrences in the string.
+ * Synchronously returns the key as fallback if locale is not yet loaded.
+ */
+async function t(key, vars = {}) {
+  const lang = _resolveLang();
+  let strings = await _loadLocale(lang);
+  if (!strings || !strings[key]) {
+    if (lang !== "en") strings = await _loadLocale("en");
+  }
+  let text = (strings && strings[key]) ? strings[key] : key;
+  for (const [k, v] of Object.entries(vars)) {
+    text = text.replace(new RegExp(`\\$${k}`, "g"), String(v));
+  }
+  return text;
+}
+
+/**
+ * Synchronous translation — returns cached value or key as fallback.
+ * Pre-warm the cache by calling t() once during component init.
+ */
+function tSync(key, vars = {}) {
+  const lang = _resolveLang();
+  const strings = _i18nCache[lang] || _i18nCache["en"] || {};
+  let text = strings[key] || key;
+  for (const [k, v] of Object.entries(vars)) {
+    text = text.replace(new RegExp(`\\$${k}`, "g"), String(v));
+  }
+  return text;
+}
+
+/**
  * Attach shared constants to window._fd so classic-script components
  * (loaded via add_extra_js_url without type="module") can access them.
  * fd-shared-styles.js is always loaded first in LOVELACE_COMPONENTS.
@@ -137,4 +205,7 @@ window._fd = {
   MEMBER_COLORS,
   MONTH_NAMES,
   SHARED_CSS,
+  t,
+  tSync,
+  _hass: null,  // Set by panel shell: window._fd._hass = hass
 };

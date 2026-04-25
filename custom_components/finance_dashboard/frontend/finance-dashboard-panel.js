@@ -42,6 +42,8 @@ class FinanceDashboardPanel extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    // Expose hass for i18n language detection
+    if (window._fd) window._fd._hass = hass;
     if (!this._rendered) {
       this._render();
       this._rendered = true;
