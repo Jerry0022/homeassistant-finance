@@ -31,19 +31,17 @@ class FdStatCard extends HTMLElement {
   set accent(v) { this._props.accent = v; this._render(); }
   set valclass(v) { this._props.valclass = v; this._render(); }
 
+  disconnectedCallback() {
+    // No timers or observers to clean up in this component.
+  }
+
   _render() {
+    const { SHARED_CSS, escHtml } = window._fd;
     const { label = "", value = "", subtitle = "", accent = "var(--ac)", valclass = "" } = this._props;
-    this.shadowRoot.innerHTML = `
-<style>
+
+    const LOCAL_CSS = `
 :host {
-  --sf: var(--card-background-color, #12121a);
-  --bd: rgba(255,255,255,0.06);
-  --tx: var(--primary-text-color, #e0e0e0);
-  --tx2: var(--secondary-text-color, #9898a8);
-  --ac: var(--accent-color, #4ecca3);
-  --dg: #e74c3c;
-  --r: 14px;
-  display: block;
+  /* display:block inherited from SHARED_CSS */
 }
 .stat {
   background: var(--sf);
@@ -75,22 +73,15 @@ class FdStatCard extends HTMLElement {
   margin-bottom: 4px;
 }
 .subtitle { font-size: 11px; }
-.pos { color: var(--ac); }
-.neg { color: var(--dg); }
-.neu { color: var(--tx2); }
-</style>
-<div class="stat">
-  <div class="label">${this._esc(label)}</div>
-  <div class="value ${valclass}">${this._esc(value)}</div>
-  <div class="subtitle neu">${this._esc(subtitle)}</div>
-</div>`;
-  }
+`;
 
-  _esc(s) {
-    if (!s) return "";
-    const d = document.createElement("div");
-    d.textContent = s;
-    return d.innerHTML;
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${LOCAL_CSS}</style>
+<div class="stat">
+  <div class="label">${escHtml(label)}</div>
+  <div class="value ${valclass}">${escHtml(value)}</div>
+  <div class="subtitle neu">${escHtml(subtitle)}</div>
+</div>`;
   }
 }
 

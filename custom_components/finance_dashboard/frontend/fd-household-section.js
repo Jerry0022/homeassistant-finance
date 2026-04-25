@@ -16,6 +16,10 @@ class FdHouseholdSection extends HTMLElement {
 
   set data(v) { this._data = v; this._render(); }
 
+  disconnectedCallback() {
+    // No timers or observers to clean up in this component.
+  }
+
   _render() {
     const d = this._data;
     const household = d?.household;
@@ -25,15 +29,16 @@ class FdHouseholdSection extends HTMLElement {
       return;
     }
 
+    const { MEMBER_COLORS, SHARED_CSS, escHtml } = window._fd;
+
     const eur = (v) => new Intl.NumberFormat("de-DE", {
       style: "currency", currency: "EUR",
     }).format(v || 0);
 
-    const memberColors = ["#3b82f6", "#8b5cf6", "#f97316", "#ec4899", "#06b6d4"];
-
-    this.shadowRoot.innerHTML = `
-<style>
-:host { display: block; margin-bottom: 20px; }
+    const LOCAL_CSS = `
+:host {
+  margin-bottom: 20px;
+}
 .persons {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -42,20 +47,6 @@ class FdHouseholdSection extends HTMLElement {
 }
 @media (max-width: 768px) {
   .persons { grid-template-columns: 1fr; }
-}
-.card {
-  background: var(--card-background-color, #12121a);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 14px;
-}
-.card-h {
-  padding: 14px 18px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  font-size: 14px;
-  font-weight: 600;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 .cost-bar {
   display: flex;
@@ -71,11 +62,14 @@ class FdHouseholdSection extends HTMLElement {
   gap: 12px;
   padding: 0 18px 14px;
   font-size: 11px;
-  color: var(--secondary-text-color, #9898a8);
+  color: var(--tx2);
 }
 .legend-item { display: flex; align-items: center; gap: 5px; }
 .legend-dot { width: 7px; height: 7px; border-radius: 2px; }
-</style>
+`;
+
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${LOCAL_CSS}</style>
 
 <div class="persons" id="persons"></div>
 <div id="shared"></div>`;
@@ -96,20 +90,20 @@ class FdHouseholdSection extends HTMLElement {
         const w = household.total_shared_costs > 0
           ? (m.shared_costs_share / household.total_shared_costs * 100)
           : 0;
-        return `<div style="width:${w}%;background:${memberColors[i % memberColors.length]}"></div>`;
+        return `<div style="width:${w}%;background:${MEMBER_COLORS[i % MEMBER_COLORS.length]}"></div>`;
       }).join("");
 
       const legend = household.members.map((m, i) =>
         `<div class="legend-item">
-          <div class="legend-dot" style="background:${memberColors[i % memberColors.length]}"></div>
-          ${this._esc(m.person)} ${eur(m.shared_costs_share)} (${(m.income_ratio || 0).toFixed(0)}%)
+          <div class="legend-dot" style="background:${MEMBER_COLORS[i % MEMBER_COLORS.length]}"></div>
+          ${escHtml(m.person)} ${eur(m.shared_costs_share)} (${(m.income_ratio || 0).toFixed(0)}%)
         </div>`
       ).join("");
 
       sharedEl.innerHTML = `
 <div class="card">
   <div class="card-h">Geteilte Fixkosten
-    <span style="font-weight:400;font-size:12px;color:var(--secondary-text-color, #9898a8)">${eur(household.total_shared_costs)} gesamt</span>
+    <span style="font-weight:400;font-size:12px;color:var(--tx2)">${eur(household.total_shared_costs)} gesamt</span>
   </div>
   <div style="padding:14px 18px">
     <div class="cost-bar">${barSegments}</div>
@@ -117,13 +111,6 @@ class FdHouseholdSection extends HTMLElement {
   <div class="cost-legend">${legend}</div>
 </div>`;
     }
-  }
-
-  _esc(s) {
-    if (!s) return "";
-    const d = document.createElement("div");
-    d.textContent = s;
-    return d.innerHTML;
   }
 }
 

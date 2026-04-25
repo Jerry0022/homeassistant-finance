@@ -14,11 +14,17 @@ class FdDonutChart extends HTMLElement {
 
   set data(v) { this._data = v; this._render(); }
 
+  disconnectedCallback() {
+    // No timers or observers to clean up in this component.
+  }
+
   _render() {
     if (!this._data) {
       this.shadowRoot.innerHTML = "";
       return;
     }
+
+    const { SHARED_CSS, escHtml } = window._fd;
 
     const { categories = {}, totalExpenses = 0 } = this._data;
     const catColors = this._data.catColors || {};
@@ -34,7 +40,7 @@ class FdDonutChart extends HTMLElement {
       .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
 
     // Build SVG donut segments
-    let donutSvg = `<circle cx="50" cy="50" r="40" fill="none" stroke="#222236" stroke-width="12"/>`;
+    let donutSvg = `<circle cx="50" cy="50" r="40" fill="none" stroke="var(--sf2, #222236)" stroke-width="12"/>`;
     let offset = 0;
     const circ = 2 * Math.PI * 40;
     for (const [cat, amt] of sorted) {
@@ -52,18 +58,13 @@ class FdDonutChart extends HTMLElement {
       const p = totalExpenses > 0 ? Math.round(Math.abs(amt) / totalExpenses * 100) : 0;
       return `<li class="cat-item">
         <div class="cat-dot" style="background:${catColors[cat] || "#6b7280"}"></div>
-        <span class="cat-n">${this._esc(catLabels[cat] || cat)}</span>
+        <span class="cat-n">${escHtml(catLabels[cat] || cat)}</span>
         <span class="cat-a">${eur(Math.abs(amt))}</span>
         <span class="cat-p">${p}%</span>
       </li>`;
     }).join("");
 
-    this.shadowRoot.innerHTML = `
-<style>
-:host {
-  --tx2: var(--secondary-text-color, #9898a8);
-  display: block;
-}
+    const LOCAL_CSS = `
 .donut-wrap {
   display: flex;
   align-items: center;
@@ -100,7 +101,10 @@ class FdDonutChart extends HTMLElement {
 @media (max-width: 768px) {
   .donut-wrap { flex-direction: column; }
 }
-</style>
+`;
+
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${LOCAL_CSS}</style>
 <div class="donut-wrap">
   <div class="donut">
     <svg viewBox="0 0 100 100">${donutSvg}</svg>
@@ -111,13 +115,6 @@ class FdDonutChart extends HTMLElement {
   </div>
   <ul class="cat-list">${catList || `<li style="color:var(--tx2);font-size:13px">Keine Ausgaben</li>`}</ul>
 </div>`;
-  }
-
-  _esc(s) {
-    if (!s) return "";
-    const d = document.createElement("div");
-    d.textContent = s;
-    return d.innerHTML;
   }
 }
 
