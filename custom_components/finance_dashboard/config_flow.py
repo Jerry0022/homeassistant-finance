@@ -12,7 +12,6 @@ from typing import Any
 
 import aiohttp
 import voluptuous as vol
-
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -164,6 +163,18 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                                 private_key_pem,
                             )
 
+                            from homeassistant.components.persistent_notification import (
+                                async_create as pn_async_create,
+                            )
+                            pn_async_create(
+                                self.hass,
+                                message=(
+                                    "Öffne das Finance-Panel in der Sidebar, "
+                                    "um deine erste Bank zu verbinden."
+                                ),
+                                title="Finance Dashboard eingerichtet",
+                                notification_id="fd_setup_complete",
+                            )
                             return self.async_create_entry(
                                 title="Finance",
                                 data={"configured": False},

@@ -47,10 +47,21 @@ class FinanceDashboardPanel extends HTMLElement {
     if (!this._rendered) {
       this._render();
       this._rendered = true;
+      // Dismiss setup-complete notification on first panel load
+      this._dismissSetupNotification(hass);
     }
     // Forward hass to data provider (drives entity subscriptions)
     const dp = this.shadowRoot.querySelector("fd-data-provider");
     if (dp) dp.hass = hass;
+  }
+
+  _dismissSetupNotification(hass) {
+    if (!hass) return;
+    hass.callService("persistent_notification", "dismiss", {
+      notification_id: "fd_setup_complete",
+    }).catch(() => {
+      // Notification may not exist — silently ignore
+    });
   }
 
   _render() {
