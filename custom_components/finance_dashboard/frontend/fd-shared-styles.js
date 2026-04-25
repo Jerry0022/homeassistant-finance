@@ -209,3 +209,16 @@ window._fd = {
   tSync,
   _hass: null,  // Set by panel shell: window._fd._hass = hass
 };
+
+/**
+ * Pre-warm locale cache as soon as the script loads so that tSync() calls
+ * during first component render already have strings available.
+ * Uses navigator.language as initial guess; panel shell updates _hass later.
+ */
+(function _warmupLocales() {
+  const raw = (navigator.language || "en").toLowerCase().split("-")[0];
+  const lang = ["de", "en"].includes(raw) ? raw : "en";
+  // Fire-and-forget: populate _i18nCache before first render tick
+  _loadLocale(lang);
+  if (lang !== "en") _loadLocale("en");
+})();
