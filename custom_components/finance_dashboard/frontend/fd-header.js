@@ -116,10 +116,9 @@ class FdHeader extends HTMLElement {
   }
 
   _render() {
-    const monthNames = ["Jan", "Feb", "M\u00e4r", "Apr", "Mai", "Jun",
-      "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+    const { MONTH_NAMES } = window._fd;
     const now = new Date();
-    const monthLabel = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+    const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
 
     this.shadowRoot.innerHTML = `
 <style>
