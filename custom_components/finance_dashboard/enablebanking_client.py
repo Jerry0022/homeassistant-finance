@@ -29,7 +29,7 @@ from cryptography.hazmat.primitives import serialization
 # Type alias for optional injected session
 _SessionType = aiohttp.ClientSession | None
 
-from .const import ENABLEBANKING_BASE_URL
+from .const import DOMAIN, ENABLEBANKING_BASE_URL, VERSION
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -307,20 +307,30 @@ class EnableBankingClient:
             }
         }
 
+    # Canonical PSU user-agent for user-triggered live calls.
+    # Set once at class level so all instances share the same string.
+    _PSU_UA: str = f"HomeAssistant-Finance-Dashboard/{VERSION}"
+
     async def async_get_balances(
-        self, account_id: str
+        self,
+        account_id: str,
+        psu_ip: str | None = None,
     ) -> list[dict[str, Any]]:
         """Get account balances.
 
         Args:
             account_id: Enable Banking account ID.
+            psu_ip: Optional PSU IP address from the originating user request.
 
         Returns:
             List normalized to GoCardless format:
             [{balanceAmount: {amount, currency}, balanceType, referenceDate}]
         """
         result = await self._async_request(
-            "GET", f"/accounts/{account_id}/balances"
+            "GET",
+            f"/accounts/{account_id}/balances",
+            psu_ip=psu_ip,
+            psu_ua=self._PSU_UA,
         )
         balances = result if isinstance(result, list) else result.get("balances", [])
         return [self._normalize_balance(b) for b in balances]
@@ -330,6 +340,7 @@ class EnableBankingClient:
         account_id: str,
         date_from: str | None = None,
         date_to: str | None = None,
+        psu_ip: str | None = None,
     ) -> dict[str, Any]:
         """Get account transactions.
 
@@ -337,6 +348,7 @@ class EnableBankingClient:
             account_id: Enable Banking account ID.
             date_from: Start date (YYYY-MM-DD, optional).
             date_to: End date (YYYY-MM-DD, optional).
+            psu_ip: Optional PSU IP address from the originating user request.
 
         Returns:
             Dict normalized to GoCardless format:
@@ -353,7 +365,10 @@ class EnableBankingClient:
 
         query = f"?{'&'.join(params)}" if params else ""
         result = await self._async_request(
-            "GET", f"/accounts/{account_id}/transactions{query}"
+            "GET",
+            f"/accounts/{account_id}/transactions{query}",
+            psu_ip=psu_ip,
+            psu_ua=self._PSU_UA,
         )
 
         transactions = (
@@ -470,18 +485,35 @@ class EnableBankingClient:
         )
 
     async def _async_request(
-        self, method: str, endpoint: str, **kwargs: Any
+        self,
+        method: str,
+        endpoint: str,
+        psu_ip: str | None = None,
+        psu_ua: str | None = None,
+        **kwargs: Any,
     ) -> dict[str, Any] | list[dict[str, Any]]:
         """Make an authenticated API request.
 
         Generates a fresh JWT for every request (60s validity).
         Raises aiohttp.ClientResponseError on HTTP errors.
+
+        Args:
+            psu_ip: Optional PSU IP address (from request context).  Sent as
+                ``Psu-Ip-Address`` header when provided.  Omitted otherwise —
+                never invent a value.
+            psu_ua: Optional PSU user-agent string.  Defaults to the
+                integration's canonical UA when not explicitly overridden.
+                Sent as ``Psu-User-Agent`` for user-triggered live calls only.
         """
         jwt_token = self._generate_jwt()
         headers = {
             "Authorization": f"Bearer {jwt_token}",
             "Content-Type": "application/json",
         }
+        if psu_ip:
+            headers["Psu-Ip-Address"] = psu_ip
+        if psu_ua:
+            headers["Psu-User-Agent"] = psu_ua
 
         url = f"{ENABLEBANKING_BASE_URL}{endpoint}"
         _LOGGER.debug("Enable Banking request: %s %s", method, url)

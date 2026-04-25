@@ -63,7 +63,7 @@ class RefreshMixin:
     # ------------------------------------------------------------------
 
     async def async_refresh_transactions(
-        self, days: int = 90
+        self, days: int = 90, psu_ip: str | None = None
     ) -> list[dict[str, Any]]:
         """Refresh transactions AND balances for all linked accounts.
 
@@ -78,18 +78,28 @@ class RefreshMixin:
 
         Concurrent calls are serialised by ``_refresh_lock`` and stats
         are written to ``_last_refresh_stats`` regardless of outcome.
+
+        Args:
+            days: Number of days to fetch (default 90).
+            psu_ip: Optional PSU IP address from the originating HTTP request.
+                Forwarded to the Enable Banking API as ``Psu-Ip-Address``.
+                Never required — omit when not available.
         """
         async with self._refresh_lock:
             self._refresh_in_flight = True
             started = datetime.now()
             t0 = time.monotonic()
             try:
-                return await self._do_refresh(days, started, t0)
+                return await self._do_refresh(days, started, t0, psu_ip=psu_ip)
             finally:
                 self._refresh_in_flight = False
 
     async def _do_refresh(
-        self, days: int, started: datetime, t0: float
+        self,
+        days: int,
+        started: datetime,
+        t0: float,
+        psu_ip: str | None = None,
     ) -> list[dict[str, Any]]:
         from ..enablebanking_client import RateLimitExceeded
         from ..recurring import detect_recurring
@@ -163,7 +173,7 @@ class RefreshMixin:
 
             try:
                 txns = await client.async_get_transactions(
-                    account_id, date_from, date_to
+                    account_id, date_from, date_to, psu_ip=psu_ip
                 )
                 accounts_hit += 1
                 booked = txns.get("booked", [])
@@ -301,7 +311,7 @@ class RefreshMixin:
         # but do not fail the transaction refresh.
         balance_errors: list[str] = []
         try:
-            await self._async_refresh_balances_live(client, balance_errors)
+            await self._async_refresh_balances_live(client, balance_errors, psu_ip=psu_ip)
         except Exception:
             _LOGGER.exception("Balance refresh leg failed")
         errors.extend(balance_errors)
@@ -351,7 +361,10 @@ class RefreshMixin:
         }
 
     async def _async_refresh_balances_live(
-        self, client: Any, errors: list[str]
+        self,
+        client: Any,
+        errors: list[str],
+        psu_ip: str | None = None,
     ) -> dict[str, Any]:
         """Live-fetch balances from the API and update the cache.
 
@@ -369,7 +382,7 @@ class RefreshMixin:
 
             try:
                 account_balances = await client.async_get_balances(
-                    account_id
+                    account_id, psu_ip=psu_ip
                 )
                 iban = account.get("iban", "")
                 balances[account_id] = {
