@@ -1,5 +1,24 @@
 # Build Log
 
+## [unreleased] Wave E — Backend Refactor + Polish (F1, F6, F7, D1-D12)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- chore: F1 — remove `_gocardless_client_deprecated.py`; no callers remained (GOCARDLESS_BASE_URL was only referenced internally in the deleted file); no companion-payload copy existed
+- refactor(api): F6 — add `manager.async_set_accounts(accounts: list)` with isinstance validation + config-entry persistence; replace direct `manager._accounts = existing` in `api/setup.py` with the new method
+- perf(security): F7 — CredentialManager stores single `_audit_store` instance in `__init__`; `_audit_log()` and `async_get_audit_log()` reuse it instead of creating `Store()` on every call; imports `AUDIT_MAX_ENTRIES` and `STORAGE_KEY_AUDIT` at module top; test helper updated to include `_audit_store = FakeStore()` and `test_audit_log_on_rotate` patching strategy updated for the new design
+- chore(manifest): D2 — `iot_class` `cloud_polling` → `cloud_push` (data only enters on user-triggered push, not background poll)
+- docs: D3 — `repairs.py` docstring explains intentional thin re-export design; issue creation lives in manager mixins which have execution context
+- docs: D4 — CLAUDE.md service count corrected from 7 to 8 (`toggle_demo` was missing); all 8 services verified present in `services.yaml` and `const.py`
+- feat(banking): D5 — `RateLimitExceeded` carries optional `retry_after_seconds: int | None`; `_async_request` parses `Retry-After` header on 429; `_set_rate_limited(retry_after_dt=None)` uses `min(midnight, retry_after_dt)` reset; both 429 catch-sites in `_do_refresh` and `_async_refresh_balances_live` forward the parsed value
+- feat(banking): D6 — `_async_request` accepts optional `psu_ip`/`psu_ua` params; `async_get_transactions` and `async_get_balances` pass `psu_ua=self._PSU_UA` (canonical `HomeAssistant-Finance-Dashboard/<version>` string, class-level constant); `async_refresh_transactions(psu_ip=None)` accepts and forwards PSU IP all the way to client calls; `api/refresh.py` passes `request.remote` as `psu_ip`
+- fix(repairs): D11 — `_raise_credentials_issue` sets `is_persistent=True` (auth issues survive restart); `_raise_storage_corrupt_issue` sets `is_persistent=True` (corrupt file requires manual intervention)
+- fix: D12 — replace all `datetime.now()` in `manager/_refresh.py` and rate-limit comparison in `manager/__init__.py` with `dt_util.now()` (tz-aware, consistent with HA conventions); `from homeassistant.util import dt as dt_util` added to both files
+- feat(api): D7 — `get_refresh_status()` includes `rate_limit_per_day: ENABLEBANKING_RATE_LIMIT_DAILY` (currently 4); frontend can render the cap label dynamically without hardcoding
+- feat(api): D9 — `get_refresh_status()` includes `cache_is_stale: bool` (True when `cache_age_seconds > 6h`); `_CACHE_STALE_THRESHOLD_SECONDS = 6 * 3600` class constant
+- docs: D10 — `FinanceDashboardCoordinator.__init__` docstring rewritten to precisely explain cache-only contract, `update_interval=None` rationale, and 4/day rate-limit constraint
+- docs: D1 — CLAUDE.md architecture block updated to show `manager/` and `api/` as packages with sub-files; Phase 1 all checkboxed; Phase 2 items marked [x]/[ ] per actual code state; Phase 3 marked frozen; service count 8; next version hint 0.13.0
+- Result: 49/49 tests pass
+
 ## [unreleased] Wave D — Architecture Refactors (A1, A2, A4, A5)
 Branch: claude/eager-nobel-e572f9
 Changes:
