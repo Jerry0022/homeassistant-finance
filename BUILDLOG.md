@@ -1,5 +1,16 @@
 # Build Log
 
+## [unreleased] Wave F — Backend Test-Detail (T3, T4, T5, T6, T7)
+Version: 0.12.1 (no bump)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- test(security): T3 — expand JWT/Fernet edge-cases; test_jwt.py gains 4 tests (wrong-algo rejection, expired-token rejection, clock-skew iat guard, cross-key signature mismatch); test_credential_manager.py gains 4 tests (middle-key decrypt across 3-key rotation, corrupt-key migration error, session-timeout flag reset, uninitialized-manager RuntimeError); total 21 tests
+- test(categorizer): T4 — 79 parametrized tests covering all 9 rule categories (housing, food, transport, insurance, subscriptions, loans, utilities, income, transfers), positive-amount income fallback, custom-rule injection, case-insensitivity, multi-field (remittance array, creditorName) matching; also fixes shallow-copy bug in get_rules() — inner lists were shared, mutations polluted instance
+- test(transfer-detector): T5 — 27 tests: simple 2-account transfer (source/destination assignment, confidence >= 0.60), 3-stage cascade chain (DKB -> PayPal -> HelloFresh, intermediate leg detection), manual override confirm/reject, false-positive guard (same amount != transfer, tolerance boundary, date window, pending status), confidence tiers, refund detection (storno keyword, timing direction), enrich_transactions field population
+- chore(lint): T6 — ruff check passes with 0 errors; ruff format applied to 28 files; fixes: F401 unused imports, F841 unused variables, RUF005 list spread, RUF046 int(round()) -> round(), PLR1714 membership test, RUF002/003 ambiguous Unicode, RUF022 __all__ with noqa, E402 import order, RUF012 mutable attrs; per-file-ignores in pyproject.toml for structural PLR violations (too-many-branches/statements in complex handlers)
+- chore(ci): T7 — pytest step adds --cov + --cov-report=xml/term-missing; coverage.xml uploaded as artifact; requirements_test.txt gains PyJWT>=2.8, cryptography>=42.0, aiohttp>=3.9
+- Result: 163/163 tests pass; coverage 31% total (const 100%, categorizer 96%, transfer_detector 91%); ruff 0 errors
+
 ## [unreleased] Wave F — Frontend Refactors (A3, F2, F3, F4, F5, F8)
 Branch: claude/eager-nobel-e572f9
 Changes:
