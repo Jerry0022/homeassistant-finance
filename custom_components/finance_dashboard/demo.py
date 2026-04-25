@@ -10,9 +10,8 @@ that matches the exact shape the frontend expects (unified data object).
 from __future__ import annotations
 
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
-
 
 # ---------------------------------------------------------------------------
 # Demo bank accounts
@@ -73,62 +72,364 @@ _BASE_BALANCES = {
 
 _TRANSACTION_TEMPLATES: list[dict[str, Any]] = [
     # --- Shared account (ING) ---
-    {"creditor": "Hausverwaltung GmbH", "desc": "Miete {month_name} {year}", "base": -1150.0, "cat": "housing", "day": 1, "acc": "demo-ing-shared"},
-    {"creditor": "Stadtwerke München", "desc": "Strom Abschlag", "base": -85.0, "cat": "utilities", "day": 3, "acc": "demo-ing-shared"},
-    {"creditor": "Telekom", "desc": "Festnetz + Internet", "base": -44.95, "cat": "utilities", "day": 5, "acc": "demo-ing-shared"},
-    {"creditor": "Allianz Versicherung", "desc": "Haftpflichtversicherung", "base": -12.50, "cat": "insurance", "day": 1, "acc": "demo-ing-shared"},
-    {"creditor": "GEZ", "desc": "Rundfunkbeitrag", "base": -18.36, "cat": "utilities", "day": 1, "acc": "demo-ing-shared"},
-    {"creditor": "REWE Markt", "desc": "REWE Großeinkauf", "base": -89.45, "cat": "food", "day": 4, "acc": "demo-ing-shared"},
-    {"creditor": "HelloFresh", "desc": "HelloFresh Kochbox KW14", "base": -49.99, "cat": "food", "day": 8, "acc": "demo-ing-shared"},
-
+    {
+        "creditor": "Hausverwaltung GmbH",
+        "desc": "Miete {month_name} {year}",
+        "base": -1150.0,
+        "cat": "housing",
+        "day": 1,
+        "acc": "demo-ing-shared",
+    },
+    {
+        "creditor": "Stadtwerke München",
+        "desc": "Strom Abschlag",
+        "base": -85.0,
+        "cat": "utilities",
+        "day": 3,
+        "acc": "demo-ing-shared",
+    },
+    {
+        "creditor": "Telekom",
+        "desc": "Festnetz + Internet",
+        "base": -44.95,
+        "cat": "utilities",
+        "day": 5,
+        "acc": "demo-ing-shared",
+    },
+    {
+        "creditor": "Allianz Versicherung",
+        "desc": "Haftpflichtversicherung",
+        "base": -12.50,
+        "cat": "insurance",
+        "day": 1,
+        "acc": "demo-ing-shared",
+    },
+    {
+        "creditor": "GEZ",
+        "desc": "Rundfunkbeitrag",
+        "base": -18.36,
+        "cat": "utilities",
+        "day": 1,
+        "acc": "demo-ing-shared",
+    },
+    {
+        "creditor": "REWE Markt",
+        "desc": "REWE Großeinkauf",
+        "base": -89.45,
+        "cat": "food",
+        "day": 4,
+        "acc": "demo-ing-shared",
+    },
+    {
+        "creditor": "HelloFresh",
+        "desc": "HelloFresh Kochbox KW14",
+        "base": -49.99,
+        "cat": "food",
+        "day": 8,
+        "acc": "demo-ing-shared",
+    },
     # --- Anna (Sparkasse) ---
-    {"creditor": "Arbeitgeber GmbH", "desc": "Gehalt {month_name}", "base": 3250.0, "cat": "income", "day": 25, "acc": "demo-sparkasse-anna"},
-    {"creditor": "REWE Markt", "desc": "REWE SAGT DANKE 4823", "base": -47.83, "cat": "food", "day": 2, "acc": "demo-sparkasse-anna"},
-    {"creditor": "EDEKA", "desc": "EDEKA Einkauf", "base": -32.15, "cat": "food", "day": 5, "acc": "demo-sparkasse-anna"},
-    {"creditor": "Netflix", "desc": "Netflix Abo", "base": -13.99, "cat": "subscriptions", "day": 8, "acc": "demo-sparkasse-anna"},
-    {"creditor": "Spotify", "desc": "Spotify Premium Family", "base": -17.99, "cat": "subscriptions", "day": 1, "acc": "demo-sparkasse-anna"},
-    {"creditor": "DB Vertrieb", "desc": "Deutschlandticket", "base": -49.00, "cat": "transport", "day": 1, "acc": "demo-sparkasse-anna"},
-    {"creditor": "ALDI", "desc": "ALDI SÜD Filiale 2847", "base": -28.47, "cat": "food", "day": 10, "acc": "demo-sparkasse-anna"},
-    {"creditor": "dm-drogerie", "desc": "dm Drogeriemarkt", "base": -15.99, "cat": "other", "day": 7, "acc": "demo-sparkasse-anna"},
-    {"creditor": "REWE Markt", "desc": "REWE SAGT DANKE 5121", "base": -52.30, "cat": "food", "day": 12, "acc": "demo-sparkasse-anna"},
-    {"creditor": "Lieferando", "desc": "Lieferando Bestellung", "base": -24.90, "cat": "food", "day": 14, "acc": "demo-sparkasse-anna"},
-    {"creditor": "HUK-COBURG", "desc": "KFZ Versicherung", "base": -45.80, "cat": "insurance", "day": 1, "acc": "demo-sparkasse-anna"},
-    {"creditor": "LIDL", "desc": "LIDL SAGT DANKE", "base": -19.62, "cat": "food", "day": 16, "acc": "demo-sparkasse-anna"},
-    {"creditor": "Rossmann", "desc": "Rossmann Filiale", "base": -8.49, "cat": "other", "day": 18, "acc": "demo-sparkasse-anna"},
-
+    {
+        "creditor": "Arbeitgeber GmbH",
+        "desc": "Gehalt {month_name}",
+        "base": 3250.0,
+        "cat": "income",
+        "day": 25,
+        "acc": "demo-sparkasse-anna",
+    },
+    {
+        "creditor": "REWE Markt",
+        "desc": "REWE SAGT DANKE 4823",
+        "base": -47.83,
+        "cat": "food",
+        "day": 2,
+        "acc": "demo-sparkasse-anna",
+    },
+    {
+        "creditor": "EDEKA",
+        "desc": "EDEKA Einkauf",
+        "base": -32.15,
+        "cat": "food",
+        "day": 5,
+        "acc": "demo-sparkasse-anna",
+    },
+    {
+        "creditor": "Netflix",
+        "desc": "Netflix Abo",
+        "base": -13.99,
+        "cat": "subscriptions",
+        "day": 8,
+        "acc": "demo-sparkasse-anna",
+    },
+    {
+        "creditor": "Spotify",
+        "desc": "Spotify Premium Family",
+        "base": -17.99,
+        "cat": "subscriptions",
+        "day": 1,
+        "acc": "demo-sparkasse-anna",
+    },
+    {
+        "creditor": "DB Vertrieb",
+        "desc": "Deutschlandticket",
+        "base": -49.00,
+        "cat": "transport",
+        "day": 1,
+        "acc": "demo-sparkasse-anna",
+    },
+    {
+        "creditor": "ALDI",
+        "desc": "ALDI SÜD Filiale 2847",
+        "base": -28.47,
+        "cat": "food",
+        "day": 10,
+        "acc": "demo-sparkasse-anna",
+    },
+    {
+        "creditor": "dm-drogerie",
+        "desc": "dm Drogeriemarkt",
+        "base": -15.99,
+        "cat": "other",
+        "day": 7,
+        "acc": "demo-sparkasse-anna",
+    },
+    {
+        "creditor": "REWE Markt",
+        "desc": "REWE SAGT DANKE 5121",
+        "base": -52.30,
+        "cat": "food",
+        "day": 12,
+        "acc": "demo-sparkasse-anna",
+    },
+    {
+        "creditor": "Lieferando",
+        "desc": "Lieferando Bestellung",
+        "base": -24.90,
+        "cat": "food",
+        "day": 14,
+        "acc": "demo-sparkasse-anna",
+    },
+    {
+        "creditor": "HUK-COBURG",
+        "desc": "KFZ Versicherung",
+        "base": -45.80,
+        "cat": "insurance",
+        "day": 1,
+        "acc": "demo-sparkasse-anna",
+    },
+    {
+        "creditor": "LIDL",
+        "desc": "LIDL SAGT DANKE",
+        "base": -19.62,
+        "cat": "food",
+        "day": 16,
+        "acc": "demo-sparkasse-anna",
+    },
+    {
+        "creditor": "Rossmann",
+        "desc": "Rossmann Filiale",
+        "base": -8.49,
+        "cat": "other",
+        "day": 18,
+        "acc": "demo-sparkasse-anna",
+    },
     # --- Max (DKB) ---
-    {"creditor": "Tech AG", "desc": "Gehalt {month_name}", "base": 2850.0, "cat": "income", "day": 27, "acc": "demo-dkb-max"},
-    {"creditor": "REWE Markt", "desc": "REWE Einkauf", "base": -38.92, "cat": "food", "day": 3, "acc": "demo-dkb-max"},
-    {"creditor": "Lidl", "desc": "LIDL DIENSTL", "base": -22.47, "cat": "food", "day": 6, "acc": "demo-dkb-max"},
-    {"creditor": "Disney Plus", "desc": "Disney+ Abo", "base": -8.99, "cat": "subscriptions", "day": 15, "acc": "demo-dkb-max"},
-    {"creditor": "Xbox", "desc": "Xbox Game Pass Ultimate", "base": -14.99, "cat": "subscriptions", "day": 10, "acc": "demo-dkb-max"},
-    {"creditor": "Shell", "desc": "Shell Tankstelle München", "base": -65.40, "cat": "transport", "day": 8, "acc": "demo-dkb-max"},
-    {"creditor": "Amazon", "desc": "Amazon.de Bestellung", "base": -34.99, "cat": "other", "day": 11, "acc": "demo-dkb-max"},
-    {"creditor": "EDEKA", "desc": "EDEKA Center", "base": -41.23, "cat": "food", "day": 9, "acc": "demo-dkb-max"},
-    {"creditor": "McFIT", "desc": "McFIT Mitgliedschaft", "base": -29.90, "cat": "other", "day": 1, "acc": "demo-dkb-max"},
-    {"creditor": "ARAL", "desc": "ARAL Tankstelle", "base": -58.20, "cat": "transport", "day": 15, "acc": "demo-dkb-max"},
-    {"creditor": "HypoVereinsbank", "desc": "Autokredit Rate 48/60", "base": -285.00, "cat": "loans", "day": 5, "acc": "demo-dkb-max"},
-    {"creditor": "Barmer", "desc": "Zusatzversicherung Zahn", "base": -28.50, "cat": "insurance", "day": 1, "acc": "demo-dkb-max"},
-    {"creditor": "Google", "desc": "Google One 200 GB", "base": -2.99, "cat": "subscriptions", "day": 12, "acc": "demo-dkb-max"},
-    {"creditor": "REWE Markt", "desc": "REWE Abend-Einkauf", "base": -31.78, "cat": "food", "day": 17, "acc": "demo-dkb-max"},
+    {
+        "creditor": "Tech AG",
+        "desc": "Gehalt {month_name}",
+        "base": 2850.0,
+        "cat": "income",
+        "day": 27,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "REWE Markt",
+        "desc": "REWE Einkauf",
+        "base": -38.92,
+        "cat": "food",
+        "day": 3,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "Lidl",
+        "desc": "LIDL DIENSTL",
+        "base": -22.47,
+        "cat": "food",
+        "day": 6,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "Disney Plus",
+        "desc": "Disney+ Abo",
+        "base": -8.99,
+        "cat": "subscriptions",
+        "day": 15,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "Xbox",
+        "desc": "Xbox Game Pass Ultimate",
+        "base": -14.99,
+        "cat": "subscriptions",
+        "day": 10,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "Shell",
+        "desc": "Shell Tankstelle München",
+        "base": -65.40,
+        "cat": "transport",
+        "day": 8,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "Amazon",
+        "desc": "Amazon.de Bestellung",
+        "base": -34.99,
+        "cat": "other",
+        "day": 11,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "EDEKA",
+        "desc": "EDEKA Center",
+        "base": -41.23,
+        "cat": "food",
+        "day": 9,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "McFIT",
+        "desc": "McFIT Mitgliedschaft",
+        "base": -29.90,
+        "cat": "other",
+        "day": 1,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "ARAL",
+        "desc": "ARAL Tankstelle",
+        "base": -58.20,
+        "cat": "transport",
+        "day": 15,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "HypoVereinsbank",
+        "desc": "Autokredit Rate 48/60",
+        "base": -285.00,
+        "cat": "loans",
+        "day": 5,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "Barmer",
+        "desc": "Zusatzversicherung Zahn",
+        "base": -28.50,
+        "cat": "insurance",
+        "day": 1,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "Google",
+        "desc": "Google One 200 GB",
+        "base": -2.99,
+        "cat": "subscriptions",
+        "day": 12,
+        "acc": "demo-dkb-max",
+    },
+    {
+        "creditor": "REWE Markt",
+        "desc": "REWE Abend-Einkauf",
+        "base": -31.78,
+        "cat": "food",
+        "day": 17,
+        "acc": "demo-dkb-max",
+    },
 ]
 
 # Recurring patterns for demo
 _RECURRING_TEMPLATES: list[dict[str, Any]] = [
-    {"creditor": "Hausverwaltung GmbH", "average_amount": -1150.0, "frequency": "monthly", "category": "housing", "occurrences": 12, "expected_day": 1},
-    {"creditor": "Stadtwerke München", "average_amount": -85.0, "frequency": "monthly", "category": "utilities", "occurrences": 12, "expected_day": 3},
-    {"creditor": "Telekom", "average_amount": -44.95, "frequency": "monthly", "category": "utilities", "occurrences": 12, "expected_day": 5},
-    {"creditor": "Netflix", "average_amount": -13.99, "frequency": "monthly", "category": "subscriptions", "occurrences": 8, "expected_day": 8},
-    {"creditor": "Spotify", "average_amount": -17.99, "frequency": "monthly", "category": "subscriptions", "occurrences": 11, "expected_day": 1},
-    {"creditor": "DB Vertrieb", "average_amount": -49.00, "frequency": "monthly", "category": "transport", "occurrences": 10, "expected_day": 1},
-    {"creditor": "HypoVereinsbank", "average_amount": -285.00, "frequency": "monthly", "category": "loans", "occurrences": 12, "expected_day": 5},
-    {"creditor": "HelloFresh", "average_amount": -49.99, "frequency": "monthly", "category": "food", "occurrences": 6, "expected_day": 8},
+    {
+        "creditor": "Hausverwaltung GmbH",
+        "average_amount": -1150.0,
+        "frequency": "monthly",
+        "category": "housing",
+        "occurrences": 12,
+        "expected_day": 1,
+    },
+    {
+        "creditor": "Stadtwerke München",
+        "average_amount": -85.0,
+        "frequency": "monthly",
+        "category": "utilities",
+        "occurrences": 12,
+        "expected_day": 3,
+    },
+    {
+        "creditor": "Telekom",
+        "average_amount": -44.95,
+        "frequency": "monthly",
+        "category": "utilities",
+        "occurrences": 12,
+        "expected_day": 5,
+    },
+    {
+        "creditor": "Netflix",
+        "average_amount": -13.99,
+        "frequency": "monthly",
+        "category": "subscriptions",
+        "occurrences": 8,
+        "expected_day": 8,
+    },
+    {
+        "creditor": "Spotify",
+        "average_amount": -17.99,
+        "frequency": "monthly",
+        "category": "subscriptions",
+        "occurrences": 11,
+        "expected_day": 1,
+    },
+    {
+        "creditor": "DB Vertrieb",
+        "average_amount": -49.00,
+        "frequency": "monthly",
+        "category": "transport",
+        "occurrences": 10,
+        "expected_day": 1,
+    },
+    {
+        "creditor": "HypoVereinsbank",
+        "average_amount": -285.00,
+        "frequency": "monthly",
+        "category": "loans",
+        "occurrences": 12,
+        "expected_day": 5,
+    },
+    {
+        "creditor": "HelloFresh",
+        "average_amount": -49.99,
+        "frequency": "monthly",
+        "category": "food",
+        "occurrences": 6,
+        "expected_day": 8,
+    },
 ]
 
 # Month names for German formatting
 _MONTH_NAMES = [
-    "Januar", "Februar", "März", "April", "Mai", "Juni",
-    "Juli", "August", "September", "Oktober", "November", "Dezember",
+    "Januar",
+    "Februar",
+    "März",
+    "April",
+    "Mai",
+    "Juni",
+    "Juli",
+    "August",
+    "September",
+    "Oktober",
+    "November",
+    "Dezember",
 ]
 
 
@@ -188,15 +489,17 @@ def generate_demo_data() -> dict[str, Any]:
         if raw_bals:
             bal_val = float(raw_bals[0].get("balanceAmount", {}).get("amount", 0))
         iban = acc.get("iban", "")
-        fe_accounts.append({
-            "entityId": f"sensor.fd_demo_{acc_id.replace('-', '_')}",
-            "name": acc.get("custom_name") or acc.get("name", ""),
-            "institution": acc.get("institution", ""),
-            "balance": bal_val,
-            "ibanMasked": f"****{iban[-4:]}" if len(iban) >= 4 else "****",
-            "currency": acc.get("currency", "EUR"),
-            "person": acc.get("person", ""),
-        })
+        fe_accounts.append(
+            {
+                "entityId": f"sensor.fd_demo_{acc_id.replace('-', '_')}",
+                "name": acc.get("custom_name") or acc.get("name", ""),
+                "institution": acc.get("institution", ""),
+                "balance": bal_val,
+                "ibanMasked": f"****{iban[-4:]}" if len(iban) >= 4 else "****",
+                "currency": acc.get("currency", "EUR"),
+                "person": acc.get("person", ""),
+            }
+        )
         total_balance += bal_val
 
     # Budget limits (demo defaults)
@@ -287,23 +590,25 @@ def _build_transactions(
         acc_id = tpl["acc"]
         acc = acc_map.get(acc_id, {})
 
-        transactions.append({
-            "transactionId": f"demo-{i:04d}-{rng.randint(1000, 9999)}",
-            "bookingDate": booking_date,
-            "transactionAmount": {
-                "amount": str(amount),
-                "currency": "EUR",
-            },
-            "creditorName": tpl["creditor"],
-            "remittanceInformationUnstructured": desc,
-            "category": tpl["cat"],
-            "_account_id": acc_id,
-            "_account_name": acc.get("custom_name") or acc.get("name", ""),
-            "_account_type": acc.get("type", "personal"),
-            "_account_person": acc.get("person", ""),
-            "_account_ha_users": [],
-            "_status": "booked",
-        })
+        transactions.append(
+            {
+                "transactionId": f"demo-{i:04d}-{rng.randint(1000, 9999)}",
+                "bookingDate": booking_date,
+                "transactionAmount": {
+                    "amount": str(amount),
+                    "currency": "EUR",
+                },
+                "creditorName": tpl["creditor"],
+                "remittanceInformationUnstructured": desc,
+                "category": tpl["cat"],
+                "_account_id": acc_id,
+                "_account_name": acc.get("custom_name") or acc.get("name", ""),
+                "_account_type": acc.get("type", "personal"),
+                "_account_person": acc.get("person", ""),
+                "_account_ha_users": [],
+                "_status": "booked",
+            }
+        )
 
     # Sort newest first
     transactions.sort(key=lambda t: t["bookingDate"], reverse=True)
@@ -381,16 +686,18 @@ def _build_household(
         share = shared_costs * ratio
         spielgeld = data["income"] - data["individual_costs"] - share
 
-        members.append({
-            "person": name,
-            "gross_income": round(data["income"], 2),
-            "net_income": round(data["income"], 2),
-            "income_ratio": round(ratio * 100, 1),
-            "shared_costs_share": round(share, 2),
-            "individual_costs": round(data["individual_costs"], 2),
-            "spielgeld": round(spielgeld, 2),
-            "bonus_amount": 0.0,
-        })
+        members.append(
+            {
+                "person": name,
+                "gross_income": round(data["income"], 2),
+                "net_income": round(data["income"], 2),
+                "income_ratio": round(ratio * 100, 1),
+                "shared_costs_share": round(share, 2),
+                "individual_costs": round(data["individual_costs"], 2),
+                "spielgeld": round(spielgeld, 2),
+                "bonus_amount": 0.0,
+            }
+        )
 
     return {
         "members": members,

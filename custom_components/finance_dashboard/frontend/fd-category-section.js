@@ -5,16 +5,7 @@
  *   data {object} — Unified data object from fd-data-provider
  */
 
-const CAT_COLORS = {
-  housing: "#3b82f6", loans: "#e74c3c", food: "#f97316", utilities: "#eab308",
-  insurance: "#8b5cf6", subscriptions: "#ec4899", transport: "#06b6d4",
-  cleaning: "#a855f7", income: "#4ecca3", transfers: "#6b7280", other: "#6b7280",
-};
-const CAT_LABELS = {
-  housing: "Wohnen", loans: "Kredite", food: "Lebensmittel", utilities: "Nebenkosten",
-  insurance: "Versicherung", subscriptions: "Abos", transport: "Mobilit\u00e4t",
-  cleaning: "Reinigung", income: "Einkommen", transfers: "\u00dcbertr\u00e4ge", other: "Sonstiges",
-};
+// CAT_COLORS and CAT_LABELS come from window._fd (set by fd-shared-styles.js).
 
 class FdCategorySection extends HTMLElement {
   constructor() {
@@ -27,10 +18,12 @@ class FdCategorySection extends HTMLElement {
 
   _render() {
     const d = this._data;
-    if (!d) {
-      this.shadowRoot.innerHTML = "";
+    if (d === null || d === undefined) {
+      this._renderSkeleton();
       return;
     }
+
+    const { CAT_COLORS, CAT_LABELS, SHARED_CSS, escHtml } = window._fd;
 
     const eur = (v) => new Intl.NumberFormat("de-DE", {
       style: "currency", currency: "EUR",
@@ -48,7 +41,7 @@ class FdCategorySection extends HTMLElement {
     // Top 3
     const top3 = sorted.slice(0, 3).map(([cat, amt]) =>
       `<div class="top-item">
-        <span>${this._esc(CAT_LABELS[cat] || cat)}</span>
+        <span>${escHtml(CAT_LABELS[cat] || cat)}</span>
         <span class="neg">${eur(Math.abs(amt))}</span>
       </div>`
     ).join("");
@@ -57,38 +50,21 @@ class FdCategorySection extends HTMLElement {
     const fixPct = totalExp > 0 ? Math.round(fixedCosts / totalExp * 100) : 0;
     const varPct = 100 - fixPct;
 
-    this.shadowRoot.innerHTML = `
-<style>
+    const LOCAL_CSS = `
 :host {
-  --sf: var(--card-background-color, #12121a);
-  --sf2: #1a1a28;
-  --bd: rgba(255,255,255,0.06);
-  --tx2: var(--secondary-text-color, #9898a8);
-  --bl: #3b82f6;
-  --wn: #f39c12;
-  --dg: #e74c3c;
-  --r: 14px;
-  display: block;
   margin-bottom: 20px;
+  container-type: inline-size;
 }
 .grid {
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: 16px;
 }
-@media (max-width: 768px) {
+@container (max-width: 980px) {
   .grid { grid-template-columns: 1fr; }
 }
-.card {
-  background: var(--sf);
-  border: 1px solid var(--bd);
-  border-radius: var(--r);
-}
-.card-h {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--bd);
-  font-size: 14px;
-  font-weight: 600;
+@media (max-width: 980px) {
+  .grid { grid-template-columns: 1fr; }
 }
 .neg { color: var(--dg); }
 .top-list { padding: 18px; }
@@ -111,7 +87,10 @@ class FdCategorySection extends HTMLElement {
   background: var(--sf2);
   margin: 8px 0;
 }
-</style>
+`;
+
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${LOCAL_CSS}</style>
 
 <div class="grid">
   <div class="card">
@@ -152,12 +131,50 @@ class FdCategorySection extends HTMLElement {
       };
     }
   }
-
-  _esc(s) {
-    if (!s) return "";
-    const d = document.createElement("div");
-    d.textContent = s;
-    return d.innerHTML;
+  _renderSkeleton() {
+    const { SHARED_CSS } = window._fd;
+    const shimmerCss = `
+@keyframes fd-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton-line {
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--sf2) 25%, rgba(255,255,255,0.06) 50%, var(--sf2) 75%);
+  background-size: 800px 100%;
+  animation: fd-shimmer 1.4s infinite linear;
+  margin-bottom: 10px;
+}
+.skeleton-circle {
+  width: 120px; height: 120px; border-radius: 50%;
+  background: linear-gradient(90deg, var(--sf2) 25%, rgba(255,255,255,0.06) 50%, var(--sf2) 75%);
+  background-size: 800px 100%;
+  animation: fd-shimmer 1.4s infinite linear;
+  margin: 20px auto;
+}
+`;
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${shimmerCss}
+:host { margin-bottom: 20px; container-type: inline-size; }
+.grid { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+@container (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style>
+<div class="grid" aria-busy="true" aria-label="Wird geladen…">
+  <div class="card"><div class="skeleton-circle"></div>
+    <div style="padding:0 20px 20px">
+      ${Array.from({ length: 5 }, (_, i) => `<div class="skeleton-line" style="height:12px;width:${50 + i * 10}%"></div>`).join("")}
+    </div>
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:14px;padding:18px">
+      ${Array.from({ length: 3 }, () => `<div class="skeleton-line" style="height:14px;width:80%"></div>`).join("")}
+    </div>
+    <div class="card" style="padding:18px">
+      ${Array.from({ length: 2 }, () => `<div class="skeleton-line" style="height:20px;width:60%"></div>`).join("")}
+    </div>
+  </div>
+</div>`;
   }
 }
 

@@ -48,20 +48,11 @@ async def async_export_csv(
     # Filter transactions
     filtered = transactions
     if date_from:
-        filtered = [
-            t for t in filtered
-            if t.get("bookingDate", "") >= date_from
-        ]
+        filtered = [t for t in filtered if t.get("bookingDate", "") >= date_from]
     if date_to:
-        filtered = [
-            t for t in filtered
-            if t.get("bookingDate", "") <= date_to
-        ]
+        filtered = [t for t in filtered if t.get("bookingDate", "") <= date_to]
     if categories:
-        filtered = [
-            t for t in filtered
-            if t.get("category", "other") in categories
-        ]
+        filtered = [t for t in filtered if t.get("category", "other") in categories]
 
     # Create export directory
     export_dir = Path(hass.config.path(EXPORT_DIR_NAME))
@@ -76,19 +67,13 @@ async def async_export_csv(
     filepath = export_dir / filename
 
     # Write CSV
-    await hass.async_add_executor_job(
-        _write_csv, filepath, filtered
-    )
+    await hass.async_add_executor_job(_write_csv, filepath, filtered)
 
-    _LOGGER.info(
-        "Exported %d transactions to %s", len(filtered), filepath
-    )
+    _LOGGER.info("Exported %d transactions to %s", len(filtered), filepath)
     return str(filepath)
 
 
-def _write_csv(
-    filepath: Path, transactions: list[dict[str, Any]]
-) -> None:
+def _write_csv(filepath: Path, transactions: list[dict[str, Any]]) -> None:
     """Write transactions to a CSV file (sync, runs in executor)."""
     fieldnames = [
         "date",
@@ -101,25 +86,17 @@ def _write_csv(
     ]
 
     with filepath.open("w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(
-            f, fieldnames=fieldnames, delimiter=";"
-        )
+        writer = csv.DictWriter(f, fieldnames=fieldnames, delimiter=";")
         writer.writeheader()
 
         for txn in transactions:
             writer.writerow(
                 {
                     "date": txn.get("bookingDate", ""),
-                    "amount": txn.get("transactionAmount", {}).get(
-                        "amount", "0"
-                    ),
-                    "currency": txn.get("transactionAmount", {}).get(
-                        "currency", "EUR"
-                    ),
+                    "amount": txn.get("transactionAmount", {}).get("amount", "0"),
+                    "currency": txn.get("transactionAmount", {}).get("currency", "EUR"),
                     "creditor": txn.get("creditorName", ""),
-                    "description": txn.get(
-                        "remittanceInformationUnstructured", ""
-                    ),
+                    "description": txn.get("remittanceInformationUnstructured", ""),
                     "category": txn.get("category", "other"),
                     "status": txn.get("_status", "booked"),
                 }
@@ -131,9 +108,7 @@ def _cleanup_old_exports(export_dir: Path) -> None:
     now = datetime.now()
     for f in export_dir.glob("finance_export_*.csv"):
         try:
-            age_hours = (
-                now - datetime.fromtimestamp(f.stat().st_mtime)
-            ).total_seconds() / 3600
+            age_hours = (now - datetime.fromtimestamp(f.stat().st_mtime)).total_seconds() / 3600
             if age_hours > EXPORT_TTL_HOURS:
                 f.unlink()
                 _LOGGER.debug("Cleaned up old export: %s", f.name)

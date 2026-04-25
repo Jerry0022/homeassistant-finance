@@ -10,7 +10,7 @@ Centralises all Enable Banking API calls so that:
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -37,9 +37,16 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
     def __init__(self, hass: HomeAssistant, manager) -> None:
         """Initialise coordinator with a reference to the manager.
 
-        update_interval is None — API calls only happen on manual refresh
-        (service call or UI button). Entities receive cached data from
-        the initial startup refresh and subsequent manual refreshes.
+        ``update_interval`` is ``None`` — this coordinator is deliberately
+        disabled from automatic background polling.  It is a cache-only
+        reader: ``_async_update_data`` reads from the manager's in-memory
+        cache and NEVER calls the Enable Banking API directly.
+
+        Live data enters the system exclusively through
+        ``manager.async_refresh_transactions``, which is only invoked from
+        explicit user-triggered paths (refresh button, service call, or the
+        post-setup bootstrap).  Enable Banking enforces a 4/day per-ASPSP
+        rate limit, so automatic background fetches are strictly forbidden.
         """
         super().__init__(
             hass,
@@ -63,12 +70,14 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
         try:
             summary = await self._manager.async_get_monthly_summary()
             rate_limited = self._manager.rate_limited_until
-            self.async_set_updated_data({
-                "balances": self._manager.get_cached_balances(),
-                "summary": summary,
-                "rate_limited_until": rate_limited.isoformat() if rate_limited else None,
-                "refresh_status": self._manager.get_refresh_status(),
-            })
+            self.async_set_updated_data(
+                {
+                    "balances": self._manager.get_cached_balances(),
+                    "summary": summary,
+                    "rate_limited_until": rate_limited.isoformat() if rate_limited else None,
+                    "refresh_status": self._manager.get_refresh_status(),
+                }
+            )
             _LOGGER.debug("Loaded cached data into coordinator (no API calls)")
         except Exception:
             _LOGGER.exception("Failed to load cached data into coordinator")
@@ -78,16 +87,16 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
             # error, and no user action can revive them short of a
             # full restart.
             try:
-                self.async_set_updated_data({
-                    "balances": {},
-                    "summary": {},
-                    "rate_limited_until": None,
-                    "refresh_status": self._manager.get_refresh_status(),
-                })
-            except Exception:
-                _LOGGER.exception(
-                    "Fallback empty-snapshot publish also failed"
+                self.async_set_updated_data(
+                    {
+                        "balances": {},
+                        "summary": {},
+                        "rate_limited_until": None,
+                        "refresh_status": self._manager.get_refresh_status(),
+                    }
                 )
+            except Exception:
+                _LOGGER.exception("Fallback empty-snapshot publish also failed")
 
     async def _async_update_data(self) -> dict:
         """Called on demand via async_refresh() (manual refresh only).
@@ -108,9 +117,7 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
             return {
                 "balances": balances,
                 "summary": summary,
-                "rate_limited_until": (
-                    rate_limited.isoformat() if rate_limited else None
-                ),
+                "rate_limited_until": (rate_limited.isoformat() if rate_limited else None),
                 "refresh_status": self._manager.get_refresh_status(),
             }
         except Exception as exc:

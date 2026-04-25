@@ -1,5 +1,160 @@
 # Build Log
 
+## 0.13.0 — 2026-04-25
+Version: 0.13.0
+Branch: claude/eager-nobel-e572f9
+Changes:
+- feat(security): MultiFernet credential storage with key rotation + v1→v2 migration (S2)
+- feat(security): timing-safe OAuth state validation with one-time-use, 10min TTL, 32-entry cap, cross-store fallback (S4, F1, F3, F5)
+- feat(security): unified setup-wizard rate-limit gate via async_make_setup_call + persistent fresh-setup gate (S3, F2, F4)
+- feat(security): IBAN/account-id/EUR-amount log sanitizer; raw API bodies no longer hit ERROR-level logs (S1)
+- feat(security): pre-commit secret-scan hook (.pre-commit-config.yaml + scripts/check_no_banking_data.py) (R11)
+- feat(banking): PyJWT[crypto] migration with iss=application_id, aud=api.tilisy.com, per-request jti (A4)
+- feat(banking): shared aiohttp ClientSession via async_get_clientsession (A5)
+- feat(banking): Retry-After header honored on 429 + PSU headers for online-mode (D5, D6)
+- feat(api): /refresh_status exposes rate_limit_per_day + cache_is_stale + cache_age_seconds (D7, D9)
+- fix(security): /refresh and toggle_demo now require admin (R9, R14)
+- fix(security): partial-refresh per-account cache prevents data loss on partial bank failure (R5, F10)
+- fix(security): corrupt .storage recovery via try/except + repair-issue (R8)
+- fix(security): static file serving non-blocking via async_add_executor_job + LRU cache (R12)
+- fix(security): repair-issue payloads scrubbed of exception strings (R10)
+- fix(security): _reconstruct_pem PKCS1/PKCS8 detection corrected (C9)
+- refactor(api): split api.py (1258 LOC) into api/ package (setup, refresh, data, static, demo, _helpers) (A1)
+- refactor(manager): split manager.py (1151 LOC) into mixin modules (RefreshMixin, PersistenceMixin) (A2)
+- refactor(frontend): persistent component tree replaces full-rebuild on every data update (A3)
+- refactor(frontend): SHARED_CSS adoption + CAT_COLORS/LABELS consolidation in fd-shared-styles (F2, F3)
+- refactor(frontend): all hardcoded color literals replaced with CSS tokens (F4)
+- refactor(frontend): unified disconnectedCallback for memory cleanup (F5)
+- refactor(frontend): shared escHtml helper (F8)
+- feat(a11y): setup-wizard modal with role/aria-modal/focus-trap/ESC (U1)
+- feat(a11y): institution list with full keyboard navigation (role/listbox/option) (U2)
+- feat(a11y): donut chart aria-label + visually-hidden table fallback (U3)
+- feat(a11y): toast aria-live based on severity (assertive for warn/error) (U4)
+- feat(a11y): cost-distribution role/group + per-segment aria-label (U5)
+- feat(frontend): i18n with locale JSON files + hass.language detection + tSync helper (U6, G1-G4)
+- feat(frontend): skeleton/loading states across all card components (U8)
+- feat(frontend): + Bank entry-point opens wizard from header (U10)
+- feat(frontend): countdown for setup-wizard auth-polling step (D8)
+- feat(setup): persistent notification after config_flow completion (U11)
+- fix(frontend): responsive breakpoint at 980px for category section (U9)
+- refactor(frontend): month label as static span (U7)
+- chore: remove deprecated GoCardless client (F1)
+- refactor(api): manager.async_set_accounts encapsulation (F6)
+- perf(security): reuse audit-log Store instance (F7)
+- chore(manifest): iot_class cloud_polling → cloud_push (D2)
+- docs: align repairs.py role + sync services.yaml (D3, D4)
+- docs: precise update_interval docstring on coordinator (D10)
+- fix(repairs): mark auth+storage repairs as is_persistent (D11)
+- fix: dt_util.now() instead of datetime.now() throughout (D12)
+- test: scaffold tests/ + pyproject.toml + requirements_test.txt (T1, T6)
+- test: cache-vs-live-boundary contract test as guardian (T2)
+- test: JWT/Fernet edge-case coverage (T3, 21 tests)
+- test: parametrized categorizer rule coverage (T4, 79 tests)
+- test: transfer-detector cascade + override + confidence (T5, 27 tests)
+- chore(ci): pytest with coverage in validate workflow (T7)
+- docs: sync CLAUDE.md phases with actual code state (D1)
+- docs: audit-synthesis concept page (Phase 2 artifact)
+- Result: 165/165 tests pass; ruff 0 errors; coverage 31% (categorizer 96%, transfer_detector 91%, const 100%); payload synced
+
+## [unreleased] Wave G2 — Phase-4 RedTeam Security Fixes (F1–F5, F10)
+Version: 0.12.1 (no bump)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- fix(security): F1 — OAuth state cross-scope race eliminated; _register_oauth_state() writes to BOTH manager._oauth_states AND hass.data[DOMAIN]["_oauth_states"]; _validate_oauth_state() checks both stores and removes on match from both; setup.py uses _register_oauth_state() exclusively
+- fix(security): F2 — fresh-setup rate-limit gate added; _set_rate_limited() mirrors reset timestamp to hass.data["_global_rate_limit_until"]; async_initialize() mirrors on storage load; _get_setup_client() checks hass.data global key before creating client
+- fix(security): F3 — UTC-aware OAuth state timestamps throughout; assume-UTC logic for naive timestamps in async_validate_oauth_state() and _parse_utc_dt() helper in api/_helpers.py; TypeError on naive/aware subtraction impossible
+- fix(security): F4 — async_make_setup_call() wired into setup wizard; gains optional client= param for setup-credential bypass; institutions and authorize endpoints route through manager gate when available
+- chore(security): F5 — _oauth_states dict bounded at 32 entries; oldest 16 evicted on cap; hass.data fallback also enforces 32-entry cap in _register_oauth_state()
+- fix(banking): F10 — __unknown__ tx bucket dropped after first successful live refresh (accounts_hit > 0); migration-era legacy data no longer pollutes flat transaction list
+- test: 2 new tests in test_oauth_state.py: test_timezone_mismatch_safe (F3 guard), test_oauth_states_dict_bounded (F5 eviction)
+- Result: 165/165 tests pass; all changed files pass py_compile
+
+## [unreleased] Wave F — Backend Test-Detail (T3, T4, T5, T6, T7)
+Version: 0.12.1 (no bump)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- test(security): T3 — expand JWT/Fernet edge-cases; test_jwt.py gains 4 tests (wrong-algo rejection, expired-token rejection, clock-skew iat guard, cross-key signature mismatch); test_credential_manager.py gains 4 tests (middle-key decrypt across 3-key rotation, corrupt-key migration error, session-timeout flag reset, uninitialized-manager RuntimeError); total 21 tests
+- test(categorizer): T4 — 79 parametrized tests covering all 9 rule categories (housing, food, transport, insurance, subscriptions, loans, utilities, income, transfers), positive-amount income fallback, custom-rule injection, case-insensitivity, multi-field (remittance array, creditorName) matching; also fixes shallow-copy bug in get_rules() — inner lists were shared, mutations polluted instance
+- test(transfer-detector): T5 — 27 tests: simple 2-account transfer (source/destination assignment, confidence >= 0.60), 3-stage cascade chain (DKB -> PayPal -> HelloFresh, intermediate leg detection), manual override confirm/reject, false-positive guard (same amount != transfer, tolerance boundary, date window, pending status), confidence tiers, refund detection (storno keyword, timing direction), enrich_transactions field population
+- chore(lint): T6 — ruff check passes with 0 errors; ruff format applied to 28 files; fixes: F401 unused imports, F841 unused variables, RUF005 list spread, RUF046 int(round()) -> round(), PLR1714 membership test, RUF002/003 ambiguous Unicode, RUF022 __all__ with noqa, E402 import order, RUF012 mutable attrs; per-file-ignores in pyproject.toml for structural PLR violations (too-many-branches/statements in complex handlers)
+- chore(ci): T7 — pytest step adds --cov + --cov-report=xml/term-missing; coverage.xml uploaded as artifact; requirements_test.txt gains PyJWT>=2.8, cryptography>=42.0, aiohttp>=3.9
+- Result: 163/163 tests pass; coverage 31% total (const 100%, categorizer 96%, transfer_detector 91%); ruff 0 errors
+
+## [unreleased] Wave F — Frontend Refactors (A3, F2, F3, F4, F5, F8)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- refactor(frontend): F8 — escHtml() (regex-based, no DOM round-trip) exported from fd-shared-styles.js; window._fd object exposes all shared constants (CAT_COLORS, CAT_LABELS, MEMBER_COLORS, MONTH_NAMES, SHARED_CSS, escHtml, esc, eur, pct) for classic-script consumers
+- refactor(frontend): F2 — local TX_CAT_LABELS, REC_CAT_LABELS, DIST_CAT_COLORS/LABELS, CAT_COLORS/LABELS, MONTH_NAMES duplicates removed from fd-transactions-log, fd-recurring-list, fd-cost-distribution, fd-category-section, fd-categorize, fd-header; all read from window._fd
+- refactor(frontend): F3 — SHARED_CSS adopted via <style>${SHARED_CSS}${LOCAL_CSS}</style> in fd-stats-row, fd-stat-card, fd-household-section, fd-person-card, fd-donut-chart, fd-category-section, fd-cost-distribution, fd-recurring-list, fd-transactions-log, fd-header; removes ~120 lines of duplicated :host token definitions
+- refactor(frontend): F4 — hard-coded #e74c3c, #0a0a0f, #f39c12, #12121a literals replaced with var(--dg/--error-color), var(--bg/--primary-background-color), var(--warning-color) tokens in fd-budget-config, fd-setup-wizard, finance-dashboard-panel, fd-header; fd-categorize catColors now reads window._fd.CAT_COLORS
+- refactor(frontend): F5 — disconnectedCallback added to finance-status-chip (clears _successTimer); stub disconnectedCallbacks in fd-stat-card, fd-household-section, fd-person-card, fd-donut-chart (no active cleanup, guards future additions)
+- refactor(frontend): A3 — FinanceDashboardPanel._onData() no longer rebuilds DOM on every fd-data-updated event; _ensureComponents() creates 6 child components once; _onData() pushes .data to persistent refs; loading/error/onboarding states use #overlay div toggled via .hidden class; onboarding listener rebind guarded by overlayState check
+- Result: 49/49 tests pass; all 17 frontend JS files pass node --check
+
+## [unreleased] Wave E — Backend Refactor + Polish (F1, F6, F7, D1-D12)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- chore: F1 — remove `_gocardless_client_deprecated.py`; no callers remained (GOCARDLESS_BASE_URL was only referenced internally in the deleted file); no companion-payload copy existed
+- refactor(api): F6 — add `manager.async_set_accounts(accounts: list)` with isinstance validation + config-entry persistence; replace direct `manager._accounts = existing` in `api/setup.py` with the new method
+- perf(security): F7 — CredentialManager stores single `_audit_store` instance in `__init__`; `_audit_log()` and `async_get_audit_log()` reuse it instead of creating `Store()` on every call; imports `AUDIT_MAX_ENTRIES` and `STORAGE_KEY_AUDIT` at module top; test helper updated to include `_audit_store = FakeStore()` and `test_audit_log_on_rotate` patching strategy updated for the new design
+- chore(manifest): D2 — `iot_class` `cloud_polling` → `cloud_push` (data only enters on user-triggered push, not background poll)
+- docs: D3 — `repairs.py` docstring explains intentional thin re-export design; issue creation lives in manager mixins which have execution context
+- docs: D4 — CLAUDE.md service count corrected from 7 to 8 (`toggle_demo` was missing); all 8 services verified present in `services.yaml` and `const.py`
+- feat(banking): D5 — `RateLimitExceeded` carries optional `retry_after_seconds: int | None`; `_async_request` parses `Retry-After` header on 429; `_set_rate_limited(retry_after_dt=None)` uses `min(midnight, retry_after_dt)` reset; both 429 catch-sites in `_do_refresh` and `_async_refresh_balances_live` forward the parsed value
+- feat(banking): D6 — `_async_request` accepts optional `psu_ip`/`psu_ua` params; `async_get_transactions` and `async_get_balances` pass `psu_ua=self._PSU_UA` (canonical `HomeAssistant-Finance-Dashboard/<version>` string, class-level constant); `async_refresh_transactions(psu_ip=None)` accepts and forwards PSU IP all the way to client calls; `api/refresh.py` passes `request.remote` as `psu_ip`
+- fix(repairs): D11 — `_raise_credentials_issue` sets `is_persistent=True` (auth issues survive restart); `_raise_storage_corrupt_issue` sets `is_persistent=True` (corrupt file requires manual intervention)
+- fix: D12 — replace all `datetime.now()` in `manager/_refresh.py` and rate-limit comparison in `manager/__init__.py` with `dt_util.now()` (tz-aware, consistent with HA conventions); `from homeassistant.util import dt as dt_util` added to both files
+- feat(api): D7 — `get_refresh_status()` includes `rate_limit_per_day: ENABLEBANKING_RATE_LIMIT_DAILY` (currently 4); frontend can render the cap label dynamically without hardcoding
+- feat(api): D9 — `get_refresh_status()` includes `cache_is_stale: bool` (True when `cache_age_seconds > 6h`); `_CACHE_STALE_THRESHOLD_SECONDS = 6 * 3600` class constant
+- docs: D10 — `FinanceDashboardCoordinator.__init__` docstring rewritten to precisely explain cache-only contract, `update_interval=None` rationale, and 4/day rate-limit constraint
+- docs: D1 — CLAUDE.md architecture block updated to show `manager/` and `api/` as packages with sub-files; Phase 1 all checkboxed; Phase 2 items marked [x]/[ ] per actual code state; Phase 3 marked frozen; service count 8; next version hint 0.13.0
+- Result: 49/49 tests pass
+
+## [unreleased] Wave D — Architecture Refactors (A1, A2, A4, A5)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- feat(security): A4 — replace manual base64/cryptography JWT with PyJWT[crypto]>=2.8.0; iss=application_id, aud=api.tilisy.com per current Enable Banking docs; adds unique jti per request (replay protection); adds tests/test_jwt.py (8 cases: decode, iss, aud, TTL, jti presence, jti uniqueness, kid header, RS256 algorithm)
+- refactor(banking): A5 — EnableBankingClient accepts optional session parameter; HA-managed session injected via async_get_clientsession in both manager.py and api/_helpers.py; private session lazily created only when none injected; async_close() cleans up private session only (owner=True); eliminates per-request TCP handshake overhead
+- refactor(api): A1 — split 1373-line api.py into api/ package: _helpers.py (shared utils), setup.py (7 setup-wizard views + OAuth callback), refresh.py (RefreshTriggerView + RefreshStatusView), data.py (BalancesView, TransactionsView, SummaryView, TransferChainsView), static.py (LRU file serving), demo.py (DemoToggleView + DemoDataView), __init__.py (async_register_api + full re-exports); from .api import async_register_api still works; test patch target updated to api.refresh._get_manager
+- refactor(manager): A2 — split 1321-line manager.py into manager/ package with two mixins: RefreshMixin (_refresh.py: async_refresh_transactions, _do_refresh, _async_refresh_balances_live, _set_rate_limited, OAuth state, setup proxy, client factory, credential issue helpers), PersistenceMixin (_persistence.py: _persist_transactions, _async_load_transfer_overrides, storage corrupt issue); FinanceDashboardManager inherits both (MRO: Manager → RefreshMixin → PersistenceMixin); from .manager import FinanceDashboardManager unchanged
+
+## Wave A — Test Infrastructure — 2026-04-25
+Version: 0.12.1 (no bump)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- test(infra): scaffold tests/ directory — __init__.py, conftest.py with Windows-compatible event loop policy fix (pytest-homeassistant-custom-component uses HassEventLoopPolicy + socket guard that conflicts with Windows ProactorEventLoop socketpair; fixed via event_loop_policy fixture wrapping new_event_loop with socket enable/disable)
+- test(infra): pyproject.toml with pytest asyncio_mode=auto, ruff lint config (E/F/W/I/B/UP/PLR/RUF, line-length=100, py312), mypy strict for custom_components/
+- test(infra): requirements_test.txt (pytest>=8.0, pytest-asyncio, pytest-cov, pytest-homeassistant-custom-component, ruff, mypy, ha-customapps>=0.3.0)
+- test(smoke): test_smoke.py — import smoke test, DOMAIN/VERSION/SERVICE_* constants validation
+- test(coordinator): test_coordinator_contract.py — GUARDIAN tests asserting coordinator._async_update_data() and async_load_cached() never call any EnableBankingClient live method (async_get_transactions, async_get_balances, async_get_account_details, async_get_institutions, async_create_auth, async_create_session, async_test_connection); update_interval=None assertion
+- ci: add pytest job to validate.yml (parallel to validate, Python 3.12, pip install requirements_test.txt, pytest tests/ -v)
+- Result: 7/7 tests pass locally
+
+## [unreleased] Wave C — Security Audit (R5, R8, R9, R10, R11, R12, R14, C9)
+Branch: claude/eager-nobel-e572f9
+Changes:
+- fix(core): R5 — per-account transaction cache (`_tx_by_account: dict[str, list]`); partial refresh failure leaves intact account untouched, stale data preserved; storage migrates old flat-list format on load; flat `_transactions` rebuilt deterministically from dict
+- fix(core): R8 — wrap `async_load()` in `async_initialize` with try/except (JSONDecodeError, ValueError, OSError); on decode error log sanitized ERROR + full stack at DEBUG only; raise `storage_corrupt` Repair issue with error_class only (no str(exc) leakage)
+- fix(api): R9 — `FinanceDashboardRefreshTriggerView.post` gated by `user.is_admin`; non-admin returns 403 admin_required before any API call
+- fix(services): R14 — `handle_toggle_demo` service checks `call.context.user_id`, fetches user via `hass.auth.async_get_user`, raises `HomeAssistantError("admin_required")` for non-admin; backup/restore real transaction data around demo enable/disable
+- fix(enablebanking): C9 — `_reconstruct_pem` detects PKCS1/PKCS8 marker BEFORE stripping headers; is_pkcs1 flag set on raw string, not residue
+- fix(api): R12 — `FinanceDashboardStaticView` uses `hass.async_add_executor_job(file_path.read_bytes)` instead of synchronous read; mtime-aware LRU cache (16 entries) for hot files
+- fix(core): R10 — Repair issues never include `str(exc)` or tracebacks in `translation_placeholders`; only `error_class = type(exc).__name__`; PEM-load failure logs class-only at ERROR, full stack at DEBUG; `storage_corrupt` and `credentials_invalid_pem` issues use translation-key-only pattern; new `storage_corrupt` translation key added to en.json + de.json
+- feat(precommit): R11 — `.pre-commit-config.yaml` with standard hooks + local `no-banking-data` hook; `scripts/check_no_banking_data.py` blocks real DE IBANs / long account numbers / EUR amounts; allowlists tests/ path and DE89370400440532013000 (public test IBAN); exits 0 for clean files, 1 for violations
+- test: R5 — `tests/test_partial_refresh.py` (3 cases: partial success, full success, migration)
+- test: R8 — `tests/test_storage_recovery.py` (2 cases: corrupt → starts empty + repair, valid → loads normally)
+- test: R9 — `tests/test_admin_gating.py` (3 cases: non-admin 403, no-user 403, admin passes gate)
+- test: C9 — `tests/test_pem_reconstruct.py` (5 cases: PKCS8 detection, PKCS1 detection, escaped newlines both formats, 64-char chunking)
+- test: R11 — `tests/test_banking_data_hook.py` (6 cases: clean, real IBAN blocked, test IBAN allowed, path allowlist, main exit codes)
+
+## [unreleased] Wave B — Security-Critical (S1-S4)
+Branch: security/wave-b-s1-s4
+Changes:
+- fix(security): sanitize banking responses in error logs (S1) — _LOGGER.error no longer emits raw response body; IBANs, 16-19 digit account IDs, and EUR amounts are masked via _sanitize_log() before reaching DEBUG-level log; exception messages also sanitized
+- feat(security): MultiFernet with key rotation + migration (S2) — credential_manager.py now stores keys as a versioned list (schema v2); async_rotate_key() prepends a new primary key, retains max 3; legacy v1 "encryption_key" string auto-migrated on init; audit entry "key_rotated" on every rotation
+- fix(security): route setup-wizard live calls through rate-limit gate (S3) — all 4 direct EnableBankingClient() instantiations in setup-wizard endpoints replaced with _get_setup_client(hass); checks manager.rate_limited_until before issuing any live call; async_make_setup_call() added to FinanceDashboardManager as the canonical gate
+- fix(security): validate OAuth state with timing-safe compare (S4) — async_register_oauth_state() / async_validate_oauth_state() added to FinanceDashboardManager using secrets.compare_digest() with 10min TTL and one-time-use; OAuth callback validates state before processing authorization code
+
 ## 0.12.1 — 2026-04-24
 Version: 0.12.1
 Branch: claude/charming-cohen-05563c

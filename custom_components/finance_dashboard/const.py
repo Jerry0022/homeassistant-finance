@@ -4,16 +4,14 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.12.1"
+VERSION = "0.13.0"
 
 # Panel
 PANEL_URL_PATH = "finance-dashboard"
 PANEL_TITLE = "Finance"
 PANEL_ICON = "mdi:finance"
 PANEL_COMPONENT_NAME = "finance-dashboard-panel"
-PANEL_MODULE_PATH = (
-    f"/api/{DOMAIN}/static/finance-dashboard-panel.js?v={VERSION}"
-)
+PANEL_MODULE_PATH = f"/api/{DOMAIN}/static/finance-dashboard-panel.js?v={VERSION}"
 
 # Storage keys — all sensitive data stored in HA .storage/
 STORAGE_KEY_CREDENTIALS = f"{DOMAIN}_credentials"
@@ -23,7 +21,8 @@ STORAGE_VERSION = 1
 
 # Enable Banking
 ENABLEBANKING_BASE_URL = "https://api.enablebanking.com"
-ENABLEBANKING_SANDBOX_URL = "https://api.enablebanking.com"  # Sandbox uses different app registration
+# Sandbox uses a different app registration
+ENABLEBANKING_SANDBOX_URL = "https://api.enablebanking.com"
 TOKEN_MAX_AGE_DAYS = 90  # Force re-auth after 90 days (our own policy)
 SESSION_MAX_DAYS = 180  # Enable Banking session validity
 SESSION_TIMEOUT_MINUTES = 30
@@ -58,36 +57,85 @@ DEFAULT_CATEGORIES = [
 # These are default patterns; users can customize via UI
 CATEGORIZATION_RULES = {
     CATEGORY_HOUSING: [
-        "miete", "rent", "wohnung", "hausgeld", "nebenkosten",
+        "miete",
+        "rent",
+        "wohnung",
+        "hausgeld",
+        "nebenkosten",
     ],
     CATEGORY_FOOD: [
-        "rewe", "edeka", "aldi", "lidl", "hellofresh", "lieferando",
-        "uber eats", "supermarkt", "lebensmittel", "restaurant",
+        "rewe",
+        "edeka",
+        "aldi",
+        "lidl",
+        "hellofresh",
+        "lieferando",
+        "uber eats",
+        "supermarkt",
+        "lebensmittel",
+        "restaurant",
     ],
     CATEGORY_TRANSPORT: [
-        "deutschland ticket", "deutschlandticket", "db ", "bahn",
-        "tankstelle", "shell", "aral", "uber", "taxi",
+        "deutschland ticket",
+        "deutschlandticket",
+        "db ",
+        "bahn",
+        "tankstelle",
+        "shell",
+        "aral",
+        "uber",
+        "taxi",
     ],
     CATEGORY_INSURANCE: [
-        "versicherung", "insurance", "haftpflicht", "rechtsschutz",
-        "krankenversicherung", "tk ", "aok", "barmer",
+        "versicherung",
+        "insurance",
+        "haftpflicht",
+        "rechtsschutz",
+        "krankenversicherung",
+        "tk ",
+        "aok",
+        "barmer",
     ],
     CATEGORY_SUBSCRIPTIONS: [
-        "netflix", "spotify", "amazon prime", "disney", "xbox",
-        "google one", "icloud", "youtube premium",
+        "netflix",
+        "spotify",
+        "amazon prime",
+        "disney",
+        "xbox",
+        "google one",
+        "icloud",
+        "youtube premium",
     ],
     CATEGORY_LOANS: [
-        "kredit", "tilgung", "darlehen", "loan", "finanzierung",
+        "kredit",
+        "tilgung",
+        "darlehen",
+        "loan",
+        "finanzierung",
     ],
     CATEGORY_UTILITIES: [
-        "strom", "gas", "wasser", "fernwärme", "telekom",
-        "vodafone", "o2", "rundfunkbeitrag", "gez",
+        "strom",
+        "gas",
+        "wasser",
+        "fernwärme",
+        "telekom",
+        "vodafone",
+        "o2",
+        "rundfunkbeitrag",
+        "gez",
     ],
     CATEGORY_INCOME: [
-        "gehalt", "lohn", "salary", "vergütung", "überweisung",
+        "gehalt",
+        "lohn",
+        "salary",
+        "vergütung",
+        "überweisung",
     ],
     CATEGORY_TRANSFERS: [
-        "umbuchung", "übertrag", "transfer", "sparplan",
+        "umbuchung",
+        "übertrag",
+        "transfer",
+        "sparplan",
     ],
 }
 
@@ -112,13 +160,20 @@ AUDIT_MAX_ENTRIES = 1000
 TRANSFER_AMOUNT_TOLERANCE = 0.50  # EUR tolerance for fee differences
 TRANSFER_TIME_WINDOW_DAYS = 3  # ±days for date matching
 TRANSFER_REFUND_WINDOW_DAYS = 14  # Lookback for refund matching
-TRANSFER_AUTO_CONFIDENCE = 0.60  # Auto-link threshold (0.0–1.0)
+TRANSFER_AUTO_CONFIDENCE = 0.60  # Auto-link threshold (0.0-1.0)
 STORAGE_KEY_TRANSFER_OVERRIDES = f"{DOMAIN}_transfer_overrides"
 
 # Refund keywords — transaction text must contain one for refund detection
 REFUND_KEYWORDS = [
-    "storno", "gutschrift", "refund", "rueckzahlung", "rückzahlung",
-    "erstattung", "retoure", "reversal", "chargeback",
+    "storno",
+    "gutschrift",
+    "refund",
+    "rueckzahlung",
+    "rückzahlung",
+    "erstattung",
+    "retoure",
+    "reversal",
+    "chargeback",
 ]
 
 # Household model

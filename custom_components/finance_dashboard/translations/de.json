@@ -78,6 +78,10 @@
     "credentials_invalid_pem": {
       "title": "Finance: Privater Schlüssel ungültig",
       "description": "Der gespeicherte Enable-Banking-Privatschlüssel konnte nicht geladen werden. Richte die Integration unter Einstellungen > Geräte & Dienste neu ein und füge den vollständigen PEM-Schlüssel inklusive der BEGIN/END-Zeilen ein."
+    },
+    "storage_corrupt": {
+      "title": "Finance: Transaktions-Cache beschädigt",
+      "description": "Die Cache-Datei `{storage_key}` konnte nicht gelesen werden ({error_class}). Die Integration wurde mit leerem Cache gestartet. Klicke auf „Aktualisieren", um den Cache neu aufzubauen."
     }
   }
 }

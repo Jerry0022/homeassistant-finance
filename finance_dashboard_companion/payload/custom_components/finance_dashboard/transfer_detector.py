@@ -18,7 +18,7 @@ import logging
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from .const import (
@@ -35,6 +35,7 @@ _LOGGER = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class TransferPair:
@@ -76,6 +77,7 @@ class RefundPair:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def detect_transfer_chains(
     transactions: list[dict[str, Any]],
@@ -152,9 +154,7 @@ def enrich_transactions(
             chain, role = chain_lookup[txn_id]
             txn["_transfer_chain_id"] = chain.chain_id
             txn["_transfer_role"] = role
-            txn["_transfer_linked_txns"] = [
-                tid for tid in chain.txn_ids if tid != txn_id
-            ]
+            txn["_transfer_linked_txns"] = [tid for tid in chain.txn_ids if tid != txn_id]
             txn["_transfer_confidence"] = chain.total_confidence
             txn["_transfer_confirmed"] = None  # awaiting user action
         else:
@@ -229,6 +229,7 @@ def apply_overrides(
 # Phase A — Pair detection
 # ---------------------------------------------------------------------------
 
+
 def _find_transfer_pairs(
     transactions: list[dict[str, Any]],
     accounts: list[dict[str, Any]],
@@ -246,9 +247,7 @@ def _find_transfer_pairs(
     outgoing = []
     incoming = []
     for txn in transactions:
-        amount = float(
-            txn.get("transactionAmount", {}).get("amount", 0)
-        )
+        amount = float(txn.get("transactionAmount", {}).get("amount", 0))
         if amount < 0:
             outgoing.append(txn)
         elif amount > 0:
@@ -261,9 +260,7 @@ def _find_transfer_pairs(
     used_incoming: set[str] = set()
 
     for out_txn in outgoing:
-        out_amount = abs(
-            float(out_txn["transactionAmount"]["amount"])
-        )
+        out_amount = abs(float(out_txn["transactionAmount"]["amount"]))
         out_date = _parse_date(out_txn.get("bookingDate", ""))
         out_account = out_txn.get("_account_id", "")
         out_id = out_txn.get("transactionId", "")
@@ -272,9 +269,7 @@ def _find_transfer_pairs(
             continue
 
         # Find candidate incoming transactions with similar amount
-        candidates = _get_amount_candidates(
-            incoming_by_amount, out_amount, tolerance
-        )
+        candidates = _get_amount_candidates(incoming_by_amount, out_amount, tolerance)
 
         best_match: TransferPair | None = None
         best_confidence = 0.0
@@ -298,8 +293,13 @@ def _find_transfer_pairs(
                 continue
 
             confidence = _score_pair(
-                out_txn, in_txn, out_amount, in_amount,
-                date_delta, account_names, tolerance,
+                out_txn,
+                in_txn,
+                out_amount,
+                in_amount,
+                date_delta,
+                account_names,
+                tolerance,
             )
 
             if confidence >= auto_confidence and confidence > best_confidence:
@@ -349,40 +349,22 @@ def _score_pair(
         score += 0.1
 
     # Account name appears in creditor/debtor fields
-    out_account_name = _normalize(
-        out_txn.get("_account_name", "")
-    )
-    in_account_name = _normalize(
-        in_txn.get("_account_name", "")
-    )
+    out_account_name = _normalize(out_txn.get("_account_name", ""))
+    in_account_name = _normalize(in_txn.get("_account_name", ""))
 
     out_creditor = _normalize(out_txn.get("creditorName", ""))
-    out_debtor = _normalize(out_txn.get("debtorName", ""))
-    in_creditor = _normalize(in_txn.get("creditorName", ""))
     in_debtor = _normalize(in_txn.get("debtorName", ""))
-    out_remittance = _normalize(
-        out_txn.get("remittanceInformationUnstructured", "")
-    )
-    in_remittance = _normalize(
-        in_txn.get("remittanceInformationUnstructured", "")
-    )
+    out_remittance = _normalize(out_txn.get("remittanceInformationUnstructured", ""))
+    in_remittance = _normalize(in_txn.get("remittanceInformationUnstructured", ""))
 
     # Does the outgoing creditor reference the incoming account?
-    if in_account_name and (
-        in_account_name in out_creditor
-        or in_account_name in out_remittance
-    ):
+    if in_account_name and (in_account_name in out_creditor or in_account_name in out_remittance):
         score += 0.3
     # Does the incoming debtor reference the outgoing account?
-    elif out_account_name and (
-        out_account_name in in_debtor
-        or out_account_name in in_remittance
-    ):
+    elif out_account_name and (out_account_name in in_debtor or out_account_name in in_remittance):
         score += 0.3
     # Check against known account names in the system
-    elif _any_account_name_match(
-        out_creditor, in_debtor, account_names
-    ):
+    elif _any_account_name_match(out_creditor, in_debtor, account_names):
         score += 0.2
 
     # Category is already "transfers"
@@ -397,6 +379,7 @@ def _score_pair(
 # ---------------------------------------------------------------------------
 # Phase B — Cascade resolution
 # ---------------------------------------------------------------------------
+
 
 def _resolve_chains(
     pairs: list[TransferPair],
@@ -421,9 +404,7 @@ def _resolve_chains(
         takes_from[pair.outgoing_txn_id] = pair
 
     # Transaction lookup for account resolution
-    txn_lookup = {
-        t.get("transactionId", ""): t for t in transactions
-    }
+    txn_lookup = {t.get("transactionId", ""): t for t in transactions}
 
     # Find chains by following the cascade
     visited_pairs: set[int] = set()
@@ -449,7 +430,11 @@ def _resolve_chains(
             # Find a pair where incoming_account == our outgoing_account
             # AND the incoming amount matches
             predecessor = _find_matching_predecessor(
-                current, out_account, pairs, visited_pairs, txn_lookup,
+                current,
+                out_account,
+                pairs,
+                visited_pairs,
+                txn_lookup,
             )
             if predecessor:
                 chain_pairs.insert(0, predecessor)
@@ -465,7 +450,11 @@ def _resolve_chains(
             in_account = in_txn.get("_account_id", "")
 
             successor = _find_matching_successor(
-                current, in_account, pairs, visited_pairs, txn_lookup,
+                current,
+                in_account,
+                pairs,
+                visited_pairs,
+                txn_lookup,
             )
             if successor:
                 chain_pairs.append(successor)
@@ -555,14 +544,11 @@ def _build_chain(
     source_txn_id = chain_pairs[0].outgoing_txn_id
     destination_txn_id = chain_pairs[-1].incoming_txn_id
     intermediate_txn_ids = [
-        tid for tid in all_txn_ids
-        if tid != source_txn_id and tid != destination_txn_id
+        tid for tid in all_txn_ids if tid not in {source_txn_id, destination_txn_id}
     ]
 
     # Average confidence across all pairs
-    avg_confidence = (
-        sum(p.confidence for p in chain_pairs) / len(chain_pairs)
-    )
+    avg_confidence = sum(p.confidence for p in chain_pairs) / len(chain_pairs)
 
     return TransferChain(
         chain_id=chain_id,
@@ -579,6 +565,7 @@ def _build_chain(
 # Phase C — Refund detection
 # ---------------------------------------------------------------------------
 
+
 def _detect_refunds(
     transactions: list[dict[str, Any]],
     config: dict[str, Any],
@@ -589,13 +576,9 @@ def _detect_refunds(
     used: set[str] = set()
 
     # Group outgoing transactions by (account, creditor)
-    outgoing_index: dict[tuple[str, str], list[dict[str, Any]]] = (
-        defaultdict(list)
-    )
+    outgoing_index: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
     for txn in transactions:
-        amount = float(
-            txn.get("transactionAmount", {}).get("amount", 0)
-        )
+        amount = float(txn.get("transactionAmount", {}).get("amount", 0))
         if amount >= 0:
             continue
         account = txn.get("_account_id", "")
@@ -605,9 +588,7 @@ def _detect_refunds(
 
     # Search incoming transactions for refund matches
     for txn in transactions:
-        amount = float(
-            txn.get("transactionAmount", {}).get("amount", 0)
-        )
+        amount = float(txn.get("transactionAmount", {}).get("amount", 0))
         if amount <= 0:
             continue
 
@@ -617,17 +598,12 @@ def _detect_refunds(
 
         account = txn.get("_account_id", "")
         # For refunds, the creditor on the incoming side is who sends money back
-        creditor = _normalize(
-            txn.get("creditorName", "")
-            or txn.get("debtorName", "")
-        )
+        creditor = _normalize(txn.get("creditorName", "") or txn.get("debtorName", ""))
         if not account or not creditor:
             continue
 
         # Check if this looks like a refund (text contains refund keyword)
-        text = _normalize(
-            txn.get("remittanceInformationUnstructured", "")
-        )
+        text = _normalize(txn.get("remittanceInformationUnstructured", ""))
         creditor_text = _normalize(txn.get("creditorName", ""))
         combined = f"{text} {creditor_text}"
         is_refund_text = any(kw in combined for kw in REFUND_KEYWORDS)
@@ -645,9 +621,7 @@ def _detect_refunds(
             if orig_id in used:
                 continue
 
-            orig_amount = abs(
-                float(orig["transactionAmount"]["amount"])
-            )
+            orig_amount = abs(float(orig["transactionAmount"]["amount"]))
             if abs(orig_amount - amount) > 0.01:
                 continue
 
@@ -678,6 +652,7 @@ def _detect_refunds(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _merge_config(
     config: dict[str, Any] | None,
@@ -727,7 +702,9 @@ def _build_account_name_set(
 
 
 def _any_account_name_match(
-    creditor: str, debtor: str, account_names: set[str],
+    creditor: str,
+    debtor: str,
+    account_names: set[str],
 ) -> bool:
     """Check if creditor or debtor contains any known account name."""
     for name in account_names:
@@ -743,11 +720,9 @@ def _bucket_by_amount(
     """Index transactions by rounded amount for fast lookup."""
     buckets: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for txn in transactions:
-        amount = abs(
-            float(txn.get("transactionAmount", {}).get("amount", 0))
-        )
+        amount = abs(float(txn.get("transactionAmount", {}).get("amount", 0)))
         # Use integer cents as bucket key
-        bucket = int(round(amount * 100))
+        bucket = round(amount * 100)
         buckets[bucket].append(txn)
     return buckets
 
@@ -758,11 +733,9 @@ def _get_amount_candidates(
     tolerance: float,
 ) -> list[dict[str, Any]]:
     """Get transactions with similar amounts from the bucket index."""
-    target = int(round(amount * 100))
-    tolerance_cents = int(round(tolerance * 100))
+    target = round(amount * 100)
+    tolerance_cents = round(tolerance * 100)
     candidates = []
-    for bucket_key in range(
-        target - tolerance_cents, target + tolerance_cents + 1
-    ):
+    for bucket_key in range(target - tolerance_cents, target + tolerance_cents + 1):
         candidates.extend(buckets.get(bucket_key, []))
     return candidates
