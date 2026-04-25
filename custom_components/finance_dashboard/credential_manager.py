@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, MultiFernet
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
@@ -48,6 +48,9 @@ class CredentialManager:
     6. Max token age (force re-auth after 90 days)
     """
 
+    # Maximum number of historic keys kept for decryption (primary + N-1 old)
+    _MAX_KEY_HISTORY = 3
+
     def __init__(self, hass: HomeAssistant) -> None:
         """Initialize credential manager."""
         self._hass = hass
@@ -57,24 +60,98 @@ class CredentialManager:
         self._token_store = Store(
             hass, STORAGE_VERSION, STORAGE_KEY_TOKENS
         )
-        self._encryption_key: bytes | None = None
-        self._fernet: Fernet | None = None
+        self._fernet: MultiFernet | None = None
         self._last_activity: float = 0
         self._session_active: bool = False
 
     async def async_initialize(self) -> None:
-        """Initialize the credential manager and load/generate encryption key."""
-        key_data = await self._cred_store.async_load()
-        if key_data and "encryption_key" in key_data:
-            self._encryption_key = key_data["encryption_key"].encode()
-        else:
-            # Generate new encryption key on first setup
-            self._encryption_key = Fernet.generate_key()
-            await self._cred_store.async_save(
-                {"encryption_key": self._encryption_key.decode()}
-            )
-        self._fernet = Fernet(self._encryption_key)
-        _LOGGER.debug("Credential manager initialized")
+        """Initialize the credential manager.
+
+        Storage schema v2: keys stored as a list
+        ``[{"version": N, "key": "<base64>", "created": "<iso>"}, ...]``
+        with element 0 being the current (primary) encryption key.
+
+        Migration: if a legacy string ``encryption_key`` field is found
+        (schema v1) it is converted in-place to the v2 list format.
+        """
+        key_data = await self._cred_store.async_load() or {}
+
+        if key_data.get("schema_version", 1) < 2:
+            # --- Migration from v1 (single string key) to v2 (key list) ---
+            if "encryption_key" in key_data:
+                old_key = key_data["encryption_key"]
+                key_data = {
+                    "schema_version": 2,
+                    "keys": [
+                        {
+                            "version": 1,
+                            "key": old_key,
+                            "created": datetime.now().isoformat(),
+                        }
+                    ],
+                }
+            else:
+                # Fresh install — generate first key
+                new_key = Fernet.generate_key().decode()
+                key_data = {
+                    "schema_version": 2,
+                    "keys": [
+                        {
+                            "version": 1,
+                            "key": new_key,
+                            "created": datetime.now().isoformat(),
+                        }
+                    ],
+                }
+            await self._cred_store.async_save(key_data)
+
+        self._fernet = self._build_multifernet(key_data["keys"])
+        _LOGGER.debug(
+            "Credential manager initialized (schema v2, %d key(s))",
+            len(key_data["keys"]),
+        )
+
+    async def async_rotate_key(self) -> None:
+        """Add a new primary encryption key (key rotation).
+
+        The new key becomes the encryption key (position 0).  Existing
+        encrypted data is NOT re-encrypted — MultiFernet transparently tries
+        all keys in order for decryption so old ciphertexts remain readable
+        until they are re-encrypted with the new primary key.
+
+        At most ``_MAX_KEY_HISTORY`` keys are retained.
+        """
+        self._ensure_initialized()
+        key_data = await self._cred_store.async_load() or {}
+        keys: list[dict] = key_data.get("keys", [])
+
+        # Determine next version number
+        next_version = (max(k["version"] for k in keys) + 1) if keys else 1
+        new_entry = {
+            "version": next_version,
+            "key": Fernet.generate_key().decode(),
+            "created": datetime.now().isoformat(),
+        }
+
+        # Prepend new key (becomes primary), prune history
+        keys = [new_entry] + keys
+        keys = keys[: self._MAX_KEY_HISTORY]
+
+        key_data["keys"] = keys
+        await self._cred_store.async_save(key_data)
+
+        self._fernet = self._build_multifernet(keys)
+        await self._audit_log("key_rotated")
+        _LOGGER.info(
+            "Encryption key rotated to version %d (%d keys in rotation)",
+            next_version,
+            len(keys),
+        )
+
+    @staticmethod
+    def _build_multifernet(keys: list[dict]) -> MultiFernet:
+        """Build a MultiFernet from the ordered key list."""
+        return MultiFernet([Fernet(k["key"].encode()) for k in keys])
 
     async def async_store_api_credentials(
         self, application_id: str, private_key_pem: str
