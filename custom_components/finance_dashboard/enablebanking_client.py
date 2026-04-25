@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import re
 import time
 from typing import Any
 
@@ -29,6 +30,31 @@ from cryptography.hazmat.primitives.asymmetric import padding
 from .const import ENABLEBANKING_BASE_URL
 
 _LOGGER = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Log sanitizer — strips PII from error response bodies before any logging.
+# ---------------------------------------------------------------------------
+
+_RE_IBAN = re.compile(r'\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7,25}\b')
+_RE_ACCOUNT_ID = re.compile(r'\b\d{16,19}\b')
+_RE_AMOUNT = re.compile(r'\b\d+[.,]\d{2}\s*(?:EUR|€)\b', re.IGNORECASE)
+
+
+def _sanitize_log(text: str) -> str:
+    """Return *text* with IBANs, long numeric account IDs and amounts masked.
+
+    Applied to all banking response bodies before they reach the log sink so
+    that a misconfigured log shipper cannot exfiltrate financial PII.
+
+    Examples:
+        "DE89370400440532013000" → "***IBAN***"
+        "1234567890123456"       → "***ACCOUNT***"
+        "1234.56 EUR"            → "***AMOUNT***"
+    """
+    text = _RE_IBAN.sub("***IBAN***", text)
+    text = _RE_ACCOUNT_ID.sub("***ACCOUNT***", text)
+    text = _RE_AMOUNT.sub("***AMOUNT***", text)
+    return text
 
 
 class RateLimitExceeded(Exception):
@@ -434,23 +460,30 @@ class EnableBankingClient:
                 )
                 if not resp.ok:
                     body = await resp.text()
+                    # Log only sanitized form at ERROR level to prevent PII
+                    # (IBANs, account IDs, amounts) reaching the HA log file.
                     _LOGGER.error(
-                        "Enable Banking API error: HTTP %s — %s",
+                        "Enable Banking API error: HTTP %s %s %s",
                         resp.status,
-                        body[:500],
+                        method,
+                        endpoint,
+                    )
+                    _LOGGER.debug(
+                        "Enable Banking error body (sanitized): %s",
+                        _sanitize_log(body[:500]),
                     )
                     # Daily consent quota exhausted — signal callers to
                     # stop retrying and serve cached data until tomorrow.
                     if resp.status == 429:
                         raise RateLimitExceeded(
-                            f"Daily API quota exhausted (HTTP 429): {body[:200]}"
+                            f"Daily API quota exhausted (HTTP 429)"
                         )
-                    # Include the API error body in the exception
-                    # so callers can surface it to the user
+                    # Include a sanitized excerpt in the exception message
+                    # so callers can surface a safe error to the user.
                     raise aiohttp.ClientResponseError(
                         resp.request_info,
                         resp.history,
                         status=resp.status,
-                        message=body[:500],
+                        message=_sanitize_log(body[:500]),
                     )
                 return await resp.json()
