@@ -22,8 +22,14 @@ class FdHouseholdSection extends HTMLElement {
 
   _render() {
     const d = this._data;
-    const household = d?.household;
 
+    // No skeleton for household section — it's conditionally shown only with real data
+    if (d === null || d === undefined) {
+      this.shadowRoot.innerHTML = "";
+      return;
+    }
+
+    const household = d?.household;
     if (!household || !household.members || household.members.length === 0) {
       this.shadowRoot.innerHTML = "";
       return;

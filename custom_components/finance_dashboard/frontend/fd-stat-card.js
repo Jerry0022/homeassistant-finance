@@ -14,6 +14,7 @@ class FdStatCard extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._props = {};
+    this._loading = false;
   }
 
   static get observedAttributes() {
@@ -26,10 +27,19 @@ class FdStatCard extends HTMLElement {
   }
 
   set label(v) { this._props.label = v; this._render(); }
-  set value(v) { this._props.value = v; this._render(); }
+  set value(v) {
+    this._loading = (v === null || v === undefined);
+    this._props.value = v;
+    this._render();
+  }
   set subtitle(v) { this._props.subtitle = v; this._render(); }
   set accent(v) { this._props.accent = v; this._render(); }
   set valclass(v) { this._props.valclass = v; this._render(); }
+
+  setData(data) {
+    this._loading = (data === null || data === undefined);
+    this._render();
+  }
 
   disconnectedCallback() {
     // No timers or observers to clean up in this component.
@@ -73,15 +83,45 @@ class FdStatCard extends HTMLElement {
   margin-bottom: 4px;
 }
 .subtitle { font-size: 11px; }
+/* Skeleton shimmer */
+@keyframes fd-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton-line {
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--sf2) 25%, rgba(255,255,255,0.06) 50%, var(--sf2) 75%);
+  background-size: 800px 100%;
+  animation: fd-shimmer 1.4s infinite linear;
+}
+.skeleton-value {
+  height: 26px;
+  width: 70%;
+  margin-bottom: 6px;
+}
+.skeleton-sub {
+  height: 11px;
+  width: 45%;
+}
 `;
 
-    this.shadowRoot.innerHTML = `
+    if (this._loading) {
+      this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${LOCAL_CSS}</style>
+<div class="stat is-loading" aria-busy="true" aria-label="Wird geladen…">
+  <div class="label">${escHtml(label)}</div>
+  <div class="skeleton-line skeleton-value"></div>
+  <div class="skeleton-line skeleton-sub"></div>
+</div>`;
+    } else {
+      this.shadowRoot.innerHTML = `
 <style>${SHARED_CSS}${LOCAL_CSS}</style>
 <div class="stat">
   <div class="label">${escHtml(label)}</div>
   <div class="value ${valclass}">${escHtml(value)}</div>
   <div class="subtitle neu">${escHtml(subtitle)}</div>
 </div>`;
+    }
   }
 }
 

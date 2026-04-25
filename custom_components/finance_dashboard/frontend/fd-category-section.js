@@ -18,8 +18,8 @@ class FdCategorySection extends HTMLElement {
 
   _render() {
     const d = this._data;
-    if (!d) {
-      this.shadowRoot.innerHTML = "";
+    if (d === null || d === undefined) {
+      this._renderSkeleton();
       return;
     }
 
@@ -126,6 +126,50 @@ class FdCategorySection extends HTMLElement {
         catLabels: CAT_LABELS,
       };
     }
+  }
+  _renderSkeleton() {
+    const { SHARED_CSS } = window._fd;
+    const shimmerCss = `
+@keyframes fd-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton-line {
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--sf2) 25%, rgba(255,255,255,0.06) 50%, var(--sf2) 75%);
+  background-size: 800px 100%;
+  animation: fd-shimmer 1.4s infinite linear;
+  margin-bottom: 10px;
+}
+.skeleton-circle {
+  width: 120px; height: 120px; border-radius: 50%;
+  background: linear-gradient(90deg, var(--sf2) 25%, rgba(255,255,255,0.06) 50%, var(--sf2) 75%);
+  background-size: 800px 100%;
+  animation: fd-shimmer 1.4s infinite linear;
+  margin: 20px auto;
+}
+`;
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${shimmerCss}
+:host { margin-bottom: 20px; }
+.grid { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+@media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+</style>
+<div class="grid" aria-busy="true" aria-label="Wird geladen…">
+  <div class="card"><div class="skeleton-circle"></div>
+    <div style="padding:0 20px 20px">
+      ${Array.from({ length: 5 }, (_, i) => `<div class="skeleton-line" style="height:12px;width:${50 + i * 10}%"></div>`).join("")}
+    </div>
+  </div>
+  <div>
+    <div class="card" style="margin-bottom:14px;padding:18px">
+      ${Array.from({ length: 3 }, () => `<div class="skeleton-line" style="height:14px;width:80%"></div>`).join("")}
+    </div>
+    <div class="card" style="padding:18px">
+      ${Array.from({ length: 2 }, () => `<div class="skeleton-line" style="height:20px;width:60%"></div>`).join("")}
+    </div>
+  </div>
+</div>`;
   }
 }
 

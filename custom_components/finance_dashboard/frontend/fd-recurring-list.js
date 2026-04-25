@@ -18,8 +18,14 @@ class FdRecurringList extends HTMLElement {
 
   _render() {
     const d = this._data;
-    const recurring = d?.recurring;
 
+    // Show skeleton while data has never been set
+    if (d === null || d === undefined) {
+      this._renderSkeleton();
+      return;
+    }
+
+    const recurring = d?.recurring;
     if (!recurring || recurring.length === 0) {
       this.shadowRoot.innerHTML = "";
       return;
@@ -78,6 +84,34 @@ class FdRecurringList extends HTMLElement {
     <span style="font-weight:400;font-size:12px;color:var(--tx2)">${recurring.length} erkannt</span>
   </div>
   <div class="rec-list">${items}</div>
+</div>`;
+  }
+  _renderSkeleton() {
+    const { SHARED_CSS } = window._fd;
+    const shimmerCss = `
+@keyframes fd-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton-line {
+  border-radius: 4px;
+  height: 14px;
+  background: linear-gradient(90deg, var(--sf2) 25%, rgba(255,255,255,0.06) 50%, var(--sf2) 75%);
+  background-size: 800px 100%;
+  animation: fd-shimmer 1.4s infinite linear;
+  margin-bottom: 6px;
+}
+`;
+    const rows = Array.from({ length: 4 }, (_, i) =>
+      `<div class="skeleton-line" style="width:${60 + (i % 3) * 15}%"></div>`
+    ).join("");
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${shimmerCss}
+:host { margin-bottom: 20px; }
+</style>
+<div class="card" aria-busy="true" aria-label="Wird geladen…">
+  <div class="card-h">Wiederkehrende Zahlungen</div>
+  <div style="padding:18px">${rows}</div>
 </div>`;
   }
 }
