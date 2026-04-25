@@ -1,0 +1,17 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+  - repo: local
+    hooks:
+      - id: no-banking-data
+        name: Block IBAN/account-id/EUR-amounts in commits
+        entry: python scripts/check_no_banking_data.py
+        language: python
+        pass_filenames: true
+        types: [text]
