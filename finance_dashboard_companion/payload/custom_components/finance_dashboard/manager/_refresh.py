@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import secrets
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.util import dt as dt_util
@@ -26,6 +26,13 @@ _LOGGER = logging.getLogger(__name__)
 # OAuth state token TTL in seconds (10 minutes)
 _OAUTH_STATE_TTL = 600
 
+# hass.data key for persistent rate-limit timestamp (shared with api._helpers)
+_GLOBAL_RATE_LIMIT_KEY = "_global_rate_limit_until"
+
+# Maximum number of in-memory OAuth state tokens (F5)
+_OAUTH_STATES_MAX = 32
+_OAUTH_STATES_EVICT = 16
+
 
 class RefreshMixin:
     """Mixin that adds all live-fetch and OAuth methods to the manager."""
@@ -37,6 +44,10 @@ class RefreshMixin:
     def _set_rate_limited(self, retry_after_dt: datetime | None = None) -> None:
         """Mark API as rate-limited.
 
+        Writes the reset timestamp to both the instance field and the
+        persistent ``hass.data[DOMAIN][_GLOBAL_RATE_LIMIT_KEY]`` so that the
+        fresh-setup client factory can also respect the quota gate (F2).
+
         Args:
             retry_after_dt: Optional earlier reset datetime derived from the
                 ``Retry-After`` response header.  When provided the reset is
@@ -44,6 +55,8 @@ class RefreshMixin:
                 than midnight but may wait less when the API signals a shorter
                 window.  Falls back to midnight when ``None``.
         """
+        from ..const import DOMAIN
+
         now = dt_util.now()
         midnight = (now + timedelta(days=1)).replace(
             hour=0,
@@ -56,6 +69,16 @@ class RefreshMixin:
         else:
             reset_at = midnight
         self._rate_limited_until = reset_at
+
+        # Persist to hass.data so the fresh-setup client gate can read it
+        # even when the manager is not consulted directly (F2).
+        try:
+            self._hass.data.setdefault(DOMAIN, {})[_GLOBAL_RATE_LIMIT_KEY] = (
+                reset_at.isoformat()
+            )
+        except Exception:  # pragma: no cover
+            _LOGGER.debug("Could not write global rate-limit key to hass.data", exc_info=True)
+
         _LOGGER.warning(
             "API rate-limited — serving cached data until %s",
             reset_at.isoformat(),
@@ -227,6 +250,12 @@ class RefreshMixin:
                 )
                 errors.append(f"{account.get('name', account_id)}: {str(exc)[:120]}")
                 # R5: keep stale cache for this account — do NOT clear it
+
+        # F10: drop the migration-era __unknown__ bucket after the first
+        # successful live refresh — those legacy entries are now superseded
+        # by the per-account data that was just fetched.
+        if accounts_hit > 0:
+            self._tx_by_account.pop("__unknown__", None)
 
         # Rebuild flat list from per-account dict (deterministic sort)
         all_transactions = [tx for txs in self._tx_by_account.values() for tx in txs]
@@ -438,7 +467,21 @@ class RefreshMixin:
 
         The state is stored in memory only (not persisted) with a creation
         timestamp so it can be expired after ``_OAUTH_STATE_TTL`` seconds.
+
+        The dict is bounded to ``_OAUTH_STATES_MAX`` entries to prevent an
+        unbounded memory growth if authorize is called repeatedly without a
+        matching callback (F5).  When the cap is reached the oldest
+        ``_OAUTH_STATES_EVICT`` entries (by creation time) are evicted.
         """
+        # Evict oldest entries when approaching the cap (F5)
+        if len(self._oauth_states) >= _OAUTH_STATES_MAX:
+            sorted_states = sorted(self._oauth_states.items(), key=lambda kv: kv[1])
+            for old_key, _ in sorted_states[:_OAUTH_STATES_EVICT]:
+                self._oauth_states.pop(old_key, None)
+            _LOGGER.debug(
+                "OAuth state dict capped — evicted %d oldest entries", _OAUTH_STATES_EVICT
+            )
+
         now = datetime.now(UTC).isoformat()
         self._oauth_states[state] = now
         _LOGGER.debug("OAuth state registered (total: %d)", len(self._oauth_states))
@@ -449,17 +492,25 @@ class RefreshMixin:
         Uses ``secrets.compare_digest`` for timing-safe comparison to prevent
         timing-based enumeration of valid state tokens.
 
+        All timestamp comparisons use UTC-aware datetimes.  Naive timestamps
+        stored by older code versions are assumed UTC (F3).
+
         Returns:
             True if the state was registered, not yet consumed, and not expired.
             False otherwise (unknown state, already consumed, or TTL exceeded).
         """
-        # Purge all expired states first
+        # Purge all expired states first — use UTC-aware comparison (F3)
         now = datetime.now(UTC)
-        expired = [
-            s
-            for s, created in self._oauth_states.items()
-            if (now - datetime.fromisoformat(created)).total_seconds() > _OAUTH_STATE_TTL
-        ]
+        expired = []
+        for s, created in self._oauth_states.items():
+            try:
+                created_dt = datetime.fromisoformat(created)
+                if created_dt.tzinfo is None:
+                    created_dt = created_dt.replace(tzinfo=timezone.utc)
+                if (now - created_dt).total_seconds() > _OAUTH_STATE_TTL:
+                    expired.append(s)
+            except (ValueError, TypeError):
+                expired.append(s)  # Corrupt entry — evict
         for s in expired:
             del self._oauth_states[s]
 
@@ -487,18 +538,26 @@ class RefreshMixin:
     # Setup call proxy
     # ------------------------------------------------------------------
 
-    async def async_make_setup_call(self, method_name: str, *args, **kwargs):
+    async def async_make_setup_call(self, method_name: str, *args, client=None, **kwargs):
         """Invoke an EnableBankingClient method through the rate-limit gate.
 
         Setup-wizard endpoints (institutions, authorize, OAuth callback) must
-        go through here instead of instantiating EnableBankingClient directly.
-        This ensures that the 4/day ASPSP quota is respected even during the
-        onboarding flow — a user who hit the limit cannot bypass it by
-        re-running the wizard.
+        go through here instead of calling the client directly.  This ensures
+        the 4/day ASPSP quota is respected even during the onboarding flow.
+
+        Args:
+            method_name: Name of the EnableBankingClient method to call.
+            *args: Positional arguments forwarded to the method.
+            client: Optional pre-built EnableBankingClient instance.  When
+                provided the manager's own credential chain is bypassed — useful
+                for fresh-setup flows where the credential store holds setup-app
+                credentials rather than a live PSU session.  Rate-limit gate is
+                still enforced regardless.
+            **kwargs: Keyword arguments forwarded to the method.
 
         Raises:
             RateLimitExceeded: when the API is still rate-limited.
-            RuntimeError: when no credentials are available.
+            RuntimeError: when no credentials are available and no client given.
         """
         from ..enablebanking_client import RateLimitExceeded
 
@@ -508,7 +567,8 @@ class RefreshMixin:
                 "— bitte morgen erneut versuchen."
             )
 
-        client = await self._async_get_client()
+        if client is None:
+            client = await self._async_get_client()
         if not client:
             raise RuntimeError(
                 "Enable Banking client not available — credentials missing or invalid."
