@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import secrets
 import time
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.util import dt as dt_util
@@ -506,7 +506,7 @@ class RefreshMixin:
             try:
                 created_dt = datetime.fromisoformat(created)
                 if created_dt.tzinfo is None:
-                    created_dt = created_dt.replace(tzinfo=timezone.utc)
+                    created_dt = created_dt.replace(tzinfo=UTC)
                 if (now - created_dt).total_seconds() > _OAUTH_STATE_TTL:
                     expired.append(s)
             except (ValueError, TypeError):
