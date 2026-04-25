@@ -17,14 +17,24 @@ homeassistant-finance/
 │   ├── manifest.json            # Integration metadata + dependencies
 │   ├── config_flow.py           # Config + Options + Reconfigure flows
 │   ├── const.py                 # All constants, categories, service names
-│   ├── manager.py               # Core orchestrator (accounts, transactions, summaries)
+│   ├── manager/                 # Core orchestrator (package)
+│   │   ├── __init__.py          # FinanceDashboardManager + cache reads + household
+│   │   ├── _refresh.py          # RefreshMixin — all live-fetch + OAuth + rate-limit
+│   │   └── _persistence.py      # PersistenceMixin — storage read/write
+│   ├── api/                     # HTTP endpoints (package)
+│   │   ├── __init__.py          # View registration
+│   │   ├── _helpers.py          # Manager lookup, OAuth state, setup-client factory
+│   │   ├── data.py              # /balances, /transactions, /summary
+│   │   ├── demo.py              # Demo mode toggle
+│   │   ├── refresh.py           # /refresh, /refresh_status
+│   │   ├── setup.py             # Setup wizard + OAuth callback
+│   │   └── static.py            # Static file serving
 │   ├── credential_manager.py    # Fernet encryption, JWT signing key, audit log
 │   ├── enablebanking_client.py  # Enable Banking API client (PSD2, JWT RS256)
 │   ├── coordinator.py           # DataUpdateCoordinator (cache-only reads)
 │   ├── categorizer.py           # Rule-based transaction auto-categorization
-│   ├── api.py                   # HTTP endpoints (balances, transactions, summary, refresh, refresh_status)
 │   ├── panel.py                 # Sidebar panel registration
-│   ├── repairs.py               # Restart notification repair flow
+│   ├── repairs.py               # Re-export fix-flow + issue-creation context docs
 │   ├── services.yaml            # Service definitions for HA
 │   ├── strings.json             # UI strings (EN default)
 │   ├── frontend/                # Web components (sidebar panel)
@@ -167,7 +177,7 @@ node --check custom_components/finance_dashboard/frontend/finance-dashboard-pane
 
 ## Development Phases
 
-### Phase 1 (Current) — Scaffold + MVP
+### Phase 1 — Scaffold + MVP (completed v0.12.1)
 - [x] Repository structure mirroring YouTube Music Connector golden sample
 - [x] Enable Banking API client (replaced GoCardless skeleton)
 - [x] Credential manager with encryption + audit
@@ -177,29 +187,30 @@ node --check custom_components/finance_dashboard/frontend/finance-dashboard-pane
 - [x] CI/CD pipeline
 - [x] Branding (dual-tone coin icon)
 - [x] Design sprint (requirements, architecture, UI mockups)
-- [ ] End-to-end Enable Banking OAuth flow (DE banks only)
-- [ ] Account balance sensors (1 per account, bank logo, optional aggregate)
-- [ ] Monthly summary sensor
-- [ ] Privacy-first API responses (IBAN masking, admin-only details)
-- [ ] Live data integration testing
+- [x] End-to-end Enable Banking OAuth flow (DE banks only)
+- [x] Account balance sensors (1 per account, bank logo, optional aggregate)
+- [x] Monthly summary sensor
+- [x] Privacy-first API responses (IBAN masking, admin-only details)
+
+> Next version: **0.13.0** — audit-synthesis wave A-F (backend refactor + Polish)
 
 ### Phase 2 — Household Budget
-- [ ] N-person model with configurable split (equal/proportional/custom)
-- [ ] Personal vs. shared account assignment (at link + in options)
-- [ ] Auto-detection of recurring transactions
+- [x] N-person model with configurable split (equal/proportional/custom)
+- [x] Personal vs. shared account assignment (at link + in options)
+- [x] Auto-detection of recurring transactions
 - [ ] Income recognition with ±5d tolerance window
 - [ ] Bonus detection (≥15%, notification + confirmation → Spielgeld)
 - [ ] Month cycle logic (calendar vs. salary-based, per person)
 - [ ] Logical month assignment for recurring costs (bank day correction)
-- [ ] Remainder split (no split / equal distribution)
+- [x] Remainder split (no split / equal distribution)
 - [ ] Category-level split override (optional)
-- [ ] Budget limits as Number entities (per category)
-- [ ] Split model as Select entity (dashboard-steuerbar)
+- [x] Budget limits as Number entities (per category)
+- [x] Split model as Select entity (dashboard-steuerbar)
 - [ ] Budget Config Lovelace Card (slider, dropdown, live preview)
-- [ ] 4 automation events (transaction_new, balance_changed, budget_exceeded, recurring_detected)
+- [x] 4 automation events (transaction_new, balance_changed, budget_exceeded, recurring_detected)
 - [ ] 6-month trend chart
 
-### Phase 3 — Analytics + Polish
+### Phase 3 — Analytics + Polish (frozen — Phase 2 freeze per audit DN1=einfrieren)
 - [ ] Benchmark auto-crawl (Destatis, Bundesbank) with source attribution (text, no gauges)
 - [ ] Drag & drop transaction categorization (system learns)
 - [ ] Spending trend analysis
