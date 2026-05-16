@@ -1,5 +1,20 @@
 # Build Log
 
+## 0.13.1 — 2026-05-16
+Version: 0.13.1
+Branch: claude/upbeat-brattain-fcffef
+Changes:
+- feat(a11y): global :focus-visible outline rings + prefers-reduced-motion override in SHARED_CSS
+- feat(a11y): aria-expanded on transactions-log show-more toggle
+- feat(frontend): new design tokens in SHARED_CSS (--r-sm/md, --sh-sm/md/lg, --fs-sm/md/lg/xl, --lh-tight/normal, --sp-xs/sm/md/lg/xl) for upcoming token-migration polish
+- fix(setup): RateLimitExceeded on /setup/complete surfaces as error_type=rate_limited in HTTP 200 body (matches setup-wizard contract; was previously masked as generic failure)
+- fix(refresh): categorizer None-guard with WARNING log — refresh races ahead of init fall back to category="other" instead of crashing
+- fix(export): cleanup of old CSV exports swallows OSError/ValueError/OverflowError and logs cause (no more silent bare-except)
+- refactor(coordinator): remove unused TRANSACTION_REFRESH_STALENESS constant + timedelta import
+- test: +20 unit tests for events.py (11) + export.py (9 incl. OSError/OverflowError monkeypatch paths) — total 165 → 185, all green
+- chore(lint): ruff sweep across tests/ — 44 fixes (import order, unused imports, datetime.UTC migration)
+- chore(payload): re-sync addon mirror (incl. pre-existing UTC drift from v0.13.0)
+
 ## 0.13.0 — 2026-04-25
 Version: 0.13.0
 Branch: claude/eager-nobel-e572f9

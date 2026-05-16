@@ -1,6 +1,19 @@
 # Changelog
 
 
+
+## 0.13.1
+- Global :focus-visible outline rings + prefers-reduced-motion override in SHARED_CSS
+- Aria-expanded on transactions-log show-more toggle
+- New design tokens in SHARED_CSS (--r-sm/md, --sh-sm/md/lg, --fs-sm/md/lg/xl, --lh-tight/normal, --sp-xs/sm/md/lg/xl) for upcoming token-migration polish
+- RateLimitExceeded on /setup/complete surfaces as error_type=rate_limited in HTTP 200 body (matches setup-wizard contract; was previously masked as generic failure)
+- Categorizer None-guard with WARNING log — refresh races ahead of init fall back to category="other" instead of crashing
+- Cleanup of old CSV exports swallows OSError/ValueError/OverflowError and logs cause (no more silent bare-except)
+- Remove unused TRANSACTION_REFRESH_STALENESS constant + timedelta import
+- Test: +20 unit tests for events.py (11) + export.py (9 incl. OSError/OverflowError monkeypatch paths) — total 165 → 185, all green
+- Chore(lint): ruff sweep across tests/ — 44 fixes (import order, unused imports, datetime.UTC migration)
+- Chore(payload): re-sync addon mirror (incl. pre-existing UTC drift from v0.13.0)
+
 ## 0.13.0
 - MultiFernet credential storage with key rotation + v1→v2 migration (S2)
 - Timing-safe OAuth state validation with one-time-use, 10min TTL, 32-entry cap, cross-store fallback (S4, F1, F3, F5)

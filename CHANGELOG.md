@@ -454,3 +454,21 @@ All notable changes to the Finance will be documented in this file.
 - New `fd-transactions-log` card shows imported (cached) transactions after at least one bank is linked and a refresh ran — date, counterparty, description, category badge, account, coloured amount, "vorgemerkt" flag for pending items; collapses to 25 rows with "Alle N anzeigen" toggle (cap 100 from the API)
 - `fd-data-provider` caches `/api/finance_dashboard/transactions` in-memory, refetches on user-triggered refresh and on first rebuild with linked accounts — entity-only state changes no longer trigger redundant fetches, and the endpoint is cache-read only (unbounded-safe, no Enable Banking call)
 
+## [0.13.1] — 2026-05-16
+
+### Added
+- Global :focus-visible outline rings + prefers-reduced-motion override in SHARED_CSS
+- Aria-expanded on transactions-log show-more toggle
+- New design tokens in SHARED_CSS (--r-sm/md, --sh-sm/md/lg, --fs-sm/md/lg/xl, --lh-tight/normal, --sp-xs/sm/md/lg/xl) for upcoming token-migration polish
+
+### Changed
+- Remove unused TRANSACTION_REFRESH_STALENESS constant + timedelta import
+- Test: +20 unit tests for events.py (11) + export.py (9 incl. OSError/OverflowError monkeypatch paths) — total 165 → 185, all green
+- Chore(lint): ruff sweep across tests/ — 44 fixes (import order, unused imports, datetime.UTC migration)
+- Chore(payload): re-sync addon mirror (incl. pre-existing UTC drift from v0.13.0)
+
+### Fixed
+- RateLimitExceeded on /setup/complete surfaces as error_type=rate_limited in HTTP 200 body (matches setup-wizard contract; was previously masked as generic failure)
+- Categorizer None-guard with WARNING log — refresh races ahead of init fall back to category="other" instead of crashing
+- Cleanup of old CSV exports swallows OSError/ValueError/OverflowError and logs cause (no more silent bare-except)
+
