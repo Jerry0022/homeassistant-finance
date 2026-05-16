@@ -99,6 +99,22 @@ export const SHARED_CSS = `
   --bl: #3b82f6;
   --pp: #8b5cf6;
   --r: 14px;
+  --r-sm: 4px;
+  --r-md: 8px;
+  --sh-sm: 0 4px 12px rgba(0,0,0,0.3);
+  --sh-md: 0 8px 24px rgba(0,0,0,0.4);
+  --sh-lg: 0 20px 60px rgba(0,0,0,0.5);
+  --fs-sm: 11px;
+  --fs-md: 13px;
+  --fs-lg: 18px;
+  --fs-xl: 24px;
+  --lh-tight: 1;
+  --lh-normal: 1.2;
+  --sp-xs: 6px;
+  --sp-sm: 8px;
+  --sp-md: 12px;
+  --sp-lg: 18px;
+  --sp-xl: 24px;
   display: block;
   font-family: 'Segoe UI', system-ui, sans-serif;
   color: var(--tx);
@@ -119,6 +135,37 @@ export const SHARED_CSS = `
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+/* Global keyboard-focus indicator — applies to every interactive element
+   inside the dashboard panel. Removes the dotted browser default in favour
+   of a clear, theme-tinted ring. */
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--ac);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+/* Suppress the legacy :focus ring when :focus-visible is supported to avoid
+   a doubled outline on mouse clicks. */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+[tabindex]:focus:not(:focus-visible) {
+  outline: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 `;
 

@@ -9,12 +9,9 @@ Covers:
 6. Timezone mismatch: UTC-stored state validated with naive timestamp (F3)
 7. Unbounded dict eviction: capped at _OAUTH_STATES_MAX (F5)
 """
-import asyncio
-from datetime import datetime, timedelta, timezone
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime, timedelta
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -65,7 +62,7 @@ async def test_expired_state_rejected():
 
     # Backdate the created timestamp beyond the TTL
     past = (
-        datetime.now(timezone.utc) - timedelta(seconds=mgr_module._OAUTH_STATE_TTL + 1)
+        datetime.now(UTC) - timedelta(seconds=mgr_module._OAUTH_STATE_TTL + 1)
     ).isoformat()
     mgr._oauth_states[state] = past
 
@@ -110,7 +107,8 @@ async def test_timezone_mismatch_safe():
     state = "tz-safe-state"
 
     # Inject a NAIVE timestamp — as if stored before the F3 fix
-    naive_ts = datetime.utcnow().isoformat()  # noqa: DTZ003 — intentionally naive to test F3 guard
+    # Construct a naive ISO timestamp matching what the old code path produced.
+    naive_ts = datetime.now(UTC).replace(tzinfo=None).isoformat()
     mgr._oauth_states[state] = naive_ts
 
     # Must not raise, must return True (state is fresh)

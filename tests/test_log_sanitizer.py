@@ -6,7 +6,6 @@ here for fast, isolated testing. The actual function is also imported and
 tested directly via the regex-only path.
 """
 import re
-import pytest
 
 # ---------------------------------------------------------------------------
 # Inline copy of the patterns (ensures test stays in sync with the source)

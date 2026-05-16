@@ -26,12 +26,11 @@ import sys
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Windows / pytest-socket compatibility fix
 # ---------------------------------------------------------------------------
 
-def pytest_configure(config: pytest.Config) -> None:  # noqa: ARG001
+def pytest_configure(config: pytest.Config) -> None:
     """Undo the HA event loop policy monkey-patch before any tests run.
 
     pytest-homeassistant-custom-component (phcc) executes at module-load time:

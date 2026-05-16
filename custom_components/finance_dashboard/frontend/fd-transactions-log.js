@@ -86,7 +86,7 @@ class FdTransactionsLog extends HTMLElement {
     }).join("");
 
     const toggleBtn = total > DEFAULT_LIMIT
-      ? `<button class="tx-toggle" id="toggleBtn">
+      ? `<button class="tx-toggle" id="toggleBtn" aria-expanded="${this._expanded ? "true" : "false"}">
           ${this._expanded ? tSync("transactions.show_less") : tSync("transactions.show_all", { count: String(total) })}
         </button>`
       : "";

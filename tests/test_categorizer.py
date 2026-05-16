@@ -13,7 +13,6 @@ from custom_components.finance_dashboard.categorizer import (
     TransactionCategorizer,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

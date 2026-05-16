@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import secrets
 import time
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.util import dt as dt_util
@@ -205,6 +205,18 @@ class RefreshMixin:
 
                 # Tag each transaction with account info
                 display_name = account.get("custom_name") or account.get("name", "")
+                # Categorizer is initialised in async_initialize(); if refresh
+                # somehow races ahead of init, fall back to "other" so the txn
+                # is still persisted and visible in the UI.
+                categorizer = self._categorizer
+                if categorizer is None:
+                    _LOGGER.warning(
+                        "Categorizer not initialised — tagging %d booked + %d "
+                        "pending txns as 'other' for account %s",
+                        len(booked),
+                        len(pending),
+                        account_id,
+                    )
                 for txn in booked:
                     txn["_account_id"] = account_id
                     txn["_account_name"] = display_name
@@ -212,13 +224,13 @@ class RefreshMixin:
                     txn["_account_person"] = account.get("person", "")
                     txn["_account_ha_users"] = account.get("ha_users", [])
                     txn["_status"] = "booked"
-                    txn["category"] = self._categorizer.categorize(txn)
+                    txn["category"] = categorizer.categorize(txn) if categorizer else "other"
 
                 for txn in pending:
                     txn["_account_id"] = account_id
                     txn["_account_name"] = display_name
                     txn["_status"] = "pending"
-                    txn["category"] = self._categorizer.categorize(txn)
+                    txn["category"] = categorizer.categorize(txn) if categorizer else "other"
 
                 # R5: atomic per-account update — only overwrite on success
                 self._tx_by_account[account_id] = booked + pending
@@ -506,7 +518,7 @@ class RefreshMixin:
             try:
                 created_dt = datetime.fromisoformat(created)
                 if created_dt.tzinfo is None:
-                    created_dt = created_dt.replace(tzinfo=timezone.utc)
+                    created_dt = created_dt.replace(tzinfo=UTC)
                 if (now - created_dt).total_seconds() > _OAUTH_STATE_TTL:
                     expired.append(s)
             except (ValueError, TypeError):

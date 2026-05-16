@@ -15,10 +15,9 @@ method on the EnableBankingClient — not even once.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -95,7 +94,7 @@ async def test_coordinator_update_data_never_calls_live_api() -> None:
 
     coordinator = FinanceDashboardCoordinator(hass=mock_hass, manager=manager)
 
-    # Run _async_update_data() 5× — simulates repeated manual refreshes
+    # Run _async_update_data() 5x — simulates repeated manual refreshes
     CALL_COUNT = 5
     for _ in range(CALL_COUNT):
         await coordinator._async_update_data()

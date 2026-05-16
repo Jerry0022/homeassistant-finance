@@ -14,19 +14,12 @@ Covers:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-
-import pytest
-
 from custom_components.finance_dashboard.transfer_detector import (
-    TransferChain,
-    TransferPair,
     apply_overrides,
     detect_transfer_chains,
     enrich_transactions,
     get_effective_transactions,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -239,7 +232,7 @@ class TestOverride:
 
     def test_confirmed_chain_excludes_destination(self):
         """With no override (None), destination leg must be excluded from effective."""
-        txns, chains = self._setup()
+        txns, _chains = self._setup()
         # No override applied — default None
         effective = get_effective_transactions(txns)
         effective_ids = {t["transactionId"] for t in effective}

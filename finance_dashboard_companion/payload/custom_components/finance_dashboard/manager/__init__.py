@@ -23,7 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -173,7 +173,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
     # Lifecycle
     # ------------------------------------------------------------------
 
-    async def async_initialize(self) -> None:
+    async def async_initialize(self) -> None:  # noqa: PLR0915
         """Initialize all sub-components."""
         from ..categorizer import TransactionCategorizer
         from ..credential_manager import CredentialManager
@@ -243,7 +243,7 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
                     rl_dt = datetime.fromisoformat(rl)
                     # Ensure UTC-aware for comparison (F3)
                     if rl_dt.tzinfo is None:
-                        rl_dt = rl_dt.replace(tzinfo=timezone.utc)
+                        rl_dt = rl_dt.replace(tzinfo=UTC)
                     if rl_dt > dt_util.now():
                         self._rate_limited_until = rl_dt
                         # Mirror to hass.data so the fresh-setup client gate

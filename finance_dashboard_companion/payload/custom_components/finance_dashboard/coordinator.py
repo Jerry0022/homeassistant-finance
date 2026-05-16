@@ -10,7 +10,6 @@ Centralises all Enable Banking API calls so that:
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -18,9 +17,6 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
-
-# Only re-fetch raw transactions if cache is older than 6 hours
-TRANSACTION_REFRESH_STALENESS = timedelta(hours=6)
 
 
 class FinanceDashboardCoordinator(DataUpdateCoordinator):

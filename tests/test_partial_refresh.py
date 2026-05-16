@@ -6,9 +6,6 @@ After refresh, both accounts must have their correct data in the cache.
 
 from __future__ import annotations
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # Helpers / stubs
 # ---------------------------------------------------------------------------

@@ -112,5 +112,8 @@ def _cleanup_old_exports(export_dir: Path) -> None:
             if age_hours > EXPORT_TTL_HOURS:
                 f.unlink()
                 _LOGGER.debug("Cleaned up old export: %s", f.name)
-        except Exception:
-            pass
+        except (OSError, ValueError, OverflowError) as err:
+            # OSError: permission changes, concurrent removal.
+            # ValueError / OverflowError: corrupted st_mtime values on weird
+            # filesystems. Either way, don't abort the loop — log and skip.
+            _LOGGER.debug("Could not clean up old export %s: %s", f.name, err)

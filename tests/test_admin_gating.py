@@ -5,7 +5,7 @@ Tests the is_admin check on FinanceDashboardRefreshTriggerView.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -79,7 +79,6 @@ async def test_refresh_admin_passes_gating() -> None:
     """Admin request must pass the is_admin gate (not get 403)."""
     from custom_components.finance_dashboard.api import (
         FinanceDashboardRefreshTriggerView,
-        _get_manager,
     )
 
     view = FinanceDashboardRefreshTriggerView()

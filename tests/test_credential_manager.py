@@ -17,7 +17,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 from cryptography.fernet import Fernet
 
-
 # ---------------------------------------------------------------------------
 # Minimal stubs for HA dependencies
 # ---------------------------------------------------------------------------
@@ -202,7 +201,6 @@ async def test_migration_v1_corrupt_key_raises():
     a ValueError or InvalidToken when the MultiFernet is built, not silently
     swallow the error.
     """
-    from cryptography.fernet import InvalidToken
 
     with _patch_store():
         mgr = _make_manager()
@@ -221,6 +219,7 @@ async def test_session_timeout_resets_flag():
     be cleared by _check_session_timeout().
     """
     import time
+
     from custom_components.finance_dashboard.const import SESSION_TIMEOUT_MINUTES
 
     with _patch_store():

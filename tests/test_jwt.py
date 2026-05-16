@@ -10,9 +10,9 @@ import time
 
 import jwt
 import pytest
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
 
 def _generate_test_key_pair():
@@ -189,7 +189,6 @@ class TestJwtGeneration:
         import time as _time
 
         private_pem, public_key = _generate_test_key_pair()
-        from cryptography.hazmat.primitives.asymmetric import rsa as _rsa
         from cryptography.hazmat.primitives import serialization as _ser
 
         # Build a payload that expired 120 seconds ago

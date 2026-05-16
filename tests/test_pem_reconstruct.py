@@ -6,9 +6,6 @@ a PEM that serialization.load_pem_private_key can actually load.
 
 from __future__ import annotations
 
-import pytest
-
-
 # ---------------------------------------------------------------------------
 # Test vectors — 2048-bit RSA keys generated offline for testing only.
 # These are NOT real credentials and carry no security value.

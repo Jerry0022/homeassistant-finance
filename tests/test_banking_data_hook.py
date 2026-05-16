@@ -9,16 +9,14 @@ Three cases:
 from __future__ import annotations
 
 import os
-import tempfile
-from pathlib import Path
-
-import pytest
 
 # Import the hook module
 import sys
+import tempfile
+from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 import check_no_banking_data as hook
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -79,9 +77,8 @@ def test_allowlisted_test_iban_is_allowed() -> None:
 
 def test_allowlisted_tests_path_is_skipped() -> None:
     """Files under tests/ must be skipped entirely."""
-    # Simulate a path under tests/
-    violations = hook.scan_file.__func__ if hasattr(hook.scan_file, "__func__") else hook.scan_file
-    # Override path prefix check directly
+    # Verify the allowlist accepts both POSIX and Windows path separators and
+    # rejects production source files.
     assert hook._is_allowlisted_path("tests/test_fixtures.py")
     assert hook._is_allowlisted_path("tests\\test_fixtures.py")
     assert not hook._is_allowlisted_path("custom_components/finance_dashboard/manager.py")

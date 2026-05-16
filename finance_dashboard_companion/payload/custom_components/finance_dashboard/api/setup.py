@@ -512,9 +512,20 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                 }
             )
 
-        except Exception:
+        except Exception as exc:
+            from ..enablebanking_client import RateLimitExceeded
+
+            if isinstance(exc, RateLimitExceeded):
+                _LOGGER.warning("Setup completion blocked by Enable-Banking rate limit")
+                return self.json(
+                    {
+                        "error": "Bank-API tageslimit erreicht — bitte morgen erneut versuchen",
+                        "rate_limited": True,
+                    },
+                    status_code=429,
+                )
             _LOGGER.exception("Failed to complete bank setup")
-            return self.json({"error": "Setup completion failed"})
+            return self.json({"error": "Setup completion failed"}, status_code=500)
 
 
 class FinanceDashboardSetupUpdateAccountsView(HomeAssistantView):
