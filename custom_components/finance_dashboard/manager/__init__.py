@@ -34,6 +34,7 @@ from homeassistant.util import dt as dt_util
 from ..const import (
     DOMAIN,
     ENABLEBANKING_RATE_LIMIT_DAILY,
+    SESSION_MAX_DAYS,
     STORAGE_KEY_TRANSFER_OVERRIDES,
 )
 from ..household import HouseholdMember, HouseholdModel
@@ -545,6 +546,134 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             # Expose the daily rate-limit cap so the frontend can render
             # the "4/day" label dynamically instead of hardcoding it.
             "rate_limit_per_day": ENABLEBANKING_RATE_LIMIT_DAILY,
+        }
+
+    def get_diagnostics(self) -> dict[str, Any]:
+        """Detailed cache snapshot for the transparency widget.
+
+        Pure cache read — NEVER touches the banking API. Safe for
+        unbounded polling. Returns per-account + per-bank + entity
+        information so the dashboard can render a full transparency
+        report without any extra round-trips.
+        """
+        status = self.get_refresh_status()
+
+        # Count cached transactions per account
+        txn_counts: dict[str, int] = {}
+        for txn in self._transactions:
+            acc_id = txn.get("_account_id")
+            if acc_id:
+                txn_counts[acc_id] = txn_counts.get(acc_id, 0) + 1
+
+        # Extract balance amount (if cached) for each account
+        accounts = []
+        banks_seen: dict[str, dict[str, Any]] = {}
+        for acc in self._accounts:
+            acc_id = acc.get("id", "")
+            bal_data = self._balances.get(acc_id, {})
+            bal_list = bal_data.get("balances", []) if isinstance(bal_data, dict) else []
+            bal_amount: str | None = None
+            bal_currency: str | None = None
+            if bal_list:
+                first = bal_list[0]
+                bal_amount = first.get("balanceAmount", {}).get("amount")
+                bal_currency = first.get("balanceAmount", {}).get("currency")
+
+            iban = acc.get("iban")
+            iban_masked = f"****{iban[-4:]}" if iban and len(iban) >= 4 else "****"
+
+            inst_id = acc.get("institution_id", "")
+            inst_name = acc.get("institution", "")
+            if inst_id and inst_id not in banks_seen:
+                banks_seen[inst_id] = {
+                    "institution_id": inst_id,
+                    "institution_name": inst_name,
+                    "logo": acc.get("logo", ""),
+                    "account_count": 0,
+                }
+            if inst_id:
+                banks_seen[inst_id]["account_count"] += 1
+
+            accounts.append(
+                {
+                    "id": acc_id,
+                    "name": acc.get("custom_name") or acc.get("name", ""),
+                    "institution": inst_name,
+                    "institution_id": inst_id,
+                    "iban_masked": iban_masked,
+                    "type": acc.get("type", "personal"),
+                    "person": acc.get("person", ""),
+                    "has_balance": bool(bal_list),
+                    "balance_amount": bal_amount,
+                    "balance_currency": bal_currency or acc.get("currency", "EUR"),
+                    "transaction_count": txn_counts.get(acc_id, 0),
+                    "entity_unique_id": f"{DOMAIN}_{acc_id}_balance",
+                }
+            )
+
+        # Enable Banking PSU session validity from config entry
+        entry_sessions = self._entry.data.get("sessions", {})
+        banks = []
+        for inst_id, info in banks_seen.items():
+            banks.append(
+                {
+                    **info,
+                    "session_configured": bool(entry_sessions.get(inst_id)),
+                }
+            )
+
+        # Known entity unique_id patterns — the frontend uses these to
+        # look up the actual entity_ids via the HA entity registry.
+        entity_hints = [
+            {
+                "group": "balances",
+                "label": "Kontostand-Sensoren",
+                "pattern_suffix": "_balance",
+                "count_hint": len(self._accounts),
+            },
+            {
+                "group": "aggregate",
+                "label": "Gesamt-Kontostand",
+                "unique_id": f"{DOMAIN}_total_balance",
+                "count_hint": 1,
+            },
+            {
+                "group": "summary",
+                "label": "Monatsübersicht",
+                "unique_id": f"{DOMAIN}_monthly_summary",
+                "count_hint": 1,
+            },
+            {
+                "group": "budgets",
+                "label": "Kategorie-Budgets",
+                "pattern_prefix": f"{DOMAIN}_budget_",
+                "count_hint": None,
+            },
+            {
+                "group": "controls",
+                "label": "Steuerung (Split, Remainder)",
+                "unique_ids": [
+                    f"{DOMAIN}_split_model",
+                    f"{DOMAIN}_remainder_mode",
+                ],
+                "count_hint": 2,
+            },
+        ]
+
+        uncategorized_count = sum(
+            1
+            for txn in self._transactions
+            if not txn.get("category") or txn.get("category") == "other"
+        )
+
+        return {
+            **status,
+            "accounts": accounts,
+            "banks": banks,
+            "entity_hints": entity_hints,
+            "session_max_days": SESSION_MAX_DAYS,
+            "uncategorized_count": uncategorized_count,
+            "cache_stale_threshold_seconds": self._CACHE_STALE_THRESHOLD_SECONDS,
         }
 
     # ------------------------------------------------------------------

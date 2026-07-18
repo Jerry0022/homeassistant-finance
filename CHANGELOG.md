@@ -2,6 +2,20 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.14.0] — 2026-07-18
+
+### Added
+- Transparency/diagnostics widget (`fd-diagnostics`) — collapsible cache
+  snapshot with refresh stats, rate-limit countdown, per-bank session
+  status, per-account cache contents, and live entity_id resolution via
+  the entity registry. Served by a new cache-only `GET /diagnostics`
+  endpoint (`FinanceDashboardDiagnosticsView`); never calls the banking API.
+- Persistent state banner (`fd-state-banner`) above the KPI cards —
+  surfaces rate-limited / cache-stale / uncategorized-transactions states
+  (first-match wins), fed by the diagnostics snapshot so it makes no
+  API calls of its own. Dismissable per-session; degrades to no banner
+  when the underlying data is unavailable.
+
 ## [0.13.0] — 2026-04-25
 
 ### Added

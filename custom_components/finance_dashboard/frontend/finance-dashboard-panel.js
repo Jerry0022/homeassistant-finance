@@ -10,9 +10,16 @@
  *   fd-cost-distribution → category cost bar (when no household)
  *   fd-recurring-list    → recurring payments
  *   fd-transactions-log  → imported transactions (admin, cache-only)
+ *   fd-state-banner      → persistent advisory banner above the KPI cards
+ *   fd-diagnostics        → collapsible transparency widget (bottom, always mounted)
  *
  * Data flow: fd-data-provider reads HA entities + one API call,
  * dispatches "fd-data-updated" → shell pushes data to all children.
+ *
+ * fd-diagnostics is always mounted (independent of the overlay state) and
+ * polls GET /diagnostics on its own; it dispatches "fd-diagnostics-updated"
+ * which the shell forwards to fd-state-banner so the banner needs no API
+ * calls of its own.
  *
  * A3: Components are created once in _ensureComponents() and persist
  * across fd-data-updated events. Only .data properties are updated,
@@ -53,6 +60,9 @@ class FinanceDashboardPanel extends HTMLElement {
     // Forward hass to data provider (drives entity subscriptions)
     const dp = this.shadowRoot.querySelector("fd-data-provider");
     if (dp) dp.hass = hass;
+    // Forward hass to the always-mounted diagnostics widget
+    const diag = this.shadowRoot.getElementById("diag");
+    if (diag) diag.hass = hass;
   }
 
   _dismissSetupNotification(hass) {
@@ -105,8 +115,10 @@ class FinanceDashboardPanel extends HTMLElement {
 <fd-data-provider></fd-data-provider>
 <div class="fd">
   <fd-header></fd-header>
+  <fd-state-banner id="banner"></fd-state-banner>
   <div id="overlay" class="loading">${tSync("panel.loading")}</div>
   <div id="components" class="hidden"></div>
+  <fd-diagnostics id="diag"></fd-diagnostics>
 </div>`;
 
     this._overlay = this.shadowRoot.getElementById("overlay");
@@ -141,6 +153,12 @@ class FinanceDashboardPanel extends HTMLElement {
 
     this.shadowRoot.addEventListener("fd-refresh-done", (e) => {
       const header = this.shadowRoot.querySelector("fd-header");
+      const diag = this.shadowRoot.getElementById("diag");
+      // Always refresh the diagnostics snapshot after a refresh attempt —
+      // the user should see the new stats/rate-limit immediately without
+      // waiting for the 60 s poll. The banner updates via the
+      // fd-diagnostics-updated event this triggers.
+      if (diag && diag.refresh) diag.refresh();
       if (!header || !header.showToast) return;
       const { tSync } = window._fd;
       const d = e.detail || {};
@@ -204,6 +222,14 @@ class FinanceDashboardPanel extends HTMLElement {
 
     this.shadowRoot.addEventListener("fd-setup-closed", () => {
       // Wizard removed itself, nothing extra needed
+    });
+
+    // Forward the fd-diagnostics snapshot to the top-of-page banner
+    // so rate-limit / cache-stale / uncategorized-count warnings are
+    // visible without the user having to expand the diagnostics card.
+    this.shadowRoot.addEventListener("fd-diagnostics-updated", (e) => {
+      const banner = this.shadowRoot.getElementById("banner");
+      if (banner) banner.diag = e.detail || null;
     });
   }
 

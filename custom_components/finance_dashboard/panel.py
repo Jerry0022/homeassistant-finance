@@ -22,6 +22,8 @@ STATIC_BASE = f"/api/{DOMAIN}/static"
 LOVELACE_COMPONENTS = [
     f"{STATIC_BASE}/fd-shared-styles.js",
     f"{STATIC_BASE}/fd-data-provider.js",
+    f"{STATIC_BASE}/fd-state-banner.js",
+    f"{STATIC_BASE}/fd-diagnostics.js",
     f"{STATIC_BASE}/fd-stat-card.js",
     f"{STATIC_BASE}/fd-person-card.js",
     f"{STATIC_BASE}/fd-donut-chart.js",
