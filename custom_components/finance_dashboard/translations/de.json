@@ -81,7 +81,7 @@
     },
     "storage_corrupt": {
       "title": "Finance: Transaktions-Cache beschädigt",
-      "description": "Die Cache-Datei `{storage_key}` konnte nicht gelesen werden ({error_class}). Die Integration wurde mit leerem Cache gestartet. Klicke auf „Aktualisieren", um den Cache neu aufzubauen."
+      "description": "Die Cache-Datei `{storage_key}` konnte nicht gelesen werden ({error_class}). Die Integration wurde mit leerem Cache gestartet. Klicke auf „Aktualisieren“, um den Cache neu aufzubauen."
     }
   }
 }
