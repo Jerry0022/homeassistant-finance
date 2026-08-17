@@ -20,6 +20,7 @@ import secrets
 import time
 import uuid
 from typing import Any
+from urllib.parse import quote
 
 import aiohttp
 import jwt
@@ -286,6 +287,9 @@ class EnableBankingClient:
     # Canonical PSU user-agent for user-triggered live calls.
     # Set once at class level so all instances share the same string.
     _PSU_UA: str = f"HomeAssistant-Finance-Dashboard/{VERSION}"
+    # Each page is one API call against the 4/day/ASPSP budget. Ten pages
+    # covers a very busy 90-day window; hitting the cap is logged, never silent.
+    _MAX_TRANSACTION_PAGES: int = 10
 
     async def async_get_balances(
         self,
@@ -332,6 +336,16 @@ class EnableBankingClient:
             Each transaction has: transactionId, bookingDate,
             transactionAmount: {amount, currency},
             remittanceInformationUnstructured, creditorName.
+
+        The real Enable Banking response is ``{"transactions": [...],
+        "continuation_key": "..."}`` — a flat LIST with a per-transaction
+        ``status``, not pre-sorted booked/pending buckets. The buckets are
+        rebuilt here from each transaction's own status so that everything
+        downstream (which filters on ``_status``) keeps working.
+
+        Pagination is followed via ``continuation_key``. Each page is one API
+        call against the 4/day/ASPSP budget, so the number of pages is capped
+        and a truncation is logged rather than silently swallowed.
         """
         params = []
         if date_from:
@@ -339,36 +353,113 @@ class EnableBankingClient:
         if date_to:
             params.append(f"date_to={date_to}")
 
-        query = f"?{'&'.join(params)}" if params else ""
-        result = await self._async_request(
-            "GET",
-            f"/accounts/{account_id}/transactions{query}",
-            psu_ip=psu_ip,
-            psu_ua=self._PSU_UA,
-        )
+        booked: list[dict[str, Any]] = []
+        pending: list[dict[str, Any]] = []
+        continuation_key: str | None = None
+        pages = 0
 
-        transactions = (
-            result
-            if isinstance(result, dict) and ("booked" in result or "pending" in result)
-            else result.get("transactions", {})
-        )
+        while pages < self._MAX_TRANSACTION_PAGES:
+            page_params = list(params)
+            if continuation_key:
+                page_params.append(f"continuation_key={quote(continuation_key, safe='')}")
+            query = f"?{'&'.join(page_params)}" if page_params else ""
 
-        booked = [self._normalize_transaction(t) for t in transactions.get("booked", [])]
-        pending = [self._normalize_transaction(t) for t in transactions.get("pending", [])]
+            result = await self._async_request(
+                "GET",
+                f"/accounts/{account_id}/transactions{query}",
+                psu_ip=psu_ip,
+                psu_ua=self._PSU_UA,
+            )
+            pages += 1
+
+            raw_transactions, continuation_key = self._extract_transaction_page(result)
+            for raw in raw_transactions:
+                normalized = self._normalize_transaction(raw)
+                if self._is_pending(raw):
+                    pending.append(normalized)
+                else:
+                    booked.append(normalized)
+
+            if not continuation_key:
+                break
+        else:
+            _LOGGER.warning(
+                "Transaction pagination for account %s stopped at the %d-page cap — "
+                "older transactions in the requested window were not fetched",
+                account_id[:8],
+                self._MAX_TRANSACTION_PAGES,
+            )
+
         return {"booked": booked, "pending": pending}
+
+    @staticmethod
+    def _extract_transaction_page(
+        result: Any,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        """Pull the transaction list and continuation key out of one response.
+
+        Tolerates three shapes: the documented ``{"transactions": [...]}``,
+        a bare list, and the legacy ``{"booked": [...], "pending": [...]}``
+        buckets some sandboxes still return.
+        """
+        if isinstance(result, list):
+            return (result, None)
+        if not isinstance(result, dict):
+            return ([], None)
+
+        continuation_key = result.get("continuation_key") or None
+
+        raw = result.get("transactions")
+        if isinstance(raw, list):
+            return (raw, continuation_key)
+        if isinstance(raw, dict):
+            # Legacy bucketed shape nested under "transactions".
+            return (
+                list(raw.get("booked") or []) + list(raw.get("pending") or []),
+                continuation_key,
+            )
+        if "booked" in result or "pending" in result:
+            return (
+                list(result.get("booked") or []) + list(result.get("pending") or []),
+                continuation_key,
+            )
+        return ([], continuation_key)
+
+    @staticmethod
+    def _is_pending(txn: dict[str, Any]) -> bool:
+        """Whether a transaction is not yet booked.
+
+        Enable Banking sends ISO 20022 style codes (``BOOK``, ``PDNG``); some
+        ASPSPs send the long forms. Anything unrecognised counts as booked,
+        because treating a real debit as pending would drop it out of the
+        monthly summary entirely.
+        """
+        status = str(txn.get("status") or txn.get("transaction_status") or "").strip().upper()
+        return status in ("PDNG", "PENDING", "INFO", "HELD")
 
     # ------------------------------------------------------------------
     # Data normalization (Enable Banking → GoCardless field names)
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _normalize_transaction(txn: dict[str, Any]) -> dict[str, Any]:
+    @classmethod
+    def _normalize_transaction(cls, txn: dict[str, Any]) -> dict[str, Any]:
         """Normalize Enable Banking transaction to GoCardless format.
 
         Enable Banking uses snake_case; downstream consumers expect
         camelCase GoCardless fields.
+
+        Two conversions matter beyond renaming:
+
+        - **The sign.** Enable Banking sends an unsigned magnitude plus
+          ``credit_debit_indicator`` (``CRDT``/``DBDT``). Everything downstream
+          — income vs. expense, categorization, the household split — keys on
+          the sign, so a debit must become negative here. Without this, every
+          transaction reads as income and total expenses stay at zero.
+        - **The remittance information**, which is an ARRAY of strings. Joining
+          it preserves the payment reference that the categorizer and the
+          plan-vs-actual matcher search.
         """
-        amount_data = txn.get("transaction_amount", {})
+        amount_data = txn.get("transaction_amount") or {}
         creditor = txn.get("creditor")
         debtor = txn.get("debtor")
 
@@ -378,7 +469,7 @@ class EnableBankingClient:
             "bookingDateTime": txn.get("booking_date_time", ""),
             "valueDate": txn.get("value_date", ""),
             "transactionAmount": {
-                "amount": amount_data.get("amount", "0"),
+                "amount": cls._signed_amount(amount_data, txn),
                 "currency": amount_data.get("currency", "EUR"),
             },
             "creditorName": (
@@ -389,22 +480,66 @@ class EnableBankingClient:
             "debtorName": (
                 debtor.get("name", "") if isinstance(debtor, dict) else txn.get("debtor_name", "")
             ),
-            "remittanceInformationUnstructured": (
-                txn.get("remittance_information", "")
-                or txn.get("remittance_information_unstructured", "")
-            ),
+            "remittanceInformationUnstructured": cls._join_remittance(txn),
+            "status": str(txn.get("status") or "").upper(),
         }
 
     @staticmethod
+    def _signed_amount(amount_data: dict[str, Any], txn: dict[str, Any]) -> str:
+        """Apply the credit/debit indicator to an unsigned amount.
+
+        Returns a decimal string, matching the GoCardless field format that
+        downstream code parses with ``float()``.
+
+        When no indicator is present the sign the ASPSP already supplied is
+        preserved — some sandboxes send signed amounts and re-deriving the sign
+        would flip them.
+        """
+        raw = amount_data.get("amount", "0")
+        try:
+            value = float(str(raw).replace(",", "."))
+        except (TypeError, ValueError):
+            return "0.00"
+
+        indicator = str(txn.get("credit_debit_indicator") or "").strip().upper()
+        # DBDT is the documented code; DBIT appears in some ASPSP responses.
+        if indicator in ("DBIT", "DBDT", "DEBIT"):
+            value = -abs(value)
+        elif indicator in ("CRDT", "CREDIT"):
+            value = abs(value)
+
+        return f"{value:.2f}"
+
+    @staticmethod
+    def _join_remittance(txn: dict[str, Any]) -> str:
+        """Flatten the remittance information into a single searchable string."""
+        raw = txn.get("remittance_information")
+        if raw is None:
+            raw = txn.get("remittance_information_unstructured", "")
+        if isinstance(raw, (list, tuple)):
+            return " ".join(str(part).strip() for part in raw if part)
+        if isinstance(raw, dict):
+            # Structured remittance — keep whatever free text it carries.
+            return " ".join(str(v).strip() for v in raw.values() if isinstance(v, str))
+        return str(raw or "")
+
+    @staticmethod
     def _normalize_balance(bal: dict[str, Any]) -> dict[str, Any]:
-        """Normalize Enable Banking balance to GoCardless format."""
-        amount_data = bal.get("balance_amount", {})
+        """Normalize Enable Banking balance to GoCardless format.
+
+        ``balance_type`` is passed through as the ISO 20022 code the API
+        actually sends (``CLBD``, ``ITAV``, ...). It is NOT translated to the
+        GoCardless camelCase names, because the codes carry information the
+        camelCase set does not — consumers pick a balance via
+        :data:`BALANCE_TYPE_PRIORITY`.
+        """
+        amount_data = bal.get("balance_amount") or {}
         return {
             "balanceAmount": {
                 "amount": amount_data.get("amount", "0"),
                 "currency": amount_data.get("currency", "EUR"),
             },
-            "balanceType": bal.get("balance_type", "closingBooked"),
+            "balanceType": str(bal.get("balance_type") or "").upper() or "OTHR",
             "referenceDate": bal.get("reference_date", ""),
         }
 

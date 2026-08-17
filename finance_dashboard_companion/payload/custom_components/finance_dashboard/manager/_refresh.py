@@ -229,11 +229,26 @@ class RefreshMixin:
                 for txn in pending:
                     txn["_account_id"] = account_id
                     txn["_account_name"] = display_name
+                    # Pending transactions need the same account tags as booked
+                    # ones — the household split and the owner grouping read
+                    # them, and a pending debit that later books must not
+                    # suddenly change owner.
+                    txn["_account_type"] = account.get("type", "personal")
+                    txn["_account_person"] = account.get("person", "")
+                    txn["_account_ha_users"] = account.get("ha_users", [])
                     txn["_status"] = "pending"
                     txn["category"] = categorizer.categorize(txn) if categorizer else "other"
 
-                # R5: atomic per-account update — only overwrite on success
-                self._tx_by_account[account_id] = booked + pending
+                # R5: atomic per-account update — only overwrite on success.
+                # Merge instead of replace: the fetch window is a rolling
+                # ``days`` span, so a plain assignment deletes everything older
+                # and makes multi-month history impossible to accumulate.
+                self._tx_by_account[account_id] = self._merge_account_transactions(
+                    self._tx_by_account.get(account_id, []),
+                    booked,
+                    pending,
+                    date_from,
+                )
 
                 _LOGGER.debug(
                     "Account %s: %d booked, %d pending",
@@ -295,7 +310,18 @@ class RefreshMixin:
         ]
 
         self._transactions = all_transactions
-        self._last_refresh = dt_util.now()
+        # Only claim a refresh happened when at least one account actually
+        # answered. Stamping the timestamp unconditionally made a total failure
+        # look identical to a success — the header showed "just refreshed" over
+        # an untouched cache, and the lie survived a restart via persistence.
+        if accounts_hit > 0:
+            self._last_refresh = dt_util.now()
+        else:
+            _LOGGER.warning(
+                "Refresh reached no account (%d error(s)) — keeping previous "
+                "refresh timestamp so the UI reports the cache as stale",
+                len(errors),
+            )
 
         # Detect recurring payment patterns — must not crash transaction refresh
         try:
@@ -364,6 +390,56 @@ class RefreshMixin:
         return all_transactions
 
     @staticmethod
+    @staticmethod
+    def _merge_account_transactions(
+        previous: list[dict[str, Any]],
+        booked: list[dict[str, Any]],
+        pending: list[dict[str, Any]],
+        date_from: str,
+    ) -> list[dict[str, Any]]:
+        """Merge a freshly fetched window into an account's cached history.
+
+        The fetch covers a rolling window (``date_from`` onwards). Within that
+        window the fresh data is authoritative — it reflects re-bookings,
+        corrections and pending-to-booked transitions. Outside the window the
+        previously cached BOOKED transactions are kept, which is what allows
+        history to accumulate beyond the window instead of being truncated on
+        every refresh.
+
+        Cached pending transactions are always discarded: pending entries are
+        volatile, and keeping an old one alongside its booked counterpart would
+        double-count the same debit.
+
+        Args:
+            previous: The account's cached transactions.
+            booked: Freshly fetched booked transactions.
+            pending: Freshly fetched pending transactions.
+            date_from: Inclusive ``YYYY-MM-DD`` start of the fetched window.
+
+        Returns:
+            The merged transaction list for this account.
+        """
+        fresh = list(booked) + list(pending)
+        fresh_ids = {t.get("transactionId") for t in fresh if t.get("transactionId")}
+
+        kept: list[dict[str, Any]] = []
+        for txn in previous:
+            if txn.get("_status") != "booked":
+                continue
+            transaction_id = txn.get("transactionId")
+            if transaction_id and transaction_id in fresh_ids:
+                continue  # superseded by the fresh copy
+            booking_date = str(txn.get("bookingDate") or "")
+            # No booking date means we cannot place it relative to the window;
+            # keep it rather than lose a real transaction.
+            if booking_date and booking_date >= date_from:
+                # Inside the refetched window and absent from the fresh data —
+                # the bank no longer reports it (reversal, correction).
+                continue
+            kept.append(txn)
+
+        return kept + fresh
+
     def _build_stats(
         outcome: str,
         started: datetime,

@@ -6,9 +6,10 @@ transactions, and household budgets.
 
 SECURITY: No financial data is ever stored in git or logs.
 All credentials and tokens are stored in HA's encrypted .storage/ directory.
-Live banking calls are gated behind explicit user-triggered paths
-(refresh button, service call, setup bootstrap) to respect Enable
-Banking's 4/day/ASPSP rate limit.
+Live banking calls happen on explicit user-triggered paths (refresh button,
+service call, setup bootstrap) plus exactly ONE scheduled refresh per day.
+That spends a quarter of Enable Banking's 4/day/ASPSP budget and keeps the
+data at most a day old; anything more frequent remains forbidden.
 """
 
 from __future__ import annotations
@@ -17,11 +18,18 @@ import logging
 
 from ha_customapps.restart import RestartNotifier
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import HomeAssistant, SupportsResponse
+from homeassistant.helpers.event import async_track_time_change
 
 from .const import (
+    DEFAULT_DAILY_REFRESH,
+    DEFAULT_DAILY_REFRESH_HOUR,
+    DEFAULT_DAILY_REFRESH_MINUTE,
     DOMAIN,
+    OPT_DAILY_REFRESH,
+    OPT_DAILY_REFRESH_HOUR,
+    OPT_DAILY_REFRESH_MINUTE,
     SERVICE_TOGGLE_DEMO,
 )
 
@@ -102,13 +110,75 @@ async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEn
     if hass.is_running:
         hass.async_create_task(_initial_load())
     else:
-        hass.bus.async_listen_once(
-            "homeassistant_started",
-            lambda _event: hass.async_create_task(_initial_load()),
-        )
+        # The listener MUST be a coroutine function. A sync lambda calling
+        # hass.async_create_task is invoked from a worker thread, which trips
+        # HA's thread-safety guard: the guard raises, the coroutine is never
+        # awaited, and the cache is never loaded — leaving every entity empty
+        # after each restart until a manual refresh. HA awaits async listeners
+        # itself, so no task creation is needed.
+        async def _on_hass_started(_event) -> None:
+            await _initial_load()
+
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _on_hass_started)
+
+    _register_daily_refresh(hass, entry, manager, coordinator)
 
     _LOGGER.info("Finance Dashboard v%s loaded", entry.version)
     return True
+
+
+def _register_daily_refresh(
+    hass: HomeAssistant,
+    entry: FinanceDashboardConfigEntry,
+    manager,
+    coordinator,
+) -> None:
+    """Schedule exactly one live refresh per day.
+
+    Enable Banking allows 4 calls per day per ASPSP. One scheduled refresh
+    spends a quarter of that budget and leaves three for manual refreshes,
+    which keeps the data at most a day old without ever polling. Anything more
+    frequent is still forbidden.
+
+    The schedule is skipped entirely in demo mode and while the entry is not
+    fully configured, and a failure is logged without disturbing the entry.
+    """
+    if not entry.options.get(OPT_DAILY_REFRESH, DEFAULT_DAILY_REFRESH):
+        _LOGGER.debug("Daily refresh disabled by options")
+        return
+
+    hour = int(entry.options.get(OPT_DAILY_REFRESH_HOUR, DEFAULT_DAILY_REFRESH_HOUR))
+    minute = int(entry.options.get(OPT_DAILY_REFRESH_MINUTE, DEFAULT_DAILY_REFRESH_MINUTE))
+    hour = min(max(hour, 0), 23)
+    minute = min(max(minute, 0), 59)
+
+    async def _daily_refresh(now) -> None:
+        if manager.demo_mode:
+            _LOGGER.debug("Daily refresh skipped — demo mode active")
+            return
+        if manager.rate_limited_until:
+            _LOGGER.info(
+                "Daily refresh skipped — rate limited until %s",
+                manager.rate_limited_until.isoformat(),
+            )
+            return
+        try:
+            stats = await manager.async_refresh_transactions()
+            await coordinator.async_refresh()
+            _LOGGER.info(
+                "Daily refresh done: outcome=%s accounts=%s transactions=%s new=%s",
+                stats.get("outcome"),
+                stats.get("accounts"),
+                stats.get("transactions"),
+                stats.get("new"),
+            )
+        except Exception:
+            _LOGGER.exception("Daily refresh failed — cache left untouched")
+
+    entry.async_on_unload(
+        async_track_time_change(hass, _daily_refresh, hour=hour, minute=minute, second=0)
+    )
+    _LOGGER.info("Daily live refresh scheduled for %02d:%02d local time", hour, minute)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEntry) -> bool:
@@ -132,6 +202,8 @@ async def _async_register_services(hass: HomeAssistant, manager, coordinator) ->
         SERVICE_EXPORT_CSV,
         SERVICE_GET_BALANCE,
         SERVICE_GET_SUMMARY,
+        SERVICE_GET_TRANSFER_PLAN,
+        SERVICE_IMPORT_SPREADSHEET,
         SERVICE_REFRESH_ACCOUNTS,
         SERVICE_REFRESH_TRANSACTIONS,
         SERVICE_SET_BUDGET_LIMIT,
@@ -152,8 +224,17 @@ async def _async_register_services(hass: HomeAssistant, manager, coordinator) ->
     async def handle_refresh_transactions(call) -> dict:
         """User-triggered refresh — returns stats so automations and
         the frontend can surface "5 Konten, 243 Tx, 2 neu" instead
-        of a silent OK."""
-        await manager.async_refresh_transactions()
+        of a silent OK.
+
+        The documented ``days`` field is honoured. It used to be advertised in
+        services.yaml and then ignored, so a caller asking for a year of history
+        silently got the default window.
+        """
+        days = call.data.get("days")
+        if days:
+            await manager.async_refresh_transactions(days=int(days))
+        else:
+            await manager.async_refresh_transactions()
         # Push fresh data to all entities via coordinator
         await coordinator.async_refresh()
         return manager.get_refresh_status()
@@ -162,7 +243,10 @@ async def _async_register_services(hass: HomeAssistant, manager, coordinator) ->
         return await manager.async_get_balance()
 
     async def handle_get_summary(call) -> dict:
-        return await manager.async_get_monthly_summary()
+        return await manager.async_get_monthly_summary(
+            call.data.get("month"),
+            call.data.get("year"),
+        )
 
     async def handle_categorize(call) -> None:
         await manager.async_categorize_transactions()
@@ -208,6 +292,59 @@ async def _async_register_services(hass: HomeAssistant, manager, coordinator) ->
         manager.set_demo_mode(enabled)
         await coordinator.async_refresh()
 
+    async def handle_import_spreadsheet(call) -> dict:
+        """Import a household workbook into the budget plan.
+
+        Admin-only: an import replaces the entire plan. The path is validated
+        against Home Assistant's allowlist so the service cannot be used to
+        read arbitrary files off the host.
+        """
+        from homeassistant.exceptions import HomeAssistantError
+
+        if not call.context or not call.context.user_id:
+            raise HomeAssistantError("admin_required")
+        user = await hass.auth.async_get_user(call.context.user_id)
+        if user is None or not user.is_admin:
+            raise HomeAssistantError("admin_required")
+
+        path = str(call.data.get("path") or "").strip()
+        if not path:
+            raise HomeAssistantError("A 'path' to the .xlsx file is required")
+        if not hass.config.is_allowed_path(path):
+            raise HomeAssistantError(
+                "Path not allowed. Add its directory to allowlist_external_dirs "
+                "in configuration.yaml, or place the file in the config directory."
+            )
+
+        try:
+            report = await manager.async_import_spreadsheet(path)
+        except FileNotFoundError as err:
+            raise HomeAssistantError(f"File not found: {path}") from err
+        except (ImportError, ValueError) as err:
+            raise HomeAssistantError(str(err)) from err
+
+        await coordinator.async_refresh()
+        return report
+
+    async def handle_get_transfer_plan(call) -> dict:
+        """Return the monthly transfer choreography (cache read)."""
+        return manager.get_transfer_plan(
+            call.data.get("month"),
+            call.data.get("year"),
+        )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_IMPORT_SPREADSHEET,
+        handle_import_spreadsheet,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GET_TRANSFER_PLAN,
+        handle_get_transfer_plan,
+        supports_response=SupportsResponse.ONLY,
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_REFRESH_ACCOUNTS,

@@ -2,11 +2,24 @@
 
 Supports:
 - N household members with individual income and costs
-- 3 split modes: equal, proportional (by income), custom (manual %)
+- 4 split modes:
+  * ``pooled_equal`` (default) — the household spreadsheet's model: shared
+    costs are paid from the POOLED net income, the remainder is split equally,
+    and each person then pays their own individual fixed costs out of that
+    share. A person with negative net income is carried by the pool.
+  * ``equal`` — shared costs split evenly, each person keeps their own income
+  * ``proportional`` — shared costs split by income ratio
+  * ``custom`` — manual percentages
 - Remainder split: no split (each keeps own) or equal distribution
 - Category-level split overrides (optional)
 - Bonus detection and separation from regular income
 - Month cycle: calendar or salary-based per person
+
+The difference between ``pooled_equal`` and ``equal`` is not cosmetic. With
+incomes 4874.39 / -275.40 and shared costs 3851.56, ``equal`` yields wildly
+asymmetric pocket money (each person nets their own income minus half the
+shared costs), while ``pooled_equal`` yields 196.21 / 186.07 — the two persons
+differ only by their individual costs. The spreadsheet uses the latter.
 
 SECURITY: This module operates purely on in-memory data.
 No financial values are persisted by this module — persistence
@@ -19,7 +32,13 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from .const import DEFAULT_SPLIT_MODEL
+from .const import (
+    DEFAULT_SPLIT_MODEL,
+    SPLIT_MODEL_CUSTOM,
+    SPLIT_MODEL_EQUAL,
+    SPLIT_MODEL_POOLED_EQUAL,
+    SPLIT_MODEL_PROPORTIONAL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -60,6 +79,9 @@ class SplitResult:
     individual_costs: float
     spielgeld: float  # Free budget after all deductions
     bonus_amount: float = 0.0  # Detected bonus (not in balance)
+    # Pooled models only: this person's equal share of the pooled income that
+    # remains after shared costs, before their own individual costs.
+    remainder_share: float = 0.0
 
     @property
     def total_deductions(self) -> float:
@@ -142,6 +164,12 @@ class HouseholdModel:
             bonuses[member.name] = bonus
             adjusted_incomes[member.name] = member.net_income - bonus
 
+        # The pooled model does not distribute shared costs by ratio at all —
+        # it pools the net income FIRST, pays the shared costs out of the pool,
+        # and only then splits what is left. Handle it before the ratio modes.
+        if self.split_mode == SPLIT_MODEL_POOLED_EQUAL:
+            return self._calculate_pooled_equal(shared_costs, adjusted_incomes, bonuses, ratios)
+
         # Calculate shared cost distribution
         if shared_cost_items and self.category_overrides:
             # Category-level split: apply per-category overrides
@@ -174,21 +202,83 @@ class HouseholdModel:
 
         return results
 
+    def _calculate_pooled_equal(
+        self,
+        shared_costs: float,
+        adjusted_incomes: dict[str, float],
+        bonuses: dict[str, float],
+        ratios: dict[str, float],
+    ) -> list[SplitResult]:
+        """The household spreadsheet's split model.
+
+        ``rest_total       = pooled_net_income - shared_costs``
+        ``remainder_share  = rest_total / n``
+        ``spielgeld[P]     = remainder_share - individual_costs[P]``
+
+        Two consequences that the ratio-based modes cannot reproduce:
+
+        - a person with negative net income is carried by the pool instead of
+          ending up with an absurd negative Spielgeld
+        - the only difference between two persons' Spielgeld is their own
+          individual costs
+
+        ``remainder_mode`` is deliberately ignored here: the remainder is
+        already split equally by definition, so applying it again would flatten
+        the individual-cost differences that this model exists to preserve.
+        """
+        n = len(self.members)
+        if not n:
+            return []
+
+        pooled_income = sum(adjusted_incomes.values())
+        rest_total = pooled_income - shared_costs
+        remainder_share = rest_total / n
+        # Reported for transparency: everyone carries the same share of the
+        # shared costs in this model.
+        equal_cost_share = shared_costs / n
+
+        return [
+            SplitResult(
+                person=member.name,
+                gross_income=member.gross_income,
+                net_income=member.net_income,
+                income_ratio=ratios.get(member.name, 0.0),
+                shared_costs_share=round(equal_cost_share, 2),
+                individual_costs=member.individual_costs,
+                spielgeld=round(remainder_share - member.individual_costs, 2),
+                bonus_amount=round(bonuses.get(member.name, 0.0), 2),
+                remainder_share=round(remainder_share, 2),
+            )
+            for member in self.members
+        ]
+
     def _calculate_ratios(self) -> dict[str, float]:
-        """Calculate split ratios based on the selected mode."""
-        if self.split_mode == "equal":
-            n = len(self.members)
+        """Calculate split ratios based on the selected mode.
+
+        For ``pooled_equal`` the returned ratio is the person's actual share of
+        the pooled net income. It is informational only — the pooled model does
+        not use it to distribute costs — and it may be negative or exceed 1.0
+        when another person's net income is negative.
+        """
+        n = len(self.members)
+
+        if self.split_mode == SPLIT_MODEL_POOLED_EQUAL:
+            total = sum(m.net_income for m in self.members)
+            if total == 0:
+                return {m.name: 1.0 / n for m in self.members} if n else {}
+            return {m.name: m.net_income / total for m in self.members}
+
+        if self.split_mode == SPLIT_MODEL_EQUAL:
             return {m.name: 1.0 / n for m in self.members} if n else {}
 
-        elif self.split_mode == "proportional":
+        elif self.split_mode == SPLIT_MODEL_PROPORTIONAL:
             total_income = sum(max(m.net_income, 0) for m in self.members)
             if total_income <= 0:
                 # Fallback to equal if no positive income
-                n = len(self.members)
-                return {m.name: 1.0 / n for m in self.members}
+                return {m.name: 1.0 / n for m in self.members} if n else {}
             return {m.name: max(m.net_income, 0) / total_income for m in self.members}
 
-        elif self.split_mode == "custom":
+        elif self.split_mode == SPLIT_MODEL_CUSTOM:
             # Normalize custom ratios to sum to 1.0
             total = sum(self.custom_ratios.values())
             if total <= 0:
@@ -298,3 +388,43 @@ class HouseholdModel:
             category_overrides=config.get("category_overrides", {}),
             bonus_threshold=config.get("bonus_threshold", 0.15),
         )
+
+
+def model_from_plan(
+    plan: Any,
+    month: int,
+    year: int,
+    split_mode: str = DEFAULT_SPLIT_MODEL,
+    remainder_mode: str = "none",
+    custom_ratios: dict[str, float] | None = None,
+) -> tuple[HouseholdModel, float]:
+    """Build a household model from a :class:`~.budget_plan.BudgetPlan`.
+
+    This is the bridge between the PLAN side (what the household budgeted) and
+    the split engine. Income and individual costs come from the plan's own
+    per-person figures rather than being inferred from which account a debit
+    happened to land on.
+
+    Returns the model plus the month's net shared costs, ready to pass to
+    :meth:`HouseholdModel.calculate_split`.
+    """
+    members = [
+        HouseholdMember(
+            name=person,
+            gross_income=plan.income[person].deposit if person in plan.income else 0.0,
+            net_income=plan.income_net(person),
+            individual_costs=plan.cost_individual(person, month, year),
+            individual_cost_items=[
+                p.to_dict() for p in plan.positions_for(person) if p.is_active(month, year)
+            ],
+        )
+        for person in plan.persons
+    ]
+
+    model = HouseholdModel(
+        members=members,
+        split_mode=split_mode,
+        remainder_mode=remainder_mode,
+        custom_ratios=custom_ratios or {},
+    )
+    return model, plan.cost_shared(month, year)

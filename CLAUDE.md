@@ -6,7 +6,12 @@
 
 A secure Home Assistant add-on and integration for personal finance management. Pulls live banking data via the Enable Banking PSD2 Open Banking API (JWT-signed), auto-categorizes transactions, and provides household budget tracking with configurable multi-person split models.
 
-**Hard rule — cache vs. live fetch**: Cache reads (HTTP endpoints, sensor attributes, coordinator state) are unbounded. Live Enable-Banking calls are ONLY allowed from explicit user-triggered paths (refresh button, service call, setup bootstrap). Enable Banking enforces a 4/day ASPSP rate limit, so background polling is forbidden.
+**Hard rule — cache vs. live fetch**: Cache reads (HTTP endpoints, sensor attributes, coordinator state) are unbounded. Live Enable-Banking calls are allowed from explicit user-triggered paths (refresh button, service call, setup bootstrap) **plus exactly one scheduled refresh per day** at a configurable time (default 06:30, `daily_refresh_enabled` / `daily_refresh_hour`). Enable Banking enforces a 4/day ASPSP limit, so that daily fetch spends a quarter of the budget and leaves three for manual refreshes. Polling — any interval-based or coordinator-driven fetch — remains forbidden.
+
+**Hard rule — plan vs. actual**: The product has two sides that must not be conflated.
+- The **plan** (`budget_plan.py`) is what the household budgeted: cost positions with an explicit owner, income per person. It exists independently of any bank link.
+- The **actual** is live bank data.
+Ownership is a property of a *position*, never inferred from which account was debited — a shared subscription can be billed onward, and one person's contract can be paid from the joint account. Sign conventions are opposite on the two sides (plan: expense positive; bank: expense negative); convert with `actual_amount_to_plan_sign`.
 
 ## Architecture
 
@@ -25,10 +30,16 @@ homeassistant-finance/
 │   │   ├── __init__.py          # View registration
 │   │   ├── _helpers.py          # Manager lookup, OAuth state, setup-client factory
 │   │   ├── data.py              # /balances, /transactions, /summary
+│   │   ├── plan.py              # /budget_plan, /transfer_plan, /plan_vs_actual, /benchmark
 │   │   ├── demo.py              # Demo mode toggle
 │   │   ├── refresh.py           # /refresh, /refresh_status
 │   │   ├── setup.py             # Setup wizard + OAuth callback
 │   │   └── static.py            # Static file serving
+│   ├── budget_plan.py           # Cost-position ledger + income plan (migrated spreadsheet)
+│   ├── spreadsheet_import.py    # .xlsx → BudgetPlan migration
+│   ├── transfer_plan.py         # Monthly transfer choreography + zero-sum invariant
+│   ├── household.py             # Split engine (pooled_equal = spreadsheet model)
+│   ├── benchmark.py             # German-average comparisons (wired via manager)
 │   ├── credential_manager.py    # Fernet encryption, JWT signing key, audit log
 │   ├── enablebanking_client.py  # Enable Banking API client (PSD2, JWT RS256)
 │   ├── coordinator.py           # DataUpdateCoordinator (cache-only reads)
@@ -106,7 +117,7 @@ The add-on is a thin installer — it copies the integration code into HA's `cus
 Three-step flow: `user` (Enable Banking application_id + RSA private key) → `link_bank` (ASPSP authorization via PSU redirect) → `options` (settings). Real-time validation via Enable Banking API call during setup.
 
 ### Service API
-8 Services: `refresh_accounts`, `refresh_transactions` (both return refresh-stats dict via `SupportsResponse.OPTIONAL`), `get_balance`, `get_monthly_summary`, `categorize_transactions`, `set_budget_limit`, `export_csv`, `toggle_demo`. `refresh_transactions` is the only live-fetch entry point and always updates balances + transactions + recurring in one atomic round.
+10 Services: `refresh_accounts`, `refresh_transactions` (both return refresh-stats dict via `SupportsResponse.OPTIONAL`), `get_balance`, `get_monthly_summary`, `categorize_transactions`, `set_budget_limit`, `export_csv`, `toggle_demo`, `import_spreadsheet` (admin-only, path checked against `allowlist_external_dirs`), `get_transfer_plan`. `refresh_transactions` is the only live-fetch entry point and always updates balances + transactions + recurring in one atomic round.
 
 ### Refresh Flow (user-triggered)
 1. Frontend refresh button → `POST /api/finance_dashboard/refresh`
@@ -145,10 +156,13 @@ Cache-read endpoints (`/balances`, `/summary`, `/refresh_status`, `/transactions
 - Confirmed bonus → goes to Spielgeld, NOT into monthly balance/split calculation
 
 ### Split Model
-Three modes for cost distribution:
-- **Equal**: 50/50 (2P), 33/33/33 (3P), etc.
-- **Proportional**: based on net income ratio
+Four modes for cost distribution:
+- **Pooled equal** (default, the household spreadsheet's model): shared costs are paid from the POOLED net income, the remainder is split equally, and each person then pays their own individual fixed costs out of their share. Consequence: two persons' pocket money differs *only* by their individual costs, and a person with negative net income is carried by the pool instead of ending up deeply negative.
+- **Equal**: shared costs split evenly, each person keeps their own income
+- **Proportional**: shared costs split by net income ratio
 - **Custom**: user sets percentages manually per person
+
+`remainder_mode` is ignored in pooled mode — the remainder is already split equally there, and applying it again would flatten exactly the individual-cost differences the model exists to preserve.
 
 Additional:
 - **Remainder split**: choosable — "no split" (each keeps their rest) OR "equal distribution"
@@ -192,26 +206,34 @@ node --check custom_components/finance_dashboard/frontend/finance-dashboard-pane
 - [x] Monthly summary sensor
 - [x] Privacy-first API responses (IBAN masking, admin-only details)
 
-> Next version: **0.13.0** — audit-synthesis wave A-F (backend refactor + Polish)
+> Current version: **0.14.0** — spreadsheet migration (plan model, transfer choreography, live-path repair)
 
 ### Phase 2 — Household Budget
-- [x] N-person model with configurable split (equal/proportional/custom)
+- [x] N-person model with configurable split (pooled_equal/equal/proportional/custom)
 - [x] Personal vs. shared account assignment (at link + in options)
 - [x] Auto-detection of recurring transactions
+- [x] Cost-position ledger with explicit owner, negative positions, validity windows, buffers
+- [x] Spreadsheet migration (`import_spreadsheet` service) — reproduces the workbook exactly
+- [x] Monthly transfer choreography with enforced pass-through zero-sum invariant
+- [x] Settlement figures (who fronts how much for whom)
+- [x] Plan-vs-actual per category and per position
+- [x] Once-daily scheduled live refresh (rate-limit safe)
 - [ ] Income recognition with ±5d tolerance window
 - [ ] Bonus detection (≥15%, notification + confirmation → Spielgeld)
-- [ ] Month cycle logic (calendar vs. salary-based, per person)
+- [ ] Month cycle logic (calendar vs. salary-based, per person) — `month_cycle.py` exists but is not wired
 - [ ] Logical month assignment for recurring costs (bank day correction)
 - [x] Remainder split (no split / equal distribution)
 - [ ] Category-level split override (optional)
 - [x] Budget limits as Number entities (per category)
 - [x] Split model as Select entity (dashboard-steuerbar)
-- [ ] Budget Config Lovelace Card (slider, dropdown, live preview)
+- [ ] Cost-position editing UI (API endpoints exist; the card is read-only so far)
 - [x] 4 automation events (transaction_new, balance_changed, budget_exceeded, recurring_detected)
 - [ ] 6-month trend chart
+- [ ] Household-labour compensation — the open question the workbook itself raises ("wie reflektieren, dass einer mehr im Haushalt macht?")
 
 ### Phase 3 — Analytics + Polish (frozen — Phase 2 freeze per audit DN1=einfrieren)
-- [ ] Benchmark auto-crawl (Destatis, Bundesbank) with source attribution (text, no gauges)
+- [x] Benchmark comparison wired end-to-end with source attribution (text, no gauges)
+- [ ] Benchmark auto-crawl beyond the Destatis savings rate (the other metrics use the versioned baseline)
 - [ ] Drag & drop transaction categorization (system learns)
 - [ ] Spending trend analysis
 - [ ] CSV export service (local download, no git)

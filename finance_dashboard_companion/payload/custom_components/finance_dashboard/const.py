@@ -4,7 +4,7 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.13.1"
+VERSION = "0.14.0"
 
 # Panel
 PANEL_URL_PATH = "finance-dashboard"
@@ -177,7 +177,96 @@ REFUND_KEYWORDS = [
 ]
 
 # Household model
-DEFAULT_SPLIT_MODEL = "proportional"  # proportional, equal, custom
+SPLIT_MODEL_POOLED_EQUAL = "pooled_equal"
+SPLIT_MODEL_EQUAL = "equal"
+SPLIT_MODEL_PROPORTIONAL = "proportional"
+SPLIT_MODEL_CUSTOM = "custom"
+
+SPLIT_MODELS = [
+    SPLIT_MODEL_POOLED_EQUAL,
+    SPLIT_MODEL_EQUAL,
+    SPLIT_MODEL_PROPORTIONAL,
+    SPLIT_MODEL_CUSTOM,
+]
+
+# The household spreadsheet this integration replaces uses the pooled model:
+# shared costs are paid from the POOLED net income, the remainder is split
+# equally, and each person then pays their own individual fixed costs.
+DEFAULT_SPLIT_MODEL = SPLIT_MODEL_POOLED_EQUAL
+
+# Budget plan — the migrated spreadsheet model (cost positions + income plan).
+# Amounts live in HA .storage/ only; never in git.
+STORAGE_KEY_BUDGET_PLAN = f"{DOMAIN}_budget_plan"
+
+# Cost position ownership: a position belongs to a person by NAME, or is shared.
+# Ownership is a property of the position, not of the account it is debited from.
+OWNER_SHARED = "__shared__"
+
+# Cost position kinds
+POSITION_KIND_FIXED = "fixed"  # a recurring fixed debit
+POSITION_KIND_BUFFER = "buffer"  # budgeted variable cost: units x unit price
+POSITION_KINDS = [POSITION_KIND_FIXED, POSITION_KIND_BUFFER]
 
 # Demo mode
 SERVICE_TOGGLE_DEMO = "toggle_demo"
+
+# Budget plan services
+SERVICE_IMPORT_SPREADSHEET = "import_spreadsheet"
+SERVICE_GET_TRANSFER_PLAN = "get_transfer_plan"
+SERVICE_SET_COST_POSITION = "set_cost_position"
+SERVICE_DELETE_COST_POSITION = "delete_cost_position"
+
+# Transfer plan — a pass-through account must net to zero. Tolerance in EUR
+# absorbs rounding across per-person shares.
+TRANSFER_PLAN_ZERO_TOLERANCE = 0.02
+
+# Benchmark metrics — which planned cost categories form the numerator of each
+# comparison against the German average. Mirrors the spreadsheet's definitions:
+# housing counted rent plus utilities together, food counted both buffers.
+BENCHMARK_METRIC_SOURCES = {
+    "housing": [CATEGORY_HOUSING, CATEGORY_UTILITIES],
+    "food": [CATEGORY_FOOD],
+    "loans": [CATEGORY_LOANS],
+    "insurance": [CATEGORY_INSURANCE],
+    "transport": [CATEGORY_TRANSPORT],
+}
+
+# Water consumption cannot be derived from banking data — only the utility
+# statement knows it. Kept as a manual option so the spreadsheet's water
+# comparison survives the migration. Value is a multiple of the German average.
+OPT_WATER_RATIO = "water_consumption_ratio"
+DEFAULT_WATER_BENCHMARK = 1.0
+
+# Balance selection. Enable Banking returns ISO 20022 balance-type codes, not
+# the GoCardless camelCase names. A priority list built from camelCase names
+# never matches a real response and silently falls through to "whichever
+# balance the bank listed first" — which can be an expected or forward-available
+# balance rather than the booked one. Both spellings are listed so demo data
+# (camelCase) and live data (ISO) resolve identically.
+BALANCE_TYPE_PRIORITY = [
+    "CLBD",  # closing booked — the authoritative booked balance
+    "closingBooked",
+    "ITBD",  # interim booked
+    "interimBooked",
+    "CLAV",  # closing available
+    "closingAvailable",
+    "ITAV",  # interim available
+    "interimAvailable",
+    "OPBD",  # opening booked
+    "PRCD",  # previously closed booked
+    "XPCD",  # expected
+    "FWAV",  # forward available
+    "VALU",  # value date
+    "OTHR",
+    "INFO",
+]
+
+# Daily scheduled refresh. Exactly one live fetch per day: a quarter of the
+# 4/day/ASPSP budget, leaving three manual refreshes. Not polling — a single
+# fixed-time trigger.
+OPT_DAILY_REFRESH = "daily_refresh_enabled"
+OPT_DAILY_REFRESH_HOUR = "daily_refresh_hour"
+OPT_DAILY_REFRESH_MINUTE = "daily_refresh_minute"
+DEFAULT_DAILY_REFRESH = True
+DEFAULT_DAILY_REFRESH_HOUR = 6
+DEFAULT_DAILY_REFRESH_MINUTE = 30
