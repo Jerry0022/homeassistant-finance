@@ -34,6 +34,7 @@ All notable changes to the Finance will be documented in this file.
 - Expose `last_refresh_stats`, `is_refreshing`, `cache_age_seconds`, `cache_is_stale` — the frontend already read these keys, which never existed, so a stale cache was visually indistinguishable from fresh data
 - Honour the documented `days` field on `refresh_transactions` and month/year on `get_monthly_summary`; both were advertised and ignored
 - A "Kommentar" column header was read as a person column, so every validity window in the sheet was lost
+- The transfer plan reports amounts it cannot place on any account (`unplaced`) instead of dropping them. Without a joint account every shared position was skipped, no account ended up out of balance, and the plan declared itself balanced while omitting the largest cost block
 - sync_changelog.py appended every entry to the BOTTOM of CHANGELOG.md — its header-detection regex alternation included `$`, which matches every blank line, so the insertion point became the last blank line of the file. `--check` read the first heading and therefore reported the CHANGELOG as permanently behind while claiming each sync succeeded. Added `--repair` and re-sorted all 44 accumulated sections newest-first
 
 ## [0.13.1] — 2026-05-16

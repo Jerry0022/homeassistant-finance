@@ -344,11 +344,28 @@ ${this._renderBenchmark(escHtml)}`;
       })
       .join("");
 
-    const badge = tp.balanced
-      ? `<span class="badge ok">Durchlaufkonto geht auf 0 auf</span>`
-      : `<span class="badge warn">Plan geht nicht auf: ${Object.values(tp.imbalances || {})
-          .map((v) => eur(v))
-          .join(", ")}</span>`;
+    const unplaced = tp.unplaced || [];
+    const imbalances = Object.values(tp.imbalances || {});
+    let badge;
+    if (tp.balanced) {
+      badge = `<span class="badge ok">Durchlaufkonto geht auf 0 auf</span>`;
+    } else if (unplaced.length) {
+      // An unplaced amount is worse than an imbalance: the money has no account
+      // at all, so the plan is incomplete rather than merely off.
+      badge = `<span class="badge warn">Nicht zuordenbar: ${unplaced
+        .map((u) => eur(u.amount))
+        .join(", ")}</span>`;
+    } else {
+      badge = `<span class="badge warn">Plan geht nicht auf: ${imbalances
+        .map((v) => eur(v))
+        .join(", ")}</span>`;
+    }
+
+    const unplacedNote = unplaced.length
+      ? `<div class="empty" style="padding-top:0">${unplaced
+          .map((u) => escHtml(u.detail || u.reason))
+          .join("<br>")}</div>`
+      : "";
 
     const settle = Object.entries(tp.settlements || {})
       .filter(([, s]) => Math.abs(s.settlement_delta) > 0.5)
@@ -369,6 +386,7 @@ ${this._renderBenchmark(escHtml)}`;
       <tbody>${rows}</tbody>
     </table>
   </div>
+  ${unplacedNote}
   ${settle ? `<div class="empty" style="padding-top:0">${settle}</div>` : ""}
 </div>`;
   }

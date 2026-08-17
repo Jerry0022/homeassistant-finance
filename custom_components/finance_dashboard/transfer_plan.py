@@ -116,11 +116,19 @@ class TransferPlan:
     final_balances: dict[str, float]
     imbalances: dict[str, float]
     settlements: dict[str, dict[str, float]]
+    # Amounts that could not be placed on any account, e.g. shared costs with
+    # no joint account configured. Without this they would vanish from the plan
+    # and it would still report itself as balanced.
+    unplaced: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def balanced(self) -> bool:
-        """True when every pass-through account nets to zero."""
-        return not self.imbalances
+        """True when every pass-through account nets to zero.
+
+        An unplaced amount also counts as unbalanced: a plan that silently drops
+        the shared costs is not a balanced plan, it is an incomplete one.
+        """
+        return not self.imbalances and not self.unplaced
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize for the API."""
@@ -142,6 +150,7 @@ class TransferPlan:
             "balanced": self.balanced,
             "imbalances": {k: round(v, 2) for k, v in self.imbalances.items()},
             "settlements": self.settlements,
+            "unplaced": self.unplaced,
         }
 
 
@@ -263,13 +272,16 @@ def build_transfer_plan(
 
     Returns:
         A :class:`TransferPlan`. Never raises on an inconsistent plan — an
-        unbalanced result is reported via ``imbalances`` so the UI can show it.
+        unbalanced result is reported via ``imbalances``, and anything that could
+        not be placed on an account at all via ``unplaced``, so the UI can show
+        both instead of presenting a silently incomplete plan.
     """
     accounts = accounts_from_config(raw_accounts)
     by_id = {a.id: a for a in accounts}
     persons = list(plan.persons)
     rows: list[TransferRow] = []
     balances: dict[str, float] = {a.id: 0.0 for a in accounts}
+    unplaced: list[dict[str, Any]] = []
     order = 0
 
     def add_row(label: str, kind: str, amounts: dict[str, float]) -> None:
@@ -296,12 +308,46 @@ def build_transfer_plan(
 
     pass_through = _default_pass_through(accounts)
 
+    # A household with shared costs but no joint account has nowhere to book
+    # them. Reporting that is essential: otherwise every shared position is
+    # skipped further down, no account ends up out of balance, and the plan
+    # cheerfully declares itself balanced while omitting the largest cost block.
+    shared_net_check = plan.cost_shared(month, year)
+    if pass_through is None and abs(shared_net_check) > 0.001:
+        unplaced.append(
+            {
+                "reason": "no_shared_account",
+                "amount": round(shared_net_check, 2),
+                "detail": (
+                    "Gemeinsame Kosten können nicht gebucht werden — kein "
+                    "gemeinsames Konto konfiguriert."
+                ),
+            }
+        )
+
     # -- 1. salary lands on each person's primary account -------------------
     deposits: dict[str, float] = {}
     for person in persons:
         entry = plan.income.get(person)
         primary = _primary_for(person, accounts)
-        if not entry or not primary:
+        if primary is None:
+            # A person with no account at all cannot receive or pay anything.
+            # Their income and costs would otherwise disappear without trace.
+            missing = round(
+                (entry.deposit if entry else 0.0) + plan.cost_individual(person, month, year),
+                2,
+            )
+            if abs(missing) > 0.001:
+                unplaced.append(
+                    {
+                        "reason": "no_account_for_person",
+                        "person": person,
+                        "amount": missing,
+                        "detail": f"Kein Konto für {person} zugeordnet.",
+                    }
+                )
+            continue
+        if not entry:
             continue
         deposits[primary.id] = deposits.get(primary.id, 0.0) + entry.deposit
     add_row("Einzahlung Gehalt", ROW_DEPOSIT, deposits)
@@ -387,11 +433,25 @@ def build_transfer_plan(
         for position in plan.active_positions(month, year):
             if not predicate(position):
                 continue
-            debit_account = _resolve_debit_account(position, accounts, by_id)
-            if not debit_account:
-                continue
             amount = position.effective_amount(month, year)
             if not amount:
+                continue
+            debit_account = _resolve_debit_account(position, accounts, by_id)
+            if not debit_account:
+                # No account can pay this position. Record it instead of
+                # dropping it — a silently omitted debit both understates the
+                # month and lets the zero-sum check pass on an incomplete plan.
+                unplaced.append(
+                    {
+                        "reason": "no_debit_account",
+                        "position": position.name,
+                        "owner": position.owner,
+                        "amount": round(amount, 2),
+                        "detail": (
+                            f"Kein Konto für die Abbuchung von {position.name!r} gefunden."
+                        ),
+                    }
+                )
                 continue
             group[debit_account.id] = group.get(debit_account.id, 0.0) - amount
         return group
@@ -447,6 +507,15 @@ def build_transfer_plan(
                 "settlement_delta": round(actual - entitled, 2),
             }
 
+    for entry in unplaced:
+        _LOGGER.warning(
+            "Transfer plan %04d-%02d: %s (%.2f EUR unplaced)",
+            year,
+            month,
+            entry.get("detail", entry.get("reason", "unplaced amount")),
+            entry.get("amount", 0.0),
+        )
+
     return TransferPlan(
         month=month,
         year=year,
@@ -455,4 +524,5 @@ def build_transfer_plan(
         final_balances={k: round(v, 2) for k, v in balances.items()},
         imbalances=imbalances,
         settlements=settlements,
+        unplaced=unplaced,
     )

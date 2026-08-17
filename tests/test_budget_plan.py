@@ -326,6 +326,45 @@ class TestTransferPlan:
         tp = self._build(plan)
         assert tp.balanced, f"unbalanced: {tp.imbalances}"
 
+    def test_shared_costs_without_a_joint_account_are_reported(self):
+        # Without a pass-through account every shared position is skipped, no
+        # account ends up out of balance, and the plan would declare itself
+        # balanced while omitting the largest cost block.
+        personal_only = [
+            {"id": "a_main", "name": "A main", "person": "A", "type": "personal"},
+            {"id": "b_main", "name": "B main", "person": "B", "type": "personal"},
+        ]
+        plan = _plan()
+        model, shared = model_from_plan(
+            plan, MONTH, YEAR, split_mode=SPLIT_MODEL_POOLED_EQUAL
+        )
+        tp = build_transfer_plan(
+            plan, personal_only, MONTH, YEAR, split_results=model.calculate_split(shared)
+        )
+        assert not tp.balanced
+        reasons = {u["reason"] for u in tp.unplaced}
+        assert "no_shared_account" in reasons
+
+    def test_person_without_an_account_is_reported(self):
+        no_account_for_b = [
+            {"id": "a_main", "name": "A main", "person": "A", "type": "personal"},
+            {"id": "joint", "name": "Joint", "person": "A", "type": "shared"},
+        ]
+        plan = _plan()
+        model, shared = model_from_plan(
+            plan, MONTH, YEAR, split_mode=SPLIT_MODEL_POOLED_EQUAL
+        )
+        tp = build_transfer_plan(
+            plan, no_account_for_b, MONTH, YEAR, split_results=model.calculate_split(shared)
+        )
+        unplaced = [u for u in tp.unplaced if u["reason"] == "no_account_for_person"]
+        assert unplaced
+        assert unplaced[0]["person"] == "B"
+
+    def test_a_complete_plan_reports_nothing_unplaced(self):
+        tp = self._build()
+        assert tp.unplaced == []
+
     def test_imbalance_is_reported_not_hidden(self):
         # Nobody can fund the shared costs -> the pass-through cannot balance.
         plan = BudgetPlan()
