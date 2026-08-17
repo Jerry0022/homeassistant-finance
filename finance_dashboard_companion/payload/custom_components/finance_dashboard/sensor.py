@@ -25,7 +25,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import BALANCE_TYPE_PRIORITY, DOMAIN
 from .coordinator import FinanceDashboardCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -140,18 +140,22 @@ class AccountBalanceSensor(CoordinatorEntity[FinanceDashboardCoordinator], Senso
 
     @staticmethod
     def _pick_balance(balances: list[dict[str, Any]]) -> dict[str, Any] | None:
-        """Pick the most useful balance type."""
-        priority = [
-            "closingBooked",
-            "interimAvailable",
-            "interimBooked",
-            "closingAvailable",
-        ]
-        by_type = {b["balanceType"]: b for b in balances}
-        for bt in priority:
-            if bt in by_type:
-                return by_type[bt]
-        return balances[0] if balances else None
+        """Pick the most useful balance type.
+
+        Matches both the ISO 20022 codes the live API returns and the camelCase
+        names demo data uses, case-insensitively — see
+        :data:`BALANCE_TYPE_PRIORITY`. Falling through to ``balances[0]``
+        remains the last resort, but is now genuinely rare rather than the
+        normal path.
+        """
+        if not balances:
+            return None
+        by_type = {str(b.get("balanceType", "")).upper(): b for b in balances}
+        for balance_type in BALANCE_TYPE_PRIORITY:
+            match = by_type.get(balance_type.upper())
+            if match is not None:
+                return match
+        return balances[0]
 
 
 class TotalBalanceSensor(CoordinatorEntity[FinanceDashboardCoordinator], SensorEntity):
@@ -241,10 +245,17 @@ class MonthlySummarySensor(CoordinatorEntity[FinanceDashboardCoordinator], Senso
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return full summary breakdown."""
+        """Return full summary breakdown.
+
+        Includes the refresh status. Without it the frontend has no durable way
+        to tell a failed refresh from a successful one: the transient toast from
+        the POST response is gone after a page reload, and a stale cache then
+        looks exactly like fresh data.
+        """
         if not self.coordinator.data:
             return {}
         summary = self.coordinator.data.get("summary", {})
+        status = self.coordinator.data.get("refresh_status", {}) or {}
         return {
             "total_income": summary.get("total_income", 0),
             "total_expenses": summary.get("total_expenses", 0),
@@ -258,4 +269,10 @@ class MonthlySummarySensor(CoordinatorEntity[FinanceDashboardCoordinator], Senso
             "recurring": summary.get("recurring", []),
             "last_refresh": summary.get("last_refresh"),
             "rate_limited_until": summary.get("rate_limited_until"),
+            # Refresh transparency — consumed by the panel header.
+            "last_refresh_stats": status.get("stats", {}),
+            "is_refreshing": status.get("is_refreshing", False),
+            "cache_age_seconds": status.get("cache_age_seconds"),
+            "cache_is_stale": status.get("cache_is_stale", False),
+            "demo_mode": status.get("demo_mode", False),
         }

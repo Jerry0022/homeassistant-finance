@@ -2,6 +2,59 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.14.0] — 2026-08-17
+
+### Added
+- Budget_plan.py — cost-position ledger, the model the household spreadsheet is built on. Positions carry an explicit owner (person or shared), a signed amount (negative = reimbursement billed onward), a kind (fixed or buffer with units x unit price), an inclusive YYYY-MM validity window, and an optional debit account independent of the owner
+- Spreadsheet_import.py — migrates a `Kalkulation Haushalt.xlsx` workbook into the plan. Recovers buffer factors from formulas (`=80*4.5`), validity windows from prose comments ("bis inkl. April 2027"), and cross-checks recomputed net income against the sheet's own stated net, reporting any mismatch
+- Transfer_plan.py — reproduces the workbook's monthly transfer choreography (accounts x ordered steps) and enforces its central invariant in code: a pass-through account must net to zero. Contributions are liquidity-aware, so a person whose income cannot cover their share contributes what they have and the rest is carried by those with a surplus
+- `settlement_delta` per person — how much one person is fronting for another. The spreadsheet contained this implicitly as the gap between account balance and entitled pocket money; it is now explicit
+- `pooled_equal` split model — shared costs paid from POOLED net income, remainder split equally, each person then paying their own individual costs. Now the default. The previous models computed a materially different result and could not carry a person with negative net income
+- Plan-vs-actual comparison per category and per position, with unmatched positions reported as unmatched rather than shown as zero
+- BenchmarkProvider wired up — it was dead code with zero imports repo-wide. The "ours" side is now computed from the plan, plus a manual water-consumption metric (not derivable from banking data)
+- /budget_plan, /transfer_plan, /plan_vs_actual, /benchmark, plus admin-gated position/income/import endpoints. Import paths are validated against `allowlist_external_dirs`
+- Fd-budget-plan card — income breakdown, cost ledger grouped by owner, pocket money, transfer table with the zero-sum badge, benchmark comparison
+- Once-daily scheduled refresh at a configurable time (default 06:30). One call of the 4/day/ASPSP budget, leaving three for manual refreshes
+- `import_spreadsheet` (admin-only, allowlist-checked) and `get_transfer_plan`
+
+### Changed
+- Test: +81 tests covering the plan model, the split invariants, transfer-plan balancing, and the Enable Banking normalization layer that had no coverage at all — total 185 → 266, all green
+- Chore(deps): openpyxl>=3.1.0 for spreadsheet import
+
+### Fixed
+- Transaction fetch could never parse a real Enable Banking response. The API returns `{"transactions": [...], "continuation_key": ...}` — a LIST — while the client called `.get("booked")` on it, raising AttributeError for every account. Swallowed by a broad handler, so refreshes reported success over an empty cache
+- Derive the amount sign from `credit_debit_indicator` (CRDT/DBDT). It appeared nowhere in the codebase, so every transaction would have read as income with total expenses stuck at 0
+- Honour per-transaction `status` (BOOK/PDNG) instead of hardcoding buckets; join `remittance_information`, which is an array, not a string
+- Follow `continuation_key` pagination, capped at 10 pages with the truncation logged rather than silent
+- Pass ISO 20022 balance codes through (CLBD/ITAV/...) and match them in the sensor's priority list, which previously listed only camelCase names and could never match — so each account showed whichever balance the bank happened to list first
+- HA start crashed on every restart — a sync lambda calling `hass.async_create_task` from a worker thread tripped HA's thread-safety guard, the coroutine was never awaited, and the transaction cache was therefore never loaded. Entities stayed empty until a manual refresh
+- Merge each fetch window into the cached history instead of replacing it. Every refresh previously truncated history to the rolling window, making multi-month views impossible to populate
+- Only stamp `_last_refresh` when at least one account answered. A total failure used to look identical to a success, and the false timestamp survived restarts via persistence
+- Tag pending transactions with account/person like booked ones
+- Expose `last_refresh_stats`, `is_refreshing`, `cache_age_seconds`, `cache_is_stale` — the frontend already read these keys, which never existed, so a stale cache was visually indistinguishable from fresh data
+- Honour the documented `days` field on `refresh_transactions` and month/year on `get_monthly_summary`; both were advertised and ignored
+- A "Kommentar" column header was read as a person column, so every validity window in the sheet was lost
+- The transfer plan reports amounts it cannot place on any account (`unplaced`) instead of dropping them. Without a joint account every shared position was skipped, no account ended up out of balance, and the plan declared itself balanced while omitting the largest cost block
+- sync_changelog.py appended every entry to the BOTTOM of CHANGELOG.md — its header-detection regex alternation included `$`, which matches every blank line, so the insertion point became the last blank line of the file. `--check` read the first heading and therefore reported the CHANGELOG as permanently behind while claiming each sync succeeded. Added `--repair` and re-sorted all 44 accumulated sections newest-first
+
+## [0.13.1] — 2026-05-16
+
+### Added
+- Global :focus-visible outline rings + prefers-reduced-motion override in SHARED_CSS
+- Aria-expanded on transactions-log show-more toggle
+- New design tokens in SHARED_CSS (--r-sm/md, --sh-sm/md/lg, --fs-sm/md/lg/xl, --lh-tight/normal, --sp-xs/sm/md/lg/xl) for upcoming token-migration polish
+
+### Changed
+- Remove unused TRANSACTION_REFRESH_STALENESS constant + timedelta import
+- Test: +20 unit tests for events.py (11) + export.py (9 incl. OSError/OverflowError monkeypatch paths) — total 165 → 185, all green
+- Chore(lint): ruff sweep across tests/ — 44 fixes (import order, unused imports, datetime.UTC migration)
+- Chore(payload): re-sync addon mirror (incl. pre-existing UTC drift from v0.13.0)
+
+### Fixed
+- RateLimitExceeded on /setup/complete surfaces as error_type=rate_limited in HTTP 200 body (matches setup-wizard contract; was previously masked as generic failure)
+- Categorizer None-guard with WARNING log — refresh races ahead of init fall back to category="other" instead of crashing
+- Cleanup of old CSV exports swallows OSError/ValueError/OverflowError and logs cause (no more silent bare-except)
+
 ## [0.13.0] — 2026-04-25
 
 ### Added
@@ -63,6 +116,7 @@ All notable changes to the Finance will be documented in this file.
 
 ### Changed
 - Register `fd-transactions-log.js` in `LOVELACE_COMPONENTS`, append component after `fd-recurring-list` in the shell's component tree
+
 ## [0.12.1] — 2026-04-24
 
 ### Changed
@@ -81,6 +135,130 @@ All notable changes to the Finance will be documented in this file.
 - `BudgetLimitNumber` now inherits from `RestoreEntity` — user-set budget limits survive HA restarts instead of silently resetting to 0
 - `SplitModelSelect` and `RemainderModeSelect` listen for config-entry updates and re-sync their current option when the options flow changes the stored key — no more stale display after external option changes
 - `/demo/toggle` returns HTTP 503 when no manager is configured instead of toggling a dead `hass.data` flag that nothing reads
+
+## [0.12.0] — 2026-04-23
+
+### Added
+- New `fd-transactions-log` card shows imported (cached) transactions after at least one bank is linked and a refresh ran — date, counterparty, description, category badge, account, coloured amount, "vorgemerkt" flag for pending items; collapses to 25 rows with "Alle N anzeigen" toggle (cap 100 from the API)
+- `fd-data-provider` caches `/api/finance_dashboard/transactions` in-memory, refetches on user-triggered refresh and on first rebuild with linked accounts — entity-only state changes no longer trigger redundant fetches, and the endpoint is cache-read only (unbounded-safe, no Enable Banking call)
+
+## [0.11.1] — 2026-04-20
+
+### Fixed
+- Btn-demo now renders neutral/ghost by default — orange fill only when demo mode is active (btn-demo-active), preventing false "already in demo" appearance
+- Refresh race eliminated — after POST /refresh, poll for entity state change (≤5s, 500ms ticks) before calling _rebuild(), avoiding stale hass.states read that returned accountCount=0 and flashed onboarding screen
+- _onHassChanged no longer advances _prevStateHash when _loading=true; instead sets _pendingRebuild=true so _rebuild retries immediately after the in-flight rebuild finishes, closing the concurrent-rebuild deadlock
+
+## [0.11.0] — 2026-04-20
+
+### Added
+- Serialise user-triggered refreshes with `asyncio.Lock` to prevent double-click concurrent fetches
+- Persist `rate_limited_until` and `last_refresh_stats` across HA restart so the 4/day counter is not lost on reboot
+- Track structured refresh stats (outcome, accounts, transactions, new, duration_ms, errors) exposed via `manager.get_refresh_status()`
+- New `POST /api/finance_dashboard/refresh` endpoint — the single user-triggered live-fetch entry point, returns stats synchronously
+- New `GET /api/finance_dashboard/refresh_status` — cache-only polling endpoint, unbounded reads allowed
+- `refresh_transactions` service now uses `SupportsResponse.OPTIONAL` and returns stats so automations can react to the outcome
+- Refresh_transactions refreshes balances in the same user-triggered round — one click, one cache update
+- Refresh button now shows a result toast ("5 Konten, 243 Transaktionen, 2 neu in 3.1s" / rate-limit / partial / error)
+- Header timestamp shows live cache age ("Zuletzt 14:23 · vor 2 Std") and updates every minute
+- Rate-limit and loading states surfaced clearly next to the refresh button instead of silent "Aktualisieren" reverts
+
+### Changed
+- Remove staleness-based auto-refresh — coordinator is now a pure cache projection, live fetches only via dedicated endpoint
+- Docs(claude-md): replace stale GoCardless references with Enable Banking, document cache vs. live-fetch contract
+
+### Fixed
+- Separate cache-reads from live API fetches — `manager.async_get_balance()` now returns cached balances only (was hitting Enable Banking on every HTTP `/balances` call, burning the 4/day/ASPSP rate limit)
+- "Noch keine Daten" state now has explicit styling + hint to click Aktualisieren
+
+## [0.10.1] — 2026-04-19
+
+### Fixed
+- Propagate OAuth callback errors through /setup/status so the wizard surfaces them within 2s instead of timing out after 5min
+- Hard-fail /setup/authorize when callback URL is HTTP (Enable Banking requires pre-registered HTTPS redirect)
+- Trigger one coordinator refresh after deferred entry reload so entities populate immediately after bank link
+- Raise Repairs issue on missing or invalid Enable Banking credentials, auto-clear on recovery
+- Wizard polling stops on setup_error and shows the message instead of waiting for timeout
+- Data provider subscribes to entity_registry_updated events so newly created sensors appear without race-prone 4s timer
+
+## [0.10.0] — 2026-04-12
+
+### Added
+- Add inline bank connection wizard as modal overlay (4-step flow: institution search, bank authorization with polling, account assignment, success)
+- Add "+ Konto" button in header to open wizard from anywhere
+
+### Changed
+- Replace onboarding "Einstellungen" link with inline "Bankkonto verbinden" button
+
+### Fixed
+- Replace fragile entity_id prefix matching with HA Entity Registry lookup — entities are now found by platform + unique_id regardless of HA-generated entity_ids
+- Add 4s delay before refreshRegistry() after setup complete to wait for HA config entry reload
+- Add https scheme validation on auth URLs to prevent XSS via javascript: scheme
+- Update institution filter to only re-render list container (prevents cursor jump)
+
+## [0.9.2] — 2026-04-11
+
+### Added
+- Add onboarding welcome screen with "Demo starten" CTA when no bank accounts connected
+- Show "Noch keine Daten" timestamp fallback when no refresh has occurred
+- Make Demo button more prominent with visible background fill
+
+### Changed
+- Remove automatic banking API calls on HA startup — coordinator now loads from cache only, no external calls until user clicks "Aktualisieren"
+- Remove _first_update force-refresh flag from coordinator — staleness check is sufficient
+- Remove automatic API fallback in _rebuild() — /summary endpoint only called on explicit user refresh, not on every entity change
+
+### Fixed
+- Handle loading state in _onData to prevent clearing content during demo toggle
+
+## [0.9.1] — 2026-04-07
+
+### Added
+- Chore: sync addon payload
+
+### Changed
+- Chore: sync translations (en.json, de.json) with new issue description
+
+### Fixed
+- Add missing issue-level description to strings.json — Repairs card had no body text, rendering it invisible in some HA versions
+- Add is_persistent=True to ir.async_create_issue — prevents HA from discarding the issue during internal operations
+- Wrap synchronous file I/O (exists/read_text/unlink) in async_add_executor_job — HA 2024+ blocks or warns on sync I/O in event loop
+- Return None for unknown issue_ids instead of generic RepairsFlow()
+
+## [0.9.0] — 2026-04-05
+
+### Added
+- Full demo mode with realistic German banking data (3 accounts, ~35 transactions, household split, recurring patterns)
+- Toggle via UI button (admin-only), service call, or options flow — persists across HA restarts
+- Manual-only API refresh — coordinator update_interval=None, data only updates on explicit user action
+- Demo toggle button with DEMO badge, aria-pressed accessibility, mobile breakpoint
+
+### Fixed
+- Initial coordinator refresh now works on config entry reloads (not just first HA start)
+- Shutdown no longer overwrites real transaction cache when demo mode is active
+- AttributeError in DemoToggleView coordinator lookup — null-safe access pattern
+- GoCardless reference replaced with Enable Banking in services.yaml
+- Removed dead COORDINATOR_UPDATE_INTERVAL constant and corrected all docstrings
+- Rapid-click guard and loading state for demo API calls
+- DemoMode flag propagated in all data events for consistent UI state
+
+## [0.8.1] — 2026-04-02
+
+### Added
+- Chore: add .playwright-mcp/ to .gitignore
+
+## [0.8.0] — 2026-03-28
+
+### Changed
+- Decompose monolithic panel into 10 web components (fd-data-provider, fd-header, fd-stats-row, fd-stat-card, fd-household-section, fd-person-card, fd-category-section, fd-donut-chart, fd-cost-distribution, fd-recurring-list)
+- Entity-first data strategy — fd-data-provider reads HA sensor/number/select entities, falls back to API for household+recurring
+- Panel shell reduced from 507 lines to ~120 lines
+- Docs: ARCHITECTURE-FRONTEND.md added with component hierarchy, data flow, entity table, event system
+
+### Fixed
+- Coordinator force-refreshes transactions on first cycle — prevents stale cache showing 0,00 EUR
+- Account settings API now persists `person` field for household assignment
+- Monthly summary sensor exposes fixed_costs, variable_costs, household, recurring attributes
 
 ## [0.7.8] — 2026-03-28
 
@@ -107,6 +285,29 @@ All notable changes to the Finance will be documented in this file.
 
 ### Fixed
 - XSS protection for user-provided names
+
+## [0.7.6] — 2026-03-28
+
+
+### Added
+- Coordinator refreshes transactions only when cache is stale (>6 h), balances every 10 min
+
+## [0.7.5] — 2026-03-27
+
+### Fixed
+- Expose config entry to API views (entry key was never set)
+- Auto-refresh transactions on HA startup (summary panel showed zeros)
+
+## [0.7.4] — 2026-03-26
+
+### Added
+- **Changes:** feat(frontend): status chip replaces refresh button
+- New `<finance-status-chip>` Lovelace component with 4 visual states (idle/loading/success/error)
+- Register status chip JS as Lovelace extra module
+
+### Changed
+- **Branch:** claude/upbeat-davinci
+- Panel header uses status chip instead of refresh button + dot indicator
 
 ## [0.7.3] — 2026-03-26
 
@@ -306,169 +507,3 @@ All notable changes to the Finance will be documented in this file.
 - Full EN/DE translations for all config flow steps
 
 ## [0.1.0] — 2026-03-24
-
-## [0.7.4] — 2026-03-26
-
-### Added
-- **Changes:** feat(frontend): status chip replaces refresh button
-- New `<finance-status-chip>` Lovelace component with 4 visual states (idle/loading/success/error)
-- Register status chip JS as Lovelace extra module
-
-### Changed
-- **Branch:** claude/upbeat-davinci
-- Panel header uses status chip instead of refresh button + dot indicator
-
-## [0.7.5] — 2026-03-27
-
-### Fixed
-- Expose config entry to API views (entry key was never set)
-- Auto-refresh transactions on HA startup (summary panel showed zeros)
-
-## [0.7.6] — 2026-03-28
-
-
-### Added
-- Coordinator refreshes transactions only when cache is stale (>6 h), balances every 10 min
-
-## [0.8.0] — 2026-03-28
-
-### Changed
-- Decompose monolithic panel into 10 web components (fd-data-provider, fd-header, fd-stats-row, fd-stat-card, fd-household-section, fd-person-card, fd-category-section, fd-donut-chart, fd-cost-distribution, fd-recurring-list)
-- Entity-first data strategy — fd-data-provider reads HA sensor/number/select entities, falls back to API for household+recurring
-- Panel shell reduced from 507 lines to ~120 lines
-- Docs: ARCHITECTURE-FRONTEND.md added with component hierarchy, data flow, entity table, event system
-
-### Fixed
-- Coordinator force-refreshes transactions on first cycle — prevents stale cache showing 0,00 EUR
-- Account settings API now persists `person` field for household assignment
-- Monthly summary sensor exposes fixed_costs, variable_costs, household, recurring attributes
-
-## [0.8.1] — 2026-04-02
-
-### Added
-- Chore: add .playwright-mcp/ to .gitignore
-
-## [0.9.0] — 2026-04-05
-
-### Added
-- Full demo mode with realistic German banking data (3 accounts, ~35 transactions, household split, recurring patterns)
-- Toggle via UI button (admin-only), service call, or options flow — persists across HA restarts
-- Manual-only API refresh — coordinator update_interval=None, data only updates on explicit user action
-- Demo toggle button with DEMO badge, aria-pressed accessibility, mobile breakpoint
-
-### Fixed
-- Initial coordinator refresh now works on config entry reloads (not just first HA start)
-- Shutdown no longer overwrites real transaction cache when demo mode is active
-- AttributeError in DemoToggleView coordinator lookup — null-safe access pattern
-- GoCardless reference replaced with Enable Banking in services.yaml
-- Removed dead COORDINATOR_UPDATE_INTERVAL constant and corrected all docstrings
-- Rapid-click guard and loading state for demo API calls
-- DemoMode flag propagated in all data events for consistent UI state
-
-## [0.9.1] — 2026-04-07
-
-### Added
-- Chore: sync addon payload
-
-### Changed
-- Chore: sync translations (en.json, de.json) with new issue description
-
-### Fixed
-- Add missing issue-level description to strings.json — Repairs card had no body text, rendering it invisible in some HA versions
-- Add is_persistent=True to ir.async_create_issue — prevents HA from discarding the issue during internal operations
-- Wrap synchronous file I/O (exists/read_text/unlink) in async_add_executor_job — HA 2024+ blocks or warns on sync I/O in event loop
-- Return None for unknown issue_ids instead of generic RepairsFlow()
-
-## [0.9.2] — 2026-04-11
-
-### Added
-- Add onboarding welcome screen with "Demo starten" CTA when no bank accounts connected
-- Show "Noch keine Daten" timestamp fallback when no refresh has occurred
-- Make Demo button more prominent with visible background fill
-
-### Changed
-- Remove automatic banking API calls on HA startup — coordinator now loads from cache only, no external calls until user clicks "Aktualisieren"
-- Remove _first_update force-refresh flag from coordinator — staleness check is sufficient
-- Remove automatic API fallback in _rebuild() — /summary endpoint only called on explicit user refresh, not on every entity change
-
-### Fixed
-- Handle loading state in _onData to prevent clearing content during demo toggle
-
-## [0.10.0] — 2026-04-12
-
-### Added
-- Add inline bank connection wizard as modal overlay (4-step flow: institution search, bank authorization with polling, account assignment, success)
-- Add "+ Konto" button in header to open wizard from anywhere
-
-### Changed
-- Replace onboarding "Einstellungen" link with inline "Bankkonto verbinden" button
-
-### Fixed
-- Replace fragile entity_id prefix matching with HA Entity Registry lookup — entities are now found by platform + unique_id regardless of HA-generated entity_ids
-- Add 4s delay before refreshRegistry() after setup complete to wait for HA config entry reload
-- Add https scheme validation on auth URLs to prevent XSS via javascript: scheme
-- Update institution filter to only re-render list container (prevents cursor jump)
-
-## [0.10.1] — 2026-04-19
-
-### Fixed
-- Propagate OAuth callback errors through /setup/status so the wizard surfaces them within 2s instead of timing out after 5min
-- Hard-fail /setup/authorize when callback URL is HTTP (Enable Banking requires pre-registered HTTPS redirect)
-- Trigger one coordinator refresh after deferred entry reload so entities populate immediately after bank link
-- Raise Repairs issue on missing or invalid Enable Banking credentials, auto-clear on recovery
-- Wizard polling stops on setup_error and shows the message instead of waiting for timeout
-- Data provider subscribes to entity_registry_updated events so newly created sensors appear without race-prone 4s timer
-
-## [0.11.0] — 2026-04-20
-
-### Added
-- Serialise user-triggered refreshes with `asyncio.Lock` to prevent double-click concurrent fetches
-- Persist `rate_limited_until` and `last_refresh_stats` across HA restart so the 4/day counter is not lost on reboot
-- Track structured refresh stats (outcome, accounts, transactions, new, duration_ms, errors) exposed via `manager.get_refresh_status()`
-- New `POST /api/finance_dashboard/refresh` endpoint — the single user-triggered live-fetch entry point, returns stats synchronously
-- New `GET /api/finance_dashboard/refresh_status` — cache-only polling endpoint, unbounded reads allowed
-- `refresh_transactions` service now uses `SupportsResponse.OPTIONAL` and returns stats so automations can react to the outcome
-- Refresh_transactions refreshes balances in the same user-triggered round — one click, one cache update
-- Refresh button now shows a result toast ("5 Konten, 243 Transaktionen, 2 neu in 3.1s" / rate-limit / partial / error)
-- Header timestamp shows live cache age ("Zuletzt 14:23 · vor 2 Std") and updates every minute
-- Rate-limit and loading states surfaced clearly next to the refresh button instead of silent "Aktualisieren" reverts
-
-### Changed
-- Remove staleness-based auto-refresh — coordinator is now a pure cache projection, live fetches only via dedicated endpoint
-- Docs(claude-md): replace stale GoCardless references with Enable Banking, document cache vs. live-fetch contract
-
-### Fixed
-- Separate cache-reads from live API fetches — `manager.async_get_balance()` now returns cached balances only (was hitting Enable Banking on every HTTP `/balances` call, burning the 4/day/ASPSP rate limit)
-- "Noch keine Daten" state now has explicit styling + hint to click Aktualisieren
-
-## [0.11.1] — 2026-04-20
-
-### Fixed
-- Btn-demo now renders neutral/ghost by default — orange fill only when demo mode is active (btn-demo-active), preventing false "already in demo" appearance
-- Refresh race eliminated — after POST /refresh, poll for entity state change (≤5s, 500ms ticks) before calling _rebuild(), avoiding stale hass.states read that returned accountCount=0 and flashed onboarding screen
-- _onHassChanged no longer advances _prevStateHash when _loading=true; instead sets _pendingRebuild=true so _rebuild retries immediately after the in-flight rebuild finishes, closing the concurrent-rebuild deadlock
-
-## [0.12.0] — 2026-04-23
-
-### Added
-- New `fd-transactions-log` card shows imported (cached) transactions after at least one bank is linked and a refresh ran — date, counterparty, description, category badge, account, coloured amount, "vorgemerkt" flag for pending items; collapses to 25 rows with "Alle N anzeigen" toggle (cap 100 from the API)
-- `fd-data-provider` caches `/api/finance_dashboard/transactions` in-memory, refetches on user-triggered refresh and on first rebuild with linked accounts — entity-only state changes no longer trigger redundant fetches, and the endpoint is cache-read only (unbounded-safe, no Enable Banking call)
-
-## [0.13.1] — 2026-05-16
-
-### Added
-- Global :focus-visible outline rings + prefers-reduced-motion override in SHARED_CSS
-- Aria-expanded on transactions-log show-more toggle
-- New design tokens in SHARED_CSS (--r-sm/md, --sh-sm/md/lg, --fs-sm/md/lg/xl, --lh-tight/normal, --sp-xs/sm/md/lg/xl) for upcoming token-migration polish
-
-### Changed
-- Remove unused TRANSACTION_REFRESH_STALENESS constant + timedelta import
-- Test: +20 unit tests for events.py (11) + export.py (9 incl. OSError/OverflowError monkeypatch paths) — total 165 → 185, all green
-- Chore(lint): ruff sweep across tests/ — 44 fixes (import order, unused imports, datetime.UTC migration)
-- Chore(payload): re-sync addon mirror (incl. pre-existing UTC drift from v0.13.0)
-
-### Fixed
-- RateLimitExceeded on /setup/complete surfaces as error_type=rate_limited in HTTP 200 body (matches setup-wizard contract; was previously masked as generic failure)
-- Categorizer None-guard with WARNING log — refresh races ahead of init fall back to category="other" instead of crashing
-- Cleanup of old CSV exports swallows OSError/ValueError/OverflowError and logs cause (no more silent bare-except)
-

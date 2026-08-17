@@ -4,17 +4,58 @@ refresh_accounts:
 
 refresh_transactions:
   name: Refresh Transactions
-  description: Fetch latest transactions for all linked accounts.
+  description: >-
+    Fetch latest transactions for all linked accounts. Counts against Enable
+    Banking's limit of 4 calls per day per bank.
   fields:
     days:
       name: Days
-      description: Number of days to fetch (default 30).
+      description: Number of days to fetch (default 90). Older cached transactions are kept.
       required: false
-      default: 30
+      default: 90
       selector:
         number:
           min: 1
           max: 365
+          mode: box
+
+import_spreadsheet:
+  name: Import Household Spreadsheet
+  description: >-
+    Import a household calculation workbook (.xlsx) into the budget plan.
+    Replaces the current plan. Admin only. The file's directory must be listed
+    in allowlist_external_dirs, or the file must sit in the config directory.
+  fields:
+    path:
+      name: File path
+      description: Absolute path to the .xlsx workbook.
+      required: true
+      selector:
+        text:
+
+get_transfer_plan:
+  name: Get Transfer Plan
+  description: >-
+    Return the monthly transfer choreography — which amount to move between
+    which accounts, and each person's remaining pocket money.
+  fields:
+    month:
+      name: Month
+      description: Month number (1-12). Defaults to current month.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 12
+          mode: box
+    year:
+      name: Year
+      description: Year. Defaults to current year.
+      required: false
+      selector:
+        number:
+          min: 2020
+          max: 2100
           mode: box
 
 get_balance:

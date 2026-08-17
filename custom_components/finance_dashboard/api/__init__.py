@@ -23,6 +23,15 @@ from .data import (
     FinanceDashboardTransferChainsView,
 )
 from .demo import FinanceDashboardDemoDataView, FinanceDashboardDemoToggleView
+from .plan import (
+    FinanceDashboardBenchmarkView,
+    FinanceDashboardBudgetPlanView,
+    FinanceDashboardPlanImportView,
+    FinanceDashboardPlanIncomeView,
+    FinanceDashboardPlanPositionView,
+    FinanceDashboardPlanVsActualView,
+    FinanceDashboardTransferPlanView,
+)
 from .refresh import (
     FinanceDashboardRefreshStatusView,
     FinanceDashboardRefreshTriggerView,
@@ -59,6 +68,14 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
     "FinanceDashboardTransactionsView",
     "FinanceDashboardSummaryView",
     "FinanceDashboardTransferChainsView",
+    # Budget plan (migrated spreadsheet model)
+    "FinanceDashboardBudgetPlanView",
+    "FinanceDashboardTransferPlanView",
+    "FinanceDashboardPlanVsActualView",
+    "FinanceDashboardBenchmarkView",
+    "FinanceDashboardPlanPositionView",
+    "FinanceDashboardPlanIncomeView",
+    "FinanceDashboardPlanImportView",
     # Refresh
     "FinanceDashboardRefreshStatusView",
     "FinanceDashboardRefreshTriggerView",
@@ -89,4 +106,12 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardTransferChainsView())
     hass.http.register_view(FinanceDashboardDemoToggleView())
     hass.http.register_view(FinanceDashboardDemoDataView())
+    # Budget plan endpoints (migrated spreadsheet model)
+    hass.http.register_view(FinanceDashboardBudgetPlanView())
+    hass.http.register_view(FinanceDashboardTransferPlanView())
+    hass.http.register_view(FinanceDashboardPlanVsActualView())
+    hass.http.register_view(FinanceDashboardBenchmarkView())
+    hass.http.register_view(FinanceDashboardPlanPositionView())
+    hass.http.register_view(FinanceDashboardPlanIncomeView())
+    hass.http.register_view(FinanceDashboardPlanImportView())
     _LOGGER.debug("Finance API endpoints registered")

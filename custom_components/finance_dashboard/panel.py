@@ -28,6 +28,7 @@ LOVELACE_COMPONENTS = [
     f"{STATIC_BASE}/fd-header.js",
     f"{STATIC_BASE}/fd-stats-row.js",
     f"{STATIC_BASE}/fd-household-section.js",
+    f"{STATIC_BASE}/fd-budget-plan.js",
     f"{STATIC_BASE}/fd-category-section.js",
     f"{STATIC_BASE}/fd-cost-distribution.js",
     f"{STATIC_BASE}/fd-recurring-list.js",

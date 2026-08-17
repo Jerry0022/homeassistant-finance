@@ -191,6 +191,19 @@ class BenchmarkProvider:
                 return b
         return None
 
+    def get_benchmark_for_category(self, category: str) -> dict[str, Any] | None:
+        """Get the benchmark that covers a spending category.
+
+        Callers need the unit before computing their own value: a percentage
+        metric is a share of net income, an EUR metric is an absolute monthly
+        amount, and computing the wrong one silently produces a nonsense
+        comparison.
+        """
+        for b in self._data:
+            if b.get("category") == category:
+                return b
+        return None
+
     def compare(self, category: str, user_value: float) -> dict[str, Any] | None:
         """Compare a user's value against the national average.
 

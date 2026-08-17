@@ -31,11 +31,22 @@ ignore = ["PLR2004"]
 "custom_components/finance_dashboard/api/setup.py" = ["PLR0911", "PLR0912", "PLR0915"]
 "custom_components/finance_dashboard/manager/_refresh.py" = ["PLR0912", "PLR0913", "PLR0915"]
 "custom_components/finance_dashboard/config_flow.py" = ["PLR0912"]
-"custom_components/finance_dashboard/household.py" = ["PLR0912", "PLR0913"]
+"custom_components/finance_dashboard/household.py" = ["PLR0911", "PLR0912", "PLR0913"]
 "custom_components/finance_dashboard/month_cycle.py" = ["PLR0911", "PLR0912", "PLR0913", "PLR0915"]
 "custom_components/finance_dashboard/enablebanking_client.py" = ["PLR0913"]
 "custom_components/finance_dashboard/manager/__init__.py" = ["PLR0912"]
 "custom_components/finance_dashboard/transfer_detector.py" = ["PLR0912", "PLR0913"]
+# Spreadsheet parsing: branch counts come from tolerating real-world sheet
+# variation (missing sheets, header rows at different offsets, formula vs.
+# cached values). Splitting further would scatter one coherent parse.
+"custom_components/finance_dashboard/spreadsheet_import.py" = ["PLR0912"]
+# build_transfer_plan builds one ordered ledger; its steps share the running
+# balances, so extracting them would mean threading mutable state through
+# helpers. TODO: revisit if further transfer steps are added.
+"custom_components/finance_dashboard/transfer_plan.py" = ["PLR0912", "PLR0915"]
+# The import endpoint maps each distinct failure to its own HTTP status;
+# collapsing the returns would lose that precision.
+"custom_components/finance_dashboard/api/plan.py" = ["PLR0911"]
 
 [tool.mypy]
 python_version = "3.12"

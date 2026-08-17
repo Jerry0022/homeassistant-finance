@@ -1,5 +1,37 @@
 # Build Log
 
+## 0.14.0 — 2026-08-17
+Version: 0.14.0
+Branch: claude/projekt-excel-migration-7c449b
+Changes:
+- feat(core): budget_plan.py — cost-position ledger, the model the household spreadsheet is built on. Positions carry an explicit owner (person or shared), a signed amount (negative = reimbursement billed onward), a kind (fixed or buffer with units x unit price), an inclusive YYYY-MM validity window, and an optional debit account independent of the owner
+- feat(core): spreadsheet_import.py — migrates a `Kalkulation Haushalt.xlsx` workbook into the plan. Recovers buffer factors from formulas (`=80*4.5`), validity windows from prose comments ("bis inkl. April 2027"), and cross-checks recomputed net income against the sheet's own stated net, reporting any mismatch
+- feat(core): transfer_plan.py — reproduces the workbook's monthly transfer choreography (accounts x ordered steps) and enforces its central invariant in code: a pass-through account must net to zero. Contributions are liquidity-aware, so a person whose income cannot cover their share contributes what they have and the rest is carried by those with a surplus
+- feat(core): `settlement_delta` per person — how much one person is fronting for another. The spreadsheet contained this implicitly as the gap between account balance and entitled pocket money; it is now explicit
+- fix(core): the transfer plan reports amounts it cannot place on any account (`unplaced`) instead of dropping them. Without a joint account every shared position was skipped, no account ended up out of balance, and the plan declared itself balanced while omitting the largest cost block; a person with no account, or a position with no resolvable debit account, vanished the same way. Such a plan now counts as unbalanced and the UI names what could not be booked
+- feat(household): `pooled_equal` split model — shared costs paid from POOLED net income, remainder split equally, each person then paying their own individual costs. Now the default. The previous models computed a materially different result and could not carry a person with negative net income
+- feat(core): plan-vs-actual comparison per category and per position, with unmatched positions reported as unmatched rather than shown as zero
+- feat(benchmark): BenchmarkProvider wired up — it was dead code with zero imports repo-wide. The "ours" side is now computed from the plan, plus a manual water-consumption metric (not derivable from banking data)
+- feat(api): /budget_plan, /transfer_plan, /plan_vs_actual, /benchmark, plus admin-gated position/income/import endpoints. Import paths are validated against `allowlist_external_dirs`
+- feat(frontend): fd-budget-plan card — income breakdown, cost ledger grouped by owner, pocket money, transfer table with the zero-sum badge, benchmark comparison
+- feat(core): once-daily scheduled refresh at a configurable time (default 06:30). One call of the 4/day/ASPSP budget, leaving three for manual refreshes
+- fix(banking): transaction fetch could never parse a real Enable Banking response. The API returns `{"transactions": [...], "continuation_key": ...}` — a LIST — while the client called `.get("booked")` on it, raising AttributeError for every account. Swallowed by a broad handler, so refreshes reported success over an empty cache
+- fix(banking): derive the amount sign from `credit_debit_indicator` (CRDT/DBDT). It appeared nowhere in the codebase, so every transaction would have read as income with total expenses stuck at 0
+- fix(banking): honour per-transaction `status` (BOOK/PDNG) instead of hardcoding buckets; join `remittance_information`, which is an array, not a string
+- fix(banking): follow `continuation_key` pagination, capped at 10 pages with the truncation logged rather than silent
+- fix(banking): pass ISO 20022 balance codes through (CLBD/ITAV/...) and match them in the sensor's priority list, which previously listed only camelCase names and could never match — so each account showed whichever balance the bank happened to list first
+- fix(core): HA start crashed on every restart — a sync lambda calling `hass.async_create_task` from a worker thread tripped HA's thread-safety guard, the coroutine was never awaited, and the transaction cache was therefore never loaded. Entities stayed empty until a manual refresh
+- fix(refresh): merge each fetch window into the cached history instead of replacing it. Every refresh previously truncated history to the rolling window, making multi-month views impossible to populate
+- fix(refresh): only stamp `_last_refresh` when at least one account answered. A total failure used to look identical to a success, and the false timestamp survived restarts via persistence
+- fix(refresh): tag pending transactions with account/person like booked ones
+- fix(sensor): expose `last_refresh_stats`, `is_refreshing`, `cache_age_seconds`, `cache_is_stale` — the frontend already read these keys, which never existed, so a stale cache was visually indistinguishable from fresh data
+- fix(services): honour the documented `days` field on `refresh_transactions` and month/year on `get_monthly_summary`; both were advertised and ignored
+- fix(import): a "Kommentar" column header was read as a person column, so every validity window in the sheet was lost
+- feat(services): `import_spreadsheet` (admin-only, allowlist-checked) and `get_transfer_plan`
+- test: +81 tests covering the plan model, the split invariants, transfer-plan balancing, and the Enable Banking normalization layer that had no coverage at all — total 185 → 266, all green
+- fix(devops): sync_changelog.py appended every entry to the BOTTOM of CHANGELOG.md — its header-detection regex alternation included `$`, which matches every blank line, so the insertion point became the last blank line of the file. `--check` read the first heading and therefore reported the CHANGELOG as permanently behind while claiming each sync succeeded. Added `--repair` and re-sorted all 44 accumulated sections newest-first (0.13.1 had been stranded at the bottom since May)
+- chore(deps): openpyxl>=3.1.0 for spreadsheet import
+
 ## 0.13.1 — 2026-05-16
 Version: 0.13.1
 Branch: claude/upbeat-brattain-fcffef

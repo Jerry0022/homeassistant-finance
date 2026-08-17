@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -31,16 +32,23 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
+from ..budget_plan import BudgetPlan, BudgetPlanStore, CostPosition
 from ..const import (
+    BENCHMARK_METRIC_SOURCES,
+    DEFAULT_SPLIT_MODEL,
+    DEFAULT_WATER_BENCHMARK,
     DOMAIN,
     ENABLEBANKING_RATE_LIMIT_DAILY,
+    OPT_WATER_RATIO,
+    OWNER_SHARED,
     STORAGE_KEY_TRANSFER_OVERRIDES,
 )
-from ..household import HouseholdMember, HouseholdModel
+from ..household import HouseholdMember, HouseholdModel, model_from_plan
 from ..transfer_detector import (
     apply_overrides,
     get_effective_transactions,
 )
+from ..transfer_plan import build_transfer_plan
 from ._persistence import PersistenceMixin
 from ._refresh import RefreshMixin
 
@@ -98,6 +106,13 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         self._refresh_in_flight: bool = False
         # OAuth state tokens: {state_str: created_iso} — one-time-use, 10min TTL
         self._oauth_states: dict[str, str] = {}
+        # The PLAN side: the migrated household spreadsheet (cost positions +
+        # per-person income). Live bank data supplies the ACTUAL side; the two
+        # are compared per position in the monthly summary.
+        self._plan_store = BudgetPlanStore(hass)
+        # Lazily created on first benchmark request — it reads .storage/ and
+        # nothing needs it during setup.
+        self._benchmark_provider = None
 
     # ------------------------------------------------------------------
     # Properties
@@ -182,6 +197,10 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         await self._credential_manager.async_initialize()
 
         self._categorizer = TransactionCategorizer()
+
+        # Load the budget plan. A read failure must not block startup — the
+        # store falls back to an empty plan and the UI prompts for an import.
+        await self._plan_store.async_load()
 
         # Load cached transactions from .storage/
         # R8: wrap in try/except — a corrupt .storage/ file must not crash
@@ -406,7 +425,9 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         # Graceful degradation: household features must never crash the coordinator
         household = None
         try:
-            household = self._compute_household(monthly_txns, total_expenses)
+            household = self._compute_household(
+                monthly_txns, total_expenses, target_month, target_year
+            )
         except Exception:
             _LOGGER.exception("Household computation failed — skipping")
 
@@ -548,6 +569,397 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         }
 
     # ------------------------------------------------------------------
+    # Budget plan — the migrated spreadsheet model
+    # ------------------------------------------------------------------
+
+    @property
+    def budget_plan(self) -> BudgetPlan:
+        """The current budget plan (empty until imported or entered)."""
+        return self._plan_store.plan
+
+    def _split_options(self) -> tuple[str, str, dict[str, float]]:
+        """Split configuration from the config entry options."""
+        return (
+            self._entry.options.get("split_model", DEFAULT_SPLIT_MODEL),
+            self._entry.options.get("remainder_mode", "none"),
+            self._entry.options.get("custom_ratios", {}) or {},
+        )
+
+    async def async_import_spreadsheet(self, path: str) -> dict[str, Any]:
+        """Import a household workbook into the budget plan.
+
+        Runs the blocking openpyxl parse in an executor so the event loop is
+        never held. Replaces the plan wholesale — an import is a migration, not
+        a merge, so a partially parsed workbook cannot leave a hybrid plan.
+
+        Returns the import report (counts and warnings only, never amounts).
+        """
+        from ..spreadsheet_import import parse_workbook
+
+        plan, report = await self._hass.async_add_executor_job(parse_workbook, path)
+        await self._plan_store.async_save(plan)
+        _LOGGER.info(
+            "Budget plan replaced by spreadsheet import: %d positions, %d persons",
+            len(plan.positions),
+            len(plan.persons),
+        )
+        return report.to_dict()
+
+    async def async_set_cost_position(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update a single cost position."""
+        plan = await self._plan_store.async_load()
+        position = CostPosition.from_dict(data)
+        if not position.name:
+            raise ValueError("A cost position needs a name")
+        plan.upsert_position(position)
+        await self._plan_store.async_save(plan)
+        return position.to_dict()
+
+    async def async_delete_cost_position(self, position_id: str) -> bool:
+        """Delete a cost position by id."""
+        plan = await self._plan_store.async_load()
+        removed = plan.remove_position(position_id)
+        if removed:
+            await self._plan_store.async_save(plan)
+        return removed
+
+    async def async_set_income(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Create or update one person's income entry."""
+        from ..budget_plan import IncomeEntry
+
+        plan = await self._plan_store.async_load()
+        entry = IncomeEntry.from_dict(data)
+        if not entry.person:
+            raise ValueError("An income entry needs a person")
+        plan.set_income(entry)
+        await self._plan_store.async_save(plan)
+        return entry.to_dict()
+
+    def get_budget_plan_view(
+        self, month: int | None = None, year: int | None = None
+    ) -> dict[str, Any]:
+        """Full plan snapshot for the given month — pure cache read.
+
+        This is the API shape behind the ledger, income and split cards. It
+        mirrors the three spreadsheet sheets: income breakdown, cost ledger,
+        and the resulting split.
+        """
+        now = dt_util.now()
+        target_month = month or now.month
+        target_year = year or now.year
+        plan = self.budget_plan
+
+        split_mode, remainder_mode, custom_ratios = self._split_options()
+        model, shared_costs = model_from_plan(
+            plan,
+            target_month,
+            target_year,
+            split_mode=split_mode,
+            remainder_mode=remainder_mode,
+            custom_ratios=custom_ratios,
+        )
+        results = model.calculate_split(shared_costs)
+
+        return {
+            "month": target_month,
+            "year": target_year,
+            "source": plan.source,
+            "is_empty": plan.is_empty(),
+            "persons": plan.persons,
+            "income": [
+                {
+                    "person": person,
+                    "deposit": plan.income[person].deposit if person in plan.income else 0.0,
+                    "insurance_mandatory": (
+                        plan.income[person].insurance_mandatory if person in plan.income else 0.0
+                    ),
+                    "tax_adjustment": (
+                        plan.income[person].tax_adjustment if person in plan.income else 0.0
+                    ),
+                    "net": plan.income_net(person),
+                    "share": round(plan.income_rel(person) * 100, 2),
+                }
+                for person in plan.persons
+            ],
+            "income_net_total": plan.income_net_total(),
+            "positions": [
+                {
+                    **position.to_dict(),
+                    "planned_amount": position.planned_amount,
+                    "effective_amount": position.effective_amount(target_month, target_year),
+                    "is_active": position.is_active(target_month, target_year),
+                }
+                for position in plan.positions
+            ],
+            "costs": {
+                "shared": plan.cost_shared(target_month, target_year),
+                "individual": {
+                    person: plan.cost_individual(person, target_month, target_year)
+                    for person in plan.persons
+                },
+                "grand_total": plan.cost_grand_total(target_month, target_year),
+                "shared_fixed": plan.fixed_total(target_month, target_year, OWNER_SHARED),
+                "shared_buffer": plan.buffer_total(target_month, target_year, OWNER_SHARED),
+                "by_category": plan.category_totals(target_month, target_year),
+            },
+            "split": {
+                "model": split_mode,
+                "members": [
+                    {
+                        "person": r.person,
+                        "net_income": r.net_income,
+                        "income_share": round(r.income_ratio * 100, 2),
+                        "shared_costs_share": r.shared_costs_share,
+                        "remainder_share": r.remainder_share,
+                        "individual_costs": r.individual_costs,
+                        "spielgeld": r.spielgeld,
+                    }
+                    for r in results
+                ],
+                "spielgeld_total": round(sum(r.spielgeld for r in results), 2),
+            },
+        }
+
+    def get_transfer_plan(
+        self, month: int | None = None, year: int | None = None
+    ) -> dict[str, Any]:
+        """The monthly transfer choreography — pure cache read.
+
+        Reproduces the spreadsheet's account-by-account transfer ledger and
+        reports whether every pass-through account nets to zero.
+        """
+        now = dt_util.now()
+        target_month = month or now.month
+        target_year = year or now.year
+        plan = self.budget_plan
+
+        split_mode, remainder_mode, custom_ratios = self._split_options()
+        model, shared_costs = model_from_plan(
+            plan,
+            target_month,
+            target_year,
+            split_mode=split_mode,
+            remainder_mode=remainder_mode,
+            custom_ratios=custom_ratios,
+        )
+        results = model.calculate_split(shared_costs)
+
+        return build_transfer_plan(
+            plan,
+            self._accounts,
+            target_month,
+            target_year,
+            split_results=results,
+        ).to_dict()
+
+    def get_plan_vs_actual(
+        self, month: int | None = None, year: int | None = None
+    ) -> dict[str, Any]:
+        """Compare planned positions against what the bank actually booked.
+
+        Matching happens on two levels because neither alone is reliable:
+
+        - **per category**, which always adds up but is coarse
+        - **per position**, by matching the distinctive words of a position
+          name against the transaction text; unmatched positions are reported
+          as such rather than silently showing 0
+
+        Amounts are normalised to the plan's sign convention (expense
+        positive), so plan and actual are directly comparable.
+        """
+        from ..budget_plan import actual_amount_to_plan_sign
+
+        now = dt_util.now()
+        target_month = month or now.month
+        target_year = year or now.year
+        plan = self.budget_plan
+
+        booked = [
+            txn
+            for txn in get_effective_transactions(self._transactions)
+            if self._is_in_month(txn, target_month, target_year)
+            and txn.get("_status") == "booked"
+        ]
+
+        actual_by_category: dict[str, float] = {}
+        for txn in booked:
+            amount = actual_amount_to_plan_sign(
+                float(txn.get("transactionAmount", {}).get("amount", 0) or 0)
+            )
+            if amount <= 0:
+                continue  # income, not a cost
+            category = txn.get("category", "other")
+            actual_by_category[category] = round(actual_by_category.get(category, 0.0) + amount, 2)
+
+        planned_by_category = plan.category_totals(target_month, target_year)
+
+        positions: list[dict[str, Any]] = []
+        for position in plan.active_positions(target_month, target_year):
+            matched = self._match_transactions(position, booked)
+            actual = round(
+                sum(
+                    actual_amount_to_plan_sign(
+                        float(t.get("transactionAmount", {}).get("amount", 0) or 0)
+                    )
+                    for t in matched
+                ),
+                2,
+            )
+            planned = position.effective_amount(target_month, target_year)
+            positions.append(
+                {
+                    "id": position.id,
+                    "name": position.name,
+                    "owner": position.owner,
+                    "category": position.category,
+                    "planned": planned,
+                    "actual": actual if matched else None,
+                    "delta": round(actual - planned, 2) if matched else None,
+                    "match_count": len(matched),
+                }
+            )
+
+        categories = sorted(set(planned_by_category) | set(actual_by_category))
+        return {
+            "month": target_month,
+            "year": target_year,
+            "has_actuals": bool(booked),
+            "categories": [
+                {
+                    "category": category,
+                    "planned": planned_by_category.get(category, 0.0),
+                    "actual": actual_by_category.get(category, 0.0),
+                    "delta": round(
+                        actual_by_category.get(category, 0.0)
+                        - planned_by_category.get(category, 0.0),
+                        2,
+                    ),
+                }
+                for category in categories
+            ],
+            "positions": positions,
+            "unmatched_positions": sum(1 for p in positions if p["actual"] is None),
+        }
+
+    async def async_get_benchmarks(
+        self, month: int | None = None, year: int | None = None
+    ) -> dict[str, Any]:
+        """Compare our own ratios against German national averages.
+
+        The spreadsheet compared four hand-maintained figures against values
+        copied out of Destatis/Statista once. Here the "ours" side is computed
+        from the plan and the reference side comes from
+        :class:`~.benchmark.BenchmarkProvider`, whose baseline is versioned with
+        the integration — so the comparison stays current without retyping.
+
+        Percentage metrics are expressed as a share of pooled net income, which
+        is the basis the spreadsheet used. Absolute metrics (EUR) are compared
+        directly. Metrics whose numerator is zero are omitted rather than shown
+        as "0% — better than average".
+        """
+        from ..benchmark import BenchmarkProvider
+
+        if self._benchmark_provider is None:
+            provider = BenchmarkProvider(self._hass)
+            await provider.async_initialize()
+            self._benchmark_provider = provider
+        provider = self._benchmark_provider
+
+        now = dt_util.now()
+        target_month = month or now.month
+        target_year = year or now.year
+        plan = self.budget_plan
+        income = plan.income_net_total()
+        by_category = plan.category_totals(target_month, target_year)
+
+        comparisons: list[dict[str, Any]] = []
+        for metric_category, source_categories in BENCHMARK_METRIC_SOURCES.items():
+            numerator = round(sum(by_category.get(c, 0.0) for c in source_categories), 2)
+            if numerator <= 0:
+                continue
+            benchmark = provider.get_benchmark_for_category(metric_category)
+            if not benchmark:
+                continue
+            if benchmark.get("unit") == "%":
+                if income <= 0:
+                    continue
+                our_value = round(numerator / income * 100, 2)
+            else:
+                our_value = numerator
+            result = provider.compare(metric_category, our_value)
+            if result:
+                result["our_amount"] = numerator
+                result["source_categories"] = source_categories
+                comparisons.append(result)
+
+        # Consumption metrics cannot be derived from banking data — the utility
+        # statement is the only source. Kept as an explicit option so the
+        # spreadsheet's water comparison survives the migration instead of
+        # being silently dropped.
+        water_ratio = self._entry.options.get(OPT_WATER_RATIO)
+        if water_ratio:
+            try:
+                value = float(water_ratio)
+            except (TypeError, ValueError):
+                value = 0.0
+            if value > 0:
+                comparisons.append(
+                    {
+                        "label": "Kaltwasser",
+                        "category": "water",
+                        "user_value": value,
+                        "benchmark_value": DEFAULT_WATER_BENCHMARK,
+                        "difference": round(value - DEFAULT_WATER_BENCHMARK, 2),
+                        "better": value < DEFAULT_WATER_BENCHMARK,
+                        "unit": "x Ø",
+                        "source": "Nebenkostenabrechnung (manuell gepflegt)",
+                        "survey_year": target_year,
+                        "fetch_date": "manual",
+                        "text": (
+                            f"Kaltwasser: {value:.2f}x "
+                            f"(DE Ø {DEFAULT_WATER_BENCHMARK:.2f}x, Nebenkostenabrechnung)"
+                        ),
+                        "manual": True,
+                    }
+                )
+
+        return {
+            "month": target_month,
+            "year": target_year,
+            "income_net_total": income,
+            "comparisons": comparisons,
+            "has_plan": not plan.is_empty(),
+        }
+
+    @staticmethod
+    def _match_transactions(
+        position: Any, transactions: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Find the transactions that plausibly belong to a cost position.
+
+        Uses the distinctive words of the position name (4+ characters, so
+        "DKB Zinsen" matches on "zinsen" rather than on the ubiquitous bank
+        name). A position with no distinctive word matches nothing, which is
+        reported honestly instead of guessed.
+        """
+        tokens = [word for word in re.findall(r"[a-zäöüß]{4,}", position.name.lower())]
+        if not tokens:
+            return []
+        matches = []
+        for txn in transactions:
+            haystack = " ".join(
+                str(part).lower()
+                for part in (
+                    txn.get("remittanceInformationUnstructured", ""),
+                    (txn.get("creditorName") or ""),
+                    (txn.get("debtorName") or ""),
+                )
+            )
+            if any(token in haystack for token in tokens):
+                matches.append(txn)
+        return matches
+
+    # ------------------------------------------------------------------
     # Transfer chain management
     # ------------------------------------------------------------------
 
@@ -607,13 +1019,68 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         self,
         monthly_txns: list[dict[str, Any]],
         total_expenses: float,
+        month: int | None = None,
+        year: int | None = None,
     ) -> dict[str, Any] | None:
-        """Build household split data from account assignments and transactions.
+        """Build household split data for the monthly summary.
 
-        Groups transactions by person (from account assignments), computes
-        income and individual costs per person, then runs the household
-        split model to calculate each person's share of shared costs
-        and their remaining Spielgeld.
+        Prefers the budget PLAN when one exists: the plan states each person's
+        income and each position's owner explicitly, which the transaction
+        stream cannot. Deriving ownership from "which account was debited"
+        mis-assigns every position whose payment account differs from its owner
+        — a shared subscription billed onward, or one person's contract paid
+        from the joint account.
+
+        Falls back to the transaction-derived estimate only when no plan has
+        been imported yet, so a fresh install still shows something.
+        """
+        plan = self.budget_plan
+        if not plan.is_empty() and plan.persons:
+            now = dt_util.now()
+            target_month = month or now.month
+            target_year = year or now.year
+            split_mode, remainder_mode, custom_ratios = self._split_options()
+            model, shared_costs = model_from_plan(
+                plan,
+                target_month,
+                target_year,
+                split_mode=split_mode,
+                remainder_mode=remainder_mode,
+                custom_ratios=custom_ratios,
+            )
+            results = model.calculate_split(shared_costs)
+            return {
+                "members": [
+                    {
+                        "person": r.person,
+                        "gross_income": round(r.gross_income, 2),
+                        "net_income": round(r.net_income, 2),
+                        "income_ratio": round(r.income_ratio * 100, 1),
+                        "shared_costs_share": round(r.shared_costs_share, 2),
+                        "remainder_share": round(r.remainder_share, 2),
+                        "individual_costs": round(r.individual_costs, 2),
+                        "spielgeld": round(r.spielgeld, 2),
+                        "bonus_amount": round(r.bonus_amount, 2),
+                    }
+                    for r in results
+                ],
+                "split_model": split_mode,
+                "remainder_mode": remainder_mode,
+                "total_shared_costs": round(shared_costs, 2),
+                "spielgeld_total": round(sum(r.spielgeld for r in results), 2),
+                "source": "plan",
+            }
+
+        return self._household_from_transactions(monthly_txns)
+
+    def _household_from_transactions(
+        self,
+        monthly_txns: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
+        """Estimate the household split from transactions alone.
+
+        Used only before a budget plan exists. Ownership is inferred from the
+        debited account, which is an approximation — the plan replaces it.
         """
         # Build person map from account config
         persons: dict[str, dict[str, Any]] = {}
@@ -672,13 +1139,13 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
                 )
             )
 
-        split_mode = self._entry.options.get("split_model", "proportional")
-        remainder_mode = self._entry.options.get("remainder_mode", "none")
+        split_mode, remainder_mode, custom_ratios = self._split_options()
 
         model = HouseholdModel(
             members=members,
             split_mode=split_mode,
             remainder_mode=remainder_mode,
+            custom_ratios=custom_ratios,
         )
 
         results = model.calculate_split(shared_costs, shared_cost_items or None)
@@ -700,6 +1167,8 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             "split_model": split_mode,
             "remainder_mode": remainder_mode,
             "total_shared_costs": round(shared_costs, 2),
+            "spielgeld_total": round(sum(r.spielgeld for r in results), 2),
+            "source": "transactions",
         }
 
     def _check_budget_limits(self, category_totals: dict[str, float]) -> None:

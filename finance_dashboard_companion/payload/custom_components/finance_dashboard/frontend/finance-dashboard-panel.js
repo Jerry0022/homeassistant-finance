@@ -53,6 +53,9 @@ class FinanceDashboardPanel extends HTMLElement {
     // Forward hass to data provider (drives entity subscriptions)
     const dp = this.shadowRoot.querySelector("fd-data-provider");
     if (dp) dp.hass = hass;
+    // The budget plan fetches from its own endpoints, so it needs hass
+    // directly rather than going through the provider.
+    if (this._budgetPlan && !this._budgetPlan.hass) this._budgetPlan.hass = hass;
   }
 
   _dismissSetupNotification(hass) {
@@ -221,6 +224,13 @@ class FinanceDashboardPanel extends HTMLElement {
 
     this._household = document.createElement("fd-household-section");
     container.appendChild(this._household);
+
+    // The migrated spreadsheet: income, cost ledger, pocket money, transfer
+    // choreography and the benchmark comparison. Loads its own data — the plan
+    // exists whether or not a bank is linked.
+    this._budgetPlan = document.createElement("fd-budget-plan");
+    if (this._hass) this._budgetPlan.hass = this._hass;
+    container.appendChild(this._budgetPlan);
 
     this._category = document.createElement("fd-category-section");
     container.appendChild(this._category);
