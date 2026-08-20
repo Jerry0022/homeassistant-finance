@@ -41,21 +41,35 @@ class RefreshMixin:
     # Rate-limit helpers
     # ------------------------------------------------------------------
 
-    def _set_rate_limited(self, retry_after_dt: datetime | None = None) -> None:
+    def _set_rate_limited(
+        self,
+        retry_after_dt: datetime | None = None,
+        *,
+        attended: bool = False,
+    ) -> None:
         """Mark API as rate-limited.
 
         Writes the reset timestamp to both the instance field and the
         persistent ``hass.data[DOMAIN][_GLOBAL_RATE_LIMIT_KEY]`` so that the
         fresh-setup client factory can also respect the quota gate (F2).
 
+        The reset is capped at midnight — the ASPSP day counter resets then,
+        so waiting past it is never useful — but the default backoff is much
+        shorter than a full day: Enable Banking documents a 6h retry for
+        background fetches, and an attended 429 is a transient upstream
+        condition rather than the 4/day rule, so it pauses for minutes.
+
         Args:
-            retry_after_dt: Optional earlier reset datetime derived from the
-                ``Retry-After`` response header.  When provided the reset is
-                ``min(midnight, retry_after_dt)`` so we never wait *longer*
-                than midnight but may wait less when the API signals a shorter
-                window.  Falls back to midnight when ``None``.
+            retry_after_dt: Optional reset datetime derived from the
+                ``Retry-After`` response header.  Takes precedence over the
+                default backoff — the bank knows better than we do.
+            attended: True when the call carried PSU headers (user present).
         """
-        from ..const import DOMAIN
+        from ..const import (
+            DOMAIN,
+            RATE_LIMIT_ATTENDED_BACKOFF_MINUTES,
+            RATE_LIMIT_BACKOFF_HOURS,
+        )
 
         now = dt_util.now()
         midnight = (now + timedelta(days=1)).replace(
@@ -65,9 +79,12 @@ class RefreshMixin:
             microsecond=0,
         )
         if retry_after_dt is not None:
-            reset_at = min(midnight, retry_after_dt)
+            candidate = retry_after_dt
+        elif attended:
+            candidate = now + timedelta(minutes=RATE_LIMIT_ATTENDED_BACKOFF_MINUTES)
         else:
-            reset_at = midnight
+            candidate = now + timedelta(hours=RATE_LIMIT_BACKOFF_HOURS)
+        reset_at = min(midnight, candidate)
         self._rate_limited_until = reset_at
 
         # Persist to hass.data so the fresh-setup client gate can read it
@@ -155,8 +172,11 @@ class RefreshMixin:
             )
             return self._transactions
 
-        # Skip API calls if we're still rate-limited
-        if self.rate_limited_until:
+        # Skip API calls if we're still rate-limited.  An attended refresh
+        # (PSU headers present) is exempt: PSD2 RTS Art. 36(5)(b) caps only
+        # requests made without the user in session, so gating a user who is
+        # standing in front of the dashboard blocks a call the bank allows.
+        if self.rate_limited_until and not psu_ip:
             _LOGGER.info(
                 "API rate-limited until %s — serving cached transactions",
                 self._rate_limited_until.isoformat(),
@@ -264,7 +284,7 @@ class RefreshMixin:
                 retry_after_dt = None
                 if _rle.retry_after_seconds is not None:
                     retry_after_dt = dt_util.now() + timedelta(seconds=_rle.retry_after_seconds)
-                self._set_rate_limited(retry_after_dt)
+                self._set_rate_limited(retry_after_dt, attended=bool(psu_ip))
                 errors.append(
                     f"Rate-Limit bei {account.get('name', account_id)} — "
                     "Tageslimit (4/Tag) aufgebraucht"
@@ -498,7 +518,7 @@ class RefreshMixin:
                 retry_after_dt = None
                 if _rle.retry_after_seconds is not None:
                     retry_after_dt = dt_util.now() + timedelta(seconds=_rle.retry_after_seconds)
-                self._set_rate_limited(retry_after_dt)
+                self._set_rate_limited(retry_after_dt, attended=bool(psu_ip))
                 errors.append(f"Rate-Limit beim Saldo für {account.get('name', account_id)}")
                 # Preserve the partial batch we already fetched — without
                 # this, accounts that succeeded BEFORE the 429 would lose

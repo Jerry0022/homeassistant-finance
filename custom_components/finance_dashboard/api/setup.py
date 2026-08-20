@@ -15,7 +15,15 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 
 from ..const import DOMAIN, SESSION_MAX_DAYS
-from ._helpers import _get_manager, _get_setup_client, _register_oauth_state, _validate_oauth_state
+from ._helpers import (
+    _cache_is_fresh,
+    _get_manager,
+    _get_setup_client,
+    _register_oauth_state,
+    _validate_oauth_state,
+    async_load_cached_institutions,
+    async_save_cached_institutions,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -106,7 +114,16 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
     requires_auth = True
 
     async def get(self, request: web.Request) -> web.Response:
-        """Fetch DE bank list from Enable Banking API.
+        """Fetch the DE bank list.
+
+        The ``/aspsps`` catalog is served by Enable Banking itself, not by a
+        bank, so it neither spends nor is bound by the 4/day per-ASPSP quota.
+        Gating it would lock a rate-limited user out of connecting any new
+        bank — hence ``enforce_rate_limit=False``.
+
+        A fresh cache short-circuits the API entirely; a stale cache is used
+        as a fallback when the API fails, so an outage degrades the wizard to
+        an older list instead of an empty one.
 
         Always returns HTTP 200 with error details in the body so the
         frontend can inspect error_type reliably.  HA's callApi() throws
@@ -114,59 +131,54 @@ class FinanceDashboardSetupInstitutionsView(HomeAssistantView):
         """
         hass = request.app["hass"]
 
+        cached, cached_at = await async_load_cached_institutions(hass)
+        if cached and _cache_is_fresh(cached_at):
+            _LOGGER.debug("Serving %d institutions from fresh cache", len(cached))
+            return self.json({"institutions": cached})
+
+        def _fallback(error_msg: str, error_type: str) -> web.Response:
+            """Prefer a stale catalog over an error the user cannot act on."""
+            if cached:
+                _LOGGER.warning(
+                    "Institution fetch failed (%s) — serving %d cached entries",
+                    error_type,
+                    len(cached),
+                )
+                return self.json({"institutions": cached, "cached_at": cached_at})
+            return self.json({"error": error_msg, "error_type": error_type})
+
         try:
             from ..enablebanking_client import RateLimitExceeded
 
-            # Route through manager.async_make_setup_call when available so
-            # the rate-limit gate is always enforced (F4).  Fall back to the
-            # direct setup client for fresh-setup flows.
-            manager = _get_manager(hass)
-            client = await _get_setup_client(hass)
-            if manager is not None:
-                institutions = await manager.async_make_setup_call(
-                    "async_get_institutions", "DE", client=client
-                )
-            else:
-                institutions = await client.async_get_institutions("DE")
+            client = await _get_setup_client(hass, enforce_rate_limit=False)
+            institutions = await client.async_get_institutions("DE")
             _LOGGER.debug(
                 "Fetched %d institutions from Enable Banking",
                 len(institutions),
             )
+            if not institutions:
+                return _fallback("Enable Banking returned an empty bank list", "api_error")
+            await async_save_cached_institutions(hass, institutions)
             return self.json({"institutions": institutions})
 
         except RateLimitExceeded as exc:
-            return self.json(
-                {
-                    "error": str(exc),
-                    "error_type": "rate_limited",
-                }
-            )
+            return _fallback(str(exc), "rate_limited")
         except RuntimeError as exc:
             error_msg = str(exc)
             _LOGGER.warning("Setup client error: %s", error_msg)
-            return self.json(
-                {
-                    "error": error_msg,
-                    "error_type": "no_credentials",
-                }
-            )
+            return _fallback(error_msg, "no_credentials")
         except TimeoutError:
             _LOGGER.error("Timeout fetching institutions from Enable Banking API")
-            return self.json(
-                {
-                    "error": "Enable Banking API timeout — please try again",
-                    "error_type": "timeout",
-                }
-            )
+            return _fallback("Enable Banking API timeout — please try again", "timeout")
         except Exception as exc:
             _LOGGER.exception("Failed to fetch institutions")
             error_type = "api_error"
-            error_msg = "Failed to fetch institutions"
+            error_msg = f"Failed to fetch institutions: {str(exc)[:200]}"
             exc_msg = str(exc).lower()
             if "401" in exc_msg or "403" in exc_msg or "unauthorized" in exc_msg:
                 error_type = "invalid_credentials"
                 error_msg = "API credentials rejected by Enable Banking"
-            return self.json({"error": error_msg, "error_type": error_type})
+            return _fallback(error_msg, error_type)
 
 
 class FinanceDashboardSetupAuthorizeView(HomeAssistantView):
@@ -419,14 +431,15 @@ class FinanceDashboardSetupCompleteView(HomeAssistantView):
                 institution_name = pending_auth.get("institution_name", "")
                 institution_id = pending_auth.get("institution_id", "")
 
-                # Merge accounts: keep existing accounts from other
-                # banks, replace accounts that share the same
-                # institution_id (re-auth of same bank).
-                existing_accounts = list(entry.data.get("accounts", []))
-                existing_accounts = [
-                    acc for acc in existing_accounts if acc.get("institution_id") != institution_id
-                ]
-                merged_accounts = existing_accounts + account_config
+                # Merge accounts by stable identity (IBAN-derived key), not
+                # by session uid: Enable Banking issues a fresh uid on every
+                # re-link, so uid-based merging duplicated every account.
+                from ..account_identity import dedupe_accounts
+
+                merged_accounts = dedupe_accounts(
+                    list(entry.data.get("accounts", [])),
+                    account_config,
+                )
 
                 # Build multi-bank title
                 bank_names = sorted(

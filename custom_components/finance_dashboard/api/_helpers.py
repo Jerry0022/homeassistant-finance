@@ -130,7 +130,7 @@ async def _validate_oauth_state(hass: HomeAssistant, state: str) -> bool:
     return matched is not None
 
 
-async def _get_setup_client(hass: HomeAssistant):
+async def _get_setup_client(hass: HomeAssistant, *, enforce_rate_limit: bool = True):
     """Return an EnableBankingClient for setup-wizard endpoints.
 
     Enforces the 4/day ASPSP rate-limit gate before handing back a client.
@@ -138,35 +138,46 @@ async def _get_setup_client(hass: HomeAssistant):
     persistent ``hass.data`` global rate-limit timestamp so that a
     fresh-setup flow (manager=None) cannot bypass the quota gate (F2).
 
+    Args:
+        enforce_rate_limit: Set to False for calls that do not touch an
+            ASPSP.  The ``/aspsps`` catalog is served by Enable Banking
+            itself, not by a bank, so it neither spends nor is bound by
+            the per-ASPSP quota — gating it would lock a rate-limited
+            user out of connecting any new bank at all.
+
     Returns:
         EnableBankingClient instance.
 
     Raises:
-        RateLimitExceeded: when the API is still rate-limited.
+        RateLimitExceeded: when the API is still rate-limited and the gate
+            is enforced.
         RuntimeError: when credentials are unavailable.
     """
     from ..enablebanking_client import RateLimitExceeded
 
-    # --- Rate-limit gate via manager (preferred) ---
-    manager = _get_manager(hass)
-    if manager is not None and manager.rate_limited_until:
-        raise RateLimitExceeded(f"API rate-limited until {manager.rate_limited_until.isoformat()}")
+    if enforce_rate_limit:
+        # --- Rate-limit gate via manager (preferred) ---
+        manager = _get_manager(hass)
+        if manager is not None and manager.rate_limited_until:
+            raise RateLimitExceeded(
+                f"API rate-limited until {manager.rate_limited_until.isoformat()}"
+            )
 
-    # --- Rate-limit gate via persistent hass.data (fresh-setup fallback, F2) ---
-    domain_data = hass.data.get(DOMAIN, {})
-    global_rl = domain_data.get(_GLOBAL_RATE_LIMIT_KEY)
-    if global_rl:
-        try:
-            rl_dt = _parse_utc_dt(global_rl)
-            now = datetime.now(UTC)
-            if rl_dt > now:
-                raise RateLimitExceeded(
-                    f"API rate-limited until {rl_dt.isoformat()} "
-                    "— bitte morgen erneut versuchen."
-                )
-        except (ValueError, TypeError):
-            # Corrupt timestamp — clear it and proceed
-            domain_data.pop(_GLOBAL_RATE_LIMIT_KEY, None)
+        # --- Rate-limit gate via persistent hass.data (fresh-setup fallback, F2) ---
+        domain_data = hass.data.get(DOMAIN, {})
+        global_rl = domain_data.get(_GLOBAL_RATE_LIMIT_KEY)
+        if global_rl:
+            try:
+                rl_dt = _parse_utc_dt(global_rl)
+                now = datetime.now(UTC)
+                if rl_dt > now:
+                    raise RateLimitExceeded(
+                        f"API rate-limited until {rl_dt.isoformat()} "
+                        "— bitte morgen erneut versuchen."
+                    )
+            except (ValueError, TypeError):
+                # Corrupt timestamp — clear it and proceed
+                domain_data.pop(_GLOBAL_RATE_LIMIT_KEY, None)
 
     # --- Credentials ---
     from ..credential_manager import CredentialManager
@@ -184,3 +195,74 @@ async def _get_setup_client(hass: HomeAssistant):
         credentials["private_key_pem"],
         session=async_get_clientsession(hass),
     )
+
+
+# ---------------------------------------------------------------------------
+# Institution catalog cache
+# ---------------------------------------------------------------------------
+# The DE bank list changes rarely but the wizard is useless without it.
+# Persisting it means an Enable Banking outage degrades the wizard to a
+# stale list instead of an empty one.
+
+
+def _institution_store(hass: HomeAssistant):
+    """Return the Store holding the cached institution catalog."""
+    from homeassistant.helpers.storage import Store
+
+    from ..const import STORAGE_KEY_INSTITUTIONS, STORAGE_VERSION
+
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    store = domain_data.get("_institution_store")
+    if store is None:
+        store = Store(hass, STORAGE_VERSION, STORAGE_KEY_INSTITUTIONS)
+        domain_data["_institution_store"] = store
+    return store
+
+
+async def async_load_cached_institutions(hass: HomeAssistant) -> tuple[list, str | None]:
+    """Load the cached catalog.
+
+    Returns:
+        ``(institutions, cached_at_iso)``.  Empty list + None when no usable
+        cache exists.
+    """
+    try:
+        data = await _institution_store(hass).async_load()
+    except Exception:  # noqa: BLE001 — a corrupt cache must never break setup
+        _LOGGER.warning("Institution cache unreadable — ignoring it")
+        return [], None
+
+    if not isinstance(data, dict):
+        return [], None
+    institutions = data.get("institutions") or []
+    if not isinstance(institutions, list) or not institutions:
+        return [], None
+    return institutions, data.get("cached_at")
+
+
+async def async_save_cached_institutions(hass: HomeAssistant, institutions: list) -> None:
+    """Persist a freshly fetched catalog. Never raises."""
+    if not institutions:
+        return
+    try:
+        await _institution_store(hass).async_save(
+            {
+                "institutions": institutions,
+                "cached_at": datetime.now(UTC).isoformat(),
+            }
+        )
+    except Exception:  # noqa: BLE001 — caching is best-effort
+        _LOGGER.debug("Could not persist institution cache", exc_info=True)
+
+
+def _cache_is_fresh(cached_at: str | None) -> bool:
+    """True when the cache timestamp is within the configured TTL."""
+    if not cached_at:
+        return False
+    from ..const import INSTITUTION_CACHE_TTL_HOURS
+
+    try:
+        age = datetime.now(UTC) - _parse_utc_dt(cached_at)
+    except (ValueError, TypeError):
+        return False
+    return age.total_seconds() < INSTITUTION_CACHE_TTL_HOURS * 3600

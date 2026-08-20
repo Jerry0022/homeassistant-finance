@@ -89,6 +89,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEn
 
     await async_register_api(hass)
 
+    # Reconcile the entity registry BEFORE platforms register entities:
+    # migrate uid-derived unique_ids to the stable account key and drop
+    # balance entities left behind by earlier re-links.  Doing this after
+    # forwarding would race the platform into recreating them.
+    from .account_identity import async_reconcile_account_entities
+
+    try:
+        stats = await async_reconcile_account_entities(hass, entry, DOMAIN)
+        if stats["migrated"] or stats["removed"]:
+            _LOGGER.info(
+                "Account entities reconciled — %d migrated, %d duplicates removed",
+                stats["migrated"],
+                stats["removed"],
+            )
+    except Exception:
+        # Never block setup over registry housekeeping.
+        _LOGGER.exception("Account entity reconciliation failed — continuing setup")
+
     # Forward platform setup — sensors/numbers/selects will register themselves
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

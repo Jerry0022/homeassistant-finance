@@ -4,7 +4,7 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.14.0"
+VERSION = "0.15.0"
 
 # Panel
 PANEL_URL_PATH = "finance-dashboard"
@@ -17,6 +17,19 @@ PANEL_MODULE_PATH = f"/api/{DOMAIN}/static/finance-dashboard-panel.js?v={VERSION
 STORAGE_KEY_CREDENTIALS = f"{DOMAIN}_credentials"
 STORAGE_KEY_TOKENS = f"{DOMAIN}_tokens"
 STORAGE_KEY_AUDIT = f"{DOMAIN}_audit_log"
+# Institution catalog cache — the /aspsps bank list.  Cached so the setup
+# wizard still offers a bank list when Enable Banking is unreachable.
+STORAGE_KEY_INSTITUTIONS = f"{DOMAIN}_institutions"
+
+# Backoff after HTTP 429.  Enable Banking documents that background
+# fetches should resume after 6 hours; blocking until midnight punished
+# a 07:00 rate limit with a whole lost day.  Attended calls (PSU headers
+# present) are exempt from the ASPSP 4/day rule entirely, so a 429 there
+# is a transient upstream condition and gets a short pause instead.
+RATE_LIMIT_BACKOFF_HOURS = 6
+RATE_LIMIT_ATTENDED_BACKOFF_MINUTES = 15
+# Catalog entries older than this are refreshed from the API on next open.
+INSTITUTION_CACHE_TTL_HOURS = 24
 STORAGE_VERSION = 1
 
 # Enable Banking
@@ -270,3 +283,12 @@ OPT_DAILY_REFRESH_MINUTE = "daily_refresh_minute"
 DEFAULT_DAILY_REFRESH = True
 DEFAULT_DAILY_REFRESH_HOUR = 6
 DEFAULT_DAILY_REFRESH_MINUTE = 30
+
+# Attended refresh on panel open.  Opening the dashboard IS a user session,
+# so the call carries PSU headers and is exempt from the unattended 4/day cap
+# (PSD2 RTS Art. 36(5)(b)).  Fires at most once per panel mount and only when
+# the cache is older than the threshold — a user action, never an interval.
+OPT_AUTO_REFRESH_ON_OPEN = "auto_refresh_on_open"
+OPT_AUTO_REFRESH_MAX_AGE_MINUTES = "auto_refresh_max_age_minutes"
+DEFAULT_AUTO_REFRESH_ON_OPEN = True
+DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES = 60

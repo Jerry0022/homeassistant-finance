@@ -77,9 +77,20 @@ class FinanceDashboardRefreshTriggerView(HomeAssistantView):
         if not manager:
             return self.json({"error": "Not configured"}, status_code=404)
 
-        # Short-circuit when already rate-limited so the UI can show a
-        # clear message instead of waiting for an HTTP 429 round-trip.
-        if manager.rate_limited_until:
+        # Forward PSU IP from the originating request so Enable Banking can
+        # include it in audit trails as required by PSD2 RTS.  ``request.remote``
+        # is the direct-connection IP; when behind a proxy the real IP may be
+        # in X-Forwarded-For, but we intentionally use only the direct value
+        # to avoid header-injection spoofing.
+        psu_ip: str | None = getattr(request, "remote", None)
+
+        # Short-circuit when already rate-limited so the UI can show a clear
+        # message instead of waiting for an HTTP 429 round-trip.  This gate
+        # applies to background calls only: with a PSU IP the request carries
+        # PSU headers, which makes it attended, and PSD2 RTS Art. 36(5)(b)
+        # caps only unattended access.  Gating the button the user just
+        # pressed would refuse a call the bank actually permits.
+        if manager.rate_limited_until and not psu_ip:
             return self.json(
                 {
                     "ok": False,
@@ -88,12 +99,6 @@ class FinanceDashboardRefreshTriggerView(HomeAssistantView):
                 }
             )
 
-        # Forward PSU IP from the originating request so Enable Banking can
-        # include it in audit trails as required by PSD2 RTS.  ``request.remote``
-        # is the direct-connection IP; when behind a proxy the real IP may be
-        # in X-Forwarded-For, but we intentionally use only the direct value
-        # to avoid header-injection spoofing.
-        psu_ip: str | None = getattr(request, "remote", None)
         try:
             await manager.async_refresh_transactions(psu_ip=psu_ip)
         except Exception as exc:

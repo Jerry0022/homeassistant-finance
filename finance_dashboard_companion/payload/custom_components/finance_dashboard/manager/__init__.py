@@ -566,7 +566,38 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
             # Expose the daily rate-limit cap so the frontend can render
             # the "4/day" label dynamically instead of hardcoding it.
             "rate_limit_per_day": ENABLEBANKING_RATE_LIMIT_DAILY,
+            # Attended-refresh-on-open policy, so the panel does not need to
+            # know the option keys or defaults.
+            "auto_refresh_on_open": self._auto_refresh_on_open,
+            "auto_refresh_max_age_seconds": self._auto_refresh_max_age_seconds,
         }
+
+    @property
+    def _auto_refresh_on_open(self) -> bool:
+        """Whether opening the panel may trigger one attended live fetch."""
+        from ..const import DEFAULT_AUTO_REFRESH_ON_OPEN, OPT_AUTO_REFRESH_ON_OPEN
+
+        options = getattr(self._entry, "options", {}) or {}
+        return bool(options.get(OPT_AUTO_REFRESH_ON_OPEN, DEFAULT_AUTO_REFRESH_ON_OPEN))
+
+    @property
+    def _auto_refresh_max_age_seconds(self) -> int:
+        """Cache age above which opening the panel refreshes live data."""
+        from ..const import (
+            DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES,
+            OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
+        )
+
+        options = getattr(self._entry, "options", {}) or {}
+        minutes = options.get(
+            OPT_AUTO_REFRESH_MAX_AGE_MINUTES, DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES
+        )
+        try:
+            minutes = int(minutes)
+        except (TypeError, ValueError):
+            minutes = DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES
+        # A zero/negative threshold would refresh on every single open.
+        return max(minutes, 1) * 60
 
     # ------------------------------------------------------------------
     # Budget plan — the migrated spreadsheet model

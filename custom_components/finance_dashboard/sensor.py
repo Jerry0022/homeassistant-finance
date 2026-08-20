@@ -25,6 +25,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .account_identity import balance_unique_id
 from .const import BALANCE_TYPE_PRIORITY, DOMAIN
 from .coordinator import FinanceDashboardCoordinator
 
@@ -86,7 +87,9 @@ class AccountBalanceSensor(CoordinatorEntity[FinanceDashboardCoordinator], Senso
         iban_masked = f"****{iban[-4:]}" if len(iban) >= 4 else ""
 
         self._attr_name = f"{institution} {name}"
-        self._attr_unique_id = f"{DOMAIN}_{self._account_id}_balance"
+        # Identity is the account, not the Enable Banking session uid — the
+        # uid changes on every re-link and used to spawn duplicate entities.
+        self._attr_unique_id = balance_unique_id(DOMAIN, account)
         self._attr_native_unit_of_measurement = account.get("currency", "EUR")
         self._attr_suggested_display_precision = 2
         self._iban_masked = iban_masked
