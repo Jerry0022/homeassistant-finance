@@ -334,3 +334,30 @@ async def test_already_migrated_entity_is_a_noop(registry_patch):
 
     assert stats == {"migrated": 0, "removed": 0}
     assert registry.removed == []
+
+
+@pytest.mark.asyncio
+async def test_empty_account_list_removes_nothing(registry_patch):
+    """No accounts loaded means "unknown", not "all orphaned".
+
+    A config entry can legitimately hold zero accounts while balance
+    entities exist: a half-configured setup, a storage-recovery round, or a
+    re-auth that failed after the account list was cleared.  Treating that
+    as "every entity is an orphan" wipes the user's history irrecoverably.
+    """
+    from custom_components.finance_dashboard.account_identity import (
+        async_reconcile_account_entities,
+        balance_unique_id,
+    )
+
+    account = _acc("uid-1", "DE02120300000000202051")
+    live = _RegEntry("sensor.fd_dkb_giro", balance_unique_id("finance_dashboard", account))
+    legacy = _RegEntry("sensor.fd_ing_giro", "finance_dashboard_uid-2_balance")
+    registry = registry_patch["install"]([live, legacy])
+
+    stats = await async_reconcile_account_entities(
+        None, _FakeEntry([]), "finance_dashboard"
+    )
+
+    assert stats == {"migrated": 0, "removed": 0}
+    assert registry.removed == []

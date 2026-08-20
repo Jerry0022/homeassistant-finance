@@ -1,5 +1,12 @@
 # Build Log
 
+## 0.15.1 — 2026-08-20
+Version: 0.15.1
+Branch: claude/fix-reconcile-empty-accounts
+Changes:
+- fix(core): the entity-registry reconciler removed every balance entity when the config entry listed no accounts. An empty list means "we do not know what is linked" — a half-configured setup, a storage-recovery round, a re-auth that cleared the list before failing — not "all orphaned". Reconciliation now returns early in that state, so it can no longer destroy history HA cannot restore. Found by re-reading the 0.15.0 diff before promoting it to stable
+- test: pin the empty-account-list case — total 314 -> 315
+
 ## 0.15.0 — 2026-08-20
 Version: 0.15.0
 Branch: claude/bank-api-provider-comparison-f24ce7

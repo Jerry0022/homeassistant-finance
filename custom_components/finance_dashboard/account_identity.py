@@ -173,6 +173,14 @@ async def async_reconcile_account_entities(hass, entry, domain: str) -> dict[str
       leaving them means the duplicate entities the user complained about
       stay in every entity picker forever.
 
+    Removal is skipped entirely when the entry lists no accounts: that state
+    means "unknown", not "all orphaned", and deleting there would destroy
+    history HA cannot restore.
+
+    Removal is skipped entirely when the entry lists no accounts: that state
+    means "unknown", not "all orphaned", and deleting there would destroy
+    history HA cannot restore.
+
     Returns:
         ``{"migrated": n, "removed": n}`` — for logging and tests.
     """
@@ -183,6 +191,24 @@ async def async_reconcile_account_entities(hass, entry, domain: str) -> dict[str
 
     entries = er.async_entries_for_config_entry(registry, entry.entry_id)
     by_unique_id = {e.unique_id: e for e in entries}
+
+    # An empty account list means "we do not know what is linked", not "every
+    # entity is an orphan".  It happens legitimately — a half-configured
+    # setup, a storage-recovery round, a re-auth that cleared the list before
+    # failing — and removing entities there would destroy history that HA
+    # cannot restore.  Nothing to migrate onto either, so return early.
+    if not accounts:
+        _LOGGER.debug("No linked accounts — skipping entity reconciliation")
+        return {"migrated": 0, "removed": 0}
+
+    # An empty account list means "we do not know what is linked", not "every
+    # entity is an orphan".  It happens legitimately — a half-configured
+    # setup, a storage-recovery round, a re-auth that cleared the list before
+    # failing — and removing entities there would destroy history that HA
+    # cannot restore.  Nothing to migrate onto either, so return early.
+    if not accounts:
+        _LOGGER.debug("No linked accounts — skipping entity reconciliation")
+        return {"migrated": 0, "removed": 0}
 
     wanted: set[str] = set()
     migrated = 0
