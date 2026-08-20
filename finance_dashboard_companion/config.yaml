@@ -1,5 +1,5 @@
 name: Finance Dashboard
-version: "0.15.1"
+version: "0.15.2"
 slug: finance_dashboard_companion
 description: >-
   Install or update the Finance Dashboard integration for Home Assistant.
@@ -7,7 +7,7 @@ description: >-
   (JWT RS256, 4/day/ASPSP rate limit) with auto-categorization,
   household budget tracking, and more.
 url: "https://github.com/Jerry0022/homeassistant-finance"
-startup: once
+startup: services
 boot: auto
 init: false
 homeassistant: "2024.1.0"

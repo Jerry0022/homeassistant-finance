@@ -1,5 +1,16 @@
 # Build Log
 
+## 0.15.2 — 2026-08-20
+Version: 0.15.2
+Branch: claude/das-update-ha-missing-56b4b8
+Changes:
+- fix(addon): the companion add-on ran with `startup: once`, so it had already exited by the time Supervisor auto-updated it — and Supervisor only restarts add-ons that were *running*. The installer therefore only ever executed on a host reboot. On the reporting instance the add-on package sat at 0.14.0 while `/config` still held 0.13.0 with a file timestamp of 2026-04-25; 0.13.1, 0.14.0, 0.15.0 and 0.15.1 never reached disk. The add-on is now a resident service (`startup: services`) that installs on start and re-checks hourly, so every auto-update delivers its payload the minute it lands
+- fix(addon): the installer replaces the integration tree instead of copying over it. `cp -r` removes nothing, so `api.py` and `manager.py` from 0.13.0 survived next to the packages of the same name that replaced them, together with their stale `__pycache__`. The delete sync is guarded by an allowlist — it deletes recursively, and only the two paths it owns
+- fix(addon): a failed install no longer kills the container. Exiting left the add-on stopped, which is precisely the silent-failure mode that hid this outage for four months; the run is retried on the next interval instead. A TERM/INT trap plus backgrounded `sleep` lets a Supervisor stop take effect immediately rather than after the SIGKILL timeout
+- fix(addon): the install-state file is rewritten on every check, not just on an update. Its timestamp is the only evidence visible from outside the container that the installer is alive — a stale one is what identified this bug
+- test: the delivery path had zero coverage. `tests/test_addon_installer.py` executes `run.sh` for real against a temporary root (`FD_CONFIG_ROOT` / `FD_PAYLOAD_ROOT`, `FD_RUN_ONCE`) and pins the stale-module removal, the restart marker, the Lovelace copy, a bare first install, the no-op path, and the `startup: services` contract itself — total 315 → 323
+- ci: `bash -n` on run.sh, and `.gitattributes` pins `*.sh` to LF — a CRLF checkout breaks the shebang inside the Alpine container, failing as a stopped add-on rather than an error
+
 ## 0.15.1 — 2026-08-20
 Version: 0.15.1
 Branch: claude/fix-reconcile-empty-accounts
