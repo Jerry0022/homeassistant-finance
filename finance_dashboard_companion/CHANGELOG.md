@@ -3,6 +3,18 @@
 
 
 
+
+## 0.15.0
+- The setup wizard reported every failure as "Banken werden geladen…" — all three catch blocks assigned the LOADING string as the error message, so the real exception was discarded before anyone could read it. The wizard now surfaces the backend's `error_type` as a readable cause, appends the raw detail, distinguishes an HTTP status from a transport failure, and offers a retry button
+- The bank list was gated on the 4/day ASPSP quota. `/aspsps` is Enable Banking's own catalog, not a call to any bank — it neither spends nor is bound by that quota — so a user who had refreshed four times could not connect a new bank until midnight. `_get_setup_client` now takes `enforce_rate_limit`, and the catalog opts out
+- Institution catalog is cached (24h TTL). A fresh cache skips the API entirely; an outage degrades the wizard to the stale list, flagged with its date, instead of an empty one. An empty API result counts as a failure — DE always has banks
+- Account identity is now the IBAN, not the Enable Banking session uid. The uid is reissued on every re-link, so re-connecting a bank created a second set of entities for the same real account and orphaned the first. `account_identity.py` derives a stable key (truncated SHA-256 — the key lands in the entity registry, so it must not carry the account number), merges re-links onto it, and preserves user-owned fields (custom name, type, person, HA users) across the merge
+- Entity registry is reconciled on setup — entities still on the uid-derived `unique_id` are migrated in place (entity_id and history preserved), and balance entities owned by no linked account are removed. This clears duplicates left by earlier re-links
+- Attended calls are no longer gated on the rate limit. PSD2 RTS Art. 36(5)(b) caps AISP access only when the user is not in session; with PSU headers present the cap does not apply, so refusing the refresh button while rate-limited denied a call the bank permits. The refresh endpoint, the manager pre-flight check, the header button and the panel's client-side guard all now distinguish attended from background
+- A 429 backs off 6h (Enable Banking's documented retry) instead of until midnight — a rate limit at 07:00 used to cost the entire day. An attended 429 is transient upstream noise and pauses 15 minutes. `Retry-After` still wins, capped at midnight where the ASPSP day counter resets
+- Opening the panel triggers one attended live refresh when the cache is older than the configured threshold (default 60 min, `auto_refresh_on_open` / `auto_refresh_max_age_minutes`). Once per panel mount, never on an interval — this is what makes DKB balances current without spending the background budget
+- Test: +48 tests covering catalog rate-limit exemption and cache fallback, account identity and re-link dedup, registry migration/orphan cleanup, and the attended/background split — total 266 → 314, all green
+
 ## 0.14.0
 - Budget_plan.py — cost-position ledger, the model the household spreadsheet is built on. Positions carry an explicit owner (person or shared), a signed amount (negative = reimbursement billed onward), a kind (fixed or buffer with units x unit price), an inclusive YYYY-MM validity window, and an optional debit account independent of the owner
 - Spreadsheet_import.py — migrates a `Kalkulation Haushalt.xlsx` workbook into the plan. Recovers buffer factors from formulas (`=80*4.5`), validity windows from prose comments ("bis inkl. April 2027"), and cross-checks recomputed net income against the sheet's own stated net, reporting any mismatch

@@ -25,7 +25,13 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .const import DOMAIN
+from .const import (
+    DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES,
+    DEFAULT_AUTO_REFRESH_ON_OPEN,
+    DOMAIN,
+    OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
+    OPT_AUTO_REFRESH_ON_OPEN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -237,6 +243,19 @@ class FinanceDashboardOptionsFlow(OptionsFlow):
                         "demo_mode",
                         default=self.config_entry.options.get("demo_mode", False),
                     ): bool,
+                    vol.Optional(
+                        OPT_AUTO_REFRESH_ON_OPEN,
+                        default=self.config_entry.options.get(
+                            OPT_AUTO_REFRESH_ON_OPEN, DEFAULT_AUTO_REFRESH_ON_OPEN
+                        ),
+                    ): bool,
+                    vol.Optional(
+                        OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
+                        default=self.config_entry.options.get(
+                            OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
+                            DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES,
+                        ),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=5, max=1440)),
                 }
             ),
         )

@@ -49,6 +49,7 @@ class FinanceDashboardPanel extends HTMLElement {
       this._rendered = true;
       // Dismiss setup-complete notification on first panel load
       this._dismissSetupNotification(hass);
+      this._maybeAutoRefresh();
     }
     // Forward hass to data provider (drives entity subscriptions)
     const dp = this.shadowRoot.querySelector("fd-data-provider");
@@ -56,6 +57,39 @@ class FinanceDashboardPanel extends HTMLElement {
     // The budget plan fetches from its own endpoints, so it needs hass
     // directly rather than going through the provider.
     if (this._budgetPlan && !this._budgetPlan.hass) this._budgetPlan.hass = hass;
+  }
+
+  /**
+   * Fetch live data once when the panel opens and the cache has aged out.
+   *
+   * The user opening the dashboard IS the session, so the backend attaches
+   * PSU headers and the call counts as attended — PSD2 RTS Art. 36(5)(b)
+   * caps only unattended access, which is why this does not eat into the
+   * 4/day budget the way the scheduled 06:30 fetch does.
+   *
+   * Fires at most once per panel mount and only above the configured age
+   * threshold. This is a user action, not an interval — no polling.
+   */
+  async _maybeAutoRefresh() {
+    if (!this._hass) return;
+    try {
+      const status = await this._hass.callApi("GET", `${DOMAIN}/refresh_status`);
+      if (!status || status.auto_refresh_on_open === false) return;
+      if (status.demo_mode || status.is_refreshing) return;
+      if (!status.account_count) return;
+
+      const maxAge = status.auto_refresh_max_age_seconds;
+      if (!maxAge) return;
+      const age = status.cache_age_seconds;
+      // A never-refreshed cache (null) is maximally stale — fetch it.
+      if (age !== null && age !== undefined && age < maxAge) return;
+
+      this.shadowRoot.dispatchEvent(
+        new CustomEvent("fd-refresh-requested", { bubbles: false }),
+      );
+    } catch (e) {
+      // Best effort: the panel is fully usable from cache without this.
+    }
   }
 
   _dismissSetupNotification(hass) {
@@ -122,18 +156,11 @@ class FinanceDashboardPanel extends HTMLElement {
     this.shadowRoot.addEventListener("fd-refresh-requested", () => {
       const dp = this.shadowRoot.querySelector("fd-data-provider");
       const header = this.shadowRoot.querySelector("fd-header");
-      // Don't call the API if rate-limited — button should already be disabled,
-      // but guard here as well.
-      if (header && header._rateLimitedUntil &&
-          new Date(header._rateLimitedUntil) > new Date()) {
-        if (header.showToast) {
-          header.showToast(
-            window._fd.tSync("header.refresh.toast_rate_limited"),
-            "warn",
-          );
-        }
-        return;
-      }
+      // No client-side rate-limit guard: this event only fires from a user
+      // action (button click or panel open), which the backend sends as an
+      // attended request.  Attended calls are exempt from the unattended
+      // 4/day cap, so refusing here would block a call the bank permits.
+      // If the backend still declines, fd-refresh-done reports the reason.
       if (header) header.refreshing = true;
       if (dp) {
         dp.refresh().finally(() => {

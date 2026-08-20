@@ -40,6 +40,7 @@ class FdSetupWizard extends HTMLElement {
     this._countdownSec = POLL_MAX_MS / 1000; // 300 seconds
     this._error = null;
     this._loading = false;
+    this._cachedAt = null; // ISO date when the shown list came from cache
     this._initialStep = 1; // Override with initialStep property
     this._boundTrapFocus = this._trapFocus.bind(this);
     this._boundEsc = this._handleEsc.bind(this);
@@ -121,22 +122,69 @@ class FdSetupWizard extends HTMLElement {
 
   async _loadInstitutions() {
     if (!this._hass) return;
+    const endpoint = `${DOMAIN}/setup/institutions`;
     this._loading = true;
     this._error = null;
+    this._cachedAt = null;
     this._renderContent();
     try {
-      const result = await this._hass.callApi("GET", `${DOMAIN}/setup/institutions`);
-      if (result.error) {
-        this._error = result.error;
+      const result = await this._hass.callApi("GET", endpoint);
+      if (result && result.error) {
+        this._error = this._describeBackendError(result);
       } else {
-        this._institutions = result.institutions || [];
+        this._institutions = (result && result.institutions) || [];
         this._filteredInstitutions = this._institutions;
+        this._cachedAt = (result && result.cached_at) || null;
+        // An empty list is a failure, not a valid state — DE always has banks.
+        if (!this._institutions.length) {
+          this._error = window._fd.tSync("wizard.error.api_error");
+        }
       }
     } catch (e) {
-      this._error = window._fd.tSync("wizard.step.1.loading");
+      this._error = this._describeTransportError(e, endpoint);
     }
     this._loading = false;
     this._renderContent();
+  }
+
+  /**
+   * Turn a backend `{error, error_type}` payload into a readable message.
+   * The raw backend text is appended as detail so the cause stays visible
+   * instead of being replaced by a generic phrase.
+   */
+  _describeBackendError(result) {
+    const { tSync } = window._fd;
+    const key = `wizard.error.${result.error_type || "api_error"}`;
+    let msg = tSync(key);
+    if (msg === key) msg = tSync("wizard.error.api_error");
+    return this._appendDetail(msg, result.error);
+  }
+
+  /**
+   * Describe a thrown callApi error. HA's callApi rejects with an object
+   * carrying `status_code` + `body` on non-2xx, and with a plain Error on
+   * transport failures — both must stay diagnosable.
+   */
+  _describeTransportError(e, endpoint) {
+    const { tSync } = window._fd;
+    const status = e && (e.status_code || e.status);
+    const body = e && e.body;
+    const detail =
+      (body && (body.message || body.error))
+      || (e && (e.message || e.error))
+      || "";
+    const msg = status
+      ? tSync("wizard.error.http", { status, endpoint })
+      : tSync("wizard.error.network", { endpoint });
+    return this._appendDetail(msg, detail);
+  }
+
+  /** Append a truncated raw detail to a message, skipping empty duplicates. */
+  _appendDetail(msg, detail) {
+    const { tSync } = window._fd;
+    const text = String(detail || "").trim();
+    if (!text || text === msg) return msg;
+    return `${msg} (${tSync("wizard.error.detail_prefix")}: ${text.slice(0, 200)})`;
   }
 
   async _loadUsers() {
@@ -172,7 +220,7 @@ class FdSetupWizard extends HTMLElement {
       // Start polling for callback completion
       this._startPolling();
     } catch (e) {
-      this._error = window._fd.tSync("wizard.step.2.loading");
+      this._error = this._describeTransportError(e, `${DOMAIN}/setup/authorize`);
       this._loading = false;
       this._renderContent();
     }
@@ -286,7 +334,7 @@ class FdSetupWizard extends HTMLElement {
         composed: true,
       }));
     } catch (e) {
-      this._error = window._fd.tSync("wizard.step.3.connect");
+      this._error = this._describeTransportError(e, `${DOMAIN}/setup/complete`);
       this._loading = false;
       this._renderContent();
     }
@@ -446,6 +494,32 @@ class FdSetupWizard extends HTMLElement {
   color: var(--error-color, #e74c3c);
   font-size: 13px;
   margin-bottom: 16px;
+}
+.retry-btn {
+  display: block;
+  margin-top: 10px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(231,76,60,0.5);
+  background: transparent;
+  color: var(--error-color, #e74c3c);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.retry-btn:hover,
+.retry-btn:focus {
+  background: rgba(231,76,60,0.15);
+  outline: none;
+}
+.cached-hint {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(241,196,15,0.1);
+  border: 1px solid rgba(241,196,15,0.3);
+  color: var(--warning-color, #f1c40f);
+  font-size: 12px;
+  margin-bottom: 12px;
 }
 .loading-spinner {
   text-align: center;
@@ -607,13 +681,18 @@ class FdSetupWizard extends HTMLElement {
       ).join("")}
     </div>`;
 
+    const retryHtml = this._step === 1
+      ? `<button type="button" class="retry-btn" id="retryBtn">${window._fd.tSync("wizard.error.retry")}</button>`
+      : "";
     const errorHtml = this._error
-      ? `<div class="error-msg">${this._esc(this._error)}</div>`
+      ? `<div class="error-msg">${this._esc(this._error)}${retryHtml}</div>`
       : "";
 
     if (this._step === 1) {
       body.innerHTML = `${stepsHtml}${errorHtml}${this._renderStep1()}`;
       this._bindStep1();
+      const retryBtn = this.shadowRoot.getElementById("retryBtn");
+      if (retryBtn) retryBtn.addEventListener("click", () => this._loadInstitutions());
     } else if (this._step === 2) {
       body.innerHTML = `${stepsHtml}${errorHtml}${this._renderStep2()}`;
       this._bindStep2();
@@ -693,13 +772,23 @@ class FdSetupWizard extends HTMLElement {
     if (this._loading) {
       return `<div class="loading-spinner">${tSync("wizard.step.1.loading")}</div>`;
     }
+    const cachedHtml = this._cachedAt
+      ? `<div class="cached-hint">${this._esc(tSync("wizard.step.1.cached_hint", { date: this._formatCachedAt(this._cachedAt) }))}</div>`
+      : "";
     return `
+      ${cachedHtml}
       <input type="text" class="search-input" id="searchInput"
         placeholder="${tSync("wizard.step.1.search_placeholder")}"
         autocomplete="off"
         aria-label="${tSync("wizard.step.1.search_label")}">
       <div class="institution-list" role="listbox" aria-label="${tSync("wizard.step.1.listbox_label")}">${this._renderInstitutionList()}</div>
     `;
+  }
+
+  /** Render an ISO timestamp as a short local date, falling back to raw. */
+  _formatCachedAt(iso) {
+    const d = new Date(iso);
+    return isNaN(d.getTime()) ? String(iso) : d.toLocaleDateString();
   }
 
   _bindStep1() {

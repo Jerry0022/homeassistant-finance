@@ -57,9 +57,12 @@ class FdHeader extends HTMLElement {
     const btn = this.shadowRoot.getElementById("refreshBtn");
     if (!btn) return;
     const { tSync } = window._fd;
+    // A click is always an attended request: the backend sends PSU headers,
+    // and PSD2 RTS Art. 36(5)(b) caps only unattended access.  So a standing
+    // background rate limit must NOT disable the button — it only warns.
     if (this._rateLimitedUntil && new Date(this._rateLimitedUntil) > new Date()) {
-      btn.disabled = true;
-      btn.textContent = tSync("header.refresh.rate_limited");
+      btn.disabled = false;
+      btn.textContent = tSync("header.refresh.button");
       btn.title = tSync("header.refresh.rate_limited_title");
     } else if (this._refreshing) {
       btn.disabled = true;

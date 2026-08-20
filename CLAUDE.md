@@ -6,7 +6,15 @@
 
 A secure Home Assistant add-on and integration for personal finance management. Pulls live banking data via the Enable Banking PSD2 Open Banking API (JWT-signed), auto-categorizes transactions, and provides household budget tracking with configurable multi-person split models.
 
-**Hard rule — cache vs. live fetch**: Cache reads (HTTP endpoints, sensor attributes, coordinator state) are unbounded. Live Enable-Banking calls are allowed from explicit user-triggered paths (refresh button, service call, setup bootstrap) **plus exactly one scheduled refresh per day** at a configurable time (default 06:30, `daily_refresh_enabled` / `daily_refresh_hour`). Enable Banking enforces a 4/day ASPSP limit, so that daily fetch spends a quarter of the budget and leaves three for manual refreshes. Polling — any interval-based or coordinator-driven fetch — remains forbidden.
+**Hard rule — cache vs. live fetch**: Cache reads (HTTP endpoints, sensor attributes, coordinator state) are unbounded. Live Enable-Banking calls are allowed from explicit user-triggered paths (refresh button, panel open, service call, setup bootstrap) **plus exactly one scheduled refresh per day** at a configurable time (default 06:30, `daily_refresh_enabled` / `daily_refresh_hour`). Polling — any interval-based or coordinator-driven fetch — remains forbidden.
+
+**Hard rule — attended vs. background**: The 4/day cap is the *bank's*, and PSD2 RTS Art. 36(5)(b) applies it only to requests made while the user is **not** in session. A call carrying PSU headers (`Psu-Ip-Address` / `Psu-User-Agent`, derived from a real HTTP request) is *attended* and not capped; a call without them is *background* and is. Consequences that must not be re-broken:
+- Never gate an attended path on `rate_limited_until` — that refuses a call the bank permits. Only the scheduled fetch is background.
+- Never invent PSU header values. No request context means background, and background means the cap applies.
+- The `/aspsps` catalog is served by Enable Banking, not by a bank: it neither spends nor is bound by the quota. Gating it locked rate-limited users out of connecting any bank at all.
+- A 429 backs off 6h (`RATE_LIMIT_BACKOFF_HOURS`), not until midnight — a 07:00 rate limit must not cost the whole day.
+
+**Hard rule — account identity**: Enable Banking issues a fresh account uid per PSU session, so the uid is not an identity. The IBAN is. Everything account-scoped (entity `unique_id`, config-entry merge on re-link) goes through `account_identity.py`; using the raw uid duplicates every entity on each re-link.
 
 **Hard rule — plan vs. actual**: The product has two sides that must not be conflated.
 - The **plan** (`budget_plan.py`) is what the household budgeted: cost positions with an explicit owner, income per person. It exists independently of any bank link.
