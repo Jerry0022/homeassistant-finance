@@ -4,6 +4,11 @@
 
 
 
+
+## 0.15.1
+- The entity-registry reconciler removed every balance entity when the config entry listed no accounts. An empty list means "we do not know what is linked" — a half-configured setup, a storage-recovery round, a re-auth that cleared the list before failing — not "all orphaned". Reconciliation now returns early in that state, so it can no longer destroy history HA cannot restore. Found by re-reading the 0.15.0 diff before promoting it to stable
+- Test: pin the empty-account-list case — total 314 -> 315
+
 ## 0.15.0
 - The setup wizard reported every failure as "Banken werden geladen…" — all three catch blocks assigned the LOADING string as the error message, so the real exception was discarded before anyone could read it. The wizard now surfaces the backend's `error_type` as a readable cause, appends the raw detail, distinguishes an HTTP status from a transport failure, and offers a retry button
 - The bank list was gated on the 4/day ASPSP quota. `/aspsps` is Enable Banking's own catalog, not a call to any bank — it neither spends nor is bound by that quota — so a user who had refreshed four times could not connect a new bank until midnight. `_get_setup_client` now takes `enforce_rate_limit`, and the catalog opts out
