@@ -7,6 +7,7 @@ All notable changes to the Finance will be documented in this file.
 ### Changed
 - Test: the delivery path had zero coverage. `tests/test_addon_installer.py` executes `run.sh` for real against a temporary root (`FD_CONFIG_ROOT` / `FD_PAYLOAD_ROOT`, `FD_RUN_ONCE`) and pins the stale-module removal, the restart marker, the Lovelace copy, a bare first install, the no-op path, and the `startup: services` contract itself — total 315 → 323
 - Ci: `bash -n` on run.sh, and `.gitattributes` pins `*.sh` to LF — a CRLF checkout breaks the shebang inside the Alpine container, failing as a stopped add-on rather than an error
+- Chore: cleared the 7 ruff findings that had accumulated in files this branch does not touch (two dead `noqa` directives, two unsorted import blocks, three shared mutable class attributes now `ClassVar`). `ruff` ships in the test requirements but no gate ever ran it, so the debt was invisible
 
 ### Fixed
 - The companion add-on ran with `startup: once`, so it had already exited by the time Supervisor auto-updated it — and Supervisor only restarts add-ons that were *running*. The installer therefore only ever executed on a host reboot. On the reporting instance the add-on package sat at 0.14.0 while `/config` still held 0.13.0 with a file timestamp of 2026-04-25; 0.13.1, 0.14.0, 0.15.0 and 0.15.1 never reached disk. The add-on is now a resident service (`startup: services`) that installs on start and re-checks hourly, so every auto-update delivers its payload the minute it lands

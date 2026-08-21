@@ -228,7 +228,7 @@ async def async_load_cached_institutions(hass: HomeAssistant) -> tuple[list, str
     """
     try:
         data = await _institution_store(hass).async_load()
-    except Exception:  # noqa: BLE001 — a corrupt cache must never break setup
+    except Exception:
         _LOGGER.warning("Institution cache unreadable — ignoring it")
         return [], None
 
@@ -251,7 +251,7 @@ async def async_save_cached_institutions(hass: HomeAssistant, institutions: list
                 "cached_at": datetime.now(UTC).isoformat(),
             }
         )
-    except Exception:  # noqa: BLE001 — caching is best-effort
+    except Exception:
         _LOGGER.debug("Could not persist institution cache", exc_info=True)
 
 

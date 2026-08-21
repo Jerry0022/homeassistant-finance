@@ -13,6 +13,7 @@ lost day.
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import ClassVar
 
 import pytest
 from homeassistant.util import dt as dt_util
@@ -26,7 +27,7 @@ def _make_manager():
     mgr._rate_limited_until = None
 
     class _Hass:
-        data: dict = {}
+        data: ClassVar[dict] = {}
 
     mgr._hass = _Hass()
     return mgr
@@ -161,7 +162,7 @@ async def test_attended_refresh_is_not_gated(refresh_view):
     manager = install(_FakeManager(dt_util.now() + timedelta(hours=5)))
 
     class _Hass:
-        data: dict = {}
+        data: ClassVar[dict] = {}
 
     await view.post(_FakeRequest(_Hass(), remote="192.168.1.50"))
 
@@ -177,7 +178,7 @@ async def test_background_refresh_is_gated(refresh_view):
     manager = install(_FakeManager(dt_util.now() + timedelta(hours=5)))
 
     class _Hass:
-        data: dict = {}
+        data: ClassVar[dict] = {}
 
     response = await view.post(_FakeRequest(_Hass(), remote=None))
 

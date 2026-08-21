@@ -10,6 +10,7 @@ Changes:
 - fix(addon): the install-state file is rewritten on every check, not just on an update. Its timestamp is the only evidence visible from outside the container that the installer is alive — a stale one is what identified this bug
 - test: the delivery path had zero coverage. `tests/test_addon_installer.py` executes `run.sh` for real against a temporary root (`FD_CONFIG_ROOT` / `FD_PAYLOAD_ROOT`, `FD_RUN_ONCE`) and pins the stale-module removal, the restart marker, the Lovelace copy, a bare first install, the no-op path, and the `startup: services` contract itself — total 315 → 323
 - ci: `bash -n` on run.sh, and `.gitattributes` pins `*.sh` to LF — a CRLF checkout breaks the shebang inside the Alpine container, failing as a stopped add-on rather than an error
+- chore(lint): cleared the 7 ruff findings that had accumulated in files this branch does not touch (two dead `noqa` directives, two unsorted import blocks, three shared mutable class attributes now `ClassVar`). `ruff` ships in the test requirements but no gate ever ran it, so the debt was invisible
 
 ## 0.15.1 — 2026-08-20
 Version: 0.15.1

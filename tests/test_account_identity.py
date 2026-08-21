@@ -20,7 +20,6 @@ from custom_components.finance_dashboard.account_identity import (
     normalize_iban,
 )
 
-
 # ---------------------------------------------------------------------------
 # normalize_iban
 # ---------------------------------------------------------------------------
