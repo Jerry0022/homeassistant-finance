@@ -117,9 +117,11 @@ After writing a BUILDLOG entry, run `python scripts/sync_changelog.py` to propag
 ### Companion Add-on
 The add-on is a thin installer — it copies the integration code into HA's `custom_components/` directory. The `run.sh` script:
 - Compares bundled vs installed version
-- Only copies if versions differ
+- Replaces the target tree (delete sync) if versions differ — `cp -r` alone leaves modules a later version dropped
 - Writes restart marker for integration to detect
 - Falls back to persistent notification via HA Supervisor API
+
+**Hard rule — the add-on must stay resident.** `startup: services`, never `startup: once`. A `once` add-on has already exited when Supervisor auto-updates it, and Supervisor only restarts add-ons that were *running* — so the installer stops running entirely and the payload never reaches disk. That failure is silent: the add-on reports the new version while `/config` keeps the old one. It cost releases 0.13.1 through 0.15.1 on a live instance. The installer therefore installs on start, then re-checks hourly, never exits on a failed install, and rewrites its state file on every check so its timestamp doubles as a liveness heartbeat. `tests/test_addon_installer.py` pins all of this.
 
 ### Config Flow
 Three-step flow: `user` (Enable Banking application_id + RSA private key) → `link_bank` (ASPSP authorization via PSU redirect) → `options` (settings). Real-time validation via Enable Banking API call during setup.

@@ -1,0 +1,6 @@
+# The add-on installer is executed inside an Alpine container. A CRLF checkout
+# would break its shebang, and the failure mode is a silently stopped add-on —
+# exactly the delivery outage this pins against.
+*.sh text eol=lf
+run.sh text eol=lf
+Dockerfile text eol=lf

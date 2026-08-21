@@ -66,6 +66,9 @@ jobs:
           find custom_components/finance_dashboard/frontend -name "*.js" -exec node --check {} +
           node --check www/community/finance-dashboard/finance-dashboard.js
 
+      - name: Validate shell syntax
+        run: bash -n finance_dashboard_companion/run.sh
+
       - name: Validate YAML files
         run: |
           python -c "
