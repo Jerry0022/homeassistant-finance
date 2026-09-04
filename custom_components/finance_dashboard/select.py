@@ -55,24 +55,20 @@ class _OptionsBackedSelect(SelectEntity):
 
     _option_key: str = ""
     _default_key: str = ""
-    _label_map: dict[str, str] = {}
+    _label_map: dict[str, str] = {}  # noqa: RUF012
 
     def __init__(self, entry: ConfigEntry) -> None:
         """Initialize with the current entry option."""
         self._entry = entry
         self._attr_options = list(self._label_map.values())
         current = entry.options.get(self._option_key, self._default_key)
-        self._attr_current_option = self._label_map.get(
-            current, self._label_map[self._default_key]
-        )
+        self._attr_current_option = self._label_map.get(current, self._label_map[self._default_key])
         self._unsub_update: Callable[[], None] | None = None
 
     async def async_added_to_hass(self) -> None:
         """Listen for options changes so the entity stays in sync."""
         await super().async_added_to_hass()
-        self._unsub_update = self._entry.add_update_listener(
-            self._async_entry_updated
-        )
+        self._unsub_update = self._entry.add_update_listener(self._async_entry_updated)
 
     async def async_will_remove_from_hass(self) -> None:
         """Remove the update listener on teardown."""
@@ -80,14 +76,10 @@ class _OptionsBackedSelect(SelectEntity):
             self._unsub_update()
             self._unsub_update = None
 
-    async def _async_entry_updated(
-        self, hass: HomeAssistant, entry: ConfigEntry
-    ) -> None:
+    async def _async_entry_updated(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Refresh current option when the entry options change externally."""
         current = entry.options.get(self._option_key, self._default_key)
-        label = self._label_map.get(
-            current, self._label_map[self._default_key]
-        )
+        label = self._label_map.get(current, self._label_map[self._default_key])
         if label != self._attr_current_option:
             self._attr_current_option = label
             self.async_write_ha_state()
@@ -108,9 +100,7 @@ class _OptionsBackedSelect(SelectEntity):
         )
         new_options = dict(self._entry.options)
         new_options[self._option_key] = key
-        self.hass.config_entries.async_update_entry(
-            self._entry, options=new_options
-        )
+        self.hass.config_entries.async_update_entry(self._entry, options=new_options)
         self.async_write_ha_state()
 
 

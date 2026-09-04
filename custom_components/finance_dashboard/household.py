@@ -17,10 +17,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any
 
-from .const import DEFAULT_CATEGORIES, DEFAULT_SPLIT_MODEL
+from .const import DEFAULT_SPLIT_MODEL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -33,9 +32,7 @@ class HouseholdMember:
     gross_income: float = 0.0
     net_income: float = 0.0
     individual_costs: float = 0.0
-    individual_cost_items: list[dict[str, Any]] = field(
-        default_factory=list
-    )
+    individual_cost_items: list[dict[str, Any]] = field(default_factory=list)
     account_ids: list[str] = field(default_factory=list)
     # Month cycle: "calendar" or "salary"
     month_cycle: str = "calendar"
@@ -148,25 +145,16 @@ class HouseholdModel:
         # Calculate shared cost distribution
         if shared_cost_items and self.category_overrides:
             # Category-level split: apply per-category overrides
-            cost_shares = self._calculate_category_split(
-                shared_cost_items, ratios
-            )
+            cost_shares = self._calculate_category_split(shared_cost_items, ratios)
         else:
             # Global split: one ratio for all shared costs
-            cost_shares = {
-                m.name: shared_costs * ratios.get(m.name, 0)
-                for m in self.members
-            }
+            cost_shares = {m.name: shared_costs * ratios.get(m.name, 0) for m in self.members}
 
         # Build results
         results = []
         for member in self.members:
             share = cost_shares.get(member.name, 0)
-            spielgeld = (
-                adjusted_incomes[member.name]
-                - share
-                - member.individual_costs
-            )
+            spielgeld = adjusted_incomes[member.name] - share - member.individual_costs
             results.append(
                 SplitResult(
                     person=member.name,
@@ -193,17 +181,12 @@ class HouseholdModel:
             return {m.name: 1.0 / n for m in self.members} if n else {}
 
         elif self.split_mode == "proportional":
-            total_income = sum(
-                max(m.net_income, 0) for m in self.members
-            )
+            total_income = sum(max(m.net_income, 0) for m in self.members)
             if total_income <= 0:
                 # Fallback to equal if no positive income
                 n = len(self.members)
                 return {m.name: 1.0 / n for m in self.members}
-            return {
-                m.name: max(m.net_income, 0) / total_income
-                for m in self.members
-            }
+            return {m.name: max(m.net_income, 0) / total_income for m in self.members}
 
         elif self.split_mode == "custom":
             # Normalize custom ratios to sum to 1.0
@@ -211,10 +194,7 @@ class HouseholdModel:
             if total <= 0:
                 n = len(self.members)
                 return {m.name: 1.0 / n for m in self.members}
-            return {
-                name: pct / total
-                for name, pct in self.custom_ratios.items()
-            }
+            return {name: pct / total for name, pct in self.custom_ratios.items()}
 
         # Fallback
         n = len(self.members)
@@ -233,9 +213,7 @@ class HouseholdModel:
             amount = abs(float(item.get("amount", 0)))
 
             # Use category override if available, else default ratios
-            ratios = self.category_overrides.get(
-                category, default_ratios
-            )
+            ratios = self.category_overrides.get(category, default_ratios)
 
             for member in self.members:
                 ratio = ratios.get(member.name, 0)
@@ -299,9 +277,7 @@ class HouseholdModel:
         }
 
     @classmethod
-    def from_config(
-        cls, config: dict[str, Any]
-    ) -> HouseholdModel:
+    def from_config(cls, config: dict[str, Any]) -> HouseholdModel:
         """Create a HouseholdModel from stored configuration."""
         members = []
         for m_data in config.get("members", []):

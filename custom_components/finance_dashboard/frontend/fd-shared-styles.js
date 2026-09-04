@@ -1,8 +1,9 @@
 /**
  * Shared styles, formatters, and utilities for Finance Dashboard components.
  *
- * All dashboard components import from this module to ensure visual
+ * All dashboard components read from window._fd to ensure visual
  * consistency and avoid duplicating CSS / helper functions.
+ * The export keywords also remain for future ES-module migration.
  */
 
 /** EUR currency formatter (German locale). */
@@ -24,6 +25,19 @@ export function esc(s) {
   const d = document.createElement("div");
   d.textContent = s;
   return d.innerHTML;
+}
+
+/**
+ * Escape HTML without DOM round-trip (hot-path safe).
+ * Replaces &, <, >, ", ' with named entities.
+ */
+export function escHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 /** Category color mapping. */
@@ -49,10 +63,10 @@ export const CAT_LABELS = {
   utilities: "Nebenkosten",
   insurance: "Versicherung",
   subscriptions: "Abos",
-  transport: "Mobilit\u00e4t",
+  transport: "Mobilität",
   cleaning: "Reinigung",
   income: "Einkommen",
-  transfers: "\u00dcbertr\u00e4ge",
+  transfers: "Überträge",
   other: "Sonstiges",
 };
 
@@ -63,13 +77,13 @@ export const MEMBER_COLORS = [
 
 /** German month names (abbreviated). */
 export const MONTH_NAMES = [
-  "Jan", "Feb", "M\u00e4r", "Apr", "Mai", "Jun",
+  "Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
   "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
 ];
 
 /**
  * CSS custom properties and base styles shared across all dashboard components.
- * Components include this via: `<style>${SHARED_CSS}</style>` in their shadow root.
+ * Components include this via: `<style>${window._fd.SHARED_CSS}${LOCAL_CSS}</style>` in their shadow root.
  */
 export const SHARED_CSS = `
 :host {
@@ -85,6 +99,22 @@ export const SHARED_CSS = `
   --bl: #3b82f6;
   --pp: #8b5cf6;
   --r: 14px;
+  --r-sm: 4px;
+  --r-md: 8px;
+  --sh-sm: 0 4px 12px rgba(0,0,0,0.3);
+  --sh-md: 0 8px 24px rgba(0,0,0,0.4);
+  --sh-lg: 0 20px 60px rgba(0,0,0,0.5);
+  --fs-sm: 11px;
+  --fs-md: 13px;
+  --fs-lg: 18px;
+  --fs-xl: 24px;
+  --lh-tight: 1;
+  --lh-normal: 1.2;
+  --sp-xs: 6px;
+  --sp-sm: 8px;
+  --sp-md: 12px;
+  --sp-lg: 18px;
+  --sp-xl: 24px;
   display: block;
   font-family: 'Segoe UI', system-ui, sans-serif;
   color: var(--tx);
@@ -106,4 +136,136 @@ export const SHARED_CSS = `
   justify-content: space-between;
   align-items: center;
 }
+/* Global keyboard-focus indicator — applies to every interactive element
+   inside the dashboard panel. Removes the dotted browser default in favour
+   of a clear, theme-tinted ring. */
+button:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--ac);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+/* Suppress the legacy :focus ring when :focus-visible is supported to avoid
+   a doubled outline on mouse clicks. */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+[tabindex]:focus:not(:focus-visible) {
+  outline: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 `;
+
+/**
+ * i18n helper — lazy-loads locale JSON and resolves keys with placeholder substitution.
+ *
+ * Usage:
+ *   await window._fd.t("header.refresh.button")
+ *   await window._fd.t("header.refresh.toast_success", { accounts: 3, tx: 50, new: 2, duration: "1.2s" })
+ *
+ * Language resolution order:
+ *   1. hass.language (if hass is provided via window._fd._hass)
+ *   2. navigator.language
+ *   3. Fallback: "en"
+ *
+ * Supported languages: "de", "en". Unknown languages fall back to "en".
+ */
+const _i18nCache = {};
+
+async function _loadLocale(lang) {
+  if (_i18nCache[lang]) return _i18nCache[lang];
+  const STATIC_BASE = "/api/finance_dashboard/static";
+  try {
+    const resp = await fetch(`${STATIC_BASE}/locales/${lang}.json`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    _i18nCache[lang] = await resp.json();
+  } catch (_) {
+    _i18nCache[lang] = null;
+  }
+  return _i18nCache[lang];
+}
+
+function _resolveLang() {
+  const hassLang = window._fd && window._fd._hass && window._fd._hass.language;
+  const raw = hassLang || navigator.language || "en";
+  const base = raw.toLowerCase().split("-")[0];
+  return ["de", "en"].includes(base) ? base : "en";
+}
+
+/**
+ * Translate a key with optional variable substitution.
+ * Variables replace $key occurrences in the string.
+ * Synchronously returns the key as fallback if locale is not yet loaded.
+ */
+async function t(key, vars = {}) {
+  const lang = _resolveLang();
+  let strings = await _loadLocale(lang);
+  if (!strings || !strings[key]) {
+    if (lang !== "en") strings = await _loadLocale("en");
+  }
+  let text = (strings && strings[key]) ? strings[key] : key;
+  for (const [k, v] of Object.entries(vars)) {
+    text = text.replace(new RegExp(`\\$${k}`, "g"), String(v));
+  }
+  return text;
+}
+
+/**
+ * Synchronous translation — returns cached value or key as fallback.
+ * Pre-warm the cache by calling t() once during component init.
+ */
+function tSync(key, vars = {}) {
+  const lang = _resolveLang();
+  const strings = _i18nCache[lang] || _i18nCache["en"] || {};
+  let text = strings[key] || key;
+  for (const [k, v] of Object.entries(vars)) {
+    text = text.replace(new RegExp(`\\$${k}`, "g"), String(v));
+  }
+  return text;
+}
+
+/**
+ * Attach shared constants to window._fd so classic-script components
+ * (loaded via add_extra_js_url without type="module") can access them.
+ * fd-shared-styles.js is always loaded first in LOVELACE_COMPONENTS.
+ */
+window._fd = {
+  escHtml,
+  esc,
+  eur,
+  pct,
+  CAT_COLORS,
+  CAT_LABELS,
+  MEMBER_COLORS,
+  MONTH_NAMES,
+  SHARED_CSS,
+  t,
+  tSync,
+  _hass: null,  // Set by panel shell: window._fd._hass = hass
+};
+
+/**
+ * Pre-warm locale cache as soon as the script loads so that tSync() calls
+ * during first component render already have strings available.
+ * Uses navigator.language as initial guess; panel shell updates _hass later.
+ */
+(function _warmupLocales() {
+  const raw = (navigator.language || "en").toLowerCase().split("-")[0];
+  const lang = ["de", "en"].includes(raw) ? raw : "en";
+  // Fire-and-forget: populate _i18nCache before first render tick
+  _loadLocale(lang);
+  if (lang !== "en") _loadLocale("en");
+})();

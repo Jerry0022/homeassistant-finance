@@ -89,10 +89,8 @@ class FdCategorize extends HTMLElement {
   _renderTransactions(txns) {
     const eur = (v) => new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(v);
     const cats = ["housing","food","transport","insurance","subscriptions","loans","utilities","cleaning","other"];
-    const catColors = {
-      housing:"#3b82f6",food:"#f97316",transport:"#06b6d4",insurance:"#8b5cf6",
-      subscriptions:"#ec4899",loans:"#e74c3c",utilities:"#eab308",cleaning:"#a855f7",other:"#6b7280"
-    };
+    // catColors comes from window._fd.CAT_COLORS (set by fd-shared-styles.js)
+    const catColors = window._fd.CAT_COLORS;
 
     // Filter to "other" or uncategorized transactions
     const uncategorized = txns.filter(t => t.category === "other" || !t.category).slice(0, 20);

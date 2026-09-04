@@ -46,7 +46,7 @@ class FdBudgetConfig extends HTMLElement {
   .bcc-person .name { font-size: 13px; }
   .bcc-person .sg { font-size: 16px; font-weight: 700; }
   .bcc-person .sg.pos { color: var(--accent-color, #4ecca3); }
-  .bcc-person .sg.neg { color: #e74c3c; }
+  .bcc-person .sg.neg { color: var(--dg, #e74c3c); }
 </style>
 <div class="bcc" id="bcc">
   <div class="bcc-row">

@@ -36,8 +36,18 @@ class FdSetupWizard extends HTMLElement {
     this._authUrl = null;
     this._pendingAccounts = [];
     this._pollTimer = null;
+    this._countdownTimer = null;
+    this._countdownSec = POLL_MAX_MS / 1000; // 300 seconds
     this._error = null;
     this._loading = false;
+    this._initialStep = 1; // Override with initialStep property
+    this._boundTrapFocus = this._trapFocus.bind(this);
+    this._boundEsc = this._handleEsc.bind(this);
+  }
+
+  /** Set to 2 to open directly at bank selection (credentials already present). */
+  set initialStep(v) {
+    this._initialStep = parseInt(v) || 1;
   }
 
   set hass(hass) {
@@ -45,12 +55,59 @@ class FdSetupWizard extends HTMLElement {
   }
 
   connectedCallback() {
+    this._step = this._initialStep;
     this._render();
+    // If opening at step 1 or at step 2 (add-account flow), load institutions
     this._loadInstitutions();
+    document.addEventListener("keydown", this._boundTrapFocus);
+    document.addEventListener("keydown", this._boundEsc);
+    // Move focus into modal after render
+    requestAnimationFrame(() => {
+      const first = this._getFocusable()[0];
+      if (first) first.focus();
+    });
   }
 
   disconnectedCallback() {
     this._stopPolling();
+    this._stopCountdown();
+    document.removeEventListener("keydown", this._boundTrapFocus);
+    document.removeEventListener("keydown", this._boundEsc);
+  }
+
+  _getFocusable() {
+    const selectors = "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])";
+    return Array.from(this.shadowRoot.querySelectorAll(selectors)).filter(
+      (el) => !el.disabled && !el.closest("[hidden]")
+    );
+  }
+
+  _trapFocus(e) {
+    if (e.key !== "Tab") return;
+    const focusable = this._getFocusable();
+    if (focusable.length === 0) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    // Determine what is currently focused inside the shadow root
+    const active = this.shadowRoot.activeElement;
+    if (e.shiftKey) {
+      if (active === first || !active) {
+        e.preventDefault();
+        last.focus();
+      }
+    } else {
+      if (active === last || !active) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+  }
+
+  _handleEsc(e) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      this.close();
+    }
   }
 
   close() {
@@ -76,7 +133,7 @@ class FdSetupWizard extends HTMLElement {
         this._filteredInstitutions = this._institutions;
       }
     } catch (e) {
-      this._error = "Banken konnten nicht geladen werden";
+      this._error = window._fd.tSync("wizard.step.1.loading");
     }
     this._loading = false;
     this._renderContent();
@@ -115,18 +172,19 @@ class FdSetupWizard extends HTMLElement {
       // Start polling for callback completion
       this._startPolling();
     } catch (e) {
-      this._error = "Autorisierung fehlgeschlagen";
+      this._error = window._fd.tSync("wizard.step.2.loading");
       this._loading = false;
       this._renderContent();
     }
   }
 
   _startPolling() {
+    this._startCountdown();
     const startTime = Date.now();
     this._pollTimer = setInterval(async () => {
       if (Date.now() - startTime > POLL_MAX_MS) {
         this._stopPolling();
-        this._error = "Zeitlimit erreicht. Bitte erneut versuchen.";
+        this._error = window._fd.tSync("wizard.step.2.timeout_expired");
         this._renderContent();
         return;
       }
@@ -166,6 +224,35 @@ class FdSetupWizard extends HTMLElement {
       clearInterval(this._pollTimer);
       this._pollTimer = null;
     }
+    this._stopCountdown();
+  }
+
+  _startCountdown() {
+    this._countdownSec = POLL_MAX_MS / 1000;
+    this._stopCountdown(); // Prevent duplicate timers
+    this._countdownTimer = setInterval(() => {
+      this._countdownSec = Math.max(0, this._countdownSec - 1);
+      // Update countdown display in-place without full re-render
+      const el = this.shadowRoot.getElementById("countdown");
+      if (el) {
+        const min = Math.floor(this._countdownSec / 60);
+        const sec = String(this._countdownSec % 60).padStart(2, "0");
+        el.textContent = window._fd.tSync("wizard.step.2.timeout_label", {
+          min: String(min),
+          sec,
+        });
+      }
+      if (this._countdownSec === 0) {
+        this._stopCountdown();
+      }
+    }, 1000);
+  }
+
+  _stopCountdown() {
+    if (this._countdownTimer) {
+      clearInterval(this._countdownTimer);
+      this._countdownTimer = null;
+    }
   }
 
   async _completeSetup() {
@@ -199,7 +286,7 @@ class FdSetupWizard extends HTMLElement {
         composed: true,
       }));
     } catch (e) {
-      this._error = "Setup konnte nicht abgeschlossen werden";
+      this._error = window._fd.tSync("wizard.step.3.connect");
       this._loading = false;
       this._renderContent();
     }
@@ -223,6 +310,7 @@ class FdSetupWizard extends HTMLElement {
   }
 
   _render() {
+    const { tSync } = window._fd;
     this.shadowRoot.innerHTML = `
 <style>
 :host {
@@ -324,9 +412,20 @@ class FdSetupWizard extends HTMLElement {
   cursor: pointer;
   border: 1px solid transparent;
 }
-.institution-item:hover {
+.institution-item:hover,
+.institution-item:focus {
   background: rgba(255,255,255,0.04);
   border-color: rgba(255,255,255,0.08);
+  outline: none;
+}
+.institution-item[aria-selected="true"] {
+  background: rgba(78,204,163,0.1);
+  border-color: var(--accent-color, #4ecca3);
+}
+.institution-item .selected-mark {
+  margin-left: auto;
+  color: var(--accent-color, #4ecca3);
+  font-size: 14px;
 }
 .institution-item img {
   width: 32px;
@@ -344,7 +443,7 @@ class FdSetupWizard extends HTMLElement {
   border-radius: 10px;
   background: rgba(231,76,60,0.1);
   border: 1px solid rgba(231,76,60,0.3);
-  color: #e74c3c;
+  color: var(--error-color, #e74c3c);
   font-size: 13px;
   margin-bottom: 16px;
 }
@@ -371,12 +470,19 @@ class FdSetupWizard extends HTMLElement {
   font-size: 13px;
   margin-top: 20px;
 }
+.countdown {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--secondary-text-color, #9898a8);
+  text-align: center;
+  line-height: 1.4;
+}
 .btn-primary {
   display: inline-block;
   padding: 12px 24px;
   border-radius: 10px;
   background: var(--accent-color, #4ecca3);
-  color: #0a0a0f;
+  color: var(--primary-background-color, #0a0a0f);
   font-size: 14px;
   font-weight: 700;
   border: none;
@@ -474,10 +580,10 @@ class FdSetupWizard extends HTMLElement {
 }
 </style>
 <div class="backdrop"></div>
-<div class="modal">
+<div class="modal" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
   <div class="modal-header">
-    <h2>Bankkonto verbinden</h2>
-    <button class="close-btn" id="closeBtn">&times;</button>
+    <h2 id="wizard-title">${tSync("wizard.title")}</h2>
+    <button class="close-btn" id="closeBtn" aria-label="${tSync("wizard.close")}">&times;</button>
   </div>
   <div class="modal-body" id="body"></div>
 </div>`;
@@ -510,6 +616,7 @@ class FdSetupWizard extends HTMLElement {
       this._bindStep1();
     } else if (this._step === 2) {
       body.innerHTML = `${stepsHtml}${errorHtml}${this._renderStep2()}`;
+      this._bindStep2();
     } else if (this._step === 3) {
       body.innerHTML = `${stepsHtml}${errorHtml}${this._renderStep3()}`;
       this._bindStep3();
@@ -517,16 +624,38 @@ class FdSetupWizard extends HTMLElement {
       body.innerHTML = `${stepsHtml}${this._renderStep4()}`;
       this._bindStep4();
     }
+
+    // Keep focus inside dialog after re-render
+    requestAnimationFrame(() => {
+      const active = this.shadowRoot.activeElement;
+      if (!active || active === this.shadowRoot) {
+        const first = this._getFocusable()[0];
+        if (first) first.focus();
+      }
+    });
   }
 
   _renderInstitutionList() {
-    const items = this._filteredInstitutions.map((inst) => `
-      <div class="institution-item" data-name="${this._esc(inst.name)}" data-id="${this._esc(inst.id || "")}" data-logo="${this._esc(inst.logo || "")}">
+    const { tSync, escHtml } = window._fd;
+    const selected = this._selectedInstitution;
+    const items = this._filteredInstitutions.map((inst, idx) => {
+      const isSel = selected && selected.name === inst.name;
+      return `
+      <div class="institution-item"
+        role="option"
+        aria-selected="${isSel ? "true" : "false"}"
+        tabindex="${isSel ? "0" : "-1"}"
+        data-idx="${idx}"
+        data-name="${this._esc(inst.name)}"
+        data-id="${this._esc(inst.id || "")}"
+        data-logo="${this._esc(inst.logo || "")}">
         ${inst.logo ? `<img src="${this._esc(inst.logo)}" alt="">` : `<div style="width:32px;height:32px;border-radius:6px;background:#333;"></div>`}
         <span class="name">${this._esc(inst.name)}</span>
+        ${isSel ? `<span class="selected-mark" aria-hidden="true">&#x2713;</span>` : ""}
       </div>
-    `).join("");
-    return items || '<div style="padding:20px;text-align:center;color:var(--secondary-text-color);">Keine Banken gefunden</div>';
+    `;
+    }).join("");
+    return items || `<div style="padding:20px;text-align:center;color:var(--secondary-text-color);">${tSync("wizard.step.1.empty")}</div>`;
   }
 
   _bindInstitutionClicks() {
@@ -538,16 +667,38 @@ class FdSetupWizard extends HTMLElement {
           logo: el.dataset.logo,
         });
       });
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          this._authorize({
+            name: el.dataset.name,
+            id: el.dataset.id,
+            logo: el.dataset.logo,
+          });
+        } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          const items = Array.from(this.shadowRoot.querySelectorAll(".institution-item"));
+          const curr = parseInt(el.dataset.idx);
+          const next = e.key === "ArrowDown" ? curr + 1 : curr - 1;
+          if (next >= 0 && next < items.length) {
+            items[next].focus();
+          }
+        }
+      });
     });
   }
 
   _renderStep1() {
+    const { tSync } = window._fd;
     if (this._loading) {
-      return `<div class="loading-spinner">Banken werden geladen\u2026</div>`;
+      return `<div class="loading-spinner">${tSync("wizard.step.1.loading")}</div>`;
     }
     return `
-      <input type="text" class="search-input" id="searchInput" placeholder="Bank suchen\u2026" autocomplete="off">
-      <div class="institution-list">${this._renderInstitutionList()}</div>
+      <input type="text" class="search-input" id="searchInput"
+        placeholder="${tSync("wizard.step.1.search_placeholder")}"
+        autocomplete="off"
+        aria-label="${tSync("wizard.step.1.search_label")}">
+      <div class="institution-list" role="listbox" aria-label="${tSync("wizard.step.1.listbox_label")}">${this._renderInstitutionList()}</div>
     `;
   }
 
@@ -555,30 +706,57 @@ class FdSetupWizard extends HTMLElement {
     const input = this.shadowRoot.getElementById("searchInput");
     if (input) {
       input.addEventListener("input", (e) => this._filterInstitutions(e.target.value));
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          const first = this.shadowRoot.querySelector(".institution-item");
+          if (first) first.focus();
+        }
+      });
       input.focus();
     }
     this._bindInstitutionClicks();
   }
 
   _renderStep2() {
+    const { tSync } = window._fd;
     if (this._loading) {
-      return `<div class="loading-spinner">Autorisierung wird vorbereitet\u2026</div>`;
+      return `<div class="loading-spinner">${tSync("wizard.step.2.loading")}</div>`;
     }
     const bankName = this._selectedInstitution ? this._selectedInstitution.name : "Bank";
+    const min = Math.floor(this._countdownSec / 60);
+    const sec = String(this._countdownSec % 60).padStart(2, "0");
     return `
       <div class="auth-card">
-        <p>Autorisiere den Zugriff bei <strong>${this._esc(bankName)}</strong>.<br>
-        Ein neues Fenster wurde ge\u00f6ffnet. Schlie\u00dfe es nach der Best\u00e4tigung.</p>
-        ${this._authUrl && /^https?:\/\//.test(this._authUrl) ? `<a href="${this._esc(this._authUrl)}" target="_blank" class="btn-primary">Erneut \u00f6ffnen</a>` : ""}
+        <p>${tSync("wizard.step.2.instruction", { bank: this._esc(bankName) })}</p>
+        ${this._authUrl && /^https?:\/\//.test(this._authUrl) ? `<a href="${this._esc(this._authUrl)}" target="_blank" class="btn-primary">${tSync("wizard.step.2.reopen")}</a>` : ""}
         <div class="waiting">
-          <span>\u23f3</span>
-          <span>Warte auf Best\u00e4tigung von der Bank\u2026</span>
+          <span>&#x23f3;</span>
+          <span>${tSync("wizard.step.2.waiting")}</span>
         </div>
+        <div class="countdown" id="countdown" role="timer" aria-live="off">
+          ${tSync("wizard.step.2.timeout_label", { min: String(min), sec })}
+        </div>
+        <button class="btn-secondary" id="cancelAuthBtn" style="margin-top:12px">${tSync("wizard.step.2.cancel")}</button>
       </div>
     `;
   }
 
+  _bindStep2() {
+    const cancelBtn = this.shadowRoot.getElementById("cancelAuthBtn");
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", () => {
+        this._stopPolling();
+        this._step = 1;
+        this._error = null;
+        this._authUrl = null;
+        this._renderContent();
+      });
+    }
+  }
+
   _renderStep3() {
+    const { tSync } = window._fd;
     const accountCards = this._pendingAccounts.map((acc, idx) => {
       const iban = acc.iban || "";
       const ibanMasked = iban.length >= 4 ? `****${iban.slice(-4)}` : "****";
@@ -588,27 +766,27 @@ class FdSetupWizard extends HTMLElement {
           <div class="acc-header">
             ${acc.logo ? `<img src="${this._esc(acc.logo)}" alt="">` : ""}
             <div>
-              <div class="acc-name">${this._esc(acc.name || "Konto")}</div>
+              <div class="acc-name">${this._esc(acc.name || tSync("general.accounts_singular"))}</div>
               <div class="acc-iban">${ibanMasked}</div>
             </div>
           </div>
           <div class="form-row">
             <div class="form-field">
-              <label>Anzeigename</label>
+              <label>${tSync("wizard.step.3.name_label")}</label>
               <input type="text" data-field="custom_name" data-idx="${idx}" value="${this._esc(acc.custom_name)}" placeholder="${this._esc(acc.name)}">
             </div>
             <div class="form-field">
-              <label>Kontotyp</label>
+              <label>${tSync("wizard.step.3.type_label")}</label>
               <select data-field="type" data-idx="${idx}">
-                <option value="personal" ${acc.type === "personal" ? "selected" : ""}>Privat</option>
-                <option value="shared" ${acc.type === "shared" ? "selected" : ""}>Gemeinsam</option>
+                <option value="personal" ${acc.type === "personal" ? "selected" : ""}>${tSync("wizard.step.3.type_personal")}</option>
+                <option value="shared" ${acc.type === "shared" ? "selected" : ""}>${tSync("wizard.step.3.type_shared")}</option>
               </select>
             </div>
           </div>
           <div class="form-row">
             <div class="form-field">
-              <label>Person</label>
-              <input type="text" data-field="person" data-idx="${idx}" value="${this._esc(acc.person)}" placeholder="Name der Person">
+              <label>${tSync("wizard.step.3.person_label")}</label>
+              <input type="text" data-field="person" data-idx="${idx}" value="${this._esc(acc.person)}" placeholder="${tSync("wizard.step.3.person_placeholder")}">
             </div>
           </div>
         </div>
@@ -617,12 +795,12 @@ class FdSetupWizard extends HTMLElement {
 
     return `
       <p style="margin:0 0 16px;color:var(--secondary-text-color);font-size:13px;">
-        ${this._pendingAccounts.length} Konto(en) gefunden. Weise sie zu:
+        ${tSync("wizard.step.3.found", { count: String(this._pendingAccounts.length) })}
       </p>
       ${accountCards}
       <div class="actions">
-        <button class="btn-secondary" id="backBtn">Zur\u00fcck</button>
-        <button class="btn-primary" id="completeBtn">Verbinden</button>
+        <button class="btn-secondary" id="backBtn">${tSync("wizard.step.3.back")}</button>
+        <button class="btn-primary" id="completeBtn">${tSync("wizard.step.3.connect")}</button>
       </div>
     `;
   }
@@ -662,13 +840,14 @@ class FdSetupWizard extends HTMLElement {
   }
 
   _renderStep4() {
+    const { tSync } = window._fd;
     const count = this._pendingAccounts.length;
     return `
       <div class="success-card">
         <div class="icon">&#x2705;</div>
-        <h3>Verbindung erfolgreich</h3>
-        <p>${count} Konto(en) wurden verbunden. Die Daten werden jetzt geladen.</p>
-        <button class="btn-primary" id="doneBtn">Fertig</button>
+        <h3>${tSync("wizard.step.4.title")}</h3>
+        <p>${tSync("wizard.step.4.body", { count: String(count) })}</p>
+        <button class="btn-primary" id="doneBtn">${tSync("wizard.step.4.done")}</button>
       </div>
     `;
   }

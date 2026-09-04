@@ -5,11 +5,7 @@
  *   data {object} — Unified data object from fd-data-provider
  */
 
-const REC_CAT_LABELS = {
-  housing: "Wohnen", loans: "Kredite", food: "Lebensmittel", utilities: "Nebenkosten",
-  insurance: "Versicherung", subscriptions: "Abos", transport: "Mobilit\u00e4t",
-  cleaning: "Reinigung", income: "Einkommen", transfers: "\u00dcbertr\u00e4ge", other: "Sonstiges",
-};
+// REC_CAT_LABELS comes from window._fd.CAT_LABELS (set by fd-shared-styles.js).
 
 class FdRecurringList extends HTMLElement {
   constructor() {
@@ -22,12 +18,20 @@ class FdRecurringList extends HTMLElement {
 
   _render() {
     const d = this._data;
-    const recurring = d?.recurring;
 
+    // Show skeleton while data has never been set
+    if (d === null || d === undefined) {
+      this._renderSkeleton();
+      return;
+    }
+
+    const recurring = d?.recurring;
     if (!recurring || recurring.length === 0) {
       this.shadowRoot.innerHTML = "";
       return;
     }
+
+    const { CAT_LABELS, SHARED_CSS, escHtml, tSync } = window._fd;
 
     const eur = (v) => new Intl.NumberFormat("de-DE", {
       style: "currency", currency: "EUR",
@@ -37,8 +41,8 @@ class FdRecurringList extends HTMLElement {
       const dayStr = r.expected_day ? `${r.expected_day}. d.M.` : "";
       return `<div class="rec-item">
         <div class="rec-left">
-          <span>${this._esc(r.creditor)}</span>
-          <span class="rec-cat">${this._esc(REC_CAT_LABELS[r.category] || r.category)}</span>
+          <span>${escHtml(r.creditor)}</span>
+          <span class="rec-cat">${escHtml(CAT_LABELS[r.category] || r.category)}</span>
         </div>
         <div style="text-align:right">
           <span class="neg" style="font-weight:600">${eur(Math.abs(r.average_amount))}</span>
@@ -47,31 +51,9 @@ class FdRecurringList extends HTMLElement {
       </div>`;
     }).join("");
 
-    this.shadowRoot.innerHTML = `
-<style>
+    const LOCAL_CSS = `
 :host {
-  --sf: var(--card-background-color, #12121a);
-  --sf2: #1a1a28;
-  --bd: rgba(255,255,255,0.06);
-  --tx2: var(--secondary-text-color, #9898a8);
-  --dg: #e74c3c;
-  --r: 14px;
-  display: block;
   margin-bottom: 20px;
-}
-.card {
-  background: var(--sf);
-  border: 1px solid var(--bd);
-  border-radius: var(--r);
-}
-.card-h {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--bd);
-  font-size: 14px;
-  font-weight: 600;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
 }
 .rec-list { padding: 18px; }
 .rec-item {
@@ -93,20 +75,44 @@ class FdRecurringList extends HTMLElement {
 }
 .rec-day { font-size: 11px; color: var(--tx2); }
 .neg { color: var(--dg); }
-</style>
+`;
+
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${LOCAL_CSS}</style>
 <div class="card">
-  <div class="card-h">Wiederkehrende Zahlungen
-    <span style="font-weight:400;font-size:12px;color:var(--tx2)">${recurring.length} erkannt</span>
+  <div class="card-h">${tSync("recurring.title")}
+    <span style="font-weight:400;font-size:12px;color:var(--tx2)">${recurring.length} ${tSync("recurring.detected")}</span>
   </div>
   <div class="rec-list">${items}</div>
 </div>`;
   }
-
-  _esc(s) {
-    if (!s) return "";
-    const d = document.createElement("div");
-    d.textContent = s;
-    return d.innerHTML;
+  _renderSkeleton() {
+    const { SHARED_CSS, tSync } = window._fd;
+    const shimmerCss = `
+@keyframes fd-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton-line {
+  border-radius: 4px;
+  height: 14px;
+  background: linear-gradient(90deg, var(--sf2) 25%, rgba(255,255,255,0.06) 50%, var(--sf2) 75%);
+  background-size: 800px 100%;
+  animation: fd-shimmer 1.4s infinite linear;
+  margin-bottom: 6px;
+}
+`;
+    const rows = Array.from({ length: 4 }, (_, i) =>
+      `<div class="skeleton-line" style="width:${60 + (i % 3) * 15}%"></div>`
+    ).join("");
+    this.shadowRoot.innerHTML = `
+<style>${SHARED_CSS}${shimmerCss}
+:host { margin-bottom: 20px; }
+</style>
+<div class="card" aria-busy="true" aria-label="${tSync("recurring.loading")}">
+  <div class="card-h">${tSync("recurring.title")}</div>
+  <div style="padding:18px">${rows}</div>
+</div>`;
   }
 }
 

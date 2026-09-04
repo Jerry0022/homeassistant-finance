@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="dark" data-page-version="2026-04-25T00:00:00" data-template="free">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Concept — Audit-Synthesis homeassistant-finance v0.12.1</title>
+<style>
+:root {
+  --bg-color: #0d1117;
+  --bg-subtle: #161b22;
+  --panel-bg: #0d1117;
+  --text-color: #c9d1d9;
+  --text-secondary: #8b949e;
+  --border-color: #30363d;
+  --accent-color: #58a6ff;
+  --success-color: #3fb950;
+  --warning-color: #d29922;
+  --danger-color: #f85149;
+  --critical-color: #ff5577;
+}
+[data-theme="light"] {
+  --bg-color: #ffffff;
+  --bg-subtle: #f6f8fa;
+  --panel-bg: #f6f8fa;
+  --text-color: #24292f;
+  --text-secondary: #57606a;
+  --border-color: #d0d7de;
+  --accent-color: #0969da;
+  --success-color: #1a7f37;
+  --warning-color: #9a6700;
+  --danger-color: #cf222e;
+  --critical-color: #cf222e;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg-color);
+  color: var(--text-color);
+  line-height: 1.6;
+  font-size: 15px;
+}
+.concept-layout { display: flex; min-height: 100vh; }
+.concept-content { flex: 1; padding: 1.5rem 2rem; overflow-y: auto; max-width: 100%; }
+.concept-decision-panel {
+  width: 340px;
+  flex: 0 0 340px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 1.25rem;
+  border-left: 1px solid var(--border-color);
+  background: var(--panel-bg);
+}
+@media (max-width: 900px) {
+  .concept-layout { flex-direction: column; }
+  .concept-decision-panel {
+    width: 100%; flex: none;
+    height: auto; max-height: 50vh;
+    position: sticky; bottom: 0; top: auto;
+    border-left: none; border-top: 1px solid var(--border-color);
+  }
+}
+.concept-content > header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding-bottom: 1rem; margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.concept-content > header h1 {
+  margin: 0; font-size: 1.5rem; font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.concept-content > header .subtitle {
+  margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--text-secondary);
+}
+#theme-toggle {
+  background: var(--bg-subtle); border: 1px solid var(--border-color);
+  color: var(--text-color); padding: 0.4rem 0.7rem;
+  border-radius: 6px; cursor: pointer; font-size: 1rem;
+}
+.iteration-intro {
+  margin-bottom: 1.5rem; padding: 1rem 1.25rem;
+  background: var(--bg-subtle); border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+.iteration-intro h2 { margin: 0 0 0.4rem; font-size: 1.05rem; }
+.iteration-intro p { margin: 0; font-size: 0.9rem; color: var(--text-secondary); }
+.constraints-banner {
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1rem;
+  background: color-mix(in srgb, var(--danger-color) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger-color) 50%, transparent);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+.constraints-banner strong { color: var(--danger-color); display: block; margin-bottom: 0.3rem; font-size: 0.85rem; }
+.constraints-banner ul { margin: 0; padding-left: 1.2rem; columns: 2; }
+.constraints-banner li { break-inside: avoid; margin-bottom: 0.15rem; }
+@media (max-width: 700px) { .constraints-banner ul { columns: 1; } }
+.filter-bar {
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
+  margin: 0 0 1.5rem; padding: 0.75rem 1rem;
+  background: var(--bg-subtle); border-radius: 8px;
+  border: 1px solid var(--border-color);
+  position: sticky; top: 0; z-index: 4;
+  align-items: center;
+}
+.filter-bar .filter-label {
+  font-size: 0.78rem; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.5rem;
+}
+.filter-chip {
+  padding: 0.3rem 0.7rem;
+  background: var(--bg-color); color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px; font-size: 0.78rem; cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.filter-chip:hover { color: var(--text-color); }
+.filter-chip[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--accent-color) 18%, transparent);
+  border-color: var(--accent-color); color: var(--text-color);
+}
+.filter-counter {
+  margin-left: auto; font-size: 0.78rem; color: var(--text-secondary);
+}
+.group-section {
+  margin: 0 0 2rem;
+  padding: 1.25rem;
+  background: var(--bg-subtle);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+.group-section > h2 {
+  margin: 0 0 1rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex; align-items: center; gap: 0.65rem;
+}
+.group-section > h2 .group-tag {
+  font-size: 0.7rem; padding: 0.2rem 0.55rem;
+  border-radius: 999px; background: var(--accent-color);
+  color: #0d1117; font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.group-section > h2 .group-tag.tag-critical { background: var(--critical-color); color: white; }
+.group-section > h2 .group-tag.tag-warning { background: var(--warning-color); color: #0d1117; }
+.group-section > h2 .group-tag.tag-success { background: var(--success-color); color: #0d1117; }
+.group-section > h2 .group-tag.tag-muted { background: var(--text-secondary); color: var(--bg-color); }
+.group-summary { margin: 0 0 1rem; font-size: 0.88rem; color: var(--text-secondary); }
+.issue-card {
+  margin-bottom: 0.85rem;
+  padding: 1rem 1.1rem;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  scroll-margin-top: 80px;
+}
+.issue-card:last-child { margin-bottom: 0; }
+.issue-card[data-severity="blocker"] { border-left: 3px solid var(--critical-color); }
+.issue-card[data-severity="major"] { border-left: 3px solid var(--warning-color); }
+.issue-card[data-severity="minor"] { border-left: 3px solid var(--accent-color); }
+.issue-card[data-severity="nit"] { border-left: 3px solid var(--text-secondary); }
+.issue-card.is-hidden { display: none; }
+.issue-head {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;
+  margin-bottom: 0.55rem;
+}
+.issue-id {
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 0.78rem; color: var(--text-secondary);
+  padding: 0.15rem 0.45rem; border-radius: 4px;
+  background: var(--bg-subtle); border: 1px solid var(--border-color);
+}
+.issue-title { margin: 0; font-size: 0.96rem; font-weight: 600; flex: 1; min-width: 0; }
+.severity-badge {
+  font-size: 0.68rem; padding: 0.15rem 0.5rem; border-radius: 999px;
+  font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.severity-badge.sev-blocker { background: var(--critical-color); color: white; }
+.severity-badge.sev-major { background: var(--warning-color); color: #0d1117; }
+.severity-badge.sev-minor { background: var(--accent-color); color: #0d1117; }
+.severity-badge.sev-nit { background: var(--text-secondary); color: var(--bg-color); }
+.issue-meta {
+  display: flex; flex-wrap: wrap; gap: 0.5rem 1rem;
+  font-size: 0.78rem; color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+.issue-meta code {
+  font-size: 0.78rem; padding: 0.1rem 0.4rem;
+  background: var(--bg-subtle); border-radius: 4px;
+  color: var(--text-color);
+}
+.issue-desc { margin: 0 0 0.55rem; font-size: 0.88rem; }
+.issue-rec {
+  margin: 0 0 0.85rem; font-size: 0.85rem;
+  padding: 0.55rem 0.7rem;
+  background: color-mix(in srgb, var(--success-color) 8%, transparent);
+  border-left: 2px solid var(--success-color);
+  border-radius: 4px;
+  color: var(--text-color);
+}
+.issue-rec strong { color: var(--success-color); }
+.tri-state-group {
+  display: inline-flex; gap: 0.4rem; margin: 0 0 0.55rem;
+  background: var(--bg-subtle); padding: 0.25rem;
+  border-radius: 999px; border: 1px solid var(--border-color);
+}
+.tri-state-option { display: inline-flex; align-items: center; }
+.tri-state-option input { position: absolute; opacity: 0; pointer-events: none; }
+.tri-state-label {
+  display: inline-block; padding: 0.32rem 0.85rem;
+  font-size: 0.78rem; cursor: pointer;
+  border-radius: 999px; user-select: none;
+  color: var(--text-secondary);
+  transition: background 0.12s, color 0.12s;
+}
+.tri-state-option input:checked + .tri-state-label {
+  background: var(--accent-color); color: #0d1117; font-weight: 600;
+}
+.tri-state-option input[value="discard"]:checked + .tri-state-label {
+  background: var(--danger-color); color: white;
+}
+textarea[data-comment] {
+  display: block; width: 100%; min-height: 60px;
+  margin-top: 0.4rem;
+  padding: 0.5rem 0.65rem;
+  font: inherit; font-size: 0.85rem;
+  background: var(--bg-subtle); color: var(--text-color);
+  border: 1px solid var(--border-color); border-radius: 6px;
+  resize: vertical;
+}
+textarea[data-comment]:focus { outline: 2px solid var(--accent-color); outline-offset: -2px; }
+
+/* Decision panel */
+.iteration-tabs {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-bottom: 1rem; padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.iteration-tab {
+  text-align: left; padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px; background: transparent;
+  color: var(--text-secondary); font-size: 0.85rem;
+  cursor: pointer; transition: all 0.15s;
+}
+.iteration-tab:hover {
+  background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+  color: var(--text-color);
+}
+.iteration-tab[aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent-color) 15%, transparent);
+  color: var(--text-color); border-color: var(--accent-color);
+  font-weight: 600;
+}
+.iteration-tab[aria-selected="true"]::before { content: "● "; color: var(--accent-color); }
+.concept-decision-panel h3 {
+  margin: 0 0 0.75rem; font-size: 0.92rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+.section-nav {
+  display: flex; flex-direction: column; gap: 1px;
+  margin-bottom: 1rem; max-height: 38vh; overflow-y: auto;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.section-nav-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0.35rem 0.55rem;
+  border-radius: 5px; text-decoration: none;
+  color: var(--text-color); font-size: 0.82rem;
+  transition: background 0.12s; cursor: pointer;
+}
+.section-nav-item:hover {
+  background: color-mix(in srgb, var(--accent-color) 10%, transparent);
+}
+.section-nav-item.is-active {
+  background: color-mix(in srgb, var(--accent-color) 18%, transparent);
+  font-weight: 600;
+}
+.section-nav-state { font-size: 0.7rem; }
+.section-nav-state.state-discard { color: var(--danger-color); }
+.section-nav-state.state-include { color: var(--success-color); }
+.decision-summary {
+  margin-bottom: 0.85rem; padding: 0.7rem 0.85rem;
+  background: var(--bg-subtle); border-radius: 7px;
+  font-size: 0.82rem; line-height: 1.5;
+  border: 1px solid var(--border-color);
+}
+.decision-summary .count-row {
+  display: flex; justify-content: space-between; margin-bottom: 0.2rem;
+}
+.decision-summary .count-row:last-child { margin-bottom: 0; }
+.decision-summary .count-include { color: var(--success-color); font-weight: 600; }
+.decision-summary .count-discard { color: var(--danger-color); font-weight: 600; }
+.decision-summary .count-comments { color: var(--accent-color); font-weight: 600; }
+.submit-btn, .implement-btn {
+  width: 100%; padding: 0.7rem 1rem;
+  border-radius: 8px; font-weight: 600; font-size: 0.92rem;
+  cursor: pointer; margin-top: 0.4rem;
+}
+.submit-btn { border: none; background: var(--accent-color); color: white; }
+.submit-btn:disabled, .implement-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.submit-gap { height: 2rem; }
+.implement-btn {
+  background: transparent; color: var(--warning-color);
+  border: 1px solid var(--warning-color);
+  display: flex; align-items: center; justify-content: center; gap: 0.45rem;
+}
+.implement-btn:hover {
+  background: color-mix(in srgb, var(--warning-color) 12%, transparent);
+}
+.hint {
+  margin: 0.3rem 0 0; font-size: 0.75rem; color: var(--text-secondary);
+  line-height: 1.45;
+}
+.hint-warn { color: var(--warning-color); }
+#panel-ready { position: relative; }
+.panel-warning {
+  position: absolute; inset: 0; z-index: 5; pointer-events: none;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0.6rem; text-align: center; padding: 1rem;
+  border-radius: 8px; border: 1px solid var(--warning-color);
+  background: color-mix(in srgb, var(--panel-bg) 78%, transparent);
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+}
+.panel-warning .warning-icon { font-size: 2rem; color: var(--warning-color); line-height: 1; }
+.panel-warning strong { color: var(--warning-color); font-size: 0.95rem; }
+.warning-message { font-size: 0.8rem; color: var(--text-secondary); margin: 0; max-width: 260px; line-height: 1.45; }
+.panel-warning--connecting { border-color: var(--accent-color); }
+.panel-warning--connecting .warning-icon {
+  color: var(--accent-color);
+  animation: pulse-connect 1.4s ease-in-out infinite;
+}
+.panel-warning--connecting strong { color: var(--accent-color); }
+@keyframes pulse-connect { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+.submitted-indicator {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.85rem; margin-bottom: 0.65rem;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--success-color) 15%, transparent);
+  border: 1px solid var(--success-color);
+}
+.check-icon { font-size: 1.2rem; color: var(--success-color); }
+.submitted-hint { font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary); margin-bottom: 0.85rem; }
+.waiting-animation { display: flex; gap: 6px; justify-content: center; padding: 0.45rem 0; }
+.waiting-animation .dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent-color);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.waiting-animation .dot:nth-child(2) { animation-delay: 0.2s; }
+.waiting-animation .dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pulse {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+section[data-iteration]:not([data-active]) { opacity: 0.85; }
+section[data-iteration]:not([data-active]) input,
+section[data-iteration]:not([data-active]) textarea {
+  pointer-events: none; filter: grayscale(0.4);
+}
+</style>
+</head>
+<body>
+<div class="concept-layout">
+  <div class="concept-content">
+    <header>
+      <div>
+        <h1>Audit-Synthesis homeassistant-finance v0.12.1</h1>
+        <p class="subtitle">8 Audit-Agents · ~59 Issues · vor /devops-autonomous</p>
+      </div>
+      <button id="theme-toggle" aria-label="Theme umschalten">🌙</button>
+    </header>
+
+    <main>
+      <section data-iteration="1" data-active id="iter-1">
+        <div class="iteration-intro">
+          <h2>Iteration 1 · Issue-Selektion vor Phase 3</h2>
+          <p>Pro Issue: <strong>Miteinbeziehen</strong> → wird in Phase 3 (Autonomous Execution) angegangen. <strong>Verwerfen</strong> → bleibt liegen oder wird verschoben. Optionaler Kommentar pro Karte.</p>
+        </div>
+
+        <aside class="constraints-banner">
+          <strong>HARD CONSTRAINTS — niemals brechen</strong>
+          <ul>
+            <li>Cache vs Live-Fetch (4/Tag/ASPSP)</li>
+            <li>Banking-Grade Security · Fernet · IBAN-Mask</li>
+            <li>Keine externen Calls außer Enable Banking</li>
+            <li>/devops-ship-Pipeline ist Pflicht</li>
+            <li>Versions-Trinität via bump_versions.py</li>
+            <li>BUILDLOG → sync_changelog.py</li>
+          </ul>
+        </aside>
+
+        <div class="filter-bar" id="filter-bar">
+          <span class="filter-label">Severity</span>
+          <button class="filter-chip" data-filter-type="severity" data-filter-value="all" aria-pressed="true">Alle</button>
+          <button class="filter-chip" data-filter-type="severity" data-filter-value="blocker" aria-pressed="false">Blocker</button>
+          <button class="filter-chip" data-filter-type="severity" data-filter-value="major" aria-pressed="false">Major</button>
+          <button class="filter-chip" data-filter-type="severity" data-filter-value="minor" aria-pressed="false">Minor</button>
+          <button class="filter-chip" data-filter-type="severity" data-filter-value="nit" aria-pressed="false">Nit</button>
+          <span class="filter-counter" id="filter-counter">59 Issues</span>
+        </div>
+
+        <!-- ============ GRUPPE 1: SECURITY-CRITICAL ============ -->
+        <section id="g-security-critical" data-nav-label="🔴 Security-Critical (4)" class="group-section">
+          <h2><span class="group-tag tag-critical">Security · Critical</span> 4 Blocker — sofort vor allem anderen</h2>
+          <p class="group-summary">Banking-Grade-Behauptung steht und fällt mit diesen vier Punkten. Alle aus dem Red-Team-Audit.</p>
+
+          <article class="issue-card" data-severity="blocker" id="s1" data-nav-label="S1 · IBAN-Log-Leak">
+            <div class="issue-head">
+              <span class="issue-id">S1</span>
+              <h3 class="issue-title">IBAN/Body-Leak im HA-Log</h3>
+              <span class="severity-badge sev-blocker">Blocker</span>
+            </div>
+            <div class="issue-meta">
+              <span>📁 <code>enablebanking_client.py:436-441</code></span>
+              <span>🤖 redteam</span>
+            </div>
+            <p class="issue-desc"><code>_LOGGER.error(body[:500])</code> bei jedem nicht-OK API-Response → rohe IBANs, Account-IDs und Tx-Daten landen im HA-Log. Logs werden in Bug-Reports geteilt → Banking-Daten leaken auf GitHub.</p>
+            <p class="issue-rec"><strong>Fix:</strong> nur status_code + path + sanitisierten Error-Code loggen, body ausschließlich auf DEBUG-Level mit Masking-Filter.</p>
+            <div class="tri-state-group">
+              <label class="tri-state-option"><input type="radio" name="eval-s1" value="discard"><span class="tri-state-label">Verwerfen</span></label>
+              <label class="tri-state-option"><input type="radio" name="eval-s1" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label>
+            </div>
+            <textarea data-comment="s1" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="blocker" id="s2" data-nav-label="S2 · Fernet-Key co-located">
+            <div class="issue-head">
+              <span class="issue-id">S2</span>
+              <h3 class="issue-title">Fernet-Key liegt im selben .storage/ wie verschlüsselte Daten</h3>
+              <span class="severity-badge sev-blocker">Blocker</span>
+            </div>
+            <div class="issue-meta">
+              <span>📁 <code>credential_manager.py:67-76</code></span>
+              <span>🤖 redteam</span>
+              <span>🔗 siehe DN2 für Strategie-Decision</span>
+            </div>
+            <p class="issue-desc">Fernet-Schlüssel <em>unverschlüsselt</em> im selben Verzeichnis wie die "verschlüsselten" Tokens. Filesystem-Read = sofortiger Klartext-Zugriff auf Application-ID + RSA-Privatkey. Encryption-at-rest ist hier reine Obfuskation.</p>
+            <p class="issue-rec"><strong>Fix:</strong> abhängig von DN2 — entweder OS-Keyring (keyring lib), HA-Secrets-Manager, oder Status-quo + explizites Trust-Model in Doku.</p>
+            <div class="tri-state-group">
+              <label class="tri-state-option"><input type="radio" name="eval-s2" value="discard"><span class="tri-state-label">Verwerfen</span></label>
+              <label class="tri-state-option"><input type="radio" name="eval-s2" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label>
+            </div>
+            <textarea data-comment="s2" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="blocker" id="s3" data-nav-label="S3 · Setup-Wizard Rate-Limit-Bypass">
+            <div class="issue-head">
+              <span class="issue-id">S3</span>
+              <h3 class="issue-title">Setup-Wizard-Endpoints umgehen den Rate-Limit-Gate</h3>
+              <span class="severity-badge sev-blocker">Blocker</span>
+            </div>
+            <div class="issue-meta">
+              <span>📁 <code>api.py:159-190, 236-326, 723-770</code></span>
+              <span>🤖 redteam</span>
+            </div>
+            <p class="issue-desc"><code>/setup/institutions</code>, <code>/setup/authorize</code>, OAuth-Callback instantiieren <code>EnableBankingClient</code> direkt und feuern Live-Calls ohne <code>rate_limited_until</code>-Check. ASPSP-Quota wird hinter dem Rücken des Managers verbrannt.</p>
+            <p class="issue-rec"><strong>Fix:</strong> alle Live-Calls durch eine zentrale Manager-Methode <code>async_make_live_call(...)</code> routen, die das Rate-Limit-Gate prüft.</p>
+            <div class="tri-state-group">
+              <label class="tri-state-option"><input type="radio" name="eval-s3" value="discard"><span class="tri-state-label">Verwerfen</span></label>
+              <label class="tri-state-option"><input type="radio" name="eval-s3" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label>
+            </div>
+            <textarea data-comment="s3" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="blocker" id="s4" data-nav-label="S4 · OAuth State unvalidiert">
+            <div class="issue-head">
+              <span class="issue-id">S4</span>
+              <h3 class="issue-title">OAuth-Callback ohne State-Validation (CSRF)</h3>
+              <span class="severity-badge sev-blocker">Blocker</span>
+            </div>
+            <div class="issue-meta">
+              <span>📁 <code>api.py:703-770</code></span>
+              <span>🤖 redteam</span>
+            </div>
+            <p class="issue-desc"><code>requires_auth=False</code> und prüft den <code>state</code>-Parameter aus <code>async_create_auth</code> (Zeile 290) <em>nirgends</em> gegen den eingehenden Callback. CSRF-Vektor: Angreifer-Bank kann ans HA des Opfers gelinkt werden.</p>
+            <p class="issue-rec"><strong>Fix:</strong> state in HA-Storage persistieren beim async_create_auth, im Callback timing-safe vergleichen, nach Verbrauch löschen, TTL 10 min.</p>
+            <div class="tri-state-group">
+              <label class="tri-state-option"><input type="radio" name="eval-s4" value="discard"><span class="tri-state-label">Verwerfen</span></label>
+              <label class="tri-state-option"><input type="radio" name="eval-s4" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label>
+            </div>
+            <textarea data-comment="s4" placeholder="Anmerkung…"></textarea>
+          </article>
+        </section>
+
+        <!-- ============ GRUPPE 2: SECURITY-MAJOR ============ -->
+        <section id="g-security-major" data-nav-label="🟠 Security-Major (8)" class="group-section">
+          <h2><span class="group-tag tag-warning">Security · Major</span> 8 Items</h2>
+          <p class="group-summary">Strukturelle Schwächen unterhalb der Critical-Linie — sollten in der gleichen Welle wie Critical mitlaufen.</p>
+
+          <article class="issue-card" data-severity="major" id="r5" data-nav-label="R5 · Partial-Refresh-Mix">
+            <div class="issue-head"><span class="issue-id">R5</span><h3 class="issue-title">Partial-Refresh überschreibt Cache mit Mischzustand</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>manager.py:441-452</code></span><span>🤖 redteam</span></div>
+            <p class="issue-desc">Bei Exception in Tx-Schleife wird Account übersprungen, aber <code>self._transactions = all_transactions</code> ersetzt Cache komplett mit Mischzustand. Persistiert direkt danach → permanenter Datenverlust beim nächsten partiellen Fehler.</p>
+            <p class="issue-rec"><strong>Fix:</strong> per-Account-Cache-Maps (<code>{account_id: [tx]}</code>) statt globalem Replace. Pro Account atomar mergen oder bei Fehler unverändert lassen.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-r5" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-r5" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="r5" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="r8" data-nav-label="R8 · JSONDecodeError-Crash">
+            <div class="issue-head"><span class="issue-id">R8</span><h3 class="issue-title">JSONDecodeError in async_initialize crasht Setup permanent</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>manager.py:175-219</code></span><span>🤖 redteam</span></div>
+            <p class="issue-desc">Korrupte <code>.storage/finance_dashboard*</code>-Datei (HA-Crash beim Schreiben) → <code>async_load()</code> wirft JSONDecodeError → Integration lädt nie wieder. Kein Try/Except.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Try/Except um async_load(), bei Decode-Error Datei nach <code>.corrupt-{ts}</code> verschieben + Repair-Issue erzeugen, mit leerem State weitermachen.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-r8" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-r8" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="r8" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="r9" data-nav-label="R9 · /refresh ohne Admin">
+            <div class="issue-head"><span class="issue-id">R9</span><h3 class="issue-title">/refresh-Endpoint ohne is_admin-Check</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>api.py:1207-1239</code></span><span>🤖 redteam</span></div>
+            <p class="issue-desc">Jeder normale HA-User mit Trusted-Network-Login kann unbegrenzt <code>/api/finance_dashboard/refresh</code> POSTen → 4/Tag-Quota verbrannt. <code>/transactions</code> hat den Check, <code>/refresh</code> nicht.</p>
+            <p class="issue-rec"><strong>Fix:</strong> <code>is_admin</code>-Check analog <code>FinanceDashboardTransactionsView</code> (api.py:928) hinzufügen.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-r9" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-r9" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="r9" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="r14" data-nav-label="R14 · toggle_demo ohne Admin">
+            <div class="issue-head"><span class="issue-id">R14</span><h3 class="issue-title">toggle_demo Service ohne Admin-Check, zerstört Tx-Cache</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>__init__.py:196-199</code> + <code>manager.py:155-162</code></span><span>🤖 redteam</span></div>
+            <p class="issue-desc">HA-Service hat keinen Admin-Check (im Gegensatz zum HTTP-Endpoint). Beim Toggle-Demo wird <code>_transactions = []</code> gesetzt — beim Disable sind die alten Tx weg, da nicht persistiert.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Service via <code>schema</code> auf admin-only beschränken oder Tx vor dem Demo-Switch persistieren und beim Disable wiederherstellen.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-r14" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-r14" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="r14" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="c9" data-nav-label="C9 · _reconstruct_pem Bug">
+            <div class="issue-head"><span class="issue-id">C9</span><h3 class="issue-title">_reconstruct_pem PKCS1/PKCS8-Detection läuft nach replace()</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>enablebanking_client.py:75-92</code></span><span>🤖 core</span></div>
+            <p class="issue-desc">Der <code>"RSA PRIVATE KEY" in raw</code>-Check läuft nach <code>raw.replace(marker, "")</code> — alle Marker bereits entfernt → Check immer False, erzeugt immer PKCS8-Format. Bei echten RSA-Keys (PKCS1) → load_pem_private_key-Fehler.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Marker-Check VOR replace, separater Pfad pro Format.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-c9" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-c9" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="c9" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="r12" data-nav-label="R12 · StaticView blocking + unauth">
+            <div class="issue-head"><span class="issue-id">R12</span><h3 class="issue-title">StaticView synchroner read_bytes() im async-Handler, unauth → DoS</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>api.py:826-853</code></span><span>🤖 redteam</span></div>
+            <p class="issue-desc">Endpoint <code>requires_auth=False</code> liest synchron mit <code>file_path.read_bytes()</code>. Blockt Event-Loop bei großen JS-Bundles → DoS-Vektor mit Kosten 0.</p>
+            <p class="issue-rec"><strong>Fix:</strong> <code>await hass.async_add_executor_job(file_path.read_bytes)</code> oder aiofiles. Optional: aiohttp-FileResponse.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-r12" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-r12" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="r12" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="r10" data-nav-label="R10 · Repair-Trace-Leak">
+            <div class="issue-head"><span class="issue-id">R10</span><h3 class="issue-title">Repair-Notifications könnten Stack-Trace mit Key-Material leaken</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>manager.py:880-907</code> + <code>repairs.py</code></span><span>🤖 redteam</span></div>
+            <p class="issue-desc"><code>_LOGGER.exception</code> bei <code>load_pem_private_key</code>-Fehlern. Wenn ha-customapps oder eigene Repair-Issue-Logik den Exception-Inhalt in <code>learn_more_url</code> oder Description einbettet → Key-Material in HA-Repair-UI sichtbar.</p>
+            <p class="issue-rec"><strong>Fix:</strong> nur translation-key + safe-Issue-Code übergeben, Exception-Details auf DEBUG-Log mit Masking.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-r10" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-r10" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="r10" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="r11" data-nav-label="R11 · git-pre-commit-Hook">
+            <div class="issue-head"><span class="issue-id">R11</span><h3 class="issue-title">Kein git-pre-commit-Hook gegen IBAN-Patterns / Beträge</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>.gitignore</code> + neue <code>.pre-commit-config.yaml</code></span><span>🤖 redteam</span></div>
+            <p class="issue-desc">CLAUDE.md fordert manuelle "verify before every commit", kein automatischer Schutz. Copy-Paste-Fehler in BUILDLOG → Finanzdaten in git.</p>
+            <p class="issue-rec"><strong>Fix:</strong> pre-commit Framework + custom hook der <code>DE\d{20}</code> + <code>EUR \d+,\d{2}</code> + <code>transactionId</code> in staged diff blockt. Optional gitleaks integrieren.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-r11" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-r11" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="r11" placeholder="Anmerkung…"></textarea>
+          </article>
+        </section>
+
+        <!-- ============ GRUPPE 3: ARCHITECTURE ============ -->
+        <section id="g-architecture" data-nav-label="🏛 Architecture (5)" class="group-section">
+          <h2><span class="group-tag tag-warning">Architecture</span> 5 Items — Refactor-Schuld</h2>
+          <p class="group-summary">Strukturelle Schulden, die Phase 2/3-Erweiterungen unwartbar machen würden. Sequenziell ausführen, jeweils dedizierter Worktree.</p>
+
+          <article class="issue-card" data-severity="major" id="a1" data-nav-label="A1 · api.py 1258 LOC">
+            <div class="issue-head"><span class="issue-id">A1</span><h3 class="issue-title">api.py: 1258 LOC, 10+ View-Klassen</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>api.py</code></span><span>🤖 po + core</span></div>
+            <p class="issue-desc">Single-File-Modul mit Setup-Views, Refresh-Trigger, Static-Server, Demo-Toggle, Categorize, OAuth-Callback. Schwer zu testen, schwer zu reviewen.</p>
+            <p class="issue-rec"><strong>Refactor:</strong> Split in <code>api/views/setup.py</code>, <code>api/views/refresh.py</code>, <code>api/views/transactions.py</code>, <code>api/views/static.py</code>, <code>api/views/oauth.py</code>. Re-export aus <code>api/__init__.py</code> für Rückwärtskompatibilität.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-a1" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-a1" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="a1" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="a2" data-nav-label="A2 · manager.py God-Object">
+            <div class="issue-head"><span class="issue-id">A2</span><h3 class="issue-title">manager.py: 1151 LOC God-Object</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>manager.py</code></span><span>🤖 po + core</span></div>
+            <p class="issue-desc">Orchestriert Banking-Client, Transactions, Balances, Recurring, Household, Demo, Refresh-Lock, Persistence. Wird in Phase 2/3 unwartbar.</p>
+            <p class="issue-rec"><strong>Refactor:</strong> Split in <code>manager/orchestrator.py</code>, <code>banking/refresh.py</code>, <code>persistence/store.py</code>, <code>demo/manager.py</code>. <em>Achtung:</em> abhängig von DN3 (timing).</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-a2" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-a2" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="a2" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="a3" data-nav-label="A3 · _onData full-rebuild">
+            <div class="issue-head"><span class="issue-id">A3</span><h3 class="issue-title">_onData() rebuilt kompletten Component-Tree bei jedem WS-Tick</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/finance-dashboard-panel.js:243-276</code></span><span>🤖 frontend</span></div>
+            <p class="issue-desc"><code>content.innerHTML = ""</code> + Rebuild bei jedem fd-data-updated-Event. Coordinator ist debounced (200ms), aber jeder hass-State-Tick triggert vollständigen Teardown.</p>
+            <p class="issue-rec"><strong>Refactor:</strong> Child-Components als persistent halten, nur Properties durchreichen. <code>setData(data)</code> auf jedem Component statt innerHTML-Reset. Diffing über Custom-Element-Properties.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-a3" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-a3" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="a3" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="a4" data-nav-label="A4 · JWT manuell statt PyJWT">
+            <div class="issue-head"><span class="issue-id">A4</span><h3 class="issue-title">JWT-Claims iss/aud manuell, möglicherweise falsch</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>enablebanking_client.py:381-386</code></span><span>🤖 research</span></div>
+            <p class="issue-desc"><code>iss="enablebanking.com"</code>, <code>aud="api.enablebanking.com"</code> nicht aus Doku verifiziert. Enable Banking erwartet möglicherweise <code>iss=&lt;application_id&gt;</code>. Manuelle Implementierung statt PyJWT.</p>
+            <p class="issue-rec"><strong>Fix:</strong> PyJWT als Lib (manifest dependency), Claims gegen Enable-Banking-API-Reference verifizieren, Test-Vektor anlegen.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-a4" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-a4" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="a4" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="a5" data-nav-label="A5 · ClientSession reuse">
+            <div class="issue-head"><span class="issue-id">A5</span><h3 class="issue-title">Pro-Request neue aiohttp.ClientSession statt geteiltem Pool</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>enablebanking_client.py:425</code></span><span>🤖 research</span></div>
+            <p class="issue-desc">Ineffizient bei mehreren Accounts (eine Session pro Request). HA-Empfehlung: <code>async_get_clientsession(hass)</code> für geteilten Pool und korrekten Lifecycle.</p>
+            <p class="issue-rec"><strong>Fix:</strong> <code>session: ClientSession</code> als Konstruktor-Parameter, Caller übergibt <code>async_get_clientsession(hass)</code>.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-a5" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-a5" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="a5" placeholder="Anmerkung…"></textarea>
+          </article>
+        </section>
+
+        <!-- ============ GRUPPE 4: REFACTOR ============ -->
+        <section id="g-refactor" data-nav-label="🧹 Refactor (8)" class="group-section">
+          <h2><span class="group-tag">Refactor</span> 8 Items — kleine Schulden parallel</h2>
+          <p class="group-summary">Lokal begrenzte Refactors, parallelisierbar in Welle 3 zusammen mit UI-Fix und Test-Gap.</p>
+
+          <article class="issue-card" data-severity="minor" id="f1" data-nav-label="F1 · gocardless deprecated löschen">
+            <div class="issue-head"><span class="issue-id">F1</span><h3 class="issue-title">_gocardless_client_deprecated.py löschen</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>_gocardless_client_deprecated.py</code> + 19 Files mit Strings</span><span>🤖 po</span></div>
+            <p class="issue-desc">Toter Code in einem Banking-Repo ist Security-Risk + verwirrt Reviewer. Wird seit v0.12.0 mitgeschleppt.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Datei löschen, alle Referenzen entfernen (Strings in payload/, Tests grep). CHANGELOG-Notiz „removed deprecated GoCardless client".</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-f1" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-f1" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="f1" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="f3" data-nav-label="F3 · SHARED_CSS nicht genutzt">
+            <div class="issue-head"><span class="issue-id">F3</span><h3 class="issue-title">SHARED_CSS wird von keiner Component importiert (Token-Drift)</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-shared-styles.js:74</code></span><span>🤖 designer</span></div>
+            <p class="issue-desc">Der "shared" Layer existiert, aber alle Components definieren Token-Werte lokal neu. <code>--bd</code>, <code>--sf</code> etc. driften lokal.</p>
+            <p class="issue-rec"><strong>Fix:</strong> in jeder Component <code>import { SHARED_CSS } from './fd-shared-styles.js'</code> + Adoption via <code>this.shadowRoot.adoptedStyleSheets</code> oder im &lt;style&gt;-Tag inkludieren.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-f3" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-f3" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="f3" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="f2" data-nav-label="F2 · CAT_COLORS-Duplikate">
+            <div class="issue-head"><span class="issue-id">F2</span><h3 class="issue-title">CAT_COLORS / CAT_LABELS in 4 Dateien dupliziert</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-shared-styles.js</code> + <code>fd-transactions-log.js</code> + <code>fd-recurring-list.js</code> + <code>fd-cost-distribution.js</code></span><span>🤖 designer</span></div>
+            <p class="issue-desc">Vier identische Kopien der Kategorie-Maps. <code>TX_CAT_LABELS</code>, <code>REC_CAT_LABELS</code> sind faktisch <code>CAT_LABELS</code>.</p>
+            <p class="issue-rec"><strong>Fix:</strong> alle Komponenten <code>CAT_COLORS</code>/<code>CAT_LABELS</code>/<code>MONTH_NAMES</code> aus <code>fd-shared-styles.js</code> importieren.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-f2" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-f2" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="f2" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="f4" data-nav-label="F4 · rgba-Literals → Tokens">
+            <div class="issue-head"><span class="issue-id">F4</span><h3 class="issue-title">rgba(255,255,255,0.06) Literal statt var(--bd)</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-household-section.js:47</code></span><span>🤖 designer</span></div>
+            <p class="issue-desc">Hardcoded Farben außerhalb des Token-Systems. <code>#12121a</code> statt <code>var(--sf)</code>, <code>rgba(...)</code> statt <code>var(--bd)</code>.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Tokens nutzen, alle Literals via Grep auflösen.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-f4" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-f4" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="f4" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="f5" data-nav-label="F5 · fd-stat-card disconnectedCallback">
+            <div class="issue-head"><span class="issue-id">F5</span><h3 class="issue-title">fd-stat-card kein disconnectedCallback (Memory Leak)</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-stat-card.js</code></span><span>🤖 frontend</span></div>
+            <p class="issue-desc">Bei jedem _onData werden Cards verworfen ohne Cleanup-Chance. Akkumulieren bis GC.</p>
+            <p class="issue-rec"><strong>Fix:</strong> <code>disconnectedCallback() { /* clear refs, abort observers */ }</code>. Wenn A3 (Component-Persistenz) umgesetzt ist, ist das automatisch obsolet.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-f5" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-f5" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="f5" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="f6" data-nav-label="F6 · manager._accounts encapsulation">
+            <div class="issue-head"><span class="issue-id">F6</span><h3 class="issue-title">manager._accounts = ... Direkt-Zugriff aus api.py</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>api.py:677</code></span><span>🤖 core</span></div>
+            <p class="issue-desc">Verletzt Kapselung; Underscore-Konvention ignoriert.</p>
+            <p class="issue-rec"><strong>Fix:</strong> <code>manager.async_set_accounts(accounts)</code> Methode, Validierung + Persistenz darin kapseln.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-f6" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-f6" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="f6" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="f7" data-nav-label="F7 · Audit-Store reuse">
+            <div class="issue-head"><span class="issue-id">F7</span><h3 class="issue-title">Audit-Log instantiiert pro Aufruf neue Store-Instanz</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>credential_manager.py:217-236</code></span><span>🤖 core</span></div>
+            <p class="issue-desc">Jede Call erzeugt frische <code>Store(hass, ..., f"{DOMAIN}_audit_log")</code>. Minimal ineffizient.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Store-Instanz im <code>__init__</code> halten und wiederverwenden.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-f7" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-f7" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="f7" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="nit" id="f8" data-nav-label="F8 · _esc DOM-Roundtrip">
+            <div class="issue-head"><span class="issue-id">F8</span><h3 class="issue-title">_esc() erzeugt pro Aufruf einen DOM-Knoten</h3><span class="severity-badge sev-nit">Nit</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-transactions-log.js:59-88</code> + <code>fd-setup-wizard.js:681</code></span><span>🤖 frontend</span></div>
+            <p class="issue-desc">Hot Path: 25 Rows × 5 Calls = 125 DOM-Ops für Escape. Kein Security-Problem, aber unnötig.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Statische <code>escHtml()</code>-Funktion mit Regex-Replace in fd-shared-styles.js exportieren.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-f8" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-f8" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="f8" placeholder="Anmerkung…"></textarea>
+          </article>
+        </section>
+
+        <!-- ============ GRUPPE 5: UI-FIX a11y ============ -->
+        <section id="g-ui-fix" data-nav-label="♿ UI-Fix a11y (5)" class="group-section">
+          <h2><span class="group-tag tag-warning">UI-Fix · a11y</span> 5 Blocker — Modal/Charts/Listen</h2>
+          <p class="group-summary">Accessibility ist systemisch unbehandelt. SVG-Charts ohne aria, Modals ohne dialog-role, Listen nicht tastaturnavigierbar.</p>
+
+          <article class="issue-card" data-severity="blocker" id="u1" data-nav-label="U1 · Wizard-Modal kein dialog-role">
+            <div class="issue-head"><span class="issue-id">U1</span><h3 class="issue-title">Setup-Wizard-Modal ohne role/aria-modal/Focus-Trap/ESC</h3><span class="severity-badge sev-blocker">Blocker</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-setup-wizard.js:226</code></span><span>🤖 designer</span></div>
+            <p class="issue-desc">Modal öffnet sich ohne <code>role="dialog"</code>, <code>aria-modal="true"</code>, <code>aria-labelledby</code>, kein Focus-Trap. ESC schließt nicht.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Wrapper-div mit <code>role="dialog" aria-modal="true" aria-labelledby="wizard-title"</code>. Focus-Trap via <code>tabbable</code>-Lib oder eigene Implementierung. ESC-Handler.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-u1" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-u1" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="u1" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="blocker" id="u2" data-nav-label="U2 · Institution-List Keyboard">
+            <div class="issue-head"><span class="issue-id">U2</span><h3 class="issue-title">Institution-List nicht tastaturnavigierbar</h3><span class="severity-badge sev-blocker">Blocker</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-setup-wizard.js:522</code></span><span>🤖 designer</span></div>
+            <p class="issue-desc">Items als <code>div</code>-Elemente, kein <code>role="listbox"/"option"</code>, kein <code>tabindex</code>, kein <code>keydown</code>-Handler. Screen-Reader-Nutzer können keine Bank wählen.</p>
+            <p class="issue-rec"><strong>Fix:</strong> <code>role="listbox"</code> + <code>role="option"</code> + <code>aria-selected</code>, Pfeil-Tasten via keydown, Enter zum Auswählen.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-u2" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-u2" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="u2" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="blocker" id="u3" data-nav-label="U3 · Donut SVG ARIA">
+            <div class="issue-head"><span class="issue-id">U3</span><h3 class="issue-title">Donut-Chart SVG ohne role/aria-label</h3><span class="severity-badge sev-blocker">Blocker</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-donut-chart.js:62</code></span><span>🤖 designer</span></div>
+            <p class="issue-desc">Kategorie-Aufschlüsselung komplett unzugänglich für Screen Reader.</p>
+            <p class="issue-rec"><strong>Fix:</strong> SVG <code>role="img"</code> + <code>aria-label="Kategorie-Verteilung: Wohnen 42%, Lebensmittel 28%, ..."</code> dynamisch generiert. Zusätzlich: visuell verborgene Tabellen-Repräsentation für detailtiefe.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-u3" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-u3" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="u3" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="u4" data-nav-label="U4 · Toast aria-live">
+            <div class="issue-head"><span class="issue-id">U4</span><h3 class="issue-title">Toast aria-live="polite" auch für error/warn</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-header.js:262</code></span><span>🤖 designer</span></div>
+            <p class="issue-desc">Errors sollten unterbrechen, nicht warten.</p>
+            <p class="issue-rec"><strong>Fix:</strong> <code>aria-live</code> dynamisch setzen — <code>polite</code> für info/success, <code>assertive</code> für warn/error.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-u4" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-u4" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="u4" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="u5" data-nav-label="U5 · Bars ARIA">
+            <div class="issue-head"><span class="issue-id">U5</span><h3 class="issue-title">Cost-Distribution-Bars ohne ARIA</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-cost-distribution.js:56</code></span><span>🤖 designer</span></div>
+            <p class="issue-desc">Balken-Segmente ohne <code>role="img"</code>, <code>aria-label</code>, oder Tabellen-Fallback.</p>
+            <p class="issue-rec"><strong>Fix:</strong> <code>role="progressbar"</code> + <code>aria-valuenow/valuemax</code> pro Segment, oder visuell verborgene Tabelle.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-u5" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-u5" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="u5" placeholder="Anmerkung…"></textarea>
+          </article>
+        </section>
+
+        <!-- ============ GRUPPE 6: UI-MAJOR ============ -->
+        <section id="g-ui-major" data-nav-label="🎨 UI-Major (6)" class="group-section">
+          <h2><span class="group-tag tag-warning">UI · Major</span> 6 Items — i18n, States, Friction</h2>
+          <p class="group-summary">Sichtbare Schwächen ohne Blocker-Status, aber direkt UX-relevant.</p>
+
+          <article class="issue-card" data-severity="major" id="u6" data-nav-label="U6 · i18n Panel-Strings">
+            <div class="issue-head"><span class="issue-id">U6</span><h3 class="issue-title">Panel-Strings hard-coded DE, kein hass.language-Hook</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/finance-dashboard-panel.js:193</code> + 16 Components</span><span>🤖 designer</span></div>
+            <p class="issue-desc">Onboarding-Block, Error-State, alle Toast-Texte hardcoded DE. <code>strings.json</code>/<code>en.json</code>/<code>de.json</code> deckt nur ConfigFlow.</p>
+            <p class="issue-rec"><strong>Fix:</strong> abhängig von DN4 — entweder HA-Strings nachladen via <code>hass.callWS({type:'frontend/get_translations'})</code> oder eigenes JSON pro Locale aus <code>frontend/locales/*.json</code>.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-u6" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-u6" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="u6" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="u7" data-nav-label="U7 · monthBtn toter Button">
+            <div class="issue-head"><span class="issue-id">U7</span><h3 class="issue-title">monthBtn rendert "Apr 2026" ohne Click-Handler</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-header.js:274</code></span><span>🤖 designer</span></div>
+            <p class="issue-desc">Suggeriert Interaktivität ohne Funktion. Monatsauswahl fehlt komplett.</p>
+            <p class="issue-rec"><strong>Optionen:</strong> (a) als statisches Label rendern (aktuell verwendete Lösung), (b) echte Monats-Picker mit Backend-Filter <code>?month=YYYY-MM</code>. Default-Empfehlung: a (entfernen).</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-u7" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-u7" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="u7" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="u8" data-nav-label="U8 · Stat-Card Skeleton">
+            <div class="issue-head"><span class="issue-id">U8</span><h3 class="issue-title">Stat-Card kein Loading/Skeleton-State</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-stat-card.js:34</code></span><span>🤖 designer</span></div>
+            <p class="issue-desc">"0,00 €" ohne visuellen Unterschied zu echten Daten. Auch <code>fd-category-section</code>, <code>fd-household-section</code>, <code>fd-recurring-list</code> betroffen.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Skeleton-State (Pulse-Animation) bis Daten ankommen. Loading-Trigger über <code>data-loading</code>-Attribut.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-u8" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-u8" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="u8" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="u9" data-nav-label="U9 · Responsive 480-768px">
+            <div class="issue-head"><span class="issue-id">U9</span><h3 class="issue-title">Responsive bricht 480-768px (HA Mobile Tablet)</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-category-section.js:74</code></span><span>🤖 designer</span></div>
+            <p class="issue-desc"><code>grid-template-columns: 1fr 340px</code> bricht bei 480-768px. Breakpoint bei 768px zu spät.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Container-Queries oder Breakpoint auf 980px verschieben + Stacking auf single-column für ≤980px.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-u9" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-u9" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="u9" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="u10" data-nav-label="U10 · + Bank Entry-Point">
+            <div class="issue-head"><span class="issue-id">U10</span><h3 class="issue-title">Kein "+ Bank verbinden"-Entry-Point nach Erst-Setup</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/finance-dashboard-panel.js</code> + <code>fd-header.js:277</code></span><span>🤖 gamer</span></div>
+            <p class="issue-desc">"+ Konto"-Button existiert im Header, aber Funktion unklar/inkonsistent. Reconfigure-Flow zeigt nur Credentials, nicht Bank-Wahl. User strandet.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Header-Button öffnet Setup-Wizard direkt ab Step 2 (Bank-Auswahl), Credentials werden aus laufender Integration gelesen.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-u10" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-u10" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="u10" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="u11" data-nav-label="U11 · Post-Setup Notification">
+            <div class="issue-head"><span class="issue-id">U11</span><h3 class="issue-title">Post-Setup keine Lotsung ins Panel</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>config_flow.py</code></span><span>🤖 gamer</span></div>
+            <p class="issue-desc">Nach <code>async_create_entry</code> sieht der User nur "Integration konfiguriert", aber muss erst die Sidebar finden.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Persistent Notification mit Link "Finance-Panel öffnen" auslösen, auto-dismiss nach erstem Panel-Aufruf.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-u11" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-u11" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="u11" placeholder="Anmerkung…"></textarea>
+          </article>
+        </section>
+
+        <!-- ============ GRUPPE 7: TEST-GAP ============ -->
+        <section id="g-test-gap" data-nav-label="🧪 Test-Gap (7)" class="group-section">
+          <h2><span class="group-tag tag-critical">Test-Gap</span> 7 Items — Block-Builder</h2>
+          <p class="group-summary">0 Tests im Repo. Cache-vs-Live-Boundary, JWT/Fernet-Roundtrip, Categorizer, Transfer-Detector — alles ungetestet. Bei Banking = unhaltbar.</p>
+
+          <article class="issue-card" data-severity="blocker" id="t1" data-nav-label="T1 · tests/ Verzeichnis fehlt">
+            <div class="issue-head"><span class="issue-id">T1</span><h3 class="issue-title">tests/-Verzeichnis fehlt komplett</h3><span class="severity-badge sev-blocker">Blocker</span></div>
+            <div class="issue-meta"><span>📁 <code>tests/</code> (fehlt)</span><span>🤖 qa</span></div>
+            <p class="issue-desc">Banking-Code mit Encryption + JWT ohne jegliche Tests = Banking-Grade-Behauptung nicht verifiziert.</p>
+            <p class="issue-rec"><strong>Fix:</strong> <code>tests/</code> mit <code>conftest.py</code>, <code>pytest-homeassistant-custom-component</code> als dev-dep, <code>tests/test_smoke.py</code> als Anker. Rest in T2-T5.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-t1" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-t1" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="t1" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="blocker" id="t2" data-nav-label="T2 · Cache-vs-Live Contract-Test">
+            <div class="issue-head"><span class="issue-id">T2</span><h3 class="issue-title">Cache-vs-Live-Boundary Contract-Test fehlt</h3><span class="severity-badge sev-blocker">Blocker</span></div>
+            <div class="issue-meta"><span>📁 <code>tests/test_coordinator_contract.py</code> (neu)</span><span>🤖 qa</span></div>
+            <p class="issue-desc">Hard-Constraint laut CLAUDE.md, aber durch keinen Test geschützt. Coordinator könnte regression-mäßig EnableBankingClient direkt rufen.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Test injiziert MagicMock <code>EnableBankingClient</code>, lädt Coordinator, ruft <code>_async_update_data()</code> mehrfach, asserted dass <code>client.</code>* nie aufgerufen wurde.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-t2" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-t2" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="t2" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="blocker" id="t3" data-nav-label="T3 · JWT/Fernet Roundtrip">
+            <div class="issue-head"><span class="issue-id">T3</span><h3 class="issue-title">JWT-Signatur (RS256) + Fernet-Roundtrip ungetestet</h3><span class="severity-badge sev-blocker">Blocker</span></div>
+            <div class="issue-meta"><span>📁 <code>tests/test_credentials.py</code> (neu)</span><span>🤖 qa</span></div>
+            <p class="issue-desc">Schlüsselfehler im Credential-Manager fällt erst in Production auf.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Test-Vektor mit fixem RSA-Key, Encrypt → Persist → Restart → Decrypt → Assert. JWT-Signatur gegen public-key verifizieren, Claims prüfen (iss/aud/exp/iat).</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-t3" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-t3" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="t3" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="t4" data-nav-label="T4 · Categorizer-Tests">
+            <div class="issue-head"><span class="issue-id">T4</span><h3 class="issue-title">Categorizer (9 Regeln) ungetestet</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>tests/test_categorizer.py</code> (neu)</span><span>🤖 qa</span></div>
+            <p class="issue-desc">Reine Regel-Logik, leicht testbar. Direkt für korrekte Monats-Summen verantwortlich.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Parametrisierte Tests (Beschreibung, Counter-Party, Erwartete Kategorie) mit ~30 Beispielen aus Haushaltsbuch.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-t4" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-t4" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="t4" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="t5" data-nav-label="T5 · Transfer-Detector-Tests">
+            <div class="issue-head"><span class="issue-id">T5</span><h3 class="issue-title">Transfer-Detector (768 LOC) ungetestet</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>tests/test_transfer_detector.py</code> (neu)</span><span>🤖 qa</span></div>
+            <p class="issue-desc">Kaskaden-Erkennung (HelloFresh → PayPal → DKB), Overrides, Confidence-Scoring. Falsche Summen möglich.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Tests für simple-Transfer, Kaskade, mit/ohne Override, Edge-Case (gleiche Beträge nicht-Transfer).</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-t5" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-t5" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="t5" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="t6" data-nav-label="T6 · ruff/black/mypy">
+            <div class="issue-head"><span class="issue-id">T6</span><h3 class="issue-title">pyproject.toml fehlt — kein Lint, kein Type-Check</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>pyproject.toml</code> (neu)</span><span>🤖 qa</span></div>
+            <p class="issue-desc">Kein <code>ruff</code>/<code>black</code>/<code>mypy</code>/<code>pyright</code>. Auch kein <code>.eslintrc</code>.</p>
+            <p class="issue-rec"><strong>Fix:</strong> minimaler <code>pyproject.toml</code> mit ruff (lint+format) + mypy strict für <code>custom_components/finance_dashboard/</code>. ESLint optional.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-t6" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-t6" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="t6" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="t7" data-nav-label="T7 · pytest in CI">
+            <div class="issue-head"><span class="issue-id">T7</span><h3 class="issue-title">CI deckt nur Syntax + Versions-Sync, kein pytest-Step</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>.github/workflows/validate.yml</code></span><span>🤖 qa</span></div>
+            <p class="issue-desc"><code>py_compile</code> erkennt keine Logikfehler.</p>
+            <p class="issue-rec"><strong>Fix:</strong> nach T1-T5 weiteren Job hinzufügen: <code>pytest tests/ --cov=custom_components/finance_dashboard --cov-fail-under=40</code> (Schwelle iterativ erhöhen).</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-t7" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-t7" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="t7" placeholder="Anmerkung…"></textarea>
+          </article>
+        </section>
+
+        <!-- ============ GRUPPE 8: DOC + UX-POLISH ============ -->
+        <section id="g-doc-polish" data-nav-label="📝 Doc + UX-Polish (12)" class="group-section">
+          <h2><span class="group-tag tag-muted">Doc + UX-Polish</span> 12 Items — Schliff</h2>
+          <p class="group-summary">Kleine, aber sichtbare Verbesserungen. Parallel mit Refactor in Welle 3.</p>
+
+          <article class="issue-card" data-severity="major" id="d1" data-nav-label="D1 · CLAUDE.md sync">
+            <div class="issue-head"><span class="issue-id">D1</span><h3 class="issue-title">CLAUDE.md Phase-Liste ist veraltet</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>CLAUDE.md:180-184</code></span><span>🤖 po</span></div>
+            <p class="issue-desc">Phase-1-Checkliste hat 5 offene Boxen, alle 5 sind im Code real implementiert. Phase 2/3-Module gebaut, Doku tut so als wäre Phase 1 nicht fertig.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Phase-1 komplett haken, Phase-2-Items als "in progress" markieren, Phase-3 als "frozen until tests". Versionen in Phase-Tabelle ergänzen.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-d1" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-d1" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="d1" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="d6" data-nav-label="D6 · PSU-Header">
+            <div class="issue-head"><span class="issue-id">D6</span><h3 class="issue-title">PSU-Header fehlen → Rate-Limit-Bypass für Online-User</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>enablebanking_client.py:416-419</code></span><span>🤖 research</span></div>
+            <p class="issue-desc">Enable-Banking-FAQ: <code>Psu-Ip-Address</code> + <code>Psu-User-Agent</code> bei online-PSU umgehen das 4/Tag-Limit komplett. Wir verschenken das.</p>
+            <p class="issue-rec"><strong>Fix:</strong> bei user-getriggerten Refreshes Header aus Request-Context ableiten (HA <code>request.remote</code>) und mitsenden. Dokumentieren als "Online-Mode" vs Background.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-d6" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-d6" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="d6" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="d2" data-nav-label="D2 · iot_class">
+            <div class="issue-head"><span class="issue-id">D2</span><h3 class="issue-title">manifest iot_class: cloud_polling widerspricht Architektur</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>manifest.json:9</code></span><span>🤖 po</span></div>
+            <p class="issue-desc">"no background polling" + 4/Tag → cloud_polling ist falsch. HA-Reviewer würde nach Polling-Intervall suchen.</p>
+            <p class="issue-rec"><strong>Fix:</strong> auf <code>cloud_push</code> umstellen oder <code>local_polling</code> mit Erklärung in README.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-d2" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-d2" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="d2" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="d3" data-nav-label="D3 · repairs.py Stub">
+            <div class="issue-head"><span class="issue-id">D3</span><h3 class="issue-title">repairs.py ist 3-Zeilen-Stub vs Doku</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>repairs.py</code></span><span>🤖 po</span></div>
+            <p class="issue-desc">Doku beschreibt Modul als "Restart notification repair flow", Code ist Re-Export-Stub.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Repair-Flows aus <code>__init__.py</code> hierher umziehen oder Dokumentation korrigieren.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-d3" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-d3" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="d3" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="d4" data-nav-label="D4 · Service-Count">
+            <div class="issue-head"><span class="issue-id">D4</span><h3 class="issue-title">Service-Anzahl-Inkonsistenz: Doku 7, Code 8</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>CLAUDE.md</code> vs <code>const.py:128</code></span><span>🤖 po</span></div>
+            <p class="issue-desc"><code>SERVICE_TOGGLE_DEMO</code> nicht in Doku.</p>
+            <p class="issue-rec"><strong>Fix:</strong> CLAUDE.md aktualisieren, in <code>services.yaml</code> mit Schema definieren.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-d4" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-d4" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="d4" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="d5" data-nav-label="D5 · Retry-After">
+            <div class="issue-head"><span class="issue-id">D5</span><h3 class="issue-title">Retry-After-Header aus 429 ignoriert</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>enablebanking_client.py:444</code></span><span>🤖 core</span></div>
+            <p class="issue-desc">Statt API-vorgegebener Wartezeit immer Midnight-Reset.</p>
+            <p class="issue-rec"><strong>Fix:</strong> wenn Header gesetzt, kürzeren Reset-Zeitpunkt nutzen, sonst Midnight als Fallback.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-d5" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-d5" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="d5" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="d7" data-nav-label="D7 · 4/Tag-String">
+            <div class="issue-head"><span class="issue-id">D7</span><h3 class="issue-title">Hardcoded "4/Tag pro Konto" in 2 Komponenten</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-header.js:62</code> + <code>finance-dashboard-panel.js:90</code></span><span>🤖 gamer</span></div>
+            <p class="issue-desc">Wenn Enable Banking das Limit ändert, ist String veraltet.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Limit aus <code>/refresh_status</code>-Response übernehmen.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-d7" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-d7" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="d7" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="d8" data-nav-label="D8 · Wizard-Countdown">
+            <div class="issue-head"><span class="issue-id">D8</span><h3 class="issue-title">Setup-Wizard-Step-2 ohne Countdown</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-setup-wizard.js</code></span><span>🤖 gamer</span></div>
+            <p class="issue-desc">Auth-Polling läuft max 5 Min, kein Countdown. User weiß nicht ob's hängt.</p>
+            <p class="issue-rec"><strong>Fix:</strong> sichtbarer Countdown "Noch X:XX Minuten".</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-d8" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-d8" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="d8" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="d9" data-nav-label="D9 · Cache-Age-Label">
+            <div class="issue-head"><span class="issue-id">D9</span><h3 class="issue-title">Cache-Age nach Restart nicht als "Cache" markiert</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/fd-header.js</code></span><span>🤖 gamer</span></div>
+            <p class="issue-desc">User könnte denken Daten seien frisch.</p>
+            <p class="issue-rec"><strong>Fix:</strong> "Zuletzt aktualisiert: gestern, 14:32 (Cache)" statt rohem Timestamp.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-d9" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-d9" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="d9" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="nit" id="d10" data-nav-label="D10 · update_interval Docstring">
+            <div class="issue-head"><span class="issue-id">D10</span><h3 class="issue-title">update_interval=None: Docstring präzisieren</h3><span class="severity-badge sev-nit">Nit</span></div>
+            <div class="issue-meta"><span>📁 <code>coordinator.py:104</code></span><span>🤖 research</span></div>
+            <p class="issue-desc"><code>async_get_balance</code>-Funktionsname suggeriert Live-Call, ist aber cache-only.</p>
+            <p class="issue-rec"><strong>Fix:</strong> Docstring präziser ("cache-only, never hits API"), evtl. umbenennen in <code>async_get_cached_balance</code>.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-d10" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-d10" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="d10" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="d11" data-nav-label="D11 · is_persistent Repairs">
+            <div class="issue-head"><span class="issue-id">D11</span><h3 class="issue-title">is_persistent für Auth-Repairs nicht gesetzt</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>manager.py:900-907</code></span><span>🤖 research</span></div>
+            <p class="issue-desc">HA-Doku: Auth-Issues sind per Definition persistent.</p>
+            <p class="issue-rec"><strong>Fix:</strong> <code>is_persistent=True</code> auf Credentials-/Auth-Repairs.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-d11" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-d11" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="d11" placeholder="Anmerkung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="nit" id="d12" data-nav-label="D12 · dt_util.now()">
+            <div class="issue-head"><span class="issue-id">D12</span><h3 class="issue-title">datetime.now() statt dt_util.now() — TZ-Inkonsistenz</h3><span class="severity-badge sev-nit">Nit</span></div>
+            <div class="issue-meta"><span>📁 <code>manager.py:114, 93</code></span><span>🤖 research</span></div>
+            <p class="issue-desc">Lokal-naiv. Bei TZ-Wechsel/UTC-Container potenziell off-by-hours für Rate-Limit-Reset.</p>
+            <p class="issue-rec"><strong>Fix:</strong> <code>homeassistant.util.dt.now()</code> nutzen.</p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-d12" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-d12" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="d12" placeholder="Anmerkung…"></textarea>
+          </article>
+        </section>
+
+        <!-- ============ GRUPPE 9: DECISION-NEEDED ============ -->
+        <section id="g-decision-needed" data-nav-label="❓ Decision-Needed (4)" class="group-section">
+          <h2><span class="group-tag tag-success">Decision · Needed</span> 4 Items — User-Input erforderlich</h2>
+          <p class="group-summary">Diese vier Items haben mutually-exclusive Optionen oder Trade-offs, die ich nicht autonom entscheide. Bitte im Kommentar die Option (a/b/c) angeben.</p>
+
+          <article class="issue-card" data-severity="blocker" id="dn1" data-nav-label="DN1 · Vision-Drift Phase 2/3">
+            <div class="issue-head"><span class="issue-id">DN1</span><h3 class="issue-title">Vision-Drift: Phase 2/3-Module bereits gebaut ohne Phase-1-Tests</h3><span class="severity-badge sev-blocker">Blocker</span></div>
+            <div class="issue-meta"><span>📁 <code>transfer_detector.py</code> + <code>benchmark.py</code> + <code>household.py</code> + <code>demo.py</code></span><span>🤖 po</span></div>
+            <p class="issue-desc">~2400 LOC Phase-2/3-Code ohne Tests. Code ist Phase-2-fortgeschritten, Doku tut so als wäre Phase 1 nicht fertig.</p>
+            <p class="issue-rec"><strong>Optionen — bitte im Kommentar angeben:</strong><br>
+              <strong>(a) Einfrieren:</strong> Module bleiben, aber kein Weiterbau bis tests/-Coverage &gt; 50%. CLAUDE.md aktualisieren.<br>
+              <strong>(b) Entfernen:</strong> benchmark.py + Phase-3-Sachen löschen, Phase-2 (household, recurring, month_cycle) behalten als "experimental".<br>
+              <strong>(c) Experimental-Flag:</strong> alle Phase-2/3-Module hinter Options-Toggle, Default off, "Beta" im UI.
+            </p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-dn1" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-dn1" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="dn1" placeholder="Option a/b/c + ggf. Begründung…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="blocker" id="dn2" data-nav-label="DN2 · Fernet-Storage-Strategie">
+            <div class="issue-head"><span class="issue-id">DN2</span><h3 class="issue-title">Fernet-Key-Speicherort (siehe S2)</h3><span class="severity-badge sev-blocker">Blocker</span></div>
+            <div class="issue-meta"><span>📁 <code>credential_manager.py:67-76</code></span><span>🤖 redteam + research</span></div>
+            <p class="issue-desc">Aktuell co-located in <code>.storage/</code>. Banking-Grade-Behauptung verlangt eine bewusste Wahl.</p>
+            <p class="issue-rec"><strong>Optionen — bitte im Kommentar angeben:</strong><br>
+              <strong>(a) HA-Secrets-Manager:</strong> sauber HA-konform, aber HA hat aktuell kein dediziertes Secrets-Backend (nur secrets.yaml). Eingeschränkt.<br>
+              <strong>(b) OS-Keyring (python keyring):</strong> echter Schutz, funktioniert auf HA-OS / Container nur eingeschränkt.<br>
+              <strong>(c) Status-quo + dokumentieren als Trust-Model:</strong> "wer .storage/ lesen kann, hat Zugriff auf alles HA-relevante" — pragmatisch und ehrlich.<br>
+              <strong>(d) MultiFernet + Key-Rotation:</strong> separate Schicht, 90-Tage-Rotation, Key in env-var oder secrets.yaml. Erhöht Komplexität, schützt aber gegen Snapshot-Leaks.
+            </p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-dn2" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-dn2" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="dn2" placeholder="Option a/b/c/d…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="major" id="dn3" data-nav-label="DN3 · Refactor-Timing">
+            <div class="issue-head"><span class="issue-id">DN3</span><h3 class="issue-title">manager.py / api.py Refactor-Timing</h3><span class="severity-badge sev-major">Major</span></div>
+            <div class="issue-meta"><span>📁 <code>manager.py</code> + <code>api.py</code></span><span>🤖 po + core</span></div>
+            <p class="issue-desc">Splitten ist invasiv. Frage: jetzt oder erst nach Test-Suite?</p>
+            <p class="issue-rec"><strong>Optionen — bitte im Kommentar angeben:</strong><br>
+              <strong>(a) Jetzt vor Tests:</strong> einfacher zu testen wenn klein, aber riskant ohne Sicherheitsnetz.<br>
+              <strong>(b) Erst nach Test-Suite:</strong> sichere Refactors, aber Tests werden für God-Object geschrieben (= schlechtere Tests).<br>
+              <strong>(c) Hybrid:</strong> Smoke-Tests + Cache-vs-Live-Contract zuerst (T1, T2), dann Split, dann Detail-Tests (T3-T5).
+            </p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-dn3" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-dn3" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="dn3" placeholder="Option a/b/c…"></textarea>
+          </article>
+
+          <article class="issue-card" data-severity="minor" id="dn4" data-nav-label="DN4 · i18n-Strategie">
+            <div class="issue-head"><span class="issue-id">DN4</span><h3 class="issue-title">i18n-Strategie für Panel</h3><span class="severity-badge sev-minor">Minor</span></div>
+            <div class="issue-meta"><span>📁 <code>frontend/</code> + <code>strings.json</code></span><span>🤖 designer</span></div>
+            <p class="issue-desc">Aktuell kein i18n im Panel.</p>
+            <p class="issue-rec"><strong>Optionen — bitte im Kommentar angeben:</strong><br>
+              <strong>(a) HA-Translations:</strong> Strings in <code>strings.json</code>, via <code>hass.callWS({type:'frontend/get_translations',category:'state'})</code> nachladen. HA-konform, aber zickig wenn nicht "state".<br>
+              <strong>(b) Eigenes JSON pro Locale:</strong> <code>frontend/locales/{de,en}.json</code>, Lookup über <code>hass.language</code>. Volle Kontrolle.
+            </p>
+            <div class="tri-state-group"><label class="tri-state-option"><input type="radio" name="eval-dn4" value="discard"><span class="tri-state-label">Verwerfen</span></label><label class="tri-state-option"><input type="radio" name="eval-dn4" value="include" checked><span class="tri-state-label">Miteinbeziehen</span></label></div>
+            <textarea data-comment="dn4" placeholder="Option a/b…"></textarea>
+          </article>
+        </section>
+
+      </section>
+    </main>
+  </div>
+
+  <aside class="concept-decision-panel">
+    <nav class="iteration-tabs" role="tablist" aria-label="Iterationen">
+      <button class="iteration-tab" role="tab" data-iteration="1" aria-selected="true" aria-controls="iter-1">Iteration 1 · aktiv</button>
+    </nav>
+
+    <h3>Entscheidungen</h3>
+
+    <nav class="section-nav" id="section-nav" aria-label="Abschnitte"></nav>
+
+    <div id="panel-ready">
+      <div class="decision-summary" id="decision-summary">
+        <div class="count-row"><span>✓ Miteinbeziehen</span><span class="count-include" id="count-include">0</span></div>
+        <div class="count-row"><span>✗ Verwerfen</span><span class="count-discard" id="count-discard">0</span></div>
+        <div class="count-row"><span>💬 Kommentare</span><span class="count-comments" id="count-comments">0</span></div>
+      </div>
+
+      <div id="connection-connecting" class="panel-warning panel-warning--connecting" style="display: flex;">
+        <span class="warning-icon" aria-hidden="true">⋯</span>
+        <strong>Claude verbindet sich</strong>
+        <p class="warning-message">Einen Moment — die Verbindung wird aufgebaut.</p>
+      </div>
+      <div id="connection-warning" class="panel-warning" style="display: none;">
+        <span class="warning-icon" aria-hidden="true">⚠</span>
+        <strong>Claude ist nicht verbunden</strong>
+        <p class="warning-message">Du kannst trotzdem absenden — der Klick wird gespeichert und gesendet, sobald Claude wieder da ist.</p>
+      </div>
+
+      <button id="submit-iterate-btn" class="primary submit-btn">Zur nächsten Iteration</button>
+      <p class="hint">Deine Auswahl geht an Claude für die nächste Iteration. Es wird kein Code geschrieben.</p>
+
+      <div class="submit-gap" aria-hidden="true"></div>
+
+      <button id="submit-implement-btn" class="implement-btn">
+        <span class="warn-icon" aria-hidden="true">⚠</span>
+        Mit Feedback implementieren
+      </button>
+      <p class="hint hint-warn">Claude setzt die Auswahl jetzt in echte Änderungen um. Phase 3 startet — /devops-autonomous mit Wellen-Pattern.</p>
+    </div>
+
+    <div id="panel-submitted" style="display: none;">
+      <div class="submitted-indicator">
+        <span class="check-icon">✓</span>
+        <strong>Entscheidungen übermittelt</strong>
+      </div>
+      <p class="submitted-hint">Claude verarbeitet deine Auswahl. Wechsle zum <strong>Claude Chat</strong>, um den Fortschritt zu sehen.</p>
+      <div class="waiting-animation"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    </div>
+  </aside>
+</div>
+
+<script type="application/json" id="concept-decisions">
+{"submitted": false, "decisions": [], "comments": []}
+</script>
+
+<script>
+// ===================== Theme Toggle =====================
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  document.getElementById('theme-toggle').textContent = current === 'dark' ? '☀️' : '🌙';
+  saveState();
+});
+
+// ===================== Filter Bar =====================
+function applyFilters() {
+  const activeChips = document.querySelectorAll('.filter-chip[aria-pressed="true"]');
+  const filters = {};
+  activeChips.forEach(c => {
+    const t = c.dataset.filterType;
+    if (!filters[t]) filters[t] = [];
+    filters[t].push(c.dataset.filterValue);
+  });
+  let visible = 0;
+  document.querySelectorAll('.issue-card').forEach(card => {
+    let show = true;
+    if (filters.severity && !filters.severity.includes('all')) {
+      if (!filters.severity.includes(card.dataset.severity)) show = false;
+    }
+    card.classList.toggle('is-hidden', !show);
+    if (show) visible++;
+  });
+  const counter = document.getElementById('filter-counter');
+  if (counter) counter.textContent = visible + ' Issues';
+}
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const type = chip.dataset.filterType;
+    const value = chip.dataset.filterValue;
+    if (value === 'all') {
+      document.querySelectorAll(`.filter-chip[data-filter-type="${type}"]`).forEach(c => {
+        c.setAttribute('aria-pressed', c.dataset.filterValue === 'all' ? 'true' : 'false');
+      });
+    } else {
+      const allChip = document.querySelector(`.filter-chip[data-filter-type="${type}"][data-filter-value="all"]`);
+      if (allChip) allChip.setAttribute('aria-pressed', 'false');
+      const cur = chip.getAttribute('aria-pressed') === 'true';
+      chip.setAttribute('aria-pressed', cur ? 'false' : 'true');
+      const anyActive = !!document.querySelector(`.filter-chip[data-filter-type="${type}"][aria-pressed="true"]:not([data-filter-value="all"])`);
+      if (!anyActive && allChip) allChip.setAttribute('aria-pressed', 'true');
+    }
+    applyFilters();
+  });
+});
+
+// ===================== Section Navigation (TOC) =====================
+function buildSectionNav() {
+  const nav = document.getElementById('section-nav');
+  if (!nav) return;
+  const activeIteration = document.querySelector('section[data-iteration]:not([hidden])');
+  if (!activeIteration) return;
+  // Use top-level group sections AND issue cards
+  const sections = activeIteration.querySelectorAll('section[id][data-nav-label].group-section');
+  nav.innerHTML = '';
+  sections.forEach(sec => {
+    const id = sec.id;
+    const label = sec.dataset.navLabel;
+    const link = document.createElement('a');
+    link.href = '#' + id;
+    link.className = 'section-nav-item';
+    link.dataset.sectionId = id;
+    const labelEl = document.createElement('span');
+    labelEl.className = 'section-nav-label';
+    labelEl.textContent = label;
+    link.appendChild(labelEl);
+    nav.appendChild(link);
+  });
+}
+function updateSectionNavState() { /* group-level only, no per-section state */ }
+document.addEventListener('click', e => {
+  const link = e.target.closest('.section-nav-item');
+  if (!link) return;
+  e.preventDefault();
+  const target = document.querySelector(link.getAttribute('href'));
+  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+function installScrollSpy() {
+  const items = document.querySelectorAll('.section-nav-item');
+  if (!items.length) return;
+  const byId = new Map();
+  items.forEach(i => byId.set(i.dataset.sectionId, i));
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(en => {
+      const item = byId.get(en.target.id);
+      if (!item) return;
+      if (en.isIntersecting) {
+        items.forEach(i => i.classList.remove('is-active'));
+        item.classList.add('is-active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  byId.forEach((_, id) => {
+    const sec = document.getElementById(id);
+    if (sec) io.observe(sec);
+  });
+}
+
+// ===================== Decision Summary Counter =====================
+function updateSummary() {
+  let inc = 0, dis = 0, comm = 0;
+  document.querySelectorAll('article.issue-card').forEach(card => {
+    const id = card.id;
+    const radio = document.querySelector(`input[name="eval-${id}"]:checked`);
+    const value = radio ? radio.value : 'include';
+    if (value === 'include') inc++; else dis++;
+  });
+  document.querySelectorAll('textarea[data-comment]').forEach(t => {
+    if (t.value.trim()) comm++;
+  });
+  const ie = document.getElementById('count-include');
+  const de = document.getElementById('count-discard');
+  const ce = document.getElementById('count-comments');
+  if (ie) ie.textContent = inc;
+  if (de) de.textContent = dis;
+  if (ce) ce.textContent = comm;
+}
+
+// ===================== State Persistence =====================
+const STORAGE_KEY = 'concept-state-' + location.pathname.split('/').pop().replace('.html', '');
+const STATE_TTL_MS = 24 * 60 * 60 * 1000;
+function saveState() {
+  const state = {
+    _savedAt: Date.now(),
+    _pageVersion: document.documentElement.dataset.pageVersion || ''
+  };
+  document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(el => {
+    if (el.name || el.id) state['input:' + (el.name || el.id) + ':' + el.value] = el.checked;
+  });
+  document.querySelectorAll('textarea, input[type="text"]').forEach(el => {
+    if (el.id || el.dataset.comment) state['text:' + (el.id || el.dataset.comment)] = el.value;
+  });
+  state['theme'] = document.documentElement.getAttribute('data-theme');
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+function restoreState() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return;
+  try {
+    const state = JSON.parse(raw);
+    if (state._savedAt && (Date.now() - state._savedAt) > STATE_TTL_MS) {
+      localStorage.removeItem(STORAGE_KEY); return;
+    }
+    const currentVersion = document.documentElement.dataset.pageVersion || '';
+    if (state._pageVersion && state._pageVersion !== currentVersion) {
+      localStorage.removeItem(STORAGE_KEY); return;
+    }
+    if (state.theme) {
+      document.documentElement.setAttribute('data-theme', state.theme);
+      const tt = document.getElementById('theme-toggle');
+      if (tt) tt.textContent = state.theme === 'dark' ? '🌙' : '☀️';
+    }
+    Object.entries(state).forEach(([key, value]) => {
+      if (key.startsWith('_')) return;
+      const [type, ...rest] = key.split(':');
+      if (type === 'input') {
+        const name = rest.slice(0, -1).join(':');
+        const val = rest[rest.length - 1];
+        const el = document.querySelector(`input[name="${name}"][value="${val}"]`);
+        if (el) el.checked = value;
+      } else if (type === 'text') {
+        const id = rest.join(':');
+        const el = document.querySelector(`[data-comment="${id}"]`);
+        if (el) el.value = value;
+      }
+    });
+  } catch (e) {}
+}
+
+// ===================== collectDecisions (free branch) =====================
+function collectFreeDecisions() {
+  const decisions = [];
+  document.querySelectorAll('article.issue-card[id]').forEach(card => {
+    const id = card.id;
+    const radio = card.querySelector(`input[name="eval-${id}"]:checked`);
+    decisions.push({
+      id: id,
+      label: card.dataset.navLabel || id,
+      severity: card.dataset.severity || 'unknown',
+      group: (card.closest('section[id^="g-"]') || {}).id || 'unknown',
+      evaluation: radio ? radio.value : 'include'
+    });
+  });
+  const comments = [];
+  document.querySelectorAll('textarea[data-comment]').forEach(el => {
+    if (el.value.trim()) comments.push({ id: el.dataset.comment, text: el.value.trim() });
+  });
+  return { submitted: true, template: 'free', decisions, comments };
+}
+
+function collectDecisions(action = 'iterate') {
+  const template = document.documentElement.dataset.template || 'free';
+  let payload;
+  if (template === 'free') payload = collectFreeDecisions();
+  else payload = collectFreeDecisions(); // fallback
+  payload.action = action;
+  return payload;
+}
+
+// ===================== Submit =====================
+let _submittedAt = 0;
+function wireSubmit(btnId, action) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.addEventListener('click', () => submitWithAction(action));
+}
+async function submitWithAction(action) {
+  if (action === 'implement') {
+    const ok = confirm('Mit Feedback jetzt implementieren? Claude schreibt jetzt Code-Änderungen.');
+    if (!ok) return;
+  }
+  const data = collectDecisions(action);
+  const container = document.getElementById('concept-decisions');
+  if (container) container.textContent = JSON.stringify(data);
+  document.body.classList.add('concept-submitted');
+  _submittedAt = Date.now();
+  document.getElementById('panel-ready').style.display = 'none';
+  document.getElementById('panel-submitted').style.display = 'block';
+  try {
+    await fetch('/decisions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  } catch (e) {
+    try { localStorage.setItem(STORAGE_KEY + '-pending', JSON.stringify(data)); } catch (e2) {}
+  }
+  saveState();
+}
+async function retryPendingSubmission() {
+  const pendingKey = STORAGE_KEY + '-pending';
+  const pending = localStorage.getItem(pendingKey);
+  if (!pending) return;
+  try {
+    const res = await fetch('/decisions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: pending
+    });
+    if (res.ok) localStorage.removeItem(pendingKey);
+  } catch (e) {}
+}
+
+// ===================== Restore Panel =====================
+function restorePanelToReady() {
+  document.getElementById('panel-submitted').style.display = 'none';
+  document.getElementById('panel-ready').style.display = 'block';
+  ['submit-iterate-btn', 'submit-implement-btn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = false;
+  });
+  document.body.classList.remove('concept-submitted');
+  _submittedAt = 0;
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+}
+
+// ===================== Heartbeat / Connection =====================
+const HEARTBEAT_STALE_MS = 90000;
+const HEARTBEAT_GRACE_MS = 30000;
+const _pageLoadedAt = Date.now();
+let _lastHeartbeatTs = 0;
+async function pollHeartbeat() {
+  try {
+    const res = await fetch('/heartbeat', { cache: 'no-store' });
+    const data = await res.json();
+    _lastHeartbeatTs = data.ts || 0;
+  } catch (e) {}
+}
+async function pollProcessedState() {
+  if (!_submittedAt) return;
+  try {
+    const res = await fetch('/decisions', { cache: 'no-store' });
+    const data = await res.json();
+    const processedIso = data && data._processed_at;
+    if (!processedIso) return;
+    const processedMs = Date.parse(processedIso);
+    if (Number.isFinite(processedMs) && processedMs > _submittedAt) {
+      restorePanelToReady();
+    }
+  } catch (e) {}
+}
+function checkClaudeConnection() {
+  const isConnected = _lastHeartbeatTs && (Date.now() - _lastHeartbeatTs) < HEARTBEAT_STALE_MS;
+  const inGrace = Date.now() - _pageLoadedAt < HEARTBEAT_GRACE_MS;
+  const connecting = document.getElementById('connection-connecting');
+  const warning = document.getElementById('connection-warning');
+  const btns = ['submit-iterate-btn', 'submit-implement-btn']
+    .map(id => document.getElementById(id)).filter(Boolean);
+  const panelSubmitted = document.getElementById('panel-submitted');
+  if (panelSubmitted && panelSubmitted.style.display !== 'none') return;
+  if (isConnected) {
+    if (connecting) connecting.style.display = 'none';
+    if (warning) warning.style.display = 'none';
+    btns.forEach(b => b.disabled = false);
+    retryPendingSubmission();
+  } else if (inGrace) {
+    if (connecting) connecting.style.display = 'flex';
+    if (warning) warning.style.display = 'none';
+    btns.forEach(b => b.disabled = false);
+  } else {
+    if (connecting) connecting.style.display = 'none';
+    if (warning) warning.style.display = 'flex';
+    btns.forEach(b => b.disabled = false);
+  }
+}
+setInterval(async () => {
+  await pollHeartbeat();
+  checkClaudeConnection();
+  await pollProcessedState();
+}, 5000);
+
+// ===================== Reload Polling =====================
+let _bootReloadCounter = null;
+async function pollReload() {
+  try {
+    const res = await fetch('/reload', { cache: 'no-store' });
+    if (!res.ok) return;
+    const { counter } = await res.json();
+    if (_bootReloadCounter === null) { _bootReloadCounter = counter; return; }
+    if (counter > _bootReloadCounter) {
+      location.reload();
+    }
+  } catch (e) {}
+}
+setInterval(pollReload, 3000);
+
+// ===================== Iteration Tabs =====================
+function showIteration(n) {
+  document.querySelectorAll('section[data-iteration]').forEach(sec => {
+    const match = String(sec.dataset.iteration) === String(n);
+    sec.hidden = !match;
+  });
+  document.querySelectorAll('.iteration-tab').forEach(tab => {
+    const match = String(tab.dataset.iteration) === String(n);
+    tab.setAttribute('aria-selected', match ? 'true' : 'false');
+  });
+  if (typeof buildSectionNav === 'function') buildSectionNav();
+}
+document.querySelectorAll('.iteration-tab').forEach(tab => {
+  tab.addEventListener('click', () => showIteration(tab.dataset.iteration));
+});
+
+// ===================== Init =====================
+wireSubmit('submit-iterate-btn', 'iterate');
+wireSubmit('submit-implement-btn', 'implement');
+document.addEventListener('change', () => { saveState(); updateSummary(); });
+document.addEventListener('input', () => { saveState(); updateSummary(); });
+document.addEventListener('DOMContentLoaded', () => {
+  restoreState();
+  buildSectionNav();
+  installScrollSpy();
+  updateSummary();
+  pollHeartbeat();
+  checkClaudeConnection();
+  pollReload();
+});
+</script>
+</body>
+</html>

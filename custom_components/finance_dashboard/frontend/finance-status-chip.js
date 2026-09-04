@@ -48,6 +48,13 @@ class FinanceStatusChip extends HTMLElement {
     if (!this._rendered) this._render();
   }
 
+  disconnectedCallback() {
+    if (this._successTimer) {
+      clearTimeout(this._successTimer);
+      this._successTimer = null;
+    }
+  }
+
   /**
    * Set the chip state. Called by parent components.
    * @param {"idle"|"loading"|"success"|"error"} state

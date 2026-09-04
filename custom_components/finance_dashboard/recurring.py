@@ -55,10 +55,7 @@ def detect_recurring(
         if txn.get("_status") != "booked":
             continue
 
-        creditor = _normalize_name(
-            txn.get("creditorName", "")
-            or txn.get("debtorName", "")
-        )
+        creditor = _normalize_name(txn.get("creditorName", "") or txn.get("debtorName", ""))
         if not creditor:
             continue
 
@@ -75,25 +72,19 @@ def detect_recurring(
             patterns.append(pattern)
 
     # Sort by absolute amount (largest first)
-    patterns.sort(
-        key=lambda p: abs(p["average_amount"]), reverse=True
-    )
+    patterns.sort(key=lambda p: abs(p["average_amount"]), reverse=True)
 
     _LOGGER.info("Detected %d recurring patterns", len(patterns))
     return patterns
 
 
-def _analyze_pattern(
-    creditor: str, transactions: list[dict[str, Any]]
-) -> dict[str, Any] | None:
+def _analyze_pattern(creditor: str, transactions: list[dict[str, Any]]) -> dict[str, Any] | None:
     """Analyze a creditor's transactions for recurring pattern."""
     amounts = []
     dates = []
 
     for txn in transactions:
-        amount = float(
-            txn.get("transactionAmount", {}).get("amount", 0)
-        )
+        amount = float(txn.get("transactionAmount", {}).get("amount", 0))
         booking_str = txn.get("bookingDate", "")
         if not booking_str:
             continue
@@ -114,8 +105,7 @@ def _analyze_pattern(
         return None
 
     amount_consistent = all(
-        abs(a - avg_amount) / abs(avg_amount) <= AMOUNT_TOLERANCE
-        for a in amounts
+        abs(a - avg_amount) / abs(avg_amount) <= AMOUNT_TOLERANCE for a in amounts
     )
     if not amount_consistent:
         return None
@@ -123,10 +113,7 @@ def _analyze_pattern(
     # Check monthly frequency — transactions should be ~30 days apart
     dates.sort()
     if len(dates) >= 2:
-        intervals = [
-            (dates[i + 1] - dates[i]).days
-            for i in range(len(dates) - 1)
-        ]
+        intervals = [(dates[i + 1] - dates[i]).days for i in range(len(dates) - 1)]
         avg_interval = sum(intervals) / len(intervals)
 
         # Monthly: 25-35 days between occurrences

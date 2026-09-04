@@ -8,7 +8,6 @@ When spending exceeds the limit, an fd_budget_exceeded event fires.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.config_entries import ConfigEntry
@@ -63,9 +62,7 @@ class BudgetLimitNumber(NumberEntity, RestoreEntity):
     _attr_native_unit_of_measurement = "EUR"
     _attr_has_entity_name = True
 
-    def __init__(
-        self, entry: ConfigEntry, category: str
-    ) -> None:
+    def __init__(self, entry: ConfigEntry, category: str) -> None:
         """Initialize budget limit number."""
         self._entry = entry
         self._category = category

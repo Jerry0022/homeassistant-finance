@@ -10,7 +10,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from homeassistant.core import HomeAssistant
 
@@ -111,6 +110,4 @@ def fire_recurring_detected(
             "frequency": frequency,
         },
     )
-    _LOGGER.info(
-        "Recurring detected: %s (%.2f %s)", creditor, amount, frequency
-    )
+    _LOGGER.info("Recurring detected: %s (%.2f %s)", creditor, amount, frequency)

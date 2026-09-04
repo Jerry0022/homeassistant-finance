@@ -12,7 +12,6 @@ from typing import Any
 
 import aiohttp
 import voluptuous as vol
-
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -47,10 +46,7 @@ def _normalize_pem(raw: str) -> str:
     normalized = raw.replace("\\n", "\n")
 
     # If it already has proper PEM structure, return as-is
-    if (
-        "-----BEGIN" in normalized
-        and "\n" in normalized.split("-----")[2]
-    ):
+    if "-----BEGIN" in normalized and "\n" in normalized.split("-----")[2]:
         return normalized.strip()
 
     # Strip headers/footers and all whitespace to get raw base64
@@ -89,17 +85,13 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 3  # v1=GoCardless, v2=Enable Banking full flow, v3=credentials-only
 
-    async def async_step_user(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Collect Enable Banking API credentials and create entry."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
             application_id = user_input["application_id"].strip()
-            private_key_pem = _normalize_pem(
-                user_input["private_key_pem"].strip()
-            )
+            private_key_pem = _normalize_pem(user_input["private_key_pem"].strip())
 
             if not application_id or not private_key_pem:
                 errors["base"] = "missing_credentials"
@@ -108,28 +100,19 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                 try:
                     from .enablebanking_client import EnableBankingClient
 
-                    client = EnableBankingClient(
-                        application_id, private_key_pem
-                    )
+                    client = EnableBankingClient(application_id, private_key_pem)
                 except (ValueError, TypeError) as exc:
-                    _LOGGER.error(
-                        "Failed to load PEM private key: %s", exc
-                    )
+                    _LOGGER.error("Failed to load PEM private key: %s", exc)
                     errors["base"] = "invalid_key_format"
                 except Exception:
-                    _LOGGER.exception(
-                        "Unexpected error loading credentials"
-                    )
+                    _LOGGER.exception("Unexpected error loading credentials")
                     errors["base"] = "invalid_key_format"
                 else:
                     try:
-                        institutions = (
-                            await client.async_get_institutions("DE")
-                        )
+                        institutions = await client.async_get_institutions("DE")
                     except aiohttp.ClientResponseError as exc:
                         _LOGGER.error(
-                            "Enable Banking API rejected request: "
-                            "HTTP %s — %s",
+                            "Enable Banking API rejected request: HTTP %s — %s",
                             exc.status,
                             exc.message,
                         )
@@ -144,9 +127,7 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                         )
                         errors["base"] = "connection_failed"
                     except Exception:
-                        _LOGGER.exception(
-                            "Enable Banking connection failed"
-                        )
+                        _LOGGER.exception("Enable Banking connection failed")
                         errors["base"] = "invalid_credentials"
                     else:
                         if not institutions:
@@ -164,6 +145,19 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
                                 private_key_pem,
                             )
 
+                            from homeassistant.components.persistent_notification import (
+                                async_create as pn_async_create,
+                            )
+
+                            pn_async_create(
+                                self.hass,
+                                message=(
+                                    "Öffne das Finance-Panel in der Sidebar, "
+                                    "um deine erste Bank zu verbinden."
+                                ),
+                                title="Finance Dashboard eingerichtet",
+                                notification_id="fd_setup_complete",
+                            )
                             return self.async_create_entry(
                                 title="Finance",
                                 data={"configured": False},
@@ -210,9 +204,7 @@ class FinanceDashboardOptionsFlow(OptionsFlow):
         """Initialize options flow."""
         self.config_entry = config_entry
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> ConfigFlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manage the options."""
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
@@ -223,41 +215,27 @@ class FinanceDashboardOptionsFlow(OptionsFlow):
                 {
                     vol.Optional(
                         "refresh_interval_minutes",
-                        default=self.config_entry.options.get(
-                            "refresh_interval_minutes", 60
-                        ),
-                    ): vol.All(
-                        vol.Coerce(int), vol.Range(min=15, max=1440)
-                    ),
+                        default=self.config_entry.options.get("refresh_interval_minutes", 60),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=15, max=1440)),
                     vol.Optional(
                         "split_model",
-                        default=self.config_entry.options.get(
-                            "split_model", "proportional"
-                        ),
+                        default=self.config_entry.options.get("split_model", "proportional"),
                     ): vol.In(["proportional", "equal", "custom"]),
                     vol.Optional(
                         "currency",
-                        default=self.config_entry.options.get(
-                            "currency", "EUR"
-                        ),
+                        default=self.config_entry.options.get("currency", "EUR"),
                     ): str,
                     vol.Optional(
                         "enable_total_balance_sensor",
-                        default=self.config_entry.options.get(
-                            "enable_total_balance_sensor", False
-                        ),
+                        default=self.config_entry.options.get("enable_total_balance_sensor", False),
                     ): bool,
                     vol.Optional(
                         "enable_dashboard_panel",
-                        default=self.config_entry.options.get(
-                            "enable_dashboard_panel", True
-                        ),
+                        default=self.config_entry.options.get("enable_dashboard_panel", True),
                     ): bool,
                     vol.Optional(
                         "demo_mode",
-                        default=self.config_entry.options.get(
-                            "demo_mode", False
-                        ),
+                        default=self.config_entry.options.get("demo_mode", False),
                     ): bool,
                 }
             ),

@@ -1,22 +1,28 @@
 """Shared helpers for the Finance integration.
 
 Keep this module dependency-free (only stdlib + typing) so it can be
-imported from api.py, manager.py, sensor.py, demo.py without pulling
-Home Assistant or the Enable Banking client as a side-effect.
+imported from api/, manager/, sensor.py, demo.py without pulling Home
+Assistant or the Enable Banking client as a side-effect.
+
+Scope note: cache-age / staleness are intentionally NOT computed here.
+``manager.get_refresh_status()`` is the single hardened source of truth
+for ``cache_age_seconds`` / ``cache_is_stale`` (see the manager's
+``_CACHE_STALE_THRESHOLD_SECONDS``); the diagnostics widget and state
+banner reuse those values instead of a parallel threshold.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any, Iterable
 
 
 # ---------------------------------------------------------------------------
-# IBAN masking — single source of truth
+# IBAN masking — single source of truth for UI-facing masking
 # ---------------------------------------------------------------------------
 
 # Separate fallbacks so callers can signal different "no data" states without
-# branching at every call site.
+# branching at every call site. (Log-body PII stripping is a separate concern
+# handled by ``enablebanking_client._sanitize_log``.)
 IBAN_MASK_DEFAULT = "****"
 IBAN_MASK_UNKNOWN = "?"
 
@@ -55,31 +61,6 @@ def count_uncategorized(
         if cat == default_category:
             count += 1
     return count
-
-
-# ---------------------------------------------------------------------------
-# Cache-age helpers
-# ---------------------------------------------------------------------------
-
-# Threshold in seconds — above this the UI should surface a "stale cache"
-# warning. 24h matches the Enable Banking rate-limit cadence: users who hit
-# the 4/day quota would otherwise see yesterday's data without any hint.
-CACHE_STALE_SECONDS = 24 * 3600
-
-
-def cache_age_seconds(last_refresh: datetime | None) -> int | None:
-    """Return the age (in seconds) of the cache, or None if never refreshed."""
-    if last_refresh is None:
-        return None
-    return int((datetime.now() - last_refresh).total_seconds())
-
-
-def is_cache_stale(last_refresh: datetime | None) -> bool:
-    """True when the cache is older than CACHE_STALE_SECONDS (or empty)."""
-    age = cache_age_seconds(last_refresh)
-    if age is None:
-        return False  # Empty cache is a different state than "stale"
-    return age > CACHE_STALE_SECONDS
 
 
 # ---------------------------------------------------------------------------

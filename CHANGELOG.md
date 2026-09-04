@@ -2,6 +2,7 @@
 
 All notable changes to the Finance will be documented in this file.
 
+<<<<<<< HEAD
 ## [0.12.3] — 2026-04-25
 
 ### Added
@@ -30,6 +31,70 @@ All notable changes to the Finance will be documented in this file.
 ### Changed
 - `fd-diagnostics` mounted outside the rebuildable content div so its expanded/collapsed state persists across data updates; `LOVELACE_COMPONENTS` registers `fd-diagnostics.js` alongside the other dashboard cards
 
+||||||| ba6daf7
+=======
+## [0.13.0] — 2026-04-25
+
+### Added
+- MultiFernet credential storage with key rotation + v1→v2 migration (S2)
+- Timing-safe OAuth state validation with one-time-use, 10min TTL, 32-entry cap, cross-store fallback (S4, F1, F3, F5)
+- Unified setup-wizard rate-limit gate via async_make_setup_call + persistent fresh-setup gate (S3, F2, F4)
+- IBAN/account-id/EUR-amount log sanitizer; raw API bodies no longer hit ERROR-level logs (S1)
+- Pre-commit secret-scan hook (.pre-commit-config.yaml + scripts/check_no_banking_data.py) (R11)
+- PyJWT[crypto] migration with iss=application_id, aud=api.tilisy.com, per-request jti (A4)
+- Shared aiohttp ClientSession via async_get_clientsession (A5)
+- Retry-After header honored on 429 + PSU headers for online-mode (D5, D6)
+- /refresh_status exposes rate_limit_per_day + cache_is_stale + cache_age_seconds (D7, D9)
+- Setup-wizard modal with role/aria-modal/focus-trap/ESC (U1)
+- Institution list with full keyboard navigation (role/listbox/option) (U2)
+- Donut chart aria-label + visually-hidden table fallback (U3)
+- Toast aria-live based on severity (assertive for warn/error) (U4)
+- Cost-distribution role/group + per-segment aria-label (U5)
+- I18n with locale JSON files + hass.language detection + tSync helper (U6, G1-G4)
+- Skeleton/loading states across all card components (U8)
+- + Bank entry-point opens wizard from header (U10)
+- Countdown for setup-wizard auth-polling step (D8)
+- Persistent notification after config_flow completion (U11)
+
+### Changed
+- Split api.py (1258 LOC) into api/ package (setup, refresh, data, static, demo, _helpers) (A1)
+- Split manager.py (1151 LOC) into mixin modules (RefreshMixin, PersistenceMixin) (A2)
+- Persistent component tree replaces full-rebuild on every data update (A3)
+- SHARED_CSS adoption + CAT_COLORS/LABELS consolidation in fd-shared-styles (F2, F3)
+- All hardcoded color literals replaced with CSS tokens (F4)
+- Unified disconnectedCallback for memory cleanup (F5)
+- Shared escHtml helper (F8)
+- Month label as static span (U7)
+- Chore: remove deprecated GoCardless client (F1)
+- Manager.async_set_accounts encapsulation (F6)
+- Perf(security): reuse audit-log Store instance (F7)
+- Chore(manifest): iot_class cloud_polling → cloud_push (D2)
+- Docs: align repairs.py role + sync services.yaml (D3, D4)
+- Docs: precise update_interval docstring on coordinator (D10)
+- Test: scaffold tests/ + pyproject.toml + requirements_test.txt (T1, T6)
+- Test: cache-vs-live-boundary contract test as guardian (T2)
+- Test: JWT/Fernet edge-case coverage (T3, 21 tests)
+- Test: parametrized categorizer rule coverage (T4, 79 tests)
+- Test: transfer-detector cascade + override + confidence (T5, 27 tests)
+- Chore(ci): pytest with coverage in validate workflow (T7)
+- Docs: sync CLAUDE.md phases with actual code state (D1)
+- Docs: audit-synthesis concept page (Phase 2 artifact)
+- Result: 165/165 tests pass; ruff 0 errors; coverage 31% (categorizer 96%, transfer_detector 91%, const 100%); payload synced
+
+### Fixed
+- /refresh and toggle_demo now require admin (R9, R14)
+- Partial-refresh per-account cache prevents data loss on partial bank failure (R5, F10)
+- Corrupt .storage recovery via try/except + repair-issue (R8)
+- Static file serving non-blocking via async_add_executor_job + LRU cache (R12)
+- Repair-issue payloads scrubbed of exception strings (R10)
+- _reconstruct_pem PKCS1/PKCS8 detection corrected (C9)
+- Responsive breakpoint at 980px for category section (U9)
+- Mark auth+storage repairs as is_persistent (D11)
+- Fix: dt_util.now() instead of datetime.now() throughout (D12)
+
+### Changed
+- Register `fd-transactions-log.js` in `LOVELACE_COMPONENTS`, append component after `fd-recurring-list` in the shell's component tree
+>>>>>>> origin/main
 ## [0.12.1] — 2026-04-24
 
 ### Changed
@@ -421,5 +486,21 @@ All notable changes to the Finance will be documented in this file.
 - New `fd-transactions-log` card shows imported (cached) transactions after at least one bank is linked and a refresh ran — date, counterparty, description, category badge, account, coloured amount, "vorgemerkt" flag for pending items; collapses to 25 rows with "Alle N anzeigen" toggle (cap 100 from the API)
 - `fd-data-provider` caches `/api/finance_dashboard/transactions` in-memory, refetches on user-triggered refresh and on first rebuild with linked accounts — entity-only state changes no longer trigger redundant fetches, and the endpoint is cache-read only (unbounded-safe, no Enable Banking call)
 
+## [0.13.1] — 2026-05-16
+
+### Added
+- Global :focus-visible outline rings + prefers-reduced-motion override in SHARED_CSS
+- Aria-expanded on transactions-log show-more toggle
+- New design tokens in SHARED_CSS (--r-sm/md, --sh-sm/md/lg, --fs-sm/md/lg/xl, --lh-tight/normal, --sp-xs/sm/md/lg/xl) for upcoming token-migration polish
+
 ### Changed
-- Register `fd-transactions-log.js` in `LOVELACE_COMPONENTS`, append component after `fd-recurring-list` in the shell's component tree
+- Remove unused TRANSACTION_REFRESH_STALENESS constant + timedelta import
+- Test: +20 unit tests for events.py (11) + export.py (9 incl. OSError/OverflowError monkeypatch paths) — total 165 → 185, all green
+- Chore(lint): ruff sweep across tests/ — 44 fixes (import order, unused imports, datetime.UTC migration)
+- Chore(payload): re-sync addon mirror (incl. pre-existing UTC drift from v0.13.0)
+
+### Fixed
+- RateLimitExceeded on /setup/complete surfaces as error_type=rate_limited in HTTP 200 body (matches setup-wizard contract; was previously masked as generic failure)
+- Categorizer None-guard with WARNING log — refresh races ahead of init fall back to category="other" instead of crashing
+- Cleanup of old CSV exports swallows OSError/ValueError/OverflowError and logs cause (no more silent bare-except)
+

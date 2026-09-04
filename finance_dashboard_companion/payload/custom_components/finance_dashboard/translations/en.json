@@ -78,6 +78,10 @@
     "credentials_invalid_pem": {
       "title": "Finance: Invalid Private Key",
       "description": "The stored Enable Banking private key could not be loaded. Reconfigure the integration via Settings > Devices & Services and paste the full PEM key including the BEGIN/END lines."
+    },
+    "storage_corrupt": {
+      "title": "Finance: Transaction Cache Corrupt",
+      "description": "The transaction cache file `{storage_key}` could not be read ({error_class}). The integration has started with an empty cache. Trigger a manual refresh to repopulate the cache."
     }
   }
 }

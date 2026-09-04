@@ -57,9 +57,7 @@ async def async_setup_entry(
     async_add_entities(entities, update_before_add=False)
 
 
-class AccountBalanceSensor(
-    CoordinatorEntity[FinanceDashboardCoordinator], SensorEntity
-):
+class AccountBalanceSensor(CoordinatorEntity[FinanceDashboardCoordinator], SensorEntity):
     """Sensor for a single bank account balance.
 
     State = latest closing/available balance (EUR or account currency).
@@ -137,9 +135,7 @@ class AccountBalanceSensor(
         """Extract the raw balance list for this account from coordinator data."""
         if not self.coordinator.data:
             return []
-        acc_data = (
-            self.coordinator.data.get("balances", {}).get(self._account_id, {})
-        )
+        acc_data = self.coordinator.data.get("balances", {}).get(self._account_id, {})
         return acc_data.get("balances", [])
 
     @staticmethod
@@ -158,9 +154,7 @@ class AccountBalanceSensor(
         return balances[0] if balances else None
 
 
-class TotalBalanceSensor(
-    CoordinatorEntity[FinanceDashboardCoordinator], SensorEntity
-):
+class TotalBalanceSensor(CoordinatorEntity[FinanceDashboardCoordinator], SensorEntity):
     """Aggregated balance across all linked accounts."""
 
     _attr_device_class = SensorDeviceClass.MONETARY
@@ -196,9 +190,7 @@ class TotalBalanceSensor(
             if raw:
                 balance = AccountBalanceSensor._pick_balance(raw)
                 if balance:
-                    total += float(
-                        balance.get("balanceAmount", {}).get("amount", 0)
-                    )
+                    total += float(balance.get("balanceAmount", {}).get("amount", 0))
         return total
 
     @property
@@ -215,18 +207,14 @@ class TotalBalanceSensor(
             if raw:
                 balance = AccountBalanceSensor._pick_balance(raw)
                 if balance:
-                    per_account[masked] = float(
-                        balance.get("balanceAmount", {}).get("amount", 0)
-                    )
+                    per_account[masked] = float(balance.get("balanceAmount", {}).get("amount", 0))
         return {
             "accounts": per_account,
             "account_count": len(self._accounts),
         }
 
 
-class MonthlySummarySensor(
-    CoordinatorEntity[FinanceDashboardCoordinator], SensorEntity
-):
+class MonthlySummarySensor(CoordinatorEntity[FinanceDashboardCoordinator], SensorEntity):
     """Monthly spending summary with category breakdown."""
 
     _attr_has_entity_name = True
@@ -235,9 +223,7 @@ class MonthlySummarySensor(
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_state_class = SensorStateClass.TOTAL
 
-    def __init__(
-        self, coordinator: FinanceDashboardCoordinator, entry: ConfigEntry
-    ) -> None:
+    def __init__(self, coordinator: FinanceDashboardCoordinator, entry: ConfigEntry) -> None:
         """Initialise the monthly summary sensor."""
         super().__init__(coordinator)
         self._entry = entry
@@ -247,7 +233,7 @@ class MonthlySummarySensor(
 
     @property
     def native_value(self) -> float | None:
-        """Return current-month balance (income − expenses)."""
+        """Return current-month balance (income - expenses)."""
         if not self.coordinator.data:
             return None
         return self.coordinator.data.get("summary", {}).get("balance", 0)
