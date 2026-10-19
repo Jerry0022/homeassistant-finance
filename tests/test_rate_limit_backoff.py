@@ -85,7 +85,10 @@ def test_retry_after_header_wins_over_default():
     """The bank's own Retry-After is authoritative below the midnight cap."""
     mgr = _make_manager()
     now = dt_util.now()
-    retry_at = now + timedelta(minutes=90)
+    midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    # Stay below the midnight cap whatever the wall clock says — a fixed
+    # +90 min crossed midnight on runs after 22:30 and tripped the cap instead.
+    retry_at = now + min(timedelta(minutes=90), (midnight - now) / 2)
 
     mgr._set_rate_limited(retry_at)
 

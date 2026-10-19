@@ -2,6 +2,12 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.15.3] — 2026-10-19
+
+### Fixed
+- Release: v0.15.2 never published — the add-on payload copy of `api/_helpers.py` still carried the two `noqa` comments the ruff cleanup removed from the source, so the payload sync check failed both Validate and Release. Payload resynced; 0.15.3 ships the 0.15.2 delivery fix
+- Test: `test_retry_after_header_wins_over_default` used a fixed +90 min Retry-After, which crossed the midnight cap on runs after 22:30 and failed; it now stays below midnight whatever the clock says
+
 ## [0.15.2] — 2026-08-20
 
 ### Changed
