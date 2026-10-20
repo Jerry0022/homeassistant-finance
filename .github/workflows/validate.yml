@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pytest:
     runs-on: ubuntu-latest
@@ -32,6 +36,7 @@ jobs:
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: coverage-xml
           path: coverage.xml
