@@ -252,14 +252,20 @@ class EnableBankingClient:
                 if isinstance(account_id_obj, dict)
                 else acct.get("iban", "")
             )
-            accounts.append(
-                {
-                    "id": acct.get("uid", acct.get("id", "")),
-                    "iban": iban,
-                    "name": acct.get("account_name", acct.get("name", "")),
-                    "currency": acct.get("currency", "EUR"),
-                }
-            )
+            other = account_id_obj.get("other") if isinstance(account_id_obj, dict) else None
+            record = {
+                "id": acct.get("uid", acct.get("id", "")),
+                "iban": iban,
+                "name": acct.get("account_name", acct.get("name", "")),
+                "currency": acct.get("currency", "EUR"),
+            }
+            # Identity inputs for IBAN-less products (card accounts).  Only
+            # added when the bank supplies them, so IBAN records are unchanged.
+            if isinstance(other, dict) and other.get("identification"):
+                record["identification"] = str(other["identification"])
+            if acct.get("cash_account_type"):
+                record["account_type"] = str(acct["cash_account_type"])
+            accounts.append(record)
 
         return {"session_id": session_id, "accounts": accounts}
 

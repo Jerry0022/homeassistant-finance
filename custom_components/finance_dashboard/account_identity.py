@@ -42,6 +42,38 @@ def normalize_iban(iban: str | None) -> str:
     return _NON_IBAN_CHARS.sub("", str(iban).upper())
 
 
+def _fallback_material(account: dict[str, Any], institution: str) -> str:
+    """Deterministic identity for accounts WITHOUT an IBAN (e.g. a DKB Visa).
+
+    Never the session uid — that changes on every re-link, which is exactly
+    the duplicate-entity bug this module exists to prevent.  Preference:
+
+    1. ``account_id.other.identification`` (``identification``) or a masked
+       PAN (``masked_pan`` / ``pan``) — what the bank itself calls the account;
+    2. otherwise name + currency + account type, which is stable per product
+       within a bank (two identical unnamed cards would collide, which is
+       the lesser evil compared to duplicating on every re-link).
+    """
+    ident = _NON_IBAN_CHARS.sub(
+        "",
+        str(
+            account.get("identification")
+            or account.get("masked_pan")
+            or account.get("pan")
+            or ""
+        ).upper(),
+    )
+    if ident:
+        return f"acct|{institution}|{ident}"
+    name = " ".join(str(account.get("name") or "").lower().split())
+    currency = str(account.get("currency") or "").upper()
+    kind = str(account.get("account_type") or account.get("product") or "").upper()
+    if name or currency or kind:
+        return f"prod|{institution}|{name}|{currency}|{kind}"
+    # Nothing stable known at all — last resort so the record still gets a key.
+    return f"uid|{institution}|{account.get('id', '')}"
+
+
 def identity_key(account: dict[str, Any]) -> str:
     """Return the key derived purely from what identifies the account.
 
@@ -49,15 +81,17 @@ def identity_key(account: dict[str, Any]) -> str:
     as the same real account across sessions:
 
     * ``institution_id`` + normalized IBAN — the real identity.
-    * ``institution_id`` + account uid, for products without an IBAN
-      (some card accounts).  Less stable, but still per-account unique.
+    * Without an IBAN (card accounts): a deterministic fallback from the
+      bank-given identification / masked PAN, or name + currency + type
+      (see :func:`_fallback_material`).  Never the per-session uid, except as
+      the last resort when the bank supplies nothing else.
     """
     institution = str(account.get("institution_id") or account.get("institution") or "")
     iban = normalize_iban(account.get("iban"))
     if iban:
         material = f"iban|{institution}|{iban}"
     else:
-        material = f"uid|{institution}|{account.get('id', '')}"
+        material = _fallback_material(account, institution)
     return hashlib.sha256(material.encode("utf-8")).hexdigest()[:16]
 
 

@@ -4,18 +4,24 @@ Coordinates between:
 - Enable Banking API client (banking data via PSD2)
 - Credential Manager (secure storage)
 - Transaction Categorizer (auto-classification)
-- Transaction Cache (encrypted .storage/)
+- Two-layer storage: raw bank-response archive + processed ledger
 
-SECURITY: All transaction data is cached in HA's .storage/ directory
-(encrypted at rest). No financial data is ever written to logs or git.
+SECURITY: Transaction data lives in HA's .storage/ directory as Fernet
+ciphertext (key held by the credential manager): the ledger
+(``finance_dashboard_ledger``) and the monthly raw archive
+(``finance_dashboard_raw_YYYY_MM``).  The pre-ledger plaintext cache is
+migrated into the ledger on first start and then deleted.  Categories,
+monthly summaries and household splits are derived from the ledger and never
+stored.  No financial data is ever written to logs or git.
 
 CACHE vs LIVE FETCH CONTRACT:
-- ``get_cached_*`` / ``async_get_balance`` return in-memory cache only —
-  zero API calls, unbounded calls allowed. Use from HTTP read endpoints.
+- ``get_cached_*`` / ``async_get_balance`` / ``get_bank_status`` return
+  in-memory cache only — zero API calls, unbounded calls allowed.
 - ``async_refresh_*`` hits the Enable Banking API and updates the cache —
   ONLY called from explicit user-triggered paths (service call, refresh
-  button, setup-complete bootstrap). Enable Banking enforces a 4/day
-  ASPSP rate limit, so automatic background fetches are forbidden.
+  button, setup-complete bootstrap) plus the single scheduled daily refresh.
+  The 4/day cap is tracked per bank and applies to background (non-PSU)
+  calls only; attended calls are uncapped but debounced.
 """
 
 from __future__ import annotations
@@ -41,14 +47,18 @@ from ..const import (
     ENABLEBANKING_RATE_LIMIT_DAILY,
     OPT_WATER_RATIO,
     OWNER_SHARED,
+    STORAGE_KEY_LEDGER,
     STORAGE_KEY_TRANSFER_OVERRIDES,
 )
+from ..data_store import Ledger, StorageDecryptError
+from ..fetch_budget import FetchBudget
 from ..household import HouseholdMember, HouseholdModel, model_from_plan
 from ..transfer_detector import (
     apply_overrides,
     get_effective_transactions,
 )
 from ..transfer_plan import build_transfer_plan
+from ._banks import BankMixin
 from ._persistence import PersistenceMixin
 from ._refresh import RefreshMixin
 
@@ -61,12 +71,13 @@ TRANSACTION_CACHE_VERSION = 1
 _OAUTH_STATE_TTL = 600
 
 
-class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
+class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
     """Central orchestrator for the Finance integration.
 
     Inherits from:
     - RefreshMixin   (_refresh.py) — all live-fetch + OAuth methods
-    - PersistenceMixin (_persistence.py) — storage read/write
+    - BankMixin      (_banks.py) — bank subentries, consent expiry, status
+    - PersistenceMixin (_persistence.py) — ledger read/write
     """
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -76,7 +87,17 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         self._credential_manager = None
         self._banking_client = None
         self._categorizer = None
+        # LEGACY plaintext cache — read once for migration, then deleted.
         self._transaction_store = Store(hass, TRANSACTION_CACHE_VERSION, TRANSACTION_CACHE_KEY)
+        # Two-layer storage: processed ledger + raw bank-response archive.
+        # Attached to the credential manager's key in async_initialize().
+        self._ledger = Ledger(None)
+        self._raw = None
+        self._ledger_writable = True
+        # Per-bank fetch budget (attended vs background, 429 per bank).
+        self._budget = FetchBudget()
+        self._bank_info: dict[str, dict[str, Any]] = {}
+        self._consent_errors: dict[str, str] = {}
         self._accounts: list[dict[str, Any]] = entry.data.get("accounts", [])
         # Per-account transaction cache: account_id → list[tx].
         # Partial refresh failures only affect the failed account's slice —
@@ -120,7 +141,20 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
 
     @property
     def rate_limited_until(self) -> datetime | None:
-        """Return the datetime until which the API is rate-limited, or None."""
+        """Until when background access is blocked for EVERY linked bank.
+
+        Per-bank blocks live in the fetch budget.  With several banks, one
+        blocked bank does not stop the others, so this is only set when all
+        of them are blocked (the latest ``blocked_until``).  Callers that gate
+        on it must keep exempting attended calls.
+        """
+        budget = getattr(self, "_budget", None)
+        bank_ids = list(getattr(self, "_bank_info", {}) or {})
+        if budget is not None and bank_ids:
+            untils = [budget.blocked_until(b) for b in bank_ids]
+            if all(untils):
+                return max(untils)
+            return None
         if self._rate_limited_until and dt_util.now() < self._rate_limited_until:
             return self._rate_limited_until
         return None
@@ -202,87 +236,113 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         # store falls back to an empty plan and the UI prompts for an import.
         await self._plan_store.async_load()
 
-        # Load cached transactions from .storage/
-        # R8: wrap in try/except — a corrupt .storage/ file must not crash
-        # HA startup.  On decode error the file is renamed to .corrupt-<ts>
-        # and a Repair issue is raised so the user is notified.
-        cached = None
+        # Two-layer storage, encrypted with the credential manager's key.
+        from ..data_store import RawArchive
+
+        if self._ledger._store is None:
+            self._ledger = Ledger.create(self._credential_manager)
+        self._raw = RawArchive(
+            self._hass, self._credential_manager, self._raw_retention_days
+        )
+        # R8: a corrupt or undecryptable store must not crash HA startup.
         try:
-            cached = await self._transaction_store.async_load()
+            await self._ledger.async_load()
+        except StorageDecryptError as exc:
+            # Key lost or file damaged: the content is unrecoverable, so
+            # starting afresh (and overwriting) is the only way forward.
+            _LOGGER.error("Ledger cannot be decrypted (%s) — starting empty", exc)
+            self._raise_storage_corrupt_issue(STORAGE_KEY_LEDGER, "StorageDecryptError")
+        except Exception as exc:
+            # Unknown failure: keep the file untouched rather than overwrite it.
+            _LOGGER.error("Ledger load failed (%s) — running without persistence", type(exc).__name__)
+            self._ledger_writable = False
+            self._raise_storage_corrupt_issue(STORAGE_KEY_LEDGER, type(exc).__name__)
+
+        # Legacy plaintext cache -> encrypted ledger, then delete the plaintext.
+        legacy = None
+        try:
+            legacy = await self._transaction_store.async_load()
         except (json.JSONDecodeError, ValueError, OSError) as exc:
             _LOGGER.error(
-                "Transaction cache corrupt (%s: %s) — starting with empty state",
+                "Transaction cache corrupt (%s) — starting with empty state",
                 type(exc).__name__,
-                exc,
             )
             self._raise_storage_corrupt_issue(TRANSACTION_CACHE_KEY, type(exc).__name__)
-        if cached and ("transactions" in cached or "tx_by_account" in cached):
-            # R5: prefer per-account dict; fall back to flat list (migration).
-            raw_tx_by_account = cached.get("tx_by_account")
-            if isinstance(raw_tx_by_account, dict):
-                self._tx_by_account = raw_tx_by_account
-                self._transactions = [tx for txs in self._tx_by_account.values() for tx in txs]
-                # Deterministic sort after flatten
-                self._transactions.sort(key=lambda t: t.get("bookingDate", ""), reverse=True)
-            else:
-                # Migrate: old flat list → per-account dict
-                flat: list[dict[str, Any]] = cached.get("transactions", [])
-                self._transactions = flat
-                for tx in flat:
-                    acc_id = tx.get("_account_id", "__unknown__")
-                    self._tx_by_account.setdefault(acc_id, []).append(tx)
-            last_refresh = cached.get("last_refresh")
-            if last_refresh:
-                try:
-                    self._last_refresh = datetime.fromisoformat(last_refresh)
-                except ValueError:
-                    self._last_refresh = None
-            # Cached balances survive restart so the UI shows something
-            # immediately — they're only reset by an explicit live refresh.
-            self._balances = cached.get("balances", {}) or {}
-            # Rebuild the balance-change baseline from the cache, otherwise
-            # the first refresh after every HA restart fires a
-            # fd_balance_changed event for every account (stale baseline =
-            # 0.00 vs. cached value) and spams user automations.
-            for acc_id, data in self._balances.items():
-                raw = data.get("balances") if isinstance(data, dict) else None
-                if not raw:
-                    continue
-                try:
-                    self._previous_balances[acc_id] = float(
-                        raw[0].get("balanceAmount", {}).get("amount", 0)
-                    )
-                except (TypeError, ValueError, IndexError, AttributeError):
-                    continue
-            # Rate-limit state must survive restart — otherwise a user
-            # who hit HTTP 429 at 23:59 would "reset" by bouncing HA.
-            rl = cached.get("rate_limited_until")
-            if rl:
-                try:
-                    rl_dt = datetime.fromisoformat(rl)
-                    # Ensure UTC-aware for comparison (F3)
-                    if rl_dt.tzinfo is None:
-                        rl_dt = rl_dt.replace(tzinfo=UTC)
-                    if rl_dt > dt_util.now():
-                        self._rate_limited_until = rl_dt
-                        # Mirror to hass.data so the fresh-setup client gate
-                        # can enforce the quota even before manager is reached (F2).
-                        self._hass.data.setdefault(DOMAIN, {})[
-                            "_global_rate_limit_until"
-                        ] = rl_dt.isoformat()
-                except ValueError:
-                    pass
-            stats = cached.get("last_refresh_stats")
-            if isinstance(stats, dict):
-                self._last_refresh_stats = stats
-            _LOGGER.info(
-                "Loaded %d cached transactions (last refresh: %s, balances: %d)",
-                len(self._transactions),
-                self._last_refresh,
-                len(self._balances),
-            )
+        if legacy and ("transactions" in legacy or "tx_by_account" in legacy):
+            await self._migrate_plaintext_cache(legacy)
+
+        self._load_state_from_ledger()
+        overrides: dict[str, bool] = {}
+        try:
+            overrides = await self._async_load_transfer_overrides()
+        except Exception:
+            _LOGGER.debug("Transfer overrides unavailable at startup", exc_info=True)
+        self._derive_from_ledger(overrides)
+        _LOGGER.info(
+            "Loaded %d ledger transactions (last refresh: %s, balances: %d)",
+            len(self._transactions),
+            self._last_refresh,
+            len(self._balances),
+        )
 
         _LOGGER.info("Finance Manager initialized")
+
+    async def _migrate_plaintext_cache(self, cached: dict[str, Any]) -> None:
+        """Move the pre-ledger plaintext transaction cache into the ledger."""
+        from ..account_identity import account_key
+
+        uid_to_key = {a.get("id"): account_key(a) for a in self._accounts if a.get("id")}
+        by_uid = cached.get("tx_by_account")
+        if not isinstance(by_uid, dict):
+            by_uid = {}
+            for tx in cached.get("transactions", []) or []:
+                by_uid.setdefault(tx.get("_account_id", "__unknown__"), []).append(tx)
+        for uid, txs in by_uid.items():
+            self._ledger.import_legacy(uid_to_key.get(uid, uid), list(txs))
+
+        meta = self._ledger.meta
+        for field in ("balances", "last_refresh", "last_refresh_stats"):
+            if cached.get(field) and not meta.get(field):
+                meta[field] = cached[field]
+
+        if not self._ledger_writable:
+            return
+        try:
+            await self._ledger.async_save()
+            await self._transaction_store.async_remove()
+            _LOGGER.info("Plaintext transaction cache migrated to the encrypted ledger and removed")
+        except Exception:
+            _LOGGER.exception("Cache migration incomplete — plaintext kept until it succeeds")
+
+    def _load_state_from_ledger(self) -> None:
+        """Restore refresh stamps, cached balances and budget state."""
+        meta = self._ledger.meta
+        last_refresh = meta.get("last_refresh")
+        if last_refresh:
+            try:
+                self._last_refresh = datetime.fromisoformat(last_refresh)
+            except ValueError:
+                self._last_refresh = None
+        # Cached balances survive restart so the UI shows something at once.
+        self._balances = meta.get("balances") or {}
+        # Rebuild the balance-change baseline, otherwise the first refresh
+        # after every restart fires fd_balance_changed for every account.
+        for acc_id, data in self._balances.items():
+            raw = data.get("balances") if isinstance(data, dict) else None
+            if not raw:
+                continue
+            try:
+                self._previous_balances[acc_id] = float(
+                    raw[0].get("balanceAmount", {}).get("amount", 0)
+                )
+            except (TypeError, ValueError, IndexError, AttributeError):
+                continue
+        stats = meta.get("last_refresh_stats")
+        if isinstance(stats, dict):
+            self._last_refresh_stats = stats
+        # Budget counters and per-bank blocks must survive a restart —
+        # otherwise bouncing HA would reset the day's background budget.
+        self._budget.load(meta.get("bank_budget"))
 
     async def async_shutdown(self) -> None:
         """Clean shutdown — persist cache, clear sensitive data from memory."""
@@ -490,9 +550,8 @@ class FinanceDashboardManager(RefreshMixin, PersistenceMixin):
         """Re-run auto-categorization on all cached transactions."""
         if self._demo_mode or not self._categorizer:
             return
-        for txn in self._transactions:
-            txn["category"] = self._categorizer.categorize(txn)
-        await self._persist_transactions()
+        # Categories are derived, not stored: recompute from the ledger.
+        self._derive_from_ledger(self._transfer_overrides)
         _LOGGER.info("Re-categorized %d transactions", len(self._transactions))
 
     async def async_set_budget_limit(self, category: str, limit: float) -> None:

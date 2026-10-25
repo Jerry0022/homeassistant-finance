@@ -22,28 +22,24 @@ class PersistenceMixin:
     """Mixin that adds persistence methods to FinanceDashboardManager."""
 
     async def _persist_transactions(self) -> None:
-        """Save transactions, balances, rate-limit and stats to cache.
+        """Write the ledger (encrypted) with refresh stamps and budget state.
 
-        R5: saves the per-account dict (tx_by_account) as the canonical
-        format.  The flat ``transactions`` key is kept for one-version
-        backward-compatibility but is no longer the authoritative source.
+        Only the ledger layer is stored: transactions and balance series.
+        Categories, account tags and transfer enrichment are derived on load
+        and never persisted.  Demo data is never written.
         """
-        await self._transaction_store.async_save(
-            {
-                # R5: per-account dict is the canonical storage format.
-                "tx_by_account": self._tx_by_account,
-                # Legacy flat list — kept so older versions can still read
-                # something useful if rolled back.
-                "transactions": self._transactions,
-                "balances": self._balances,
-                "last_refresh": (self._last_refresh.isoformat() if self._last_refresh else None),
-                "rate_limited_until": (
-                    self._rate_limited_until.isoformat() if self._rate_limited_until else None
-                ),
-                "last_refresh_stats": self._last_refresh_stats,
-                "account_count": len(self._accounts),
-            }
-        )
+        if self._demo_mode or not self._ledger_writable:
+            return
+        meta = self._ledger.meta
+        meta["balances"] = self._balances
+        meta["last_refresh"] = self._last_refresh.isoformat() if self._last_refresh else None
+        meta["last_refresh_stats"] = self._last_refresh_stats
+        meta["account_count"] = len(self._accounts)
+        meta["bank_budget"] = self._budget.to_dict()
+        try:
+            await self._ledger.async_save()
+        except Exception:
+            _LOGGER.exception("Ledger write failed — data stays in memory only")
 
     async def _async_load_transfer_overrides(
         self,

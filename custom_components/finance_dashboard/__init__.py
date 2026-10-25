@@ -57,6 +57,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEn
     manager = FinanceDashboardManager(hass, entry)
     await manager.async_initialize()
 
+    # Installs that predate bank subentries: turn the single stored session
+    # into one bank subentry.  Never blocks setup — the virtual legacy bank
+    # keeps working if this cannot run.
+    try:
+        await manager.async_migrate_legacy_session()
+        await manager.async_update_consent_issues()
+    except Exception:
+        _LOGGER.exception("Bank migration / consent check failed — continuing setup")
+
     # Create the coordinator — single source of truth for all entities.
     # Entities read from coordinator.data instead of calling the API directly.
     from .coordinator import FinanceDashboardCoordinator
@@ -169,15 +178,15 @@ def _register_daily_refresh(
         if manager.demo_mode:
             _LOGGER.debug("Daily refresh skipped — demo mode active")
             return
-        if manager.rate_limited_until:
-            _LOGGER.info(
-                "Daily refresh skipped — rate limited until %s",
-                manager.rate_limited_until.isoformat(),
-            )
-            return
+        # No global rate-limit gate: the budget is per bank, and the
+        # scheduled fetch (background, no PSU headers) may use at most one of
+        # a bank's four daily slots — a blocked or spent bank is skipped
+        # inside the refresh, the others still run.
         try:
-            stats = await manager.async_refresh_transactions()
+            await manager.async_refresh_transactions(scheduled=True)
+            stats = manager.last_refresh_stats
             await coordinator.async_refresh()
+            await manager.async_update_consent_issues()
             _LOGGER.info(
                 "Daily refresh done: outcome=%s accounts=%s transactions=%s new=%s",
                 stats.get("outcome"),

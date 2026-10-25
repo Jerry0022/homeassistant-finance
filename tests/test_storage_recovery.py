@@ -37,7 +37,9 @@ def _make_mock_entry() -> MagicMock:
 @pytest.mark.asyncio
 async def test_corrupt_storage_does_not_raise() -> None:
     """async_initialize must complete without raising when storage is corrupt."""
+    from custom_components.finance_dashboard.data_store import Ledger
     from custom_components.finance_dashboard.manager import FinanceDashboardManager
+    from tests.fakes import FakeEncryptedStore
 
     hass = _make_mock_hass()
     entry = _make_mock_entry()
@@ -56,6 +58,7 @@ async def test_corrupt_storage_does_not_raise() -> None:
         MockCat.return_value = MagicMock()
 
         mgr = FinanceDashboardManager(hass, entry)
+        mgr._ledger = Ledger(FakeEncryptedStore())
 
         # Inject corrupt storage — Store.async_load raises JSONDecodeError
         mgr._transaction_store = AsyncMock()
@@ -90,7 +93,9 @@ async def test_corrupt_storage_does_not_raise() -> None:
 @pytest.mark.asyncio
 async def test_valid_storage_loads_normally() -> None:
     """async_initialize with valid storage must populate transactions."""
+    from custom_components.finance_dashboard.data_store import Ledger
     from custom_components.finance_dashboard.manager import FinanceDashboardManager
+    from tests.fakes import FakeEncryptedStore
 
     hass = _make_mock_hass()
     entry = _make_mock_entry()
@@ -122,6 +127,7 @@ async def test_valid_storage_loads_normally() -> None:
         MockCat.return_value = MagicMock()
 
         mgr = FinanceDashboardManager(hass, entry)
+        mgr._ledger = Ledger(FakeEncryptedStore())
         mgr._transaction_store = AsyncMock()
         mgr._transaction_store.async_load.return_value = valid_cache
 

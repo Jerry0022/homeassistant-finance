@@ -209,8 +209,13 @@ class CredentialManager:
         await self._token_store.async_save(token_data)
         await self._audit_log("session_stored")
 
-    async def async_get_session(self) -> dict[str, str] | None:
-        """Get Enable Banking session if still valid."""
+    async def async_get_session(self, include_expired: bool = False) -> dict[str, str] | None:
+        """Get the LEGACY single Enable Banking session if still valid.
+
+        Shim for installs that predate per-bank sessions; new code uses
+        ``async_get_bank_session``.  ``include_expired`` returns an expired
+        session too (migration needs its ``valid_until``).
+        """
         self._ensure_initialized()
         self._check_session_timeout()
 
@@ -226,7 +231,7 @@ class CredentialManager:
         # Check if session has expired
         try:
             expires = datetime.fromisoformat(valid_until)
-            if datetime.now() >= expires:
+            if datetime.now(expires.tzinfo) >= expires and not include_expired:
                 _LOGGER.warning("Enable Banking session expired")
                 await self._audit_log("session_expired")
                 return None
