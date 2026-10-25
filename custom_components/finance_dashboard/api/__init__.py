@@ -18,6 +18,8 @@ from homeassistant.core import HomeAssistant
 from ._helpers import _get_manager, _get_setup_client
 from .data import (
     FinanceDashboardBalanceView,
+    FinanceDashboardBankStatusView,
+    FinanceDashboardSettingsView,
     FinanceDashboardSummaryView,
     FinanceDashboardTransactionsView,
     FinanceDashboardTransferChainsView,
@@ -36,12 +38,6 @@ from .refresh import (
     FinanceDashboardRefreshStatusView,
     FinanceDashboardRefreshTriggerView,
 )
-from .setup import (
-    FinanceDashboardSetupInstitutionsView,
-    FinanceDashboardSetupStatusView,
-    FinanceDashboardSetupUpdateAccountsView,
-    FinanceDashboardSetupUsersView,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,13 +46,10 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
     # Helpers (re-exported for backwards-compat with tests that import from .api)
     "_get_manager",
     "_get_setup_client",
-    # Setup wizard
-    "FinanceDashboardSetupStatusView",
-    "FinanceDashboardSetupUsersView",
-    "FinanceDashboardSetupInstitutionsView",
-    "FinanceDashboardSetupUpdateAccountsView",
     # Data endpoints
     "FinanceDashboardBalanceView",
+    "FinanceDashboardBankStatusView",
+    "FinanceDashboardSettingsView",
     "FinanceDashboardTransactionsView",
     "FinanceDashboardSummaryView",
     "FinanceDashboardTransferChainsView",
@@ -84,11 +77,9 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardSummaryView())
     hass.http.register_view(FinanceDashboardRefreshStatusView())
     hass.http.register_view(FinanceDashboardRefreshTriggerView())
-    # Setup wizard endpoints (linking moved into the config subentry flow)
-    hass.http.register_view(FinanceDashboardSetupStatusView())
-    hass.http.register_view(FinanceDashboardSetupInstitutionsView())
-    hass.http.register_view(FinanceDashboardSetupUsersView())
-    hass.http.register_view(FinanceDashboardSetupUpdateAccountsView())
+    # Bank linking lives in the config subentry flow (Settings -> Devices & services)
+    hass.http.register_view(FinanceDashboardBankStatusView())
+    hass.http.register_view(FinanceDashboardSettingsView())
     hass.http.register_view(FinanceDashboardTransferChainsView())
     hass.http.register_view(FinanceDashboardDemoToggleView())
     hass.http.register_view(FinanceDashboardDemoDataView())

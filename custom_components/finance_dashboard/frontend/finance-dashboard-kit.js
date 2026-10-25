@@ -37,7 +37,7 @@ const COMPONENTS = [
   "fd-cost-distribution.js",
   "fd-recurring-list.js",
   "fd-transactions-log.js",
-  "fd-setup-wizard.js",
+  "fd-overview.js",
 ];
 
 const CARDS = [
