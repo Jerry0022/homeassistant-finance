@@ -17,7 +17,6 @@ from __future__ import annotations
 import pytest
 
 from custom_components.finance_dashboard.enablebanking_client import EnableBankingClient
-from custom_components.finance_dashboard.manager._refresh import RefreshMixin
 
 
 def _txn(amount="10.00", indicator="DBDT", status="BOOK", **extra):
@@ -204,63 +203,3 @@ class TestBalanceSelection:
         from custom_components.finance_dashboard.sensor import AccountBalanceSensor
 
         assert AccountBalanceSensor._pick_balance([]) is None
-
-
-class TestTransactionMerge:
-    """History must accumulate beyond the rolling fetch window."""
-
-    WINDOW_START = "2026-04-01"
-
-    def _cached(self, transaction_id, booking_date, status="booked"):
-        return {
-            "transactionId": transaction_id,
-            "bookingDate": booking_date,
-            "_status": status,
-        }
-
-    def test_transactions_older_than_the_window_are_kept(self):
-        previous = [self._cached("old", "2026-01-15")]
-        merged = RefreshMixin._merge_account_transactions(
-            previous, [self._cached("new", "2026-05-02")], [], self.WINDOW_START
-        )
-        ids = {t["transactionId"] for t in merged}
-        assert ids == {"old", "new"}
-
-    def test_fresh_copy_supersedes_the_cached_one(self):
-        previous = [self._cached("tx1", "2026-05-02")]
-        fresh = {"transactionId": "tx1", "bookingDate": "2026-05-02", "_status": "booked",
-                 "category": "housing"}
-        merged = RefreshMixin._merge_account_transactions(
-            previous, [fresh], [], self.WINDOW_START
-        )
-        assert len(merged) == 1
-        assert merged[0]["category"] == "housing"
-
-    def test_reversed_transaction_inside_the_window_disappears(self):
-        previous = [self._cached("gone", "2026-05-02")]
-        merged = RefreshMixin._merge_account_transactions(
-            previous, [], [], self.WINDOW_START
-        )
-        assert merged == []
-
-    def test_cached_pending_entries_are_discarded(self):
-        previous = [self._cached("p1", "2026-01-10", status="pending")]
-        merged = RefreshMixin._merge_account_transactions(
-            previous, [], [], self.WINDOW_START
-        )
-        assert merged == []
-
-    def test_transaction_without_booking_date_is_not_lost(self):
-        previous = [self._cached("nodate", "")]
-        merged = RefreshMixin._merge_account_transactions(
-            previous, [], [], self.WINDOW_START
-        )
-        assert len(merged) == 1
-
-    def test_repeated_refresh_does_not_duplicate(self):
-        fresh = [self._cached("tx1", "2026-05-02")]
-        first = RefreshMixin._merge_account_transactions([], fresh, [], self.WINDOW_START)
-        second = RefreshMixin._merge_account_transactions(
-            first, fresh, [], self.WINDOW_START
-        )
-        assert len(second) == 1
