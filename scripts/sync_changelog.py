@@ -2,7 +2,6 @@
 """Sync CHANGELOG.md from BUILDLOG.md entries.
 
 Parses the latest BUILDLOG entry and prepends a formatted CHANGELOG section.
-Also updates the companion add-on CHANGELOG.
 
 Usage:
     python scripts/sync_changelog.py                    # Sync latest version
@@ -19,7 +18,6 @@ ROOT = Path(__file__).resolve().parent.parent
 
 BUILDLOG_PATH = ROOT / "BUILDLOG.md"
 CHANGELOG_PATH = ROOT / "CHANGELOG.md"
-ADDON_CHANGELOG_PATH = ROOT / "finance_dashboard_companion" / "CHANGELOG.md"
 CONST_PATH = ROOT / "custom_components" / "finance_dashboard" / "const.py"
 
 
@@ -171,32 +169,6 @@ def repair_changelog() -> bool:
     return True
 
 
-def update_addon_changelog(entry: dict) -> None:
-    """Update the companion add-on CHANGELOG (simplified format)."""
-    text = ADDON_CHANGELOG_PATH.read_text(encoding="utf-8")
-
-    # Build simplified entry
-    simplified = [f"## {entry['version']}"]
-    for change in entry["changes"]:
-        # Strip conventional commit prefix for addon changelog
-        line = change.lstrip("- ").strip()
-        line = re.sub(r'^(?:feat|fix|refactor)\([^)]*\):\s*', '', line)
-        line = line[0].upper() + line[1:] if line else line
-        simplified.append(f"- {line}")
-
-    new_section = "\n".join(simplified) + "\n"
-
-    # Insert after header
-    header_match = re.search(r'^# Changelog\s*\n', text)
-    if header_match:
-        insert_pos = header_match.end()
-        text = text[:insert_pos] + "\n" + new_section + "\n" + text[insert_pos:]
-    else:
-        text = "# Changelog\n\n" + new_section + "\n" + text
-
-    ADDON_CHANGELOG_PATH.write_text(text, encoding="utf-8")
-
-
 def check_sync() -> bool:
     current = get_current_version()
     changelog_latest = get_changelog_latest_version()
@@ -231,8 +203,7 @@ def sync_version(version: str) -> bool:
 
     formatted = format_changelog_entry(entry)
     prepend_to_changelog(formatted)
-    update_addon_changelog(entry)
-    print(f"Synced v{version} to CHANGELOG.md and addon CHANGELOG.md")
+    print(f"Synced v{version} to CHANGELOG.md")
     return True
 
 

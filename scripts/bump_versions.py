@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bump versions across all project files to keep them aligned.
 
-Ensures manifest.json, addon config.yaml, and const.py all have the same version.
+Ensures manifest.json and const.py all have the same version.
 
 Usage:
     python scripts/bump_versions.py --check          # Verify alignment
@@ -13,26 +13,18 @@ Usage:
 import argparse
 import json
 import re
-import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
 MANIFEST_PATH = ROOT / "custom_components" / "finance_dashboard" / "manifest.json"
-ADDON_CONFIG_PATH = ROOT / "finance_dashboard_companion" / "config.yaml"
 CONST_PATH = ROOT / "custom_components" / "finance_dashboard" / "const.py"
 
 
 def get_manifest_version() -> str:
     data = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
     return data["version"]
-
-
-def get_addon_version() -> str:
-    text = ADDON_CONFIG_PATH.read_text(encoding="utf-8")
-    match = re.search(r'^version:\s*"?(\d+\.\d+\.\d+)"?', text, re.MULTILINE)
-    return match.group(1) if match else "0.0.0"
 
 
 def get_const_version() -> str:
@@ -43,14 +35,12 @@ def get_const_version() -> str:
 
 def check_versions() -> bool:
     manifest = get_manifest_version()
-    addon = get_addon_version()
     const = get_const_version()
 
     print(f"manifest.json:  {manifest}")
-    print(f"config.yaml:    {addon}")
     print(f"const.py:       {const}")
 
-    if manifest == addon == const:
+    if manifest == const:
         print("\nAll versions aligned.")
         return True
     else:
@@ -78,17 +68,6 @@ def set_version(new_version: str) -> None:
     )
     print(f"Updated manifest.json -> {new_version}")
 
-    # Update addon config.yaml
-    text = ADDON_CONFIG_PATH.read_text(encoding="utf-8")
-    text = re.sub(
-        r'^(version:\s*)"?\d+\.\d+\.\d+"?',
-        f'\\1"{new_version}"',
-        text,
-        flags=re.MULTILINE,
-    )
-    ADDON_CONFIG_PATH.write_text(text, encoding="utf-8")
-    print(f"Updated config.yaml -> {new_version}")
-
     # Update const.py VERSION
     text = CONST_PATH.read_text(encoding="utf-8")
     text = re.sub(
@@ -100,11 +79,6 @@ def set_version(new_version: str) -> None:
     CONST_PATH.write_text(text, encoding="utf-8")
     print(f"Updated const.py -> {new_version}")
 
-    # Auto-sync payload
-    sync_script = ROOT / "scripts" / "sync_addon_payload.py"
-    if sync_script.exists():
-        print("\nSyncing addon payload...")
-        subprocess.run([sys.executable, str(sync_script)], check=True)
 
 
 def main():
