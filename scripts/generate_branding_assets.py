@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Generate branding assets for the integration and companion add-on.
+"""Generate branding assets for the integration.
 
 Renders the Finance coin icon (gold rim, green face, smiley)
 as 256x256 PNGs in both light and dark mode variants.
 
 Output locations:
-  - finance_dashboard_companion/  (icon.png, logo.png, dark_icon.png, dark_logo.png)
   - custom_components/finance_dashboard/brand/  (same 4 files)
 """
 
@@ -18,7 +17,6 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-ADDON_DIR = REPO_ROOT / "finance_dashboard_companion"
 BRAND_DIR = REPO_ROOT / "custom_components" / "finance_dashboard" / "brand"
 
 
@@ -189,17 +187,6 @@ def render_icon(size: int, dark: bool) -> list[tuple[int, int, int, int]]:
 def main() -> int:
     print("Generating Finance branding assets...")
 
-    addon_icon = render_icon(256, dark=False)
-    addon_dark = render_icon(256, dark=True)
-
-    # Companion add-on directory
-    write_png(ADDON_DIR / "icon.png", 256, 256, addon_icon)
-    write_png(ADDON_DIR / "logo.png", 256, 256, addon_icon)
-    write_png(ADDON_DIR / "dark_icon.png", 256, 256, addon_dark)
-    write_png(ADDON_DIR / "dark_logo.png", 256, 256, addon_dark)
-    print(f"  Written: {ADDON_DIR}/{{icon,logo,dark_icon,dark_logo}}.png")
-
-    # Integration brand directory
     integration_icon = render_icon(256, dark=False)
     integration_dark = render_icon(256, dark=True)
     write_png(BRAND_DIR / "icon.png", 256, 256, integration_icon)

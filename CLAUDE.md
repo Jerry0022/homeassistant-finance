@@ -4,7 +4,7 @@
 
 ## Project Overview
 
-A secure Home Assistant add-on and integration for personal finance management. Pulls live banking data via the Enable Banking PSD2 Open Banking API (JWT-signed), auto-categorizes transactions, and provides household budget tracking with configurable multi-person split models.
+A secure Home Assistant integration (distributed exclusively through HACS) for personal finance management. Pulls live banking data via the Enable Banking PSD2 Open Banking API (JWT-signed), auto-categorizes transactions, and provides household budget tracking with configurable multi-person split models.
 
 **Hard rule — cache vs. live fetch**: Cache reads (HTTP endpoints, sensor attributes, coordinator state) are unbounded. Live Enable-Banking calls are allowed from explicit user-triggered paths (refresh button, panel open, service call, setup bootstrap) **plus exactly one scheduled refresh per day** at a configurable time (default 06:30, `daily_refresh_enabled` / `daily_refresh_hour`). Polling — any interval-based or coordinator-driven fetch — remains forbidden.
 
@@ -58,17 +58,12 @@ homeassistant-finance/
 │   ├── strings.json             # UI strings (EN default)
 │   ├── frontend/                # Web components (sidebar panel)
 │   └── translations/            # i18n (en.json, de.json)
-├── finance_dashboard_companion/           # HA Companion Add-on
-│   ├── config.yaml              # Add-on metadata (version, arch)
-│   ├── Dockerfile               # Alpine-based container
-│   ├── run.sh                   # Smart payload installer (version-aware)
-│   └── payload/                 # Bundled integration + Lovelace assets
 ├── www/community/finance-dashboard/       # Lovelace card (HACS install)
 ├── scripts/                               # Dev tooling
-│   ├── bump_versions.py         # Sync versions across manifest/addon/const
-│   ├── sync_addon_payload.py    # Copy integration → add-on payload
-│   └── sync_changelog.py       # Sync BUILDLOG → CHANGELOG (both root + addon)
-└── .github/workflows/validate.yml         # CI: syntax + version + payload validation
+│   ├── bump_versions.py         # Sync versions across manifest/const
+│   └── sync_changelog.py       # Sync BUILDLOG → CHANGELOG
+├── hacs.json                              # HACS metadata (min HA version)
+└── .github/workflows/                     # CI: validate (tests, syntax, hassfest, HACS), release (v* tag)
 ```
 
 ## Security Model
@@ -97,31 +92,23 @@ homeassistant-finance/
 - **Encryption**: `cryptography` library (Fernet for storage, RSA for JWT signing)
 - **Frontend**: Vanilla Web Components (Custom Elements API)
 - **HA APIs**: Config Entries, Services, HTTP Views, Repairs, Frontend Panel
-- **CI**: GitHub Actions (Python/JS syntax, version alignment, payload sync)
+- **CI**: GitHub Actions (Python/JS syntax, version alignment, hassfest, HACS validation)
 
 ## Version Management
 
-Three files must always have aligned versions:
-1. `custom_components/finance_dashboard/manifest.json` → `version` field
-2. `finance_dashboard_companion/config.yaml` → `version` field
-3. `custom_components/finance_dashboard/const.py` → `VERSION` constant
+**Distribution: HACS only.** HACS installs from GitHub Releases, so every version needs a `v<version>` tag; pushing it triggers `.github/workflows/release.yml`. There is no Supervisor add-on.
 
-Use `python scripts/bump_versions.py --part [patch|minor|major]` to bump all three atomically. The script also auto-syncs the add-on payload.
+Two files must always have aligned versions:
+1. `custom_components/finance_dashboard/manifest.json` → `version` field
+2. `custom_components/finance_dashboard/const.py` → `VERSION` constant
+
+Use `python scripts/bump_versions.py --part [patch|minor|major]` to bump both atomically.
 
 ### CHANGELOG Sync (mandatory after every BUILDLOG entry)
 
-After writing a BUILDLOG entry, run `python scripts/sync_changelog.py` to propagate the entry to both `CHANGELOG.md` (keep-a-changelog format) and `finance_dashboard_companion/CHANGELOG.md` (simplified). The script parses conventional commit prefixes (`feat()`, `fix()`, `refactor()`) and groups changes by Added/Changed/Fixed. Use `--check` to verify sync status.
+After writing a BUILDLOG entry, run `python scripts/sync_changelog.py` to propagate the entry to `CHANGELOG.md` (keep-a-changelog format). The script parses conventional commit prefixes (`feat()`, `fix()`, `refactor()`) and groups changes by Added/Changed/Fixed. Use `--check` to verify sync status.
 
 ## Key Patterns (from Golden Sample)
-
-### Companion Add-on
-The add-on is a thin installer — it copies the integration code into HA's `custom_components/` directory. The `run.sh` script:
-- Compares bundled vs installed version
-- Replaces the target tree (delete sync) if versions differ — `cp -r` alone leaves modules a later version dropped
-- Writes restart marker for integration to detect
-- Falls back to persistent notification via HA Supervisor API
-
-**Hard rule — the add-on must stay resident.** `startup: services`, never `startup: once`. A `once` add-on has already exited when Supervisor auto-updates it, and Supervisor only restarts add-ons that were *running* — so the installer stops running entirely and the payload never reaches disk. That failure is silent: the add-on reports the new version while `/config` keeps the old one. It cost releases 0.13.1 through 0.15.1 on a live instance. The installer therefore installs on start, then re-checks hourly, never exits on a failed install, and rewrites its state file on every check so its timestamp doubles as a liveness heartbeat. `tests/test_addon_installer.py` pins all of this.
 
 ### Config Flow
 Three-step flow: `user` (Enable Banking application_id + RSA private key) → `link_bank` (ASPSP authorization via PSU redirect) → `options` (settings). Real-time validation via Enable Banking API call during setup.
@@ -185,11 +172,7 @@ Additional:
 python scripts/bump_versions.py --check        # Verify alignment
 python scripts/bump_versions.py --part patch    # Bump version
 
-# Payload sync
-python scripts/sync_addon_payload.py            # Sync files
-python scripts/sync_addon_payload.py --check    # Verify sync
-
-# CHANGELOG sync (BUILDLOG → CHANGELOG + addon CHANGELOG)
+# CHANGELOG sync (BUILDLOG → CHANGELOG)
 python scripts/sync_changelog.py                # Sync current version
 python scripts/sync_changelog.py --check        # Verify CHANGELOG is up-to-date
 python scripts/sync_changelog.py --version X.Y.Z  # Sync specific version
@@ -206,7 +189,7 @@ node --check custom_components/finance_dashboard/frontend/finance-dashboard-pane
 - [x] Enable Banking API client (replaced GoCardless skeleton)
 - [x] Credential manager with encryption + audit
 - [x] Transaction categorizer (rule-based, 9 categories from household sheet)
-- [x] Companion add-on with smart installer
+- [x] HACS distribution (add-on dropped)
 - [x] Sidebar panel + Lovelace card
 - [x] CI/CD pipeline
 - [x] Branding (dual-tone coin icon)
@@ -263,7 +246,6 @@ node --check custom_components/finance_dashboard/frontend/finance-dashboard-pane
 | `role:core` | Manager, API client, credential manager |
 | `role:frontend` | Panel, Lovelace cards, web components |
 | `role:security` | Encryption, audit, token management |
-| `role:addon` | Companion add-on, Dockerfile, run.sh |
 
 | Module | Scope |
 |--------|-------|
@@ -271,4 +253,3 @@ node --check custom_components/finance_dashboard/frontend/finance-dashboard-pane
 | `module:categorizer` | Transaction categorization |
 | `module:household` | Multi-person budget model |
 | `module:frontend` | UI components |
-| `module:addon` | Companion add-on |

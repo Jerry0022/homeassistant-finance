@@ -35,7 +35,7 @@ Finance Dashboard connects your bank accounts to Home Assistant via [GoCardless 
 - 🔒 **Banking-Grade Security** — Fernet encryption, token rotation, session timeouts, full audit trail
 - 📱 **Sidebar Panel** — Dedicated finance overview accessible from the HA sidebar
 - 🎴 **Lovelace Card** — Compact balance widget for any dashboard
-- 🔄 **Companion Add-on** — One-click installation with automatic updates
+- 🔄 **HACS Distribution** — Install and update through HACS
 - 🌍 **Multilingual** — English and German translations included
 - 🤖 **HA Automations** — Expose services for balance checks, transaction refresh, and monthly summaries
 
@@ -43,24 +43,23 @@ Finance Dashboard connects your bank accounts to Home Assistant via [GoCardless 
 
 ### Prerequisites
 
-- Home Assistant 2024.1 or newer
+- Home Assistant 2026.3 or newer
+- [HACS](https://hacs.xyz) installed
 - A free [GoCardless Bank Account Data](https://bankaccountdata.gocardless.com) API account
 - A supported European bank (2400+ institutions across 31 countries)
 
-### Installation via HACS (Recommended)
+### Installation via HACS
+
+HACS is the only supported install path. The integration is not yet in the HACS default list, so add it as a custom repository first.
 
 1. Open HACS in Home Assistant
-2. Go to **Integrations** → **Custom Repositories**
-3. Add `https://github.com/Jerry0022/homeassistant-finance` as an **Integration**
-4. Install **Finance Dashboard**
+2. Open the three-dot menu → **Custom repositories**
+3. Add `https://github.com/Jerry0022/homeassistant-finance` with category **Integration**
+4. Search for **Finance** in HACS and download it
 5. Restart Home Assistant
+6. Go to **Settings → Devices & services → Add integration** and select **Finance**
 
-### Installation via Companion Add-on
-
-1. Add this repository URL to your Home Assistant add-on store
-2. Install the **Finance Dashboard** add-on
-3. Start the add-on — it automatically installs the integration
-4. Restart Home Assistant when prompted
+Updates are offered by HACS whenever a new GitHub Release is published.
 
 ### Manual Installation
 
@@ -148,9 +147,6 @@ automation:
 │  │  └────────────────┬──────────────────────┘  │  │
 │  └───────────────────┼─────────────────────────┘  │
 │                      │                            │
-│  ┌───────────────────┼─────────────────────────┐  │
-│  │  Companion Add-on │ (Payload Installer)     │  │
-│  └───────────────────┘                         │  │
 └──────────────────────┼─────────────────────────┘
                        │ HTTPS
               ┌────────┴────────┐
