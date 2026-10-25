@@ -16,8 +16,7 @@ from __future__ import annotations
 
 import logging
 
-from ha_customapps.restart import RestartNotifier
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import HomeAssistant, SupportsResponse
 from homeassistant.helpers.event import async_track_time_change
@@ -52,10 +51,6 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEntry) -> bool:
     """Set up Finance Dashboard from a config entry."""
-    # Restart notification via ha-customapps (marker polling + Repairs issue)
-    notifier = RestartNotifier(hass, DOMAIN)
-    await notifier.async_setup(entry)
-
     # Initialize the manager (core business logic)
     from .manager import FinanceDashboardManager
 
@@ -79,7 +74,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEn
     # Register services (pass coordinator so refresh service can push updates)
     await _async_register_services(hass, manager, coordinator)
 
-    # Register sidebar panel
+    # Register frontend: static mount, sidebar panel, auto-loaded cards
     from .panel import async_register_panel
 
     await async_register_panel(hass)
@@ -207,6 +202,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: FinanceDashboardConfigE
         hass.data[DOMAIN].pop(f"{entry.entry_id}_coordinator", None)
         if manager:
             await manager.async_shutdown()
+        # Last entry gone -> take the frontend down so a reload re-registers
+        # cleanly and a removed integration leaves no dead sidebar item.
+        if not any(
+            e.entry_id != entry.entry_id and e.state is ConfigEntryState.LOADED
+            for e in hass.config_entries.async_entries(DOMAIN)
+        ):
+            from .panel import async_unregister_panel
+
+            await async_unregister_panel(hass)
         # Clean up entry reference if it matches
         if hass.data.get(DOMAIN, {}).get("entry") is entry:
             hass.data[DOMAIN].pop("entry", None)

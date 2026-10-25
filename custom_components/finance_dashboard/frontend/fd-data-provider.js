@@ -532,4 +532,4 @@ class FdDataProvider extends HTMLElement {
   }
 }
 
-customElements.define("fd-data-provider", FdDataProvider);
+window._fd.defineOnce("fd-data-provider", FdDataProvider);

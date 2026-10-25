@@ -11,7 +11,14 @@ PANEL_URL_PATH = "finance-dashboard"
 PANEL_TITLE = "Finance"
 PANEL_ICON = "mdi:finance"
 PANEL_COMPONENT_NAME = "finance-dashboard-panel"
-PANEL_MODULE_PATH = f"/api/{DOMAIN}/static/finance-dashboard-panel.js?v={VERSION}"
+# Frontend delivery: ONE static mount, two shells (sidebar panel + Lovelace
+# cards) built from the same web-component kit.  The ?v= query busts the
+# browser cache on every release (the static path is served with long-lived
+# cache headers).
+FRONTEND_URL_BASE = f"/{DOMAIN}_static"
+PANEL_MODULE_PATH = f"{FRONTEND_URL_BASE}/finance-dashboard-panel.js?v={VERSION}"
+# Auto-loaded on every dashboard (registers the kit + all Lovelace cards).
+CARDS_MODULE_PATH = f"{FRONTEND_URL_BASE}/finance-dashboard-kit.js?v={VERSION}"
 
 # Storage keys — all sensitive data stored in HA .storage/
 STORAGE_KEY_CREDENTIALS = f"{DOMAIN}_credentials"

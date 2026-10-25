@@ -10,6 +10,9 @@
  *    (hass setter fires on every HA state change — fetching there causes
  *     API rate-limit exhaustion within minutes)
  *
+ * Delivery: loaded by finance-dashboard-kit.js, which the integration adds to
+ * every dashboard automatically (no Lovelace resource needed).
+ *
  * Usage:
  *   type: custom:finance-dashboard-card
  *   show_transactions: true
@@ -113,6 +116,11 @@ class FinanceDashboardCard extends HTMLElement {
   getCardSize() {
     return 3;
   }
+
+  // Sections view: width in columns (multiple of 3 of the 12-col grid), height in rows.
+  getGridOptions() {
+    return { columns: 6, min_columns: 3, rows: 3, min_rows: 2, max_rows: 10 };
+  }
 }
 
 class FinanceDashboardCardEditor extends HTMLElement {
@@ -163,11 +171,10 @@ class FinanceDashboardCardEditor extends HTMLElement {
   }
 }
 
-customElements.define("finance-dashboard-card-editor", FinanceDashboardCardEditor);
-customElements.define("finance-dashboard-card", FinanceDashboardCard);
+window._fd.defineOnce("finance-dashboard-card-editor", FinanceDashboardCardEditor);
+window._fd.defineOnce("finance-dashboard-card", FinanceDashboardCard);
 
-window.customCards = window.customCards || [];
-window.customCards.push({
+window._fd.registerCard({
   type: "finance-dashboard-card",
   name: "Finance",
   description: "Kontostand und Transaktionen auf einen Blick.",

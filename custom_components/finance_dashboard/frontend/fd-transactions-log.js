@@ -228,4 +228,4 @@ class FdTransactionsLog extends HTMLElement {
   }
 }
 
-customElements.define("fd-transactions-log", FdTransactionsLog);
+window._fd.defineOnce("fd-transactions-log", FdTransactionsLog);

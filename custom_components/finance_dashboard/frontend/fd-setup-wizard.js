@@ -954,4 +954,4 @@ class FdSetupWizard extends HTMLElement {
   }
 }
 
-customElements.define("fd-setup-wizard", FdSetupWizard);
+window._fd.defineOnce("fd-setup-wizard", FdSetupWizard);

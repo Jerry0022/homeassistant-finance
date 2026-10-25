@@ -397,4 +397,4 @@ h1 {
   }
 }
 
-customElements.define("fd-header", FdHeader);
+window._fd.defineOnce("fd-header", FdHeader);

@@ -121,12 +121,16 @@ class FdBudgetConfig extends HTMLElement {
   static getConfigElement() { return document.createElement("div"); }
   static getStubConfig() { return {}; }
   getCardSize() { return 4; }
+
+  // Sections view: width in columns (multiple of 3 of the 12-col grid), height in rows.
+  getGridOptions() {
+    return { columns: 6, min_columns: 6, rows: 4, min_rows: 3, max_rows: 8 };
+  }
 }
 
-customElements.define("fd-budget-config", FdBudgetConfig);
+window._fd.defineOnce("fd-budget-config", FdBudgetConfig);
 
-window.customCards = window.customCards || [];
-window.customCards.push({
+window._fd.registerCard({
   type: "fd-budget-config",
   name: "Finance — Budget Config",
   description: "Configure household budget split model and preview Spielgeld.",

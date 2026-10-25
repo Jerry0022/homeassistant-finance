@@ -125,4 +125,4 @@ class FdStatCard extends HTMLElement {
   }
 }
 
-customElements.define("fd-stat-card", FdStatCard);
+window._fd.defineOnce("fd-stat-card", FdStatCard);

@@ -176,11 +176,15 @@ class FdCategorize extends HTMLElement {
 
   static getStubConfig() { return {}; }
   getCardSize() { return 6; }
+
+  // Sections view: width in columns (multiple of 3 of the 12-col grid), height in rows.
+  getGridOptions() {
+    return { columns: 12, min_columns: 6, rows: 6, min_rows: 4, max_rows: 12 };
+  }
 }
 
-customElements.define("fd-categorize", FdCategorize);
-window.customCards = window.customCards || [];
-window.customCards.push({
+window._fd.defineOnce("fd-categorize", FdCategorize);
+window._fd.registerCard({
   type: "fd-categorize",
   name: "Finance — Categorize",
   description: "Drag & drop transaction categorization (admin only).",
