@@ -45,7 +45,6 @@ from .setup import (
     FinanceDashboardSetupUpdateAccountsView,
     FinanceDashboardSetupUsersView,
 )
-from .static import FinanceDashboardStaticView
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -79,8 +78,6 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
     # Refresh
     "FinanceDashboardRefreshStatusView",
     "FinanceDashboardRefreshTriggerView",
-    # Static
-    "FinanceDashboardStaticView",
     # Demo
     "FinanceDashboardDemoToggleView",
     "FinanceDashboardDemoDataView",
@@ -90,7 +87,6 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
 async def async_register_api(hass: HomeAssistant) -> None:
     """Register all Finance HTTP API endpoints."""
     hass.http.register_view(FinanceDashboardOAuthCallbackView())
-    hass.http.register_view(FinanceDashboardStaticView())
     hass.http.register_view(FinanceDashboardBalanceView())
     hass.http.register_view(FinanceDashboardTransactionsView())
     hass.http.register_view(FinanceDashboardSummaryView())

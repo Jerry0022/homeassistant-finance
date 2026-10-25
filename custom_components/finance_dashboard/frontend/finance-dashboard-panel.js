@@ -22,6 +22,10 @@
  * See docs/ARCHITECTURE-FRONTEND.md for full architecture documentation.
  */
 
+// One kit, two shells: load the shared components before defining the shell.
+// Same ?v= query as this module, so the kit instance is shared and cache-busted.
+await import(new URL("finance-dashboard-kit.js" + new URL(import.meta.url).search, import.meta.url).href);
+
 class FinanceDashboardPanel extends HTMLElement {
   constructor() {
     super();
@@ -409,4 +413,4 @@ class FinanceDashboardPanel extends HTMLElement {
   }
 }
 
-customElements.define("finance-dashboard-panel", FinanceDashboardPanel);
+window._fd.defineOnce("finance-dashboard-panel", FinanceDashboardPanel);

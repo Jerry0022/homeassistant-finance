@@ -118,4 +118,4 @@ class FdStatsRow extends HTMLElement {
   }
 }
 
-customElements.define("fd-stats-row", FdStatsRow);
+window._fd.defineOnce("fd-stats-row", FdStatsRow);

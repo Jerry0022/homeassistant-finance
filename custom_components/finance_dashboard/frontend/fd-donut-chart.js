@@ -146,4 +146,4 @@ class FdDonutChart extends HTMLElement {
   }
 }
 
-customElements.define("fd-donut-chart", FdDonutChart);
+window._fd.defineOnce("fd-donut-chart", FdDonutChart);

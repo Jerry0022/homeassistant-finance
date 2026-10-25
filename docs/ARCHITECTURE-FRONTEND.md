@@ -23,7 +23,7 @@ finance-dashboard-panel (Shell — sidebar entry point, ~80 lines)
 ```
 
 Standalone Lovelace cards (registered separately):
-- `finance-dashboard-card` (compact balance widget in `www/community/`)
+- `finance-dashboard-card` (compact balance widget, `frontend/finance-dashboard-card.js`; all cards and the panel share one kit loaded by `frontend/finance-dashboard-kit.js`, auto-registered via `add_extra_js_url`)
 - `fd-budget-config` (split model configuration)
 - `fd-categorize` (transaction categorization, admin-only)
 - `finance-status-chip` (sync state indicator)

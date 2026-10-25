@@ -289,6 +289,11 @@ class FinanceStatusChip extends HTMLElement {
   getCardSize() {
     return 1;
   }
+
+  // Sections view: width in columns (multiple of 3 of the 12-col grid), height in rows.
+  getGridOptions() {
+    return { columns: 6, min_columns: 3, rows: 1, min_rows: 1, max_rows: 1 };
+  }
 }
 
 // Minimal editor for Lovelace card picker
@@ -309,11 +314,10 @@ class FinanceStatusChipEditor extends HTMLElement {
   }
 }
 
-customElements.define("finance-status-chip", FinanceStatusChip);
-customElements.define("finance-status-chip-editor", FinanceStatusChipEditor);
+window._fd.defineOnce("finance-status-chip", FinanceStatusChip);
+window._fd.defineOnce("finance-status-chip-editor", FinanceStatusChipEditor);
 
-window.customCards = window.customCards || [];
-window.customCards.push({
+window._fd.registerCard({
   type: "finance-status-chip",
   name: "Finance Status Chip",
   description: "Zeigt den Aktualisierungsstatus des Finance Dashboard",
