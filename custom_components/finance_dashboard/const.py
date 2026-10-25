@@ -39,6 +39,32 @@ RATE_LIMIT_ATTENDED_BACKOFF_MINUTES = 15
 INSTITUTION_CACHE_TTL_HOURS = 24
 STORAGE_VERSION = 1
 
+# Two-layer data storage (encrypted, versioned).  The raw layer is an
+# immutable archive of bank responses, chunked one Store per month; the
+# ledger is the processed per-account transaction + balance history.
+STORAGE_KEY_LEDGER = f"{DOMAIN}_ledger"
+STORAGE_KEY_RAW_PREFIX = f"{DOMAIN}_raw_"  # + YYYY_MM
+STORAGE_KEY_RAW_INDEX = f"{DOMAIN}_raw_index"
+LEDGER_STORAGE_VERSION = 1
+LEDGER_STORAGE_MINOR_VERSION = 1
+RAW_STORAGE_VERSION = 1
+RAW_STORAGE_MINOR_VERSION = 1
+OPT_RAW_RETENTION_DAYS = "raw_retention_days"
+DEFAULT_RAW_RETENTION_DAYS = 400
+
+# Per-bank fetch budget.  The 4/day cap is the bank's and applies only to
+# background (non-PSU) access; the scheduled daily refresh may use one slot.
+SCHEDULED_BACKGROUND_SHARE = 1
+ATTENDED_DEBOUNCE_SECONDS = 60
+INCREMENTAL_OVERLAP_DAYS = 7
+DEFAULT_FETCH_DAYS = 90
+TRANSACTION_MAX_PAGES = 200
+
+# Bank config subentries + consent expiry
+SUBENTRY_TYPE_BANK = "bank"
+CONSENT_EXPIRY_WARN_DAYS = 14
+LEGACY_BANK_ID = "legacy"
+
 # Enable Banking
 ENABLEBANKING_BASE_URL = "https://api.enablebanking.com"
 # Sandbox uses a different app registration

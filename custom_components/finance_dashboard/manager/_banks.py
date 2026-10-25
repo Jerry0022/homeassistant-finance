@@ -1,0 +1,351 @@
+"""BankMixin — per-bank targets, consent expiry, status and ledger derivation.
+
+Banks are config SUBENTRIES of type ``"bank"``::
+
+    data = {"aspsp_name", "aspsp_country", "valid_until",
+            "accounts": [{"uid", "identity_key"}]}
+
+Each bank's Enable Banking session lives in the credential store under the
+subentry id.  Installs that predate subentries run as one virtual ``legacy``
+bank until :meth:`async_migrate_legacy_session` turns it into a real one.
+"""
+
+from __future__ import annotations
+
+import logging
+from datetime import UTC, datetime, timedelta
+from types import MappingProxyType
+from typing import Any
+
+from homeassistant.util import dt as dt_util
+
+from ..const import (
+    CONSENT_EXPIRY_WARN_DAYS,
+    DOMAIN,
+    LEGACY_BANK_ID,
+    SUBENTRY_TYPE_BANK,
+)
+
+_LOGGER = logging.getLogger(__name__)
+
+
+def _parse_dt(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
+class BankMixin:
+    """Bank subentry handling for FinanceDashboardManager."""
+
+    # ------------------------------------------------------------------
+    # Targets
+    # ------------------------------------------------------------------
+
+    def _bank_subentries(self) -> list[Any]:
+        subs = getattr(self._entry, "subentries", None) or {}
+        return [s for s in subs.values() if getattr(s, "subentry_type", None) == SUBENTRY_TYPE_BANK]
+
+    def _accounts_for(self, uids: set[str], keys: set[str]) -> list[dict[str, Any]]:
+        from ..account_identity import account_key
+
+        return [
+            a for a in self._accounts if a.get("id") in uids or account_key(a) in keys
+        ]
+
+    async def _async_bank_targets(self) -> list[dict[str, Any]]:
+        """Banks to fetch, each with its accounts and consent expiry."""
+        targets: list[dict[str, Any]] = []
+        subs = self._bank_subentries()
+        for sub in subs:
+            data = dict(sub.data)
+            listed = data.get("accounts") or []
+            accounts = self._accounts_for(
+                {a.get("uid") for a in listed}, {a.get("identity_key") for a in listed}
+            )
+            session = await self._credential_manager.async_get_bank_session(sub.subentry_id)
+            valid_until = (session or {}).get("valid_until") or data.get("valid_until")
+            targets.append(
+                {
+                    "bank_id": sub.subentry_id,
+                    "title": data.get("aspsp_name") or sub.title,
+                    "accounts": accounts,
+                    "valid_until": valid_until,
+                }
+            )
+        if not subs and self._accounts:
+            legacy = await self._credential_manager.async_get_session(include_expired=True)
+            targets.append(
+                {
+                    "bank_id": LEGACY_BANK_ID,
+                    "title": (self._accounts[0].get("institution") or "Bank"),
+                    "accounts": list(self._accounts),
+                    "valid_until": (legacy or {}).get("valid_until"),
+                }
+            )
+        self._bank_info = {t["bank_id"]: t for t in targets}
+        return targets
+
+    # ------------------------------------------------------------------
+    # Status (consumed by entities)
+    # ------------------------------------------------------------------
+
+    def get_bank_status(self) -> list[dict[str, Any]]:
+        """Per-bank budget and health.  Pure cache read, never hits a bank.
+
+        Each dict: ``bank_id``, ``title``, ``budget_used_today`` (background
+        calls today for the busiest account), ``budget_limit`` (4),
+        ``blocked_until`` (ISO or None), ``last_success``, ``last_error``
+        (class-level text), ``consent_valid_until``, ``consent_state``
+        (ok / expiring / expired).
+        """
+        info = dict(getattr(self, "_bank_info", {}) or {})
+        for sub in self._bank_subentries():
+            info.setdefault(
+                sub.subentry_id,
+                {
+                    "title": dict(sub.data).get("aspsp_name") or sub.title,
+                    "valid_until": dict(sub.data).get("valid_until"),
+                },
+            )
+        out = []
+        for bank_id, bank in info.items():
+            status = self._budget.status(bank_id, consent_valid_until=bank.get("valid_until"))
+            status["title"] = bank.get("title", "")
+            status["consent_state"] = self._consent_state(bank.get("valid_until"))
+            out.append(status)
+        return out
+
+    # ------------------------------------------------------------------
+    # Consent expiry
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _consent_state(valid_until: Any, now: datetime | None = None) -> str:
+        """``ok`` | ``expiring`` (<= 14 days left) | ``expired``."""
+        until = _parse_dt(valid_until)
+        if until is None:
+            return "ok"  # unknown expiry is not a reason to refuse
+        now = now or datetime.now(UTC)
+        if now >= until:
+            return "expired"
+        if until - now <= timedelta(days=CONSENT_EXPIRY_WARN_DAYS):
+            return "expiring"
+        return "ok"
+
+    def _mark_consent_error(self, bank_id: str, valid_until: Any) -> None:
+        """Remember a 401/403 for the consent valid at that time.
+
+        Keyed by ``valid_until``: once the session is renewed the value
+        changes and the error no longer applies.
+        """
+        self._consent_errors[bank_id] = str(valid_until or "")
+
+    async def async_update_consent_issues(self) -> None:
+        """Create/delete ``consent_expiring_<id>`` / ``consent_expired_<id>`` issues.
+
+        Called with the daily refresh, after every refresh and on setup.
+        Issues are fixable (the subentry reconfigure flow renews the session)
+        and disappear on their own once the session is renewed.
+        """
+        from homeassistant.helpers import issue_registry as ir
+
+        if self._demo_mode:
+            return
+        targets = await self._async_bank_targets()
+        for bank in targets:
+            bank_id = bank["bank_id"]
+            if bank_id == LEGACY_BANK_ID:
+                continue  # no subentry to fix yet
+            valid_until = bank["valid_until"]
+            state = self._consent_state(valid_until)
+            if self._consent_errors.get(bank_id) == str(valid_until or ""):
+                state = "expired"  # the bank itself rejected the session
+
+            placeholders = {"bank": bank["title"] or "Bank"}
+            expiring_id = f"consent_expiring_{bank_id}"
+            expired_id = f"consent_expired_{bank_id}"
+            if state == "expired":
+                ir.async_delete_issue(self._hass, DOMAIN, expiring_id)
+                ir.async_create_issue(
+                    self._hass,
+                    DOMAIN,
+                    expired_id,
+                    is_fixable=True,
+                    is_persistent=True,
+                    severity=ir.IssueSeverity.ERROR,
+                    translation_key="consent_expired",
+                    translation_placeholders=placeholders,
+                    data={"subentry_id": bank_id},
+                )
+            elif state == "expiring":
+                ir.async_delete_issue(self._hass, DOMAIN, expired_id)
+                ir.async_create_issue(
+                    self._hass,
+                    DOMAIN,
+                    expiring_id,
+                    is_fixable=True,
+                    is_persistent=True,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key="consent_expiring",
+                    translation_placeholders=placeholders,
+                    data={"subentry_id": bank_id},
+                )
+            else:
+                ir.async_delete_issue(self._hass, DOMAIN, expiring_id)
+                ir.async_delete_issue(self._hass, DOMAIN, expired_id)
+
+    async def async_prune_orphan_sessions(self) -> list[str]:
+        """Remove sessions of bank subentries that no longer exist.
+
+        HA has no per-subentry removal hook, so the set of known bank ids is
+        kept in the ledger meta and diffed against ``entry.subentries`` on
+        every setup/reload.  Returns the ids whose session was removed.
+        """
+        current = {s.subentry_id for s in self._bank_subentries()}
+        meta = self._ledger.meta
+        known = set(meta.get("known_banks") or [])
+        removed = sorted(known - current)
+        for bank_id in removed:
+            await self._credential_manager.async_remove_bank_session(bank_id)
+            self._consent_errors.pop(bank_id, None)
+        if removed or known != current:
+            meta["known_banks"] = sorted(current)
+            await self._persist_transactions()
+        return removed
+
+    # ------------------------------------------------------------------
+    # Legacy single-session -> bank subentry
+    # ------------------------------------------------------------------
+
+    async def async_migrate_legacy_session(self) -> str | None:
+        """Turn a legacy single session into one bank subentry.
+
+        Runs on setup.  No-op when bank subentries exist, when there is no
+        legacy session or no accounts, or when this Home Assistant has no
+        config subentries (< 2025.3) — the virtual ``legacy`` bank then keeps
+        the install working.  The legacy session record is left in place so a
+        rollback still finds it.
+
+        Returns the new subentry id, or None.
+        """
+        if self._bank_subentries() or not self._accounts:
+            return None
+        try:
+            from homeassistant.config_entries import ConfigSubentry
+        except ImportError:
+            _LOGGER.info("Config subentries unavailable — staying on the legacy bank")
+            return None
+
+        session = await self._credential_manager.async_get_session(include_expired=True)
+        if not session:
+            return None
+
+        from ..account_identity import account_key
+
+        first = self._accounts[0]
+        name = first.get("institution") or "Bank"
+        data = {
+            "aspsp_name": name,
+            "aspsp_country": self._entry.data.get("country", "DE"),
+            "valid_until": session["valid_until"],
+            "accounts": [
+                {"uid": a.get("id", ""), "identity_key": account_key(a)} for a in self._accounts
+            ],
+        }
+        subentry = ConfigSubentry(
+            data=MappingProxyType(data),
+            subentry_type=SUBENTRY_TYPE_BANK,
+            title=name,
+            unique_id=None,
+        )
+        # Session first: adding the subentry may reload the entry.
+        await self._credential_manager.async_store_bank_session(
+            subentry.subentry_id, session["session_id"], session["valid_until"]
+        )
+        self._hass.config_entries.async_add_subentry(self._entry, subentry)
+        _LOGGER.info("Migrated legacy bank session to a bank subentry")
+        return subentry.subentry_id
+
+    # ------------------------------------------------------------------
+    # Ledger -> derived views
+    # ------------------------------------------------------------------
+
+    def _derive_from_ledger(self, overrides: dict[str, bool] | None = None) -> list[dict[str, Any]]:
+        """Rebuild every derived view from the ledger.
+
+        Account tags, categories and transfer-chain enrichment are computed
+        here and never stored in the ledger.  Fills ``_tx_by_account`` (keyed
+        by the current session uid, as the rest of the code expects) and
+        ``_transactions``.
+        """
+        from ..account_identity import account_key
+        from ..transfer_detector import (
+            apply_overrides,
+            detect_transfer_chains,
+            enrich_transactions,
+        )
+
+        by_uid = {a.get("id"): a for a in self._accounts if a.get("id")}
+        uid_for_key = {account_key(a): uid for uid, a in by_uid.items()}
+        categorizer = self._categorizer
+
+        tx_by_account: dict[str, list[dict[str, Any]]] = {}
+        for akey in self._ledger.account_keys():
+            uid = uid_for_key.get(akey, akey)
+            account = by_uid.get(uid, {})
+            display = account.get("custom_name") or account.get("name", "")
+            txs = self._ledger.transactions(akey)
+            for tx in txs:
+                tx["_account_key"] = akey
+                tx["_account_id"] = uid
+                tx["_account_name"] = display
+                tx["_account_type"] = account.get("type", "personal")
+                tx["_account_person"] = account.get("person", "")
+                tx["_account_ha_users"] = account.get("ha_users", [])
+                tx["category"] = categorizer.categorize(tx) if categorizer else "other"
+            tx_by_account[uid] = txs
+
+        flat = [tx for txs in tx_by_account.values() for tx in txs]
+        flat.sort(key=lambda t: t.get("bookingDate", ""), reverse=True)
+        try:
+            chains, refunds = detect_transfer_chains(flat, self._accounts)
+            flat = enrich_transactions(flat, chains, refunds)
+            apply_overrides(flat, overrides or {})
+        except Exception:
+            _LOGGER.exception("Transfer detection failed — using unenriched transactions")
+
+        self._tx_by_account = tx_by_account
+        self._transactions = flat
+        return flat
+
+    def get_ledger_transactions(self, account_key_: str | None = None) -> list[dict[str, Any]]:
+        """Ledger transactions (no derived fields); one account or all.
+
+        Cache read.  ``account_key_`` is the IBAN-based key from
+        ``account_identity.account_key``.
+        """
+        keys = [account_key_] if account_key_ else self._ledger.account_keys()
+        return [tx for k in keys for tx in self._ledger.transactions(k)]
+
+    def get_balance_history(self, account_key_: str) -> list[dict[str, Any]]:
+        """Balance time series: one point per fetch per balance type."""
+        return self._ledger.balance_series(account_key_)
+
+    @property
+    def _raw_retention_days(self) -> int:
+        from ..const import DEFAULT_RAW_RETENTION_DAYS, OPT_RAW_RETENTION_DAYS
+
+        options = getattr(self._entry, "options", {}) or {}
+        try:
+            return max(int(options.get(OPT_RAW_RETENTION_DAYS, DEFAULT_RAW_RETENTION_DAYS)), 1)
+        except (TypeError, ValueError):
+            return DEFAULT_RAW_RETENTION_DAYS
+
+    @staticmethod
+    def _now_utc() -> datetime:
+        return dt_util.utcnow()
