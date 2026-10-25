@@ -19,6 +19,7 @@ import re
 import secrets
 import time
 import uuid
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import quote
 
@@ -26,7 +27,7 @@ import aiohttp
 import jwt
 from cryptography.hazmat.primitives import serialization
 
-from .const import ENABLEBANKING_BASE_URL, VERSION
+from .const import ENABLEBANKING_BASE_URL, TRANSACTION_MAX_PAGES, VERSION
 
 # Type alias for optional injected session
 _SessionType = aiohttp.ClientSession | None
@@ -287,16 +288,20 @@ class EnableBankingClient:
     # Canonical PSU user-agent for user-triggered live calls.
     # Set once at class level so all instances share the same string.
     _PSU_UA: str = f"HomeAssistant-Finance-Dashboard/{VERSION}"
-    # Each page is one API call against the 4/day/ASPSP budget. Ten pages
-    # covers a very busy 90-day window; hitting the cap is logged, never silent.
-    _MAX_TRANSACTION_PAGES: int = 10
+    # Pagination follows continuation_key until the bank stops sending one.
+    # The only bound is a loop guard against a misbehaving ASPSP.
+    _MAX_TRANSACTION_PAGES: int = TRANSACTION_MAX_PAGES
 
     async def async_get_balances(
         self,
         account_id: str,
         psu_ip: str | None = None,
+        on_response: Callable[[str, int, Any], None] | None = None,
     ) -> list[dict[str, Any]]:
         """Get account balances.
+
+        ``on_response(kind, http_status, body)`` receives the unaltered bank
+        JSON (raw-archive hook).
 
         Args:
             account_id: Enable Banking account ID.
@@ -312,6 +317,8 @@ class EnableBankingClient:
             psu_ip=psu_ip,
             psu_ua=self._PSU_UA,
         )
+        if on_response:
+            on_response("balances", 200, result)
         balances = result if isinstance(result, list) else result.get("balances", [])
         return [self._normalize_balance(b) for b in balances]
 
@@ -321,6 +328,7 @@ class EnableBankingClient:
         date_from: str | None = None,
         date_to: str | None = None,
         psu_ip: str | None = None,
+        on_response: Callable[[str, int, Any], None] | None = None,
     ) -> dict[str, Any]:
         """Get account transactions.
 
@@ -356,9 +364,11 @@ class EnableBankingClient:
         booked: list[dict[str, Any]] = []
         pending: list[dict[str, Any]] = []
         continuation_key: str | None = None
+        seen_keys: set[str] = set()
         pages = 0
+        truncated = False
 
-        while pages < self._MAX_TRANSACTION_PAGES:
+        while True:
             page_params = list(params)
             if continuation_key:
                 page_params.append(f"continuation_key={quote(continuation_key, safe='')}")
@@ -371,6 +381,8 @@ class EnableBankingClient:
                 psu_ua=self._PSU_UA,
             )
             pages += 1
+            if on_response:
+                on_response("transactions", 200, result)
 
             raw_transactions, continuation_key = self._extract_transaction_page(result)
             for raw in raw_transactions:
@@ -382,15 +394,23 @@ class EnableBankingClient:
 
             if not continuation_key:
                 break
-        else:
-            _LOGGER.warning(
-                "Transaction pagination for account %s stopped at the %d-page cap — "
-                "older transactions in the requested window were not fetched",
-                account_id[:8],
-                self._MAX_TRANSACTION_PAGES,
-            )
+            # Loop guard: a repeated key or an absurd page count means the
+            # ASPSP is cycling — stop instead of burning calls forever.
+            if continuation_key in seen_keys or pages >= self._MAX_TRANSACTION_PAGES:
+                _LOGGER.warning(
+                    "Transaction pagination for account %s stopped after %d page(s) "
+                    "(%s) — result is incomplete",
+                    account_id[:8],
+                    pages,
+                    "repeated continuation key"
+                    if continuation_key in seen_keys
+                    else "page limit reached",
+                )
+                truncated = True
+                break
+            seen_keys.add(continuation_key)
 
-        return {"booked": booked, "pending": pending}
+        return {"booked": booked, "pending": pending, "truncated": truncated}
 
     @staticmethod
     def _extract_transaction_page(
@@ -614,7 +634,9 @@ class EnableBankingClient:
         }
         if psu_ip:
             headers["Psu-Ip-Address"] = psu_ip
-        if psu_ua:
+        # PSU headers mark a call as attended. A UA without an IP would be a
+        # half-attended request, so both go together or not at all.
+        if psu_ua and psu_ip:
             headers["Psu-User-Agent"] = psu_ua
 
         url = f"{ENABLEBANKING_BASE_URL}{endpoint}"

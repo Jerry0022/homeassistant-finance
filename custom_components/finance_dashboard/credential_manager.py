@@ -11,8 +11,10 @@ SECURITY ARCHITECTURE:
 
 from __future__ import annotations
 
+import json
 import logging
 import time
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import Any
 
@@ -239,6 +241,89 @@ class CredentialManager:
         except Exception:
             _LOGGER.error("Failed to decrypt session")
             return None
+
+    # ------------------------------------------------------------------
+    # Multi-bank sessions (one per bank config subentry)
+    # ------------------------------------------------------------------
+
+    async def async_store_bank_session(
+        self, subentry_id: str, session_id: str, valid_until: str
+    ) -> None:
+        """Store the Enable Banking session of one bank (encrypted)."""
+        self._ensure_initialized()
+        token_data = await self._token_store.async_load() or {}
+        sessions = dict(token_data.get("bank_sessions") or {})
+        sessions[subentry_id] = {
+            "session_id": self._fernet.encrypt(session_id.encode()).decode(),
+            "valid_until": valid_until,  # ISO datetime, not secret
+            "stored_at": datetime.now().isoformat(),
+        }
+        token_data["bank_sessions"] = sessions
+        await self._token_store.async_save(token_data)
+        await self._audit_log("bank_session_stored")
+
+    async def async_get_bank_session(self, subentry_id: str) -> dict[str, str] | None:
+        """Return ``{"session_id", "valid_until"}`` for a bank, or None.
+
+        An expired session is still returned: the caller needs ``valid_until``
+        to tell "expired" (raise a repair issue) from "never linked".
+        """
+        self._ensure_initialized()
+        token_data = await self._token_store.async_load() or {}
+        record = (token_data.get("bank_sessions") or {}).get(subentry_id)
+        if not record:
+            return None
+        try:
+            session_id = self._fernet.decrypt(record["session_id"].encode()).decode()
+        except Exception:
+            _LOGGER.error("Failed to decrypt bank session")
+            return None
+        self._touch_session()
+        return {"session_id": session_id, "valid_until": record.get("valid_until", "")}
+
+    async def async_remove_bank_session(self, subentry_id: str) -> None:
+        """Forget the session of one bank."""
+        self._ensure_initialized()
+        token_data = await self._token_store.async_load() or {}
+        sessions = dict(token_data.get("bank_sessions") or {})
+        if sessions.pop(subentry_id, None) is not None:
+            token_data["bank_sessions"] = sessions
+            await self._token_store.async_save(token_data)
+            await self._audit_log("bank_session_removed")
+
+    # ------------------------------------------------------------------
+    # Encryption helpers for data-at-rest (ledger, raw archive)
+    # ------------------------------------------------------------------
+
+    def encrypt_bytes(self, data: bytes) -> bytes:
+        """Encrypt with the primary key (Fernet token)."""
+        self._ensure_initialized()
+        return self._fernet.encrypt(data)
+
+    def decrypt_bytes(self, token: bytes) -> bytes:
+        """Decrypt with any key still in rotation."""
+        self._ensure_initialized()
+        return self._fernet.decrypt(token)
+
+    def encrypt_json(self, payload: Any) -> str:
+        """Serialise and encrypt a JSON-able payload to a text token."""
+        return self.encrypt_bytes(json.dumps(payload, separators=(",", ":")).encode()).decode()
+
+    def decrypt_json(self, token: str) -> Any:
+        """Inverse of :meth:`encrypt_json`."""
+        return json.loads(self.decrypt_bytes(token.encode()))
+
+    def encrypted_store(
+        self,
+        key: str,
+        version: int,
+        minor_version: int = 1,
+        migrate: Callable[[int, int, Any], Awaitable[Any]] | None = None,
+    ):
+        """Create a versioned, Fernet-encrypted Store (see ``data_store``)."""
+        from .data_store import EncryptedStore
+
+        return EncryptedStore(self._hass, self, key, version, minor_version, migrate)
 
     async def async_clear_all(self) -> None:
         """Securely clear all stored credentials and tokens."""
