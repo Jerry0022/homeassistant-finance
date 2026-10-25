@@ -88,7 +88,7 @@
   "ov.tx.all_accounts": "All accounts",
   "ov.tx.account_label": "Filter by account",
   "ov.tx.empty": "No transactions found.",
-  "ov.tx.range": "$from–$to of $total",
+  "ov.tx.range": "$first–$last of $count",
   "ov.tx.prev": "Previous",
   "ov.tx.next": "Next",
   "ov.tx.col_date": "Date",

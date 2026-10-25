@@ -360,7 +360,7 @@ td .p { overflow-wrap: anywhere; }
   <tbody>${body.join("")}</tbody>
 </table>
 <div class="pager">
-  <span class="muted">${escHtml(tSync("ov.tx.range", { from, to, total: t.total }))}</span>
+  <span class="muted">${escHtml(tSync("ov.tx.range", { first: from, last: to, count: t.total }))}</span>
   <span>
     <button class="btn" id="prev" ${t.offset <= 0 ? "disabled" : ""}>${tSync("ov.tx.prev")}</button>
     <button class="btn" id="next" ${to >= t.total ? "disabled" : ""}>${tSync("ov.tx.next")}</button>

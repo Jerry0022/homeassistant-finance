@@ -370,13 +370,13 @@ class FinanceDashboardPanel extends HTMLElement {
     const s = (d.status && d.status.stats) || {};
     const reason = d.reason || s.outcome || "error";
     if (reason === "ok") {
-      const parts = [];
-      if (s.accounts) parts.push(`${s.accounts} ${tSync("general.accounts_plural")}`);
-      if (s.transactions) parts.push(`${s.transactions} ${tSync("general.transactions")}`);
-      if (s.new) parts.push(`${s.new} ${tSync("general.new")}`);
-      const dur = s.duration_ms ? ` · ${(s.duration_ms / 1000).toFixed(1)}s` : "";
       header.showToast(
-        `${tSync("panel.loading.refresh").replace(/…$/, "")} — ${parts.join(", ") || tSync("transactions.empty")}${dur}`,
+        tSync("header.refresh.toast_success", {
+          accounts: s.accounts || 0,
+          tx: s.transactions || 0,
+          new: s.new || 0,
+          duration: `${((s.duration_ms || 0) / 1000).toFixed(1)}s`,
+        }),
         "success",
       );
     } else if (reason === "partial") {

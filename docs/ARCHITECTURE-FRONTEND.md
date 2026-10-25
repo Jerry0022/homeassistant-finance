@@ -178,3 +178,25 @@ frontend/
 - **Shadow DOM**: Each component uses `attachShadow({ mode: "open" })` for style isolation
 - **XSS prevention**: All user-provided text passed through `_esc()` helper
 - **No sensitive data in DOM**: Amounts in text content only, never in `data-*` attributes
+
+## Facts panel (Phase 3.2)
+
+The sidebar panel has two tabs. **Overview** (`fd-overview`) is plain facts and
+always on: accounts (booked + available balance, last update), per-bank status
+(consent valid-until with expiring/expired badge, fetch budget used today x/4,
+blocked-until, last error, link to the integration page) and, for admins, a
+server-side searchable/filterable/paged transaction list. **Household** is the
+previous component tree (household split, budget plan, categories, ...) and is
+shown only when the integration option `show_household` is true
+(`GET /api/finance_dashboard/settings`, default true if absent).
+
+Banks are linked as config subentries on the HA integration page; every "add /
+renew bank" entry point navigates to `/config/integrations/integration/finance_dashboard`
+(the in-panel setup wizard and its `/setup/*` views are gone).
+
+Cache-read endpoints used by the Overview: `/balances`, `/bank_status`
+(any authenticated user, no secrets), `/transactions` (admin; query `q`,
+`account`, `from`, `to`, `limit`, `offset`; non-admins get aggregates only),
+`/settings`, `/refresh_status`. The Refresh button posts the attended
+`/refresh` (admin-only); the `debounced` and `rate_limited` outcomes are
+reported as toasts, not retried.
