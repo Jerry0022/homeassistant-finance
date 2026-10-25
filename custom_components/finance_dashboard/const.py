@@ -299,3 +299,14 @@ OPT_AUTO_REFRESH_ON_OPEN = "auto_refresh_on_open"
 OPT_AUTO_REFRESH_MAX_AGE_MINUTES = "auto_refresh_max_age_minutes"
 DEFAULT_AUTO_REFRESH_ON_OPEN = True
 DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES = 60
+
+
+# --- Bank connect flow / config subentries (Phase 2.1) ---
+SUBENTRY_TYPE_BANK = "bank"
+CONF_ASPSP_NAME = "aspsp_name"
+CONF_ASPSP_COUNTRY = "aspsp_country"
+CONF_VALID_UNTIL = "valid_until"
+CONF_SUBENTRY_ACCOUNTS = "accounts"
+# Repairs issue id prefixes (issue creation lives in the manager)
+ISSUE_CONSENT_EXPIRING_PREFIX = "consent_expiring_"
+ISSUE_CONSENT_EXPIRED_PREFIX = "consent_expired_"

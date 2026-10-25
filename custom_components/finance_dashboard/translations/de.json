@@ -2,8 +2,16 @@
   "config": {
     "step": {
       "user": {
-        "title": "Enable Banking Einrichtung",
-        "description": "Gib deine Enable Banking API-Zugangsdaten ein.\n\n**So erhältst du die Zugangsdaten:**\n1. Öffne [{enablebanking_url}/cp/applications]({enablebanking_url}/cp/applications)\n2. Wähle **Sandbox** (zum Testen) oder **Production**\n3. Wähle **Generate in the browser** für den Schlüssel\n4. Trage einen App-Namen ein (z.B. \"Home Assistant Finance\")\n5. Füge deine HA Redirect-URL ein: `{redirect_url}`\n6. Klicke **Register** — der private Schlüssel wird automatisch heruntergeladen\n7. Kopiere die **Application ID** von der Bestätigungsseite\n\n**Sicherheit:** Deine Zugangsdaten werden verschlüsselt und lokal in Home Assistant gespeichert.\n\nNach der Einrichtung öffne das **Finance** in der Sidebar, um deine Bank zu verbinden.",
+        "title": "Enable-Banking-Einrichtung",
+        "description": "Gib deine Enable-Banking-Zugangsdaten ein.\n\n**So bekommst du sie:**\n1. Öffne [{enablebanking_url}/cp/applications]({enablebanking_url}/cp/applications)\n2. Wähle **Sandbox** (zum Testen) oder **Production**\n3. Wähle für den Schlüssel **Generate in the browser**\n4. Vergib einen Anwendungsnamen (z. B. \"Home Assistant Finance\")\n5. Registriere genau diese Redirect-URL: `{redirect_url}`\n6. Klicke auf **Register** - der private Schlüssel wird automatisch heruntergeladen\n7. Kopiere die **Application ID** von der Bestätigungsseite\n\n**Sicherheit:** Deine Zugangsdaten werden verschlüsselt und lokal in Home Assistant gespeichert.\n\nDanach fügst du deine Banken über **Bank hinzufügen** auf der Finance-Integrationsseite hinzu.",
+        "data": {
+          "application_id": "Application ID",
+          "private_key_pem": "Privater Schlüssel (PEM)"
+        }
+      },
+      "reconfigure": {
+        "title": "Enable-Banking-Zugangsdaten ersetzen",
+        "description": "Gib die neue Application ID und den neuen privaten Schlüssel ein. Deine verbundenen Banken bleiben unverändert.\n\nDie registrierte Redirect-URL muss lauten: `{redirect_url}`",
         "data": {
           "application_id": "Application ID",
           "private_key_pem": "Privater Schlüssel (PEM)"
@@ -12,13 +20,14 @@
     },
     "error": {
       "missing_credentials": "Bitte gib sowohl die Application ID als auch den privaten Schlüssel ein.",
-      "invalid_key_format": "Der private Schlüssel konnte nicht geladen werden. Stelle sicher, dass du den kompletten PEM-Inhalt inklusive der -----BEGIN/END PRIVATE KEY----- Zeilen einfügst.",
-      "invalid_credentials": "Enable Banking hat die Zugangsdaten abgelehnt (HTTP 401/403). Überprüfe ob die Application ID zum privaten Schlüssel passt und die Anwendung aktiviert ist.",
-      "no_institutions": "Keine Banken für Deutschland gefunden.",
-      "connection_failed": "Verbindung zu Enable Banking fehlgeschlagen. Bitte überprüfe deine Internetverbindung."
+      "invalid_key_format": "Der private Schlüssel konnte nicht geladen werden. Füge den vollständigen PEM-Inhalt inklusive der Zeilen -----BEGIN/END PRIVATE KEY----- ein.",
+      "invalid_credentials": "Enable Banking hat die Zugangsdaten abgelehnt (HTTP 401/403). Prüfe, ob die Application ID zum privaten Schlüssel passt und die Anwendung aktiviert ist.",
+      "no_institutions": "Keine Banken gefunden.",
+      "connection_failed": "Die Verbindung zu Enable Banking ist fehlgeschlagen. Bitte prüfe deine Internetverbindung."
     },
     "abort": {
-      "already_configured": "Finance ist bereits konfiguriert."
+      "already_configured": "Finance ist bereits eingerichtet.",
+      "reconfigure_successful": "Die Enable-Banking-Zugangsdaten wurden aktualisiert."
     }
   },
   "options": {
@@ -82,6 +91,87 @@
     "storage_corrupt": {
       "title": "Finance: Transaktions-Cache beschädigt",
       "description": "Die Cache-Datei `{storage_key}` konnte nicht gelesen werden ({error_class}). Die Integration wurde mit leerem Cache gestartet. Klicke auf „Aktualisieren“, um den Cache neu aufzubauen."
+    },
+    "consent_expiring": {
+      "title": "Finance: Bankverbindung läuft bald ab",
+      "description": "Die Verbindung zu **{bank}** läuft bald ab. Erneuere sie jetzt, damit Kontostände und Umsätze weiter aktualisiert werden.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Bankverbindung erneuern",
+            "description": "Öffne die Finance-Integrationsseite ({link}), wähle bei **{bank}** das Drei-Punkte-Menü und klicke auf **Neu konfigurieren**. Du wirst zu deiner Bank weitergeleitet, um den Zugriff erneut zu bestätigen."
+          }
+        },
+        "abort": {
+          "continue_in_integrations": "Mach auf der Finance-Integrationsseite weiter. Dieser Hinweis verschwindet, sobald die Verbindung erneuert ist.",
+          "bank_not_found": "Diese Bankverbindung existiert nicht mehr."
+        }
+      }
+    },
+    "consent_expired": {
+      "title": "Finance: Bankverbindung abgelaufen",
+      "description": "Die Verbindung zu **{bank}** ist abgelaufen oder wurde widerrufen. Kontostände und Umsätze lassen sich erst nach einer Erneuerung wieder abrufen.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Bankverbindung erneuern",
+            "description": "Öffne die Finance-Integrationsseite ({link}), wähle bei **{bank}** das Drei-Punkte-Menü und klicke auf **Neu konfigurieren**. Du wirst zu deiner Bank weitergeleitet, um den Zugriff erneut zu bestätigen."
+          }
+        },
+        "abort": {
+          "continue_in_integrations": "Mach auf der Finance-Integrationsseite weiter. Dieser Hinweis verschwindet, sobald die Verbindung erneuert ist.",
+          "bank_not_found": "Diese Bankverbindung existiert nicht mehr."
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "bank": {
+      "entry_type": "Bank",
+      "initiate_flow": {
+        "user": "Bank hinzufügen",
+        "reconfigure": "Bankverbindung erneuern"
+      },
+      "step": {
+        "user": {
+          "title": "Bank verbinden",
+          "description": "Wähle das Land deiner Bank.\n\nStelle vorher sicher, dass diese Redirect-URL bei Enable Banking für deine Anwendung registriert ist: `{redirect_url}`",
+          "data": {
+            "aspsp_country": "Land (ISO-Code, z. B. DE)"
+          }
+        },
+        "bank": {
+          "title": "Bank auswählen",
+          "data": {
+            "aspsp_name": "Bank"
+          }
+        },
+        "reconfigure": {
+          "title": "Bankverbindung erneuern",
+          "description": "Die Verbindung zu **{bank}** wird bei deiner Bank erneut freigegeben. Bestehende Konten und der Verlauf bleiben erhalten.\n\nRegistrierte Redirect-URL: `{redirect_url}`"
+        },
+        "authorize": {
+          "title": "Bei deiner Bank freigeben",
+          "description": "Melde dich im geöffneten Fenster bei deiner Bank an und bestätige den Zugriff. Danach geht es hier automatisch weiter."
+        }
+      },
+      "error": {
+        "no_institutions": "Für dieses Land wurden keine Banken gefunden."
+      },
+      "abort": {
+        "already_configured": "Diese Bank ist bereits verbunden. Nutze dort „Neu konfigurieren“, um die Verbindung zu erneuern.",
+        "bank_connected": "Die Bank wurde erfolgreich verbunden.",
+        "reconfigure_successful": "Die Bankverbindung wurde erneuert.",
+        "authorization_rejected": "Die Freigabe bei der Bank wurde abgebrochen oder abgelehnt.",
+        "no_accounts": "Die Bank hat keine Konten geliefert. Bitte prüfe die Einwilligung, die du bei der Bank erteilt hast.",
+        "no_credentials": "Es sind keine Enable-Banking-Zugangsdaten gespeichert. Konfiguriere die Integration zuerst neu.",
+        "rate_limited": "Das Abfragelimit der Bank ist erreicht. Bitte versuche es später erneut.",
+        "invalid_credentials": "Enable Banking hat die Zugangsdaten abgelehnt. Ersetze sie über „Neu konfigurieren“ an der Integration.",
+        "bank_error": "Die Bank oder Enable Banking hat einen Fehler gemeldet. Bitte versuche es später erneut.",
+        "connection_failed": "Die Verbindung zu Enable Banking ist fehlgeschlagen. Bitte prüfe deine Internetverbindung.",
+        "no_url_available": "Es ist keine Home-Assistant-URL verfügbar. Lege zuerst eine interne oder externe URL fest.",
+        "unknown": "Ein unerwarteter Fehler ist aufgetreten. Details stehen im Home-Assistant-Protokoll."
+      }
     }
   }
 }
