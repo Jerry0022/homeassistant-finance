@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -30,7 +31,7 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
     }
     """
 
-    def __init__(self, hass: HomeAssistant, manager) -> None:
+    def __init__(self, hass: HomeAssistant, manager, entry: ConfigEntry | None = None) -> None:
         """Initialise coordinator with a reference to the manager.
 
         ``update_interval`` is ``None`` — this coordinator is deliberately
@@ -47,6 +48,7 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=entry,
             name=DOMAIN,
             update_interval=None,
         )

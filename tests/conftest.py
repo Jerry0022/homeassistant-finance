@@ -30,74 +30,98 @@ import pytest
 # Windows / pytest-socket compatibility fix
 # ---------------------------------------------------------------------------
 
-def pytest_configure(config: pytest.Config) -> None:
-    """Undo the HA event loop policy monkey-patch before any tests run.
+def _legacy_asyncio_stack() -> bool:
+    """True for pytest-asyncio < 1.0 (the stack paired with HA <= 2025.x).
 
-    pytest-homeassistant-custom-component (phcc) executes at module-load time:
-        asyncio.set_event_loop_policy(HassEventLoopPolicy(False))
-        asyncio.set_event_loop_policy = lambda policy: None   # blocks overrides
-
-    On Windows both ProactorEventLoop and WindowsSelectorEventLoop need
-    socket.socketpair() for the internal self-pipe — which pytest-socket
-    (also bundled with phcc) blocks.
-
-    Fix:
-    1. Restore the real set_event_loop_policy from asyncio.events.
-    2. Install WindowsSelectorEventLoopPolicy on Windows (lighter than Proactor).
-    3. In pytest_runtest_setup (below) re-enable sockets after phcc disables them,
-       because the event loop needs to create its self-pipe socket.
+    Newer pytest-homeassistant-custom-component releases ship with
+    pytest-asyncio >= 1.0 and manage the loop policy themselves; overriding
+    ``event_loop_policy`` there raises ``ScopeMismatch``.
     """
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return int(version("pytest-asyncio").split(".")[0]) < 1
+    except (PackageNotFoundError, ValueError):
+        return False
+
+
+_LEGACY = _legacy_asyncio_stack()
+
+
+def _allow_loop_socketpair_on_windows() -> None:
+    """Let event-loop self-pipes through pytest-socket on Windows.
+
+    Windows event loops build their self-pipe with ``socket.socketpair()``
+    (two AF_INET sockets), which pytest-socket blocks.  Wrap just that call
+    so the guard is lifted for its duration only; Linux/macOS use Unix
+    sockets and are unaffected.
+    """
+    if sys.platform != "win32":
+        return
+    import socket
+
+    real = socket.socketpair
+
+    def _socketpair(*args, **kwargs):  # type: ignore[no-untyped-def]
+        try:
+            import pytest_socket as _ps
+        except ImportError:
+            return real(*args, **kwargs)
+        _ps.enable_socket()
+        try:
+            return real(*args, **kwargs)
+        finally:
+            _ps.disable_socket(allow_unix_socket=True)
+
+    socket.socketpair = _socketpair  # type: ignore[assignment]
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    """Undo the HA event loop policy monkey-patch (legacy stack only).
+
+    Legacy phcc replaces asyncio.set_event_loop_policy with a no-op and
+    installs a Proactor-based policy on Windows, which pytest-socket blocks.
+    """
+    if not _LEGACY:
+        _allow_loop_socketpair_on_windows()
+        return
     import asyncio.events as _ev
 
-    # Step 1: restore the real setter
     asyncio.set_event_loop_policy = _ev.set_event_loop_policy  # type: ignore[assignment]
-
-    # Step 2: switch to a non-Proactor policy on Windows
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())  # type: ignore[attr-defined]
     else:
         asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
 
-@pytest.fixture
-def event_loop_policy():  # type: ignore[no-untyped-def]
-    """Return an event loop policy that works on Windows with pytest-socket.
+if _LEGACY:
 
-    pytest-homeassistant-custom-component disables all sockets (including
-    AF_INET socketpair used by Windows event loop self-pipes).  By providing
-    a custom event_loop_policy fixture we can temporarily enable sockets
-    around loop creation and teardown.
+    @pytest.fixture
+    def event_loop_policy():  # type: ignore[no-untyped-def]
+        """Event loop policy that tolerates pytest-socket (legacy stack only)."""
+        try:
+            import pytest_socket as _ps
+        except ImportError:
+            _ps = None  # type: ignore[assignment]
 
-    pytest-asyncio calls new_event_loop() on this policy to create and
-    clean up loops — so we wrap new_event_loop to enable sockets first.
-    """
-    try:
-        import pytest_socket as _ps
-        _socket_guard_active = True
-    except ImportError:
-        _ps = None  # type: ignore[assignment]
-        _socket_guard_active = False
+        if sys.platform == "win32":
+            base_policy = asyncio.WindowsSelectorEventLoopPolicy()  # type: ignore[attr-defined]
+        else:
+            base_policy = asyncio.DefaultEventLoopPolicy()
 
-    if sys.platform == "win32":
-        base_policy = asyncio.WindowsSelectorEventLoopPolicy()  # type: ignore[attr-defined]
-    else:
-        base_policy = asyncio.DefaultEventLoopPolicy()
+        if _ps is None:
+            return base_policy
 
-    if not _socket_guard_active:
-        return base_policy
+        class _SocketPermissivePolicy(type(base_policy)):  # type: ignore[misc]
+            def new_event_loop(self) -> asyncio.AbstractEventLoop:
+                _ps.enable_socket()
+                try:
+                    loop = super().new_event_loop()
+                finally:
+                    _ps.disable_socket(allow_unix_socket=True)
+                return loop
 
-    class _SocketPermissivePolicy(type(base_policy)):  # type: ignore[misc]
-        """Wraps new_event_loop to temporarily enable sockets on Windows."""
-
-        def new_event_loop(self) -> asyncio.AbstractEventLoop:
-            _ps.enable_socket()
-            try:
-                loop = super().new_event_loop()
-            finally:
-                _ps.disable_socket(allow_unix_socket=True)
-            return loop
-
-    return _SocketPermissivePolicy()
+        return _SocketPermissivePolicy()
 
 
 # ---------------------------------------------------------------------------

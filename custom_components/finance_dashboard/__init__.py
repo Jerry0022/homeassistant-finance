@@ -90,7 +90,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEn
     # Entities read from coordinator.data instead of calling the API directly.
     from .coordinator import FinanceDashboardCoordinator
 
-    coordinator = FinanceDashboardCoordinator(hass, manager)
+    coordinator = FinanceDashboardCoordinator(hass, manager, entry)
 
     # Initialize demo mode from options
     if entry.options.get("demo_mode", False):

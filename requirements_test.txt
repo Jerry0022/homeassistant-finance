@@ -1,7 +1,7 @@
 pytest>=8.0
-pytest-asyncio
+pytest-asyncio>=0.24
 pytest-cov
-pytest-homeassistant-custom-component
+pytest-homeassistant-custom-component>=0.13.375
 ruff
 mypy
 # Direct test dependencies (imported by tests or the integration code under test)

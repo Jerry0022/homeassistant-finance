@@ -57,17 +57,95 @@
     }
   },
   "services": {
-    "confirm_transfer_chain": {
-      "name": "Confirm transfer chain",
-      "description": "Confirm or reject a detected transfer chain.",
+    "refresh_accounts": {
+      "name": "Refresh accounts",
+      "description": "Refresh the list of linked bank accounts from Enable Banking."
+    },
+    "refresh_transactions": {
+      "name": "Refresh transactions",
+      "description": "Fetch latest transactions for all linked accounts. Counts against Enable Banking's limit of 4 calls per day per bank.",
       "fields": {
-        "chain_id": {
-          "name": "Chain ID",
-          "description": "UUID of the transfer chain"
+        "days": {
+          "name": "Days",
+          "description": "Number of days to fetch (default 90). Older cached transactions are kept."
+        }
+      }
+    },
+    "import_spreadsheet": {
+      "name": "Import household spreadsheet",
+      "description": "Import a household calculation workbook (.xlsx) into the budget plan. Replaces the current plan. Admin only. The file's directory must be listed in allowlist_external_dirs, or the file must sit in the config directory.",
+      "fields": {
+        "path": {
+          "name": "File path",
+          "description": "Absolute path to the .xlsx workbook."
+        }
+      }
+    },
+    "get_transfer_plan": {
+      "name": "Get transfer plan",
+      "description": "Return the monthly transfer choreography — which amount to move between which accounts, and each person's remaining pocket money.",
+      "fields": {
+        "month": {
+          "name": "Month",
+          "description": "Month number (1-12). Defaults to current month."
         },
-        "confirmed": {
-          "name": "Confirmed",
-          "description": "True to confirm, false to reject"
+        "year": {
+          "name": "Year",
+          "description": "Year. Defaults to current year."
+        }
+      }
+    },
+    "get_balance": {
+      "name": "Get balance",
+      "description": "Get current balances for all linked accounts."
+    },
+    "get_monthly_summary": {
+      "name": "Get monthly summary",
+      "description": "Get spending summary grouped by category for a given month.",
+      "fields": {
+        "month": {
+          "name": "Month",
+          "description": "Month number (1-12). Defaults to current month."
+        },
+        "year": {
+          "name": "Year",
+          "description": "Year. Defaults to current year."
+        }
+      }
+    },
+    "categorize_transactions": {
+      "name": "Categorize transactions",
+      "description": "Re-run auto-categorization on all cached transactions."
+    },
+    "set_budget_limit": {
+      "name": "Set budget limit",
+      "description": "Set a monthly budget limit for a spending category.",
+      "fields": {
+        "category": {
+          "name": "Category",
+          "description": "The spending category (e.g., housing, food, transport)."
+        },
+        "limit": {
+          "name": "Limit",
+          "description": "Monthly budget limit in EUR."
+        }
+      }
+    },
+    "toggle_demo": {
+      "name": "Toggle demo mode",
+      "description": "Toggle demo mode on/off. Generates realistic synthetic banking data for testing and demonstration."
+    },
+    "export_csv": {
+      "name": "Export CSV",
+      "description": "Export transactions as a CSV file for local download.",
+      "fields": {
+        "date_from": {
+          "name": "From date",
+          "description": "Start date filter (YYYY-MM-DD). Optional."
+        },
+        "date_to": {
+          "name": "To date",
+          "description": "End date filter (YYYY-MM-DD). Optional."
         }
       }
     }
@@ -96,6 +174,10 @@
     "credentials_invalid_pem": {
       "title": "Finance: Invalid Private Key",
       "description": "The stored Enable Banking private key could not be loaded. Reconfigure the integration via Settings > Devices & Services and paste the full PEM key including the BEGIN/END lines."
+    },
+    "storage_corrupt": {
+      "title": "Finance: Transaction Cache Corrupt",
+      "description": "The transaction cache file `{storage_key}` could not be read ({error_class}). The integration has started with an empty cache. Trigger a manual refresh to repopulate the cache."
     },
     "consent_expiring": {
       "title": "Finance: bank connection expires soon",
