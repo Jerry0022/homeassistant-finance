@@ -52,6 +52,20 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
         )
         self._manager = manager
 
+    @property
+    def manager(self):
+        """The manager whose cache feeds this coordinator."""
+        return self._manager
+
+    async def _async_import_statistics(self) -> None:
+        """Push new balance history into long-term statistics (never raises)."""
+        try:
+            from .balance_statistics import async_import_balance_statistics
+
+            await async_import_balance_statistics(self.hass, self._manager)
+        except Exception:
+            _LOGGER.exception("Balance statistics import failed")
+
     async def async_load_cached(self) -> None:
         """Populate coordinator data from cache only — zero API calls.
 
@@ -75,6 +89,7 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
                 }
             )
             _LOGGER.debug("Loaded cached data into coordinator (no API calls)")
+            await self._async_import_statistics()
         except Exception:
             _LOGGER.exception("Failed to load cached data into coordinator")
             # Publish an empty shell so entities have a valid (even if
@@ -110,6 +125,7 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
             summary = await self._manager.async_get_monthly_summary()
 
             rate_limited = self._manager.rate_limited_until
+            await self._async_import_statistics()
             return {
                 "balances": balances,
                 "summary": summary,

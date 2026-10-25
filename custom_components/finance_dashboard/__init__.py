@@ -31,8 +31,10 @@ from .const import (
     OPT_DAILY_REFRESH_MINUTE,
     SERVICE_TOGGLE_DEMO,
 )
+from .runtime import FinanceDashboardData
 
 PLATFORMS: list[Platform] = [
+    Platform.BUTTON,
     Platform.SENSOR,
     Platform.NUMBER,
     Platform.SELECT,
@@ -40,7 +42,24 @@ PLATFORMS: list[Platform] = [
 
 _LOGGER = logging.getLogger(__name__)
 
-type FinanceDashboardConfigEntry = ConfigEntry
+type FinanceDashboardConfigEntry = ConfigEntry[FinanceDashboardData]
+
+
+def _structure_signature(entry: ConfigEntry) -> tuple:
+    """What forces a reload: the set of banks and accounts, not the options."""
+    import json
+
+    from .account_identity import account_key
+
+    subs = getattr(entry, "subentries", None) or {}
+    banks = tuple(
+        sorted(
+            (sid, json.dumps(dict(sub.data), sort_keys=True, default=str))
+            for sid, sub in subs.items()
+        )
+    )
+    accounts = tuple(sorted(account_key(a) for a in entry.data.get("accounts", [])))
+    return (banks, accounts)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -77,6 +96,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEn
     if entry.options.get("demo_mode", False):
         manager.set_demo_mode(True)
 
+    entry.runtime_data = FinanceDashboardData(manager=manager, coordinator=coordinator)
+    # The HTTP views still resolve the manager through hass.data.
     hass.data[DOMAIN][entry.entry_id] = manager
     hass.data[DOMAIN][f"{entry.entry_id}_coordinator"] = coordinator
     hass.data[DOMAIN]["entry"] = entry
@@ -145,6 +166,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEn
         hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, _on_hass_started)
 
     _register_daily_refresh(hass, entry, manager, coordinator)
+
+    # Banks / accounts added, removed or re-linked change which devices and
+    # entities exist; options changes (selects write them) must not reload.
+    signature = _structure_signature(entry)
+
+    async def _reload_on_structure_change(hass_: HomeAssistant, updated: ConfigEntry) -> None:
+        if _structure_signature(updated) != signature:
+            _LOGGER.info("Banks or accounts changed — reloading Finance Dashboard")
+            hass_.config_entries.async_schedule_reload(updated.entry_id)
+
+    entry.async_on_unload(entry.add_update_listener(_reload_on_structure_change))
 
     _LOGGER.info("Finance Dashboard v%s loaded", entry.version)
     return True
