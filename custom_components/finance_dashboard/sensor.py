@@ -95,7 +95,9 @@ async def async_setup_entry(
             BankLastErrorSensor(coordinator, bank.bank_id, bank.title),
         ]
         for account in bank.accounts:
-            entities.append(AccountBalanceSensor(coordinator, entry, account, bank.bank_id, bank.title))
+            entities.append(
+                AccountBalanceSensor(coordinator, entry, account, bank.bank_id, bank.title)
+            )
             entities.append(AccountLastUpdateSensor(coordinator, account, bank.bank_id, bank.title))
             if _provides_available(coordinator, account):
                 known_available.add(account_key(account))
@@ -138,7 +140,9 @@ def _add(async_add_entities: AddEntitiesCallback, entities: list, subentry_id: s
         async_add_entities(entities, update_before_add=False)
 
 
-def _raw_balances(coordinator: FinanceDashboardCoordinator, account_uid: str) -> list[dict[str, Any]]:
+def _raw_balances(
+    coordinator: FinanceDashboardCoordinator, account_uid: str
+) -> list[dict[str, Any]]:
     if not coordinator.data:
         return []
     return (coordinator.data.get("balances", {}).get(account_uid) or {}).get("balances", [])

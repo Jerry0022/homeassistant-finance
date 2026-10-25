@@ -6,8 +6,8 @@ history/energy-style graphs work without the entity having to be polled.
 
 * ``has_sum=False``, no mean: a balance is a level, not a counter.
 * One value per hour (the last point of that hour), hourly aligned, tz-aware.
-* Only points from the last imported hour onwards (that hour may still change) are sent; the call is an
-  upsert by ``start``, so a repeated import is harmless.
+* Only points from the last imported hour onwards (that hour may still
+  change) are sent; the call is an upsert by ``start``, so a repeat is harmless.
 * Older Home Assistant versions lack ``mean_type`` / ``unit_class`` on the
   metadata — they are added only when the installed TypedDict declares them.
 """
@@ -145,12 +145,16 @@ async def async_import_balance_statistics(
             statistic_id = statistic_id_for(key)
             if statistic_id not in watermarks:
                 watermarks[statistic_id] = await _last_imported(hass, statistic_id)
-            points, currency = hourly_points(manager.get_balance_history(key), watermarks[statistic_id])
+            history = manager.get_balance_history(key)
+            points, currency = hourly_points(history, watermarks[statistic_id])
             if not points:
                 continue
-            name = f"{account.get('institution', '')} {account.get('custom_name') or account.get('name', '')}".strip()
+            label = account.get("custom_name") or account.get("name", "")
+            name = f"{account.get('institution', '')} {label}".strip()
             meta = _metadata(
-                statistic_id, f"{name} balance" if name else "Balance", currency or account.get("currency", "EUR")
+                statistic_id,
+                f"{name} balance" if name else "Balance",
+                currency or account.get("currency", "EUR"),
             )
             rec_stats.async_add_external_statistics(
                 hass, meta, [StatisticData(start=h, state=v) for h, v in points]

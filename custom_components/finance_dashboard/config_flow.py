@@ -61,9 +61,15 @@ from .const import (
     CONF_VALID_UNTIL,
     DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES,
     DEFAULT_AUTO_REFRESH_ON_OPEN,
+    DEFAULT_RAW_RETENTION_DAYS,
+    DEFAULT_SHOW_HOUSEHOLD,
     DOMAIN,
+    MAX_RAW_RETENTION_DAYS,
+    MIN_RAW_RETENTION_DAYS,
     OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
     OPT_AUTO_REFRESH_ON_OPEN,
+    OPT_RAW_RETENTION_DAYS,
+    OPT_SHOW_HOUSEHOLD,
     SUBENTRY_TYPE_BANK,
 )
 from .credential_manager import CredentialManager
@@ -440,14 +446,22 @@ def _subentry_unique_id(country: str, aspsp_name: str) -> str:
 class FinanceDashboardOptionsFlow(OptionsFlow):
     """Handle options for Finance."""
 
-    def __init__(self, config_entry: ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
+    def __init__(self, config_entry: ConfigEntry | None = None) -> None:
+        """Initialize options flow.
+
+        Newer Home Assistant provides ``self.config_entry`` itself and rejects
+        assignment, so the argument is only kept as a fallback (and for tests).
+        """
+        self._entry_override = config_entry
+
+    @property
+    def _entry(self) -> ConfigEntry:
+        return self._entry_override or self.config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manage the options."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            return self.async_create_entry(title="", data={**self._entry.options, **user_input})
 
         return self.async_show_form(
             step_id="init",
@@ -455,41 +469,56 @@ class FinanceDashboardOptionsFlow(OptionsFlow):
                 {
                     vol.Optional(
                         "refresh_interval_minutes",
-                        default=self.config_entry.options.get("refresh_interval_minutes", 60),
+                        default=self._entry.options.get("refresh_interval_minutes", 60),
                     ): vol.All(vol.Coerce(int), vol.Range(min=15, max=1440)),
                     vol.Optional(
                         "split_model",
-                        default=self.config_entry.options.get("split_model", "proportional"),
-                    ): vol.In(["proportional", "equal", "custom"]),
+                        default=self._entry.options.get("split_model", "proportional"),
+                    ): vol.In(["pooled_equal", "proportional", "equal", "custom"]),
                     vol.Optional(
                         "currency",
-                        default=self.config_entry.options.get("currency", "EUR"),
+                        default=self._entry.options.get("currency", "EUR"),
                     ): str,
                     vol.Optional(
                         "enable_total_balance_sensor",
-                        default=self.config_entry.options.get("enable_total_balance_sensor", False),
+                        default=self._entry.options.get("enable_total_balance_sensor", False),
                     ): bool,
                     vol.Optional(
                         "enable_dashboard_panel",
-                        default=self.config_entry.options.get("enable_dashboard_panel", True),
+                        default=self._entry.options.get("enable_dashboard_panel", True),
                     ): bool,
                     vol.Optional(
                         "demo_mode",
-                        default=self.config_entry.options.get("demo_mode", False),
+                        default=self._entry.options.get("demo_mode", False),
                     ): bool,
                     vol.Optional(
                         OPT_AUTO_REFRESH_ON_OPEN,
-                        default=self.config_entry.options.get(
+                        default=self._entry.options.get(
                             OPT_AUTO_REFRESH_ON_OPEN, DEFAULT_AUTO_REFRESH_ON_OPEN
                         ),
                     ): bool,
                     vol.Optional(
                         OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
-                        default=self.config_entry.options.get(
+                        default=self._entry.options.get(
                             OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
                             DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES,
                         ),
                     ): vol.All(vol.Coerce(int), vol.Range(min=5, max=1440)),
+                    vol.Optional(
+                        OPT_RAW_RETENTION_DAYS,
+                        default=self._entry.options.get(
+                            OPT_RAW_RETENTION_DAYS, DEFAULT_RAW_RETENTION_DAYS
+                        ),
+                    ): vol.All(
+                        vol.Coerce(int),
+                        vol.Range(min=MIN_RAW_RETENTION_DAYS, max=MAX_RAW_RETENTION_DAYS),
+                    ),
+                    vol.Optional(
+                        OPT_SHOW_HOUSEHOLD,
+                        default=self._entry.options.get(
+                            OPT_SHOW_HOUSEHOLD, DEFAULT_SHOW_HOUSEHOLD
+                        ),
+                    ): bool,
                 }
             ),
         )
