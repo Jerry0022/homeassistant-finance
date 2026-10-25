@@ -47,7 +47,14 @@ homeassistant-finance/
 │   ├── transfer_plan.py         # Monthly transfer choreography + zero-sum invariant
 │   ├── household.py             # Split engine (pooled_equal = spreadsheet model)
 │   ├── benchmark.py             # German-average comparisons (wired via manager)
-│   ├── credential_manager.py    # Fernet encryption, JWT signing key, audit log
+│   ├── credential_manager.py    # Fernet encryption, JWT signing key, per-bank sessions, audit log
+│   ├── connect.py               # Bank-link OAuth via my.home-assistant.io (subentry external step)
+│   ├── data_store.py            # Encrypted raw snapshots (monthly) + transaction ledger
+│   ├── fetch_budget.py          # Per-bank/per-account daily background budget, 429 blocks
+│   ├── runtime.py / entity.py   # entry.runtime_data + shared entity/device base
+│   ├── balance_statistics.py    # Balance history → long-term statistics
+│   ├── diagnostics.py           # Redacted diagnostics
+│   ├── button.py                # Refresh button (background fetch)
 │   ├── enablebanking_client.py  # Enable Banking API client (PSD2, JWT RS256)
 │   ├── coordinator.py           # DataUpdateCoordinator (cache-only reads)
 │   ├── categorizer.py           # Rule-based transaction auto-categorization
