@@ -117,7 +117,7 @@ def _normalize_pem(raw: str) -> str:
     return f"{header}\n" + "\n".join(lines) + f"\n{footer}"
 
 
-async def _async_validate_credentials(
+async def _async_validate_credentials(  # noqa: PLR0911
     hass: HomeAssistant, application_id: str, private_key_pem: str
 ) -> str | None:
     """Validate Enable Banking credentials; return an error key or None.
@@ -153,7 +153,7 @@ async def _async_validate_credentials(
         if close is not None:
             try:
                 await close()
-            except Exception:  # noqa: BLE001 - best effort
+            except Exception:
                 pass
     return None if institutions else "no_institutions"
 
@@ -179,7 +179,8 @@ class FinanceDashboardConfigFlow(ConfigFlow, domain=DOMAIN):
     def _placeholders(self) -> dict[str, str]:
         return {
             "enablebanking_url": "https://enablebanking.com",
-            "redirect_url": get_redirect_url(self.hass) or "https://my.home-assistant.io/redirect/oauth",
+            "redirect_url": get_redirect_url(self.hass)
+            or "https://my.home-assistant.io/redirect/oauth",
         }
 
     async def _async_store_credentials(self, application_id: str, pem: str) -> None:
@@ -289,7 +290,7 @@ class BankSubentryFlow(ConfigSubentryFlow):
         if close is not None:
             try:
                 await close()
-            except Exception:  # noqa: BLE001 - best effort
+            except Exception:
                 pass
 
     # -- new bank ---------------------------------------------------------
@@ -383,7 +384,9 @@ class BankSubentryFlow(ConfigSubentryFlow):
             self._error = "authorization_rejected"
         return self.async_external_step_done(next_step_id="finish")
 
-    async def async_step_finish(self, user_input: dict[str, Any] | None = None) -> SubentryFlowResult:
+    async def async_step_finish(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
         """Create the session, test it, persist the subentry."""
         if self._error or not self._code:
             await self._async_close_client()
@@ -408,7 +411,9 @@ class BankSubentryFlow(ConfigSubentryFlow):
 
         if self._reconfigure_subentry is not None:
             sub = self._reconfigure_subentry
-            await cred.async_store_bank_session(sub.subentry_id, session["session_id"], self._valid_until)
+            await cred.async_store_bank_session(
+                sub.subentry_id, session["session_id"], self._valid_until
+            )
             return self.async_update_and_abort(entry, sub, data=data)
 
         sub = ConfigSubentry(
@@ -417,7 +422,9 @@ class BankSubentryFlow(ConfigSubentryFlow):
             title=self._aspsp_name,
             unique_id=_subentry_unique_id(self._country, self._aspsp_name),
         )
-        await cred.async_store_bank_session(sub.subentry_id, session["session_id"], self._valid_until)
+        await cred.async_store_bank_session(
+            sub.subentry_id, session["session_id"], self._valid_until
+        )
         try:
             self.hass.config_entries.async_add_subentry(entry, sub)
         except Exception:

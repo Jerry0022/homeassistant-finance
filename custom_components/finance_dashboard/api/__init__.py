@@ -15,7 +15,7 @@ import logging
 
 from homeassistant.core import HomeAssistant
 
-from ._helpers import _get_manager, _get_setup_client, _validate_oauth_state
+from ._helpers import _get_manager, _get_setup_client
 from .data import (
     FinanceDashboardBalanceView,
     FinanceDashboardSummaryView,
@@ -37,9 +37,6 @@ from .refresh import (
     FinanceDashboardRefreshTriggerView,
 )
 from .setup import (
-    FinanceDashboardOAuthCallbackView,
-    FinanceDashboardSetupAuthorizeView,
-    FinanceDashboardSetupCompleteView,
     FinanceDashboardSetupInstitutionsView,
     FinanceDashboardSetupStatusView,
     FinanceDashboardSetupUpdateAccountsView,
@@ -53,15 +50,11 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
     # Helpers (re-exported for backwards-compat with tests that import from .api)
     "_get_manager",
     "_get_setup_client",
-    "_validate_oauth_state",
     # Setup wizard
     "FinanceDashboardSetupStatusView",
     "FinanceDashboardSetupUsersView",
     "FinanceDashboardSetupInstitutionsView",
-    "FinanceDashboardSetupAuthorizeView",
-    "FinanceDashboardSetupCompleteView",
     "FinanceDashboardSetupUpdateAccountsView",
-    "FinanceDashboardOAuthCallbackView",
     # Data endpoints
     "FinanceDashboardBalanceView",
     "FinanceDashboardTransactionsView",
@@ -86,17 +79,14 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
 
 async def async_register_api(hass: HomeAssistant) -> None:
     """Register all Finance HTTP API endpoints."""
-    hass.http.register_view(FinanceDashboardOAuthCallbackView())
     hass.http.register_view(FinanceDashboardBalanceView())
     hass.http.register_view(FinanceDashboardTransactionsView())
     hass.http.register_view(FinanceDashboardSummaryView())
     hass.http.register_view(FinanceDashboardRefreshStatusView())
     hass.http.register_view(FinanceDashboardRefreshTriggerView())
-    # Setup wizard endpoints
+    # Setup wizard endpoints (linking moved into the config subentry flow)
     hass.http.register_view(FinanceDashboardSetupStatusView())
     hass.http.register_view(FinanceDashboardSetupInstitutionsView())
-    hass.http.register_view(FinanceDashboardSetupAuthorizeView())
-    hass.http.register_view(FinanceDashboardSetupCompleteView())
     hass.http.register_view(FinanceDashboardSetupUsersView())
     hass.http.register_view(FinanceDashboardSetupUpdateAccountsView())
     hass.http.register_view(FinanceDashboardTransferChainsView())

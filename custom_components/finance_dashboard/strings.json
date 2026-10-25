@@ -3,7 +3,15 @@
     "step": {
       "user": {
         "title": "Enable Banking Setup",
-        "description": "Enter your Enable Banking API credentials.\n\n**How to get your credentials:**\n1. Go to [{enablebanking_url}/cp/applications]({enablebanking_url}/cp/applications)\n2. Choose **Sandbox** (for testing) or **Production**\n3. Select **Generate in the browser** for the key\n4. Enter an application name (e.g. \"Home Assistant Finance\")\n5. Add your HA redirect URL: `{redirect_url}`\n6. Click **Register** — your private key will download automatically\n7. Copy the **Application ID** from the confirmation page\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant.\n\nAfter setup, open the **Finance** sidebar panel to connect your bank.",
+        "description": "Enter your Enable Banking API credentials.\n\n**How to get them:**\n1. Open [{enablebanking_url}/cp/applications]({enablebanking_url}/cp/applications)\n2. Choose **Sandbox** (testing) or **Production**\n3. Select **Generate in the browser** for the key\n4. Enter an application name (e.g. \"Home Assistant Finance\")\n5. Register exactly this redirect URL: `{redirect_url}`\n6. Click **Register** - the private key downloads automatically\n7. Copy the **Application ID** from the confirmation page\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant.\n\nAfter setup, add your banks via **Add bank** on the Finance integration page.",
+        "data": {
+          "application_id": "Application ID",
+          "private_key_pem": "Private Key (PEM)"
+        }
+      },
+      "reconfigure": {
+        "title": "Replace Enable Banking credentials",
+        "description": "Enter the new Application ID and private key. Your connected banks stay as they are.\n\nThe registered redirect URL must be: `{redirect_url}`",
         "data": {
           "application_id": "Application ID",
           "private_key_pem": "Private Key (PEM)"
@@ -13,12 +21,13 @@
     "error": {
       "missing_credentials": "Please enter both Application ID and Private Key.",
       "invalid_key_format": "The private key could not be loaded. Make sure you paste the complete PEM content including the -----BEGIN/END PRIVATE KEY----- lines.",
-      "invalid_credentials": "Enable Banking rejected the credentials (HTTP 401/403). Verify that your Application ID matches the private key and the application is activated.",
-      "no_institutions": "No banking institutions found for Germany.",
+      "invalid_credentials": "Enable Banking rejected the credentials (HTTP 401/403). Check that the Application ID matches the private key and the application is activated.",
+      "no_institutions": "No banks found.",
       "connection_failed": "Connection to Enable Banking failed. Please check your internet connection."
     },
     "abort": {
-      "already_configured": "Finance is already configured."
+      "already_configured": "Finance is already configured.",
+      "reconfigure_successful": "The Enable Banking credentials were updated."
     }
   },
   "options": {
@@ -78,6 +87,87 @@
     "credentials_invalid_pem": {
       "title": "Finance: Invalid Private Key",
       "description": "The stored Enable Banking private key could not be loaded. Reconfigure the integration via Settings > Devices & Services and paste the full PEM key including the BEGIN/END lines."
+    },
+    "consent_expiring": {
+      "title": "Finance: bank connection expires soon",
+      "description": "The connection to **{bank}** expires soon. Renew it now so that balances and transactions keep updating.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Renew bank connection",
+            "description": "Open the Finance integration page ({link}), choose the three-dot menu next to **{bank}** and click **Reconfigure**. You will be redirected to your bank to confirm access again."
+          }
+        },
+        "abort": {
+          "continue_in_integrations": "Continue on the Finance integration page. This notice disappears once the connection is renewed.",
+          "bank_not_found": "This bank connection no longer exists."
+        }
+      }
+    },
+    "consent_expired": {
+      "title": "Finance: bank connection expired",
+      "description": "The connection to **{bank}** has expired or was revoked. Balances and transactions cannot be refreshed until you renew it.",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Renew bank connection",
+            "description": "Open the Finance integration page ({link}), choose the three-dot menu next to **{bank}** and click **Reconfigure**. You will be redirected to your bank to confirm access again."
+          }
+        },
+        "abort": {
+          "continue_in_integrations": "Continue on the Finance integration page. This notice disappears once the connection is renewed.",
+          "bank_not_found": "This bank connection no longer exists."
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "bank": {
+      "entry_type": "Bank",
+      "initiate_flow": {
+        "user": "Add bank",
+        "reconfigure": "Renew bank connection"
+      },
+      "step": {
+        "user": {
+          "title": "Connect a bank",
+          "description": "Choose the country of your bank.\n\nBefore you continue, make sure this redirect URL is registered for your application at Enable Banking: `{redirect_url}`",
+          "data": {
+            "aspsp_country": "Country (ISO code, e.g. DE)"
+          }
+        },
+        "bank": {
+          "title": "Choose your bank",
+          "data": {
+            "aspsp_name": "Bank"
+          }
+        },
+        "reconfigure": {
+          "title": "Renew bank connection",
+          "description": "The connection to **{bank}** will be authorized again at your bank. Existing accounts and history stay intact.\n\nRegistered redirect URL: `{redirect_url}`"
+        },
+        "authorize": {
+          "title": "Authorize at your bank",
+          "description": "Log in at your bank in the window that opened and confirm access. Home Assistant continues automatically afterwards."
+        }
+      },
+      "error": {
+        "no_institutions": "No banks found for this country."
+      },
+      "abort": {
+        "already_configured": "This bank is already connected. Use Reconfigure on it to renew the connection.",
+        "bank_connected": "The bank was connected successfully.",
+        "reconfigure_successful": "The bank connection was renewed.",
+        "authorization_rejected": "The authorization at the bank was cancelled or rejected.",
+        "no_accounts": "The bank returned no accounts. Please check the consent you gave at the bank.",
+        "no_credentials": "No Enable Banking credentials are stored. Reconfigure the integration first.",
+        "rate_limited": "The bank's request limit is reached. Please try again later.",
+        "invalid_credentials": "Enable Banking rejected the credentials. Replace them via Reconfigure on the integration.",
+        "bank_error": "The bank or Enable Banking returned an error. Please try again later.",
+        "connection_failed": "Connection to Enable Banking failed. Please check your internet connection.",
+        "no_url_available": "No Home Assistant URL is available. Configure an internal or external URL first.",
+        "unknown": "An unexpected error occurred. See the Home Assistant log."
+      }
     }
   }
 }
