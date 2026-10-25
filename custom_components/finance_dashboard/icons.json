@@ -1,0 +1,14 @@
+{
+  "services": {
+    "refresh_accounts": { "service": "mdi:bank-refresh" },
+    "refresh_transactions": { "service": "mdi:sync" },
+    "import_spreadsheet": { "service": "mdi:file-excel-outline" },
+    "get_transfer_plan": { "service": "mdi:bank-transfer" },
+    "get_balance": { "service": "mdi:scale-balance" },
+    "get_monthly_summary": { "service": "mdi:calendar-month-outline" },
+    "categorize_transactions": { "service": "mdi:tag-multiple-outline" },
+    "set_budget_limit": { "service": "mdi:gauge" },
+    "toggle_demo": { "service": "mdi:flask-outline" },
+    "export_csv": { "service": "mdi:file-delimited-outline" }
+  }
+}
