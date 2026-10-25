@@ -336,3 +336,24 @@ CONF_SUBENTRY_ACCOUNTS = "accounts"
 # Repairs issue id prefixes (issue creation lives in the manager)
 ISSUE_CONSENT_EXPIRING_PREFIX = "consent_expiring_"
 ISSUE_CONSENT_EXPIRED_PREFIX = "consent_expired_"
+
+
+# --- Entities, devices, statistics (Phase 1.4 / 3.1) ---
+OPT_SHOW_HOUSEHOLD = "show_household"
+DEFAULT_SHOW_HOUSEHOLD = True
+MIN_RAW_RETENTION_DAYS = 30
+MAX_RAW_RETENTION_DAYS = 3650
+STATISTICS_SOURCE = DOMAIN
+# ISO 20022 / camelCase names of balances that mean "available to spend".
+AVAILABLE_BALANCE_TYPES = ("CLAV", "ITAV", "closingAvailable", "interimAvailable")
+# Class-level error codes the "last error" sensor can show (translated).
+BANK_ERROR_OPTIONS = (
+    "none",
+    "consent_expired",
+    "rate_limited",
+    "unauthorized",
+    "server_error",
+    "network",
+    "other",
+)
+CONSENT_STATES = ("ok", "expiring", "expired")

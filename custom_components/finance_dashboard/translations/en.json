@@ -42,7 +42,16 @@
           "enable_dashboard_panel": "Show sidebar panel",
           "transfer_detection_enabled": "Transfer chain detection",
           "transfer_amount_tolerance": "Amount tolerance (EUR)",
-          "transfer_time_window": "Time window (days)"
+          "transfer_time_window": "Time window (days)",
+          "demo_mode": "Demo mode (synthetic data)",
+          "auto_refresh_on_open": "Refresh when the panel is opened",
+          "auto_refresh_max_age_minutes": "Panel refresh only if data is older than (minutes)",
+          "raw_retention_days": "Keep raw bank responses for (days, minimum 30)",
+          "show_household": "Show household budget in the panel"
+        },
+        "data_description": {
+          "raw_retention_days": "Raw responses are kept encrypted for re-processing; older ones are deleted.",
+          "show_household": "Hides the household split in the panel when you only track accounts."
         }
       }
     }
@@ -171,6 +180,82 @@
         "connection_failed": "Connection to Enable Banking failed. Please check your internet connection.",
         "no_url_available": "No Home Assistant URL is available. Configure an internal or external URL first.",
         "unknown": "An unexpected error occurred. See the Home Assistant log."
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "balance": {
+        "name": "Balance"
+      },
+      "available_balance": {
+        "name": "Available balance"
+      },
+      "last_update": {
+        "name": "Last update"
+      },
+      "consent_valid_until": {
+        "name": "Consent valid until"
+      },
+      "consent_state": {
+        "name": "Consent",
+        "state": {
+          "ok": "Valid",
+          "expiring": "Expiring soon",
+          "expired": "Expired"
+        }
+      },
+      "budget_used": {
+        "name": "Fetches used today"
+      },
+      "blocked_until": {
+        "name": "Blocked until"
+      },
+      "last_error": {
+        "name": "Last error",
+        "state": {
+          "none": "None",
+          "consent_expired": "Consent expired",
+          "rate_limited": "Rate limited",
+          "unauthorized": "Bank rejected the session",
+          "server_error": "Bank server error",
+          "network": "Network problem",
+          "other": "Other error"
+        }
+      },
+      "total_balance": {
+        "name": "Total balance"
+      },
+      "monthly_summary": {
+        "name": "Monthly summary"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Refresh"
+      }
+    },
+    "number": {
+      "budget_limit": {
+        "name": "Budget {category}"
+      }
+    },
+    "select": {
+      "split_model": {
+        "name": "Split model",
+        "state": {
+          "pooled_equal": "Pooled, split equally",
+          "equal": "Equal (50/50)",
+          "proportional": "Proportional (by income)",
+          "custom": "Custom (manual %)"
+        }
+      },
+      "remainder_mode": {
+        "name": "Remainder mode",
+        "state": {
+          "none": "No split (each keeps own)",
+          "equal_split": "Equal distribution"
+        }
       }
     }
   }

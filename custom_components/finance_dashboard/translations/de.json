@@ -33,16 +33,25 @@
   "options": {
     "step": {
       "init": {
-        "title": "Finance Einstellungen",
+        "title": "Finance-Einstellungen",
         "data": {
           "refresh_interval_minutes": "Aktualisierungsintervall (Minuten)",
-          "split_model": "Budget-Aufteilungsmodell",
+          "split_model": "Aufteilungsmodell",
           "currency": "Währung",
           "enable_total_balance_sensor": "Gesamtsaldo-Sensor aktivieren",
-          "enable_dashboard_panel": "Sidebar-Panel anzeigen",
+          "enable_dashboard_panel": "Seitenleisten-Panel anzeigen",
           "transfer_detection_enabled": "Transfer-Ketten-Erkennung",
           "transfer_amount_tolerance": "Betrags-Toleranz (EUR)",
-          "transfer_time_window": "Zeitfenster (Tage)"
+          "transfer_time_window": "Zeitfenster (Tage)",
+          "demo_mode": "Demo-Modus (synthetische Daten)",
+          "auto_refresh_on_open": "Beim Öffnen des Panels aktualisieren",
+          "auto_refresh_max_age_minutes": "Panel aktualisiert nur, wenn die Daten älter sind als (Minuten)",
+          "raw_retention_days": "Rohantworten der Bank aufbewahren (Tage, mindestens 30)",
+          "show_household": "Haushaltsbudget im Panel anzeigen"
+        },
+        "data_description": {
+          "raw_retention_days": "Rohantworten bleiben verschlüsselt erhalten, um sie neu auswerten zu können; ältere werden gelöscht.",
+          "show_household": "Blendet die Haushaltsaufteilung im Panel aus, wenn du nur Konten verfolgst."
         }
       }
     }
@@ -171,6 +180,82 @@
         "connection_failed": "Die Verbindung zu Enable Banking ist fehlgeschlagen. Bitte prüfe deine Internetverbindung.",
         "no_url_available": "Es ist keine Home-Assistant-URL verfügbar. Lege zuerst eine interne oder externe URL fest.",
         "unknown": "Ein unerwarteter Fehler ist aufgetreten. Details stehen im Home-Assistant-Protokoll."
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "balance": {
+        "name": "Kontostand"
+      },
+      "available_balance": {
+        "name": "Verfügbarer Betrag"
+      },
+      "last_update": {
+        "name": "Letzte Aktualisierung"
+      },
+      "consent_valid_until": {
+        "name": "Zustimmung gültig bis"
+      },
+      "consent_state": {
+        "name": "Zustimmung",
+        "state": {
+          "ok": "Gültig",
+          "expiring": "Läuft bald ab",
+          "expired": "Abgelaufen"
+        }
+      },
+      "budget_used": {
+        "name": "Heutige Abrufe"
+      },
+      "blocked_until": {
+        "name": "Gesperrt bis"
+      },
+      "last_error": {
+        "name": "Letzter Fehler",
+        "state": {
+          "none": "Keiner",
+          "consent_expired": "Zustimmung abgelaufen",
+          "rate_limited": "Abrufgrenze erreicht",
+          "unauthorized": "Bank hat die Sitzung abgelehnt",
+          "server_error": "Serverfehler der Bank",
+          "network": "Netzwerkproblem",
+          "other": "Sonstiger Fehler"
+        }
+      },
+      "total_balance": {
+        "name": "Gesamtsaldo"
+      },
+      "monthly_summary": {
+        "name": "Monatsübersicht"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Aktualisieren"
+      }
+    },
+    "number": {
+      "budget_limit": {
+        "name": "Budget {category}"
+      }
+    },
+    "select": {
+      "split_model": {
+        "name": "Aufteilungsmodell",
+        "state": {
+          "pooled_equal": "Gemeinsamer Topf, gleich geteilt",
+          "equal": "Gleichmäßig (50/50)",
+          "proportional": "Anteilig nach Einkommen",
+          "custom": "Benutzerdefiniert (manuelle %)"
+        }
+      },
+      "remainder_mode": {
+        "name": "Restbetrag",
+        "state": {
+          "none": "Nicht teilen (jeder behält seinen)",
+          "equal_split": "Gleichmäßig verteilen"
+        }
       }
     }
   }

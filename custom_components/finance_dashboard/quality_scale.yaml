@@ -1,0 +1,137 @@
+# Honest status against the Home Assistant integration quality scale.
+# done = implemented and tested; todo = not yet; exempt = does not apply.
+rules:
+  # --- Bronze ---
+  action-setup:
+    status: done
+    comment: Services are registered in async_setup_entry (kept there because the closures need the manager).
+  appropriate-polling:
+    status: exempt
+    comment: No polling at all. Live fetches are user-triggered plus exactly one scheduled refresh per day; the coordinator has update_interval=None.
+  brands:
+    status: todo
+    comment: Local brand assets exist; not yet submitted to home-assistant/brands.
+  common-modules:
+    status: done
+  config-flow-test-coverage:
+    status: todo
+    comment: Bank connect flow and options flow are tested with fakes; full coverage needs HA >= 2026.3 (subentries).
+  config-flow:
+    status: done
+    comment: Credentials in the main flow, banks as config subentries, data_description for the options.
+  dependency-transparency:
+    status: done
+  docs-actions:
+    status: todo
+  docs-high-level-description:
+    status: done
+  docs-installation-instructions:
+    status: done
+  docs-removal-instructions:
+    status: todo
+  entity-event-setup:
+    status: done
+    comment: Entities subscribe through CoordinatorEntity and the select listens to entry updates, both cleaned up on removal.
+  entity-unique-id:
+    status: done
+    comment: IBAN-derived identity key, stable across re-links (account_identity.py).
+  has-entity-name:
+    status: done
+  runtime-data:
+    status: done
+    comment: entry.runtime_data; hass.data is still populated for the HTTP views.
+  test-before-configure:
+    status: done
+  test-before-setup:
+    status: todo
+    comment: Setup does not raise ConfigEntryNotReady/AuthFailed yet because it never calls the bank (cache only).
+  unique-config-entry:
+    status: done
+
+  # --- Silver ---
+  action-exceptions:
+    status: done
+    comment: The refresh button and services raise HomeAssistantError.
+  config-entry-unloading:
+    status: done
+  docs-configuration-parameters:
+    status: todo
+  docs-installation-parameters:
+    status: todo
+  entity-unavailable:
+    status: done
+    comment: Account and bank entities are unavailable when their data is missing.
+  integration-owner:
+    status: done
+  log-when-unavailable:
+    status: exempt
+    comment: Entities derive availability from the local cache, not from a connection.
+  parallel-updates:
+    status: done
+    comment: PARALLEL_UPDATES = 0 on all cache-only platforms.
+  reauthentication-flow:
+    status: done
+    comment: Per-bank reconfigure flow plus consent_expiring / consent_expired repair issues.
+  test-coverage:
+    status: todo
+    comment: Not measured against the 95 percent bar yet.
+
+  # --- Gold ---
+  devices:
+    status: done
+    comment: Service device, one device per bank, one per account (via_device).
+  diagnostics:
+    status: done
+  discovery-update-info:
+    status: exempt
+  discovery:
+    status: exempt
+  docs-data-update:
+    status: todo
+  docs-examples:
+    status: todo
+  docs-known-limitations:
+    status: todo
+  docs-supported-devices:
+    status: exempt
+  docs-supported-functions:
+    status: todo
+  docs-troubleshooting:
+    status: todo
+  docs-use-cases:
+    status: todo
+  dynamic-devices:
+    status: done
+    comment: A new bank subentry reloads the entry; an available-balance sensor appears once a bank reports one.
+  entity-category:
+    status: done
+  entity-device-class:
+    status: done
+  entity-disabled-by-default:
+    status: todo
+    comment: Per-category budget numbers could default to disabled.
+  entity-translations:
+    status: done
+  exception-translations:
+    status: todo
+    comment: Exceptions still carry English text.
+  icon-translations:
+    status: done
+  reconfiguration-flow:
+    status: done
+    comment: Bank subentry reconfigure; main entry reconfigure exists for credentials.
+  repair-issues:
+    status: done
+  stale-devices:
+    status: done
+    comment: Removing a bank subentry removes its devices and entities.
+
+  # --- Platinum ---
+  async-dependency:
+    status: done
+    comment: aiohttp based client.
+  inject-websession:
+    status: todo
+    comment: The client creates its own aiohttp session.
+  strict-typing:
+    status: todo

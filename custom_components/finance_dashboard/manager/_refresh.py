@@ -40,70 +40,6 @@ class RefreshMixin:
     """Mixin that adds all live-fetch and OAuth methods to the manager."""
 
     # ------------------------------------------------------------------
-    # Rate-limit helpers
-    # ------------------------------------------------------------------
-
-    def _set_rate_limited(
-        self,
-        retry_after_dt: datetime | None = None,
-        *,
-        attended: bool = False,
-    ) -> None:
-        """Mark API as rate-limited.
-
-        Writes the reset timestamp to both the instance field and the
-        persistent ``hass.data[DOMAIN][_GLOBAL_RATE_LIMIT_KEY]`` so that the
-        fresh-setup client factory can also respect the quota gate (F2).
-
-        The reset is capped at midnight — the ASPSP day counter resets then,
-        so waiting past it is never useful — but the default backoff is much
-        shorter than a full day: Enable Banking documents a 6h retry for
-        background fetches, and an attended 429 is a transient upstream
-        condition rather than the 4/day rule, so it pauses for minutes.
-
-        Args:
-            retry_after_dt: Optional reset datetime derived from the
-                ``Retry-After`` response header.  Takes precedence over the
-                default backoff — the bank knows better than we do.
-            attended: True when the call carried PSU headers (user present).
-        """
-        from ..const import (
-            DOMAIN,
-            RATE_LIMIT_ATTENDED_BACKOFF_MINUTES,
-            RATE_LIMIT_BACKOFF_HOURS,
-        )
-
-        now = dt_util.now()
-        midnight = (now + timedelta(days=1)).replace(
-            hour=0,
-            minute=0,
-            second=0,
-            microsecond=0,
-        )
-        if retry_after_dt is not None:
-            candidate = retry_after_dt
-        elif attended:
-            candidate = now + timedelta(minutes=RATE_LIMIT_ATTENDED_BACKOFF_MINUTES)
-        else:
-            candidate = now + timedelta(hours=RATE_LIMIT_BACKOFF_HOURS)
-        reset_at = min(midnight, candidate)
-        self._rate_limited_until = reset_at
-
-        # Persist to hass.data so the fresh-setup client gate can read it
-        # even when the manager is not consulted directly (F2).
-        try:
-            self._hass.data.setdefault(DOMAIN, {})[_GLOBAL_RATE_LIMIT_KEY] = (
-                reset_at.isoformat()
-            )
-        except Exception:  # pragma: no cover
-            _LOGGER.debug("Could not write global rate-limit key to hass.data", exc_info=True)
-
-        _LOGGER.warning(
-            "API rate-limited — serving cached data until %s",
-            reset_at.isoformat(),
-        )
-
-    # ------------------------------------------------------------------
     # Public refresh entry point
     # ------------------------------------------------------------------
 
@@ -448,56 +384,6 @@ class RefreshMixin:
                     self._previous_balances[acc_id] = new_bal
         except Exception:
             _LOGGER.exception("Balance change event firing failed — skipping")
-
-    @staticmethod
-    def _merge_account_transactions(
-        previous: list[dict[str, Any]],
-        booked: list[dict[str, Any]],
-        pending: list[dict[str, Any]],
-        date_from: str,
-    ) -> list[dict[str, Any]]:
-        """Merge a freshly fetched window into an account's cached history.
-
-        The fetch covers a rolling window (``date_from`` onwards). Within that
-        window the fresh data is authoritative — it reflects re-bookings,
-        corrections and pending-to-booked transitions. Outside the window the
-        previously cached BOOKED transactions are kept, which is what allows
-        history to accumulate beyond the window instead of being truncated on
-        every refresh.
-
-        Cached pending transactions are always discarded: pending entries are
-        volatile, and keeping an old one alongside its booked counterpart would
-        double-count the same debit.
-
-        Args:
-            previous: The account's cached transactions.
-            booked: Freshly fetched booked transactions.
-            pending: Freshly fetched pending transactions.
-            date_from: Inclusive ``YYYY-MM-DD`` start of the fetched window.
-
-        Returns:
-            The merged transaction list for this account.
-        """
-        fresh = list(booked) + list(pending)
-        fresh_ids = {t.get("transactionId") for t in fresh if t.get("transactionId")}
-
-        kept: list[dict[str, Any]] = []
-        for txn in previous:
-            if txn.get("_status") != "booked":
-                continue
-            transaction_id = txn.get("transactionId")
-            if transaction_id and transaction_id in fresh_ids:
-                continue  # superseded by the fresh copy
-            booking_date = str(txn.get("bookingDate") or "")
-            # No booking date means we cannot place it relative to the window;
-            # keep it rather than lose a real transaction.
-            if booking_date and booking_date >= date_from:
-                # Inside the refetched window and absent from the fresh data —
-                # the bank no longer reports it (reversal, correction).
-                continue
-            kept.append(txn)
-
-        return kept + fresh
 
     @staticmethod
     def _build_stats(
