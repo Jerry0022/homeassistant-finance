@@ -33,11 +33,42 @@ class FinanceStatusChip extends HTMLElement {
     this._errorMsg = null;
     this._successTimer = null;
     this._rendered = false;
+    this._warning = null;
+    this._lastBankCheck = 0;
+    this._checking = false;
   }
 
   set hass(hass) {
     this._hass = hass;
     if (!this._rendered) this._render();
+    // Consent / budget warnings: cache read, throttled (hass fires constantly).
+    if (Date.now() - this._lastBankCheck > 10 * 60 * 1000) this._checkBanks();
+  }
+
+  async _checkBanks() {
+    if (!this._hass || this._checking) return;
+    this._checking = true;
+    this._lastBankCheck = Date.now();
+    try {
+      if (window._fd) {
+        window._fd._hass = this._hass;
+        await window._fd.t("card.title"); // load the user's locale
+      }
+      const status = await this._hass.callApi("GET", "finance_dashboard/bank_status");
+      const banks = (status && status.banks) || [];
+      const now = Date.now();
+      const key = banks.some((b) => b.consent_state === "expired") ? "card.warn_expired"
+        : banks.some((b) => b.consent_state === "expiring") ? "card.warn_expiring"
+        : banks.some((b) => b.blocked_until && new Date(b.blocked_until).getTime() > now) ? "card.warn_blocked"
+        : banks.some((b) => b.last_error) ? "card.warn_error"
+        : null;
+      this._warning = key && window._fd ? window._fd.tSync(key) : null;
+    } catch (_) {
+      this._warning = null; // not configured / no access: stay quiet
+    } finally {
+      this._checking = false;
+      this._update();
+    }
   }
 
   setConfig(config) {
@@ -123,6 +154,14 @@ class FinanceStatusChip extends HTMLElement {
   height: 32px;
   box-sizing: border-box;
 }
+
+.chip.warn {
+  cursor: pointer;
+  border-color: rgba(243, 156, 18, 0.5);
+  background: rgba(243, 156, 18, 0.08);
+}
+.chip.warn .label { color: var(--chip-wn); }
+.chip.warn .alert svg { color: var(--chip-wn); }
 
 /* Clickable in error state */
 .chip.error {
@@ -224,18 +263,21 @@ class FinanceStatusChip extends HTMLElement {
 
     const s = STATES[this._state] || STATES.idle;
 
-    // Update class
-    chip.className = `chip ${s.cls}`;
+    // A bank warning shows in the idle state only (loading/error win).
+    const warn = this._state === "idle" && this._warning;
+    chip.className = `chip ${warn ? "warn" : s.cls}`;
 
     // Update icon
-    icon.innerHTML = this._renderIcon(s.icon);
+    icon.innerHTML = this._renderIcon(warn ? "alert" : s.icon);
 
     // Update label
-    const text = this._getLabelText(s);
+    const text = warn ? this._warning : this._getLabelText(s);
     label.textContent = text;
 
-    // Tooltip for error
-    if (this._state === "error" && this._errorMsg) {
+    // Tooltip for error / warning
+    if (warn) {
+      chip.title = window._fd.tSync("chip.warn_open");
+    } else if (this._state === "error" && this._errorMsg) {
       chip.title = `${this._errorMsg} — Klicken zum Wiederholen`;
     } else {
       chip.removeAttribute("title");
@@ -272,7 +314,9 @@ class FinanceStatusChip extends HTMLElement {
   }
 
   _onClick() {
-    if (this._state === "error") {
+    if (this._state === "idle" && this._warning) {
+      window._fd.navigate(window._fd.INTEGRATION_PATH);
+    } else if (this._state === "error") {
       this.dispatchEvent(new CustomEvent("retry", { bubbles: true, composed: true }));
     }
   }
