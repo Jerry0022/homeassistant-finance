@@ -41,8 +41,7 @@ homeassistant-finance/
 │   │   ├── plan.py              # /budget_plan, /transfer_plan, /plan_vs_actual, /benchmark
 │   │   ├── demo.py              # Demo mode toggle
 │   │   ├── refresh.py           # /refresh, /refresh_status
-│   │   ├── setup.py             # Setup wizard + OAuth callback
-│   │   └── static.py            # Static file serving
+│   │   └── setup.py             # Setup wizard + OAuth callback
 │   ├── budget_plan.py           # Cost-position ledger + income plan (migrated spreadsheet)
 │   ├── spreadsheet_import.py    # .xlsx → BudgetPlan migration
 │   ├── transfer_plan.py         # Monthly transfer choreography + zero-sum invariant
@@ -52,13 +51,12 @@ homeassistant-finance/
 │   ├── enablebanking_client.py  # Enable Banking API client (PSD2, JWT RS256)
 │   ├── coordinator.py           # DataUpdateCoordinator (cache-only reads)
 │   ├── categorizer.py           # Rule-based transaction auto-categorization
-│   ├── panel.py                 # Sidebar panel registration
-│   ├── repairs.py               # Re-export fix-flow + issue-creation context docs
+│   ├── panel.py                 # panel_custom sidebar panel + static path + auto-loaded cards
+│   ├── repairs.py               # Issue-creation context docs
 │   ├── services.yaml            # Service definitions for HA
 │   ├── strings.json             # UI strings (EN default)
-│   ├── frontend/                # Web components (sidebar panel)
+│   ├── frontend/                # One component kit: panel shell + Lovelace cards
 │   └── translations/            # i18n (en.json, de.json)
-├── www/community/finance-dashboard/       # Lovelace card (HACS install)
 ├── scripts/                               # Dev tooling
 │   ├── bump_versions.py         # Sync versions across manifest/const
 │   └── sync_changelog.py       # Sync BUILDLOG → CHANGELOG

@@ -64,8 +64,9 @@ Updates are offered by HACS whenever a new GitHub Release is published.
 ### Manual Installation
 
 1. Copy `custom_components/finance_dashboard/` to your HA `config/custom_components/` directory
-2. Copy `www/community/finance-dashboard/` to your HA `config/www/community/` directory
-3. Restart Home Assistant
+2. Restart Home Assistant
+
+The sidebar panel and the Lovelace cards ship inside the integration and load automatically — no Lovelace resource needs to be added.
 
 ## 📖 How to Use
 
