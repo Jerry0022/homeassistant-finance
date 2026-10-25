@@ -166,11 +166,7 @@ class BankMixin:
             if self._consent_errors.get(bank_id) == str(valid_until or ""):
                 state = "expired"  # the bank itself rejected the session
 
-            until = _parse_dt(valid_until)
-            placeholders = {
-                "bank": bank["title"] or "Bank",
-                "date": until.date().isoformat() if until else "",
-            }
+            placeholders = {"bank": bank["title"] or "Bank"}
             expiring_id = f"consent_expiring_{bank_id}"
             expired_id = f"consent_expired_{bank_id}"
             if state == "expired":
@@ -202,6 +198,25 @@ class BankMixin:
             else:
                 ir.async_delete_issue(self._hass, DOMAIN, expiring_id)
                 ir.async_delete_issue(self._hass, DOMAIN, expired_id)
+
+    async def async_prune_orphan_sessions(self) -> list[str]:
+        """Remove sessions of bank subentries that no longer exist.
+
+        HA has no per-subentry removal hook, so the set of known bank ids is
+        kept in the ledger meta and diffed against ``entry.subentries`` on
+        every setup/reload.  Returns the ids whose session was removed.
+        """
+        current = {s.subentry_id for s in self._bank_subentries()}
+        meta = self._ledger.meta
+        known = set(meta.get("known_banks") or [])
+        removed = sorted(known - current)
+        for bank_id in removed:
+            await self._credential_manager.async_remove_bank_session(bank_id)
+            self._consent_errors.pop(bank_id, None)
+        if removed or known != current:
+            meta["known_banks"] = sorted(current)
+            await self._persist_transactions()
+        return removed
 
     # ------------------------------------------------------------------
     # Legacy single-session -> bank subentry

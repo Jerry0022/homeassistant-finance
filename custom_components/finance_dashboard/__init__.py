@@ -62,6 +62,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEn
     # keeps working if this cannot run.
     try:
         await manager.async_migrate_legacy_session()
+        await manager.async_prune_orphan_sessions()
         await manager.async_update_consent_issues()
     except Exception:
         _LOGGER.exception("Bank migration / consent check failed — continuing setup")
