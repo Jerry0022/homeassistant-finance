@@ -1,5 +1,13 @@
 # Build Log
 
+## 0.17.1 — 2026-10-26
+Version: 0.17.1
+Branch: fix/null-booking-date
+Changes:
+- fix(data): pending bank entries with no booking date (explicit null) crashed processing after a refresh, so the panel showed 0 transactions. Nulls are now normalised, and existing ledgers are rebuilt automatically (processing version 2)
+- fix(storage): raw bank responses and the ledger are now saved before derivation, so a later failure never loses fetched data
+- test: 435 tests green
+
 ## 0.17.0 — 2026-10-26
 Version: 0.17.0
 Branch: worktree-lifelong-history-k3x9
