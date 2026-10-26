@@ -451,6 +451,19 @@ def _manager(subs, accounts, client):
 
 
 @pytest.mark.asyncio
+async def test_bank_linked_without_entry_accounts_is_still_fetched():
+    # 0.16.0/0.16.1 wrote the subentry refs but not entry.data["accounts"]:
+    # the refresh then "reached no account" and showed 0 transactions.
+    client = FakeClient()
+    sub = _sub("b1", ["u1", "u2"], name="DKB")
+    mgr = _manager([sub], [], client)
+    await mgr.async_refresh_transactions(psu_ip="10.0.0.9")
+    assert {call[0] for call in client.tx_calls} == {"u1", "u2"}
+    targets = await mgr._async_bank_targets()
+    assert [a["name"] for a in targets[0]["accounts"]] == ["DKB 1", "DKB 2"]
+
+
+@pytest.mark.asyncio
 async def test_429_blocks_only_the_affected_bank():
     accounts = [_account("u1", "DE111"), _account("u2", "DE222")]
     client = FakeClient({"u1": RateLimitExceeded("429")})

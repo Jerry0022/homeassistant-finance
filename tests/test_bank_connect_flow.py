@@ -228,6 +228,10 @@ async def test_new_bank_full_flow(flow_cls, cred):
     )
     # session stored BEFORE the subentry (and its reload listeners) exist
     assert entry_added.unique_id == "DE:Sparkasse"
+    # the full account records land in the entry, which the manager fetches from
+    stored = f.hass.config_entries.async_update_entry.call_args.kwargs["data"]["accounts"]
+    assert stored[0]["id"] == "uid-1" and stored[0]["iban"] == IBAN
+    assert stored[0]["key"] == data["accounts"][0]["identity_key"]
 
 
 async def test_duplicate_bank_is_rejected(flow_cls):

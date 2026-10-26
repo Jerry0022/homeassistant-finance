@@ -204,7 +204,20 @@ async def async_complete_session(client: Any, code: str) -> dict[str, Any]:
 async def async_probe_accounts(
     client: Any, aspsp_name: str, accounts: list[dict[str, Any]]
 ) -> list[dict[str, str]]:
-    """Test call per account; returns subentry-safe ``[{uid, identity_key}]``.
+    """Test call per account; returns subentry-safe ``[{uid, identity_key}]``."""
+    refs, _records = await async_probe_account_records(client, aspsp_name, accounts)
+    return refs
+
+
+async def async_probe_account_records(
+    client: Any, aspsp_name: str, accounts: list[dict[str, Any]]
+) -> tuple[list[dict[str, str]], list[dict[str, Any]]]:
+    """Test call per account; returns ``(subentry refs, full account records)``.
+
+    The refs (``{uid, identity_key}``) go into the subentry, which must not
+    carry account numbers.  The records are what the manager fetches from —
+    they go into the entry's ``accounts`` list.  Both share one identity, so
+    the subentry finds its accounts again.
 
     A rate limit on the test call must not block linking (the session is
     already valid): it falls back to the IBAN from the session response.
@@ -212,7 +225,8 @@ async def async_probe_accounts(
     """
     from .enablebanking_client import RateLimitExceeded
 
-    result: list[dict[str, str]] = []
+    refs: list[dict[str, str]] = []
+    records: list[dict[str, Any]] = []
     for raw in accounts:
         uid = raw.get("id", "")
         iban = raw.get("iban", "")
@@ -223,12 +237,18 @@ async def async_probe_accounts(
             _LOGGER.info("Account test call rate-limited; using session data for identity")
         except Exception as exc:
             raise map_exception(exc) from exc
-        result.append(
-            {
-                "uid": uid,
-                "identity_key": identity_key(
-                    {"institution_id": aspsp_name, "iban": iban, "id": uid}
-                ),
-            }
-        )
-    return result
+        record: dict[str, Any] = {
+            "id": uid,
+            "iban": iban,
+            "name": raw.get("name", ""),
+            "currency": raw.get("currency", "EUR"),
+            "institution": aspsp_name,
+            "institution_id": aspsp_name,
+        }
+        for field in ("identification", "account_type"):
+            if raw.get(field):
+                record[field] = raw[field]
+        record["key"] = identity_key(record)
+        records.append(record)
+        refs.append({"uid": uid, "identity_key": record["key"]})
+    return refs, records

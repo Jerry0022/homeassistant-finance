@@ -44,11 +44,12 @@ except ImportError:  # pragma: no cover - older HA only used for local unit test
 
     ConfigSubentry = SubentryFlowResult = Any  # type: ignore[assignment,misc]
 
+from .account_identity import dedupe_accounts
 from .connect import (
     async_build_client,
     async_complete_session,
     async_credentials,
-    async_probe_accounts,
+    async_probe_account_records,
     async_start_authorization,
     get_redirect_url,
     install_callback_bridge,
@@ -290,6 +291,19 @@ class BankSubentryFlow(ConfigSubentryFlow):
             self._client = await async_build_client(self.hass)
         return self._client
 
+    def _store_account_records(self, entry: Any, records: list[dict[str, Any]]) -> None:
+        """Merge the linked accounts into the entry's ``accounts`` list.
+
+        The manager fetches from that list; without this a freshly linked
+        bank had a subentry but no account to fetch.  Merging by identity
+        keeps user-owned fields and entity ids across re-links.
+        """
+        existing = list((getattr(entry, "data", None) or {}).get("accounts", []))
+        merged = dedupe_accounts(existing, records)
+        self.hass.config_entries.async_update_entry(
+            entry, data={**(getattr(entry, "data", None) or {}), "accounts": merged}
+        )
+
     async def _async_close_client(self) -> None:
         close = getattr(self._client, "async_close", None)
         self._client = None
@@ -400,7 +414,9 @@ class BankSubentryFlow(ConfigSubentryFlow):
         try:
             client = await self._async_client()
             session = await async_complete_session(client, self._code)
-            accounts = await async_probe_accounts(client, self._aspsp_name, session["accounts"])
+            accounts, records = await async_probe_account_records(
+                client, self._aspsp_name, session["accounts"]
+            )
         except Exception as exc:
             return self.async_abort(reason=map_exception(exc).reason)
         finally:
@@ -414,6 +430,7 @@ class BankSubentryFlow(ConfigSubentryFlow):
         }
         entry = self._get_entry()
         cred = await async_credentials(self.hass)
+        self._store_account_records(entry, records)
 
         if self._reconfigure_subentry is not None:
             sub = self._reconfigure_subentry

@@ -50,12 +50,31 @@ class BankMixin:
         subs = getattr(self._entry, "subentries", None) or {}
         return [s for s in subs.values() if getattr(s, "subentry_type", None) == SUBENTRY_TYPE_BANK]
 
-    def _accounts_for(self, uids: set[str], keys: set[str]) -> list[dict[str, Any]]:
+    def _accounts_for(self, listed: list[dict[str, Any]], title: str) -> list[dict[str, Any]]:
+        """The bank's account records, one per subentry ref.
+
+        A ref without a stored record (a bank linked by 0.16.0/0.16.1, which
+        wrote the subentry but not the entry's ``accounts``) still yields a
+        minimal record keyed by its identity, so the bank is fetched instead
+        of silently reaching no account.
+        """
         from ..account_identity import account_key
 
-        return [
-            a for a in self._accounts if a.get("id") in uids or account_key(a) in keys
-        ]
+        by_uid = {a.get("id"): a for a in self._accounts if a.get("id")}
+        by_key = {account_key(a): a for a in self._accounts}
+        result: list[dict[str, Any]] = []
+        for ref in listed:
+            record = by_uid.get(ref.get("uid")) or by_key.get(ref.get("identity_key"))
+            if record is None and ref.get("uid"):
+                record = {
+                    "id": ref["uid"],
+                    "key": ref.get("identity_key") or ref["uid"],
+                    "name": f"{title} {len(result) + 1}",
+                    "institution": title,
+                }
+            if record is not None and record not in result:
+                result.append(record)
+        return result
 
     async def _async_bank_targets(self) -> list[dict[str, Any]]:
         """Banks to fetch, each with its accounts and consent expiry."""
@@ -64,9 +83,7 @@ class BankMixin:
         for sub in subs:
             data = dict(sub.data)
             listed = data.get("accounts") or []
-            accounts = self._accounts_for(
-                {a.get("uid") for a in listed}, {a.get("identity_key") for a in listed}
-            )
+            accounts = self._accounts_for(listed, data.get("aspsp_name") or sub.title)
             session = await self._credential_manager.async_get_bank_session(sub.subentry_id)
             valid_until = (session or {}).get("valid_until") or data.get("valid_until")
             targets.append(
