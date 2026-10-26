@@ -212,18 +212,19 @@ async def test_options_form_defaults_for_existing_installs():
     result = await flow.async_step_init(None)
     schema = result["data_schema"].schema
     defaults = {str(k): k.default() for k in schema}
-    assert defaults["raw_retention_days"] == 400
+    assert defaults["raw_retention_days"] == 0  # lifelong
     assert defaults["show_household"] is True
 
 
 @pytest.mark.asyncio
-async def test_options_retention_has_a_floor_of_30_days():
+async def test_options_retention_is_forever_or_at_least_30_days():
     import voluptuous as vol
 
     flow, _ = _flow({})
     result = await flow.async_step_init(None)
     schema = result["data_schema"]
     base = {str(k): k.default() for k in schema.schema}
+    assert schema({**base, "raw_retention_days": 0})["raw_retention_days"] == 0
     assert schema({**base, "raw_retention_days": 30})["raw_retention_days"] == 30
     with pytest.raises(vol.Invalid):
         schema({**base, "raw_retention_days": 29})

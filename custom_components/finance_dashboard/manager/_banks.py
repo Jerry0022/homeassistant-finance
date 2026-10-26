@@ -359,7 +359,8 @@ class BankMixin:
 
         options = getattr(self._entry, "options", {}) or {}
         try:
-            return max(int(options.get(OPT_RAW_RETENTION_DAYS, DEFAULT_RAW_RETENTION_DAYS)), 1)
+            # 0 = keep forever
+            return max(int(options.get(OPT_RAW_RETENTION_DAYS, DEFAULT_RAW_RETENTION_DAYS)), 0)
         except (TypeError, ValueError):
             return DEFAULT_RAW_RETENTION_DAYS
 

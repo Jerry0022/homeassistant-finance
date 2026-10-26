@@ -19,8 +19,9 @@ Read this before adding or changing entities, services, events or HTTP endpoints
 `SupportsResponse.OPTIONAL`), `get_balance`, `get_monthly_summary`, `categorize_transactions`,
 `set_budget_limit`, `export_csv`, `toggle_demo`, `import_spreadsheet` (admin-only, path checked
 against `allowlist_external_dirs`), `get_transfer_plan`, `set_cost_position`,
-`delete_cost_position`. `refresh_transactions` is the only live-fetch entry point and updates
-balances + transactions + recurring in one round.
+`delete_cost_position`, `reprocess_data` (admin-only; rebuilds the ledger from the raw archive, no
+bank call, returns rebuild stats). `refresh_transactions` is the only live-fetch entry point and
+updates balances + transactions + recurring in one round.
 
 ## Events
 

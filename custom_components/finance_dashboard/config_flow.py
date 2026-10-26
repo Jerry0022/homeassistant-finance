@@ -528,7 +528,11 @@ class FinanceDashboardOptionsFlow(OptionsFlow):
                         ),
                     ): vol.All(
                         vol.Coerce(int),
-                        vol.Range(min=MIN_RAW_RETENTION_DAYS, max=MAX_RAW_RETENTION_DAYS),
+                        # 0 keeps raw responses forever (default).
+                        vol.Any(
+                            0,
+                            vol.Range(min=MIN_RAW_RETENTION_DAYS, max=MAX_RAW_RETENTION_DAYS),
+                        ),
                     ),
                     vol.Optional(
                         OPT_SHOW_HOUSEHOLD,

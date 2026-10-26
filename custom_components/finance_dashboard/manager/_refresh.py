@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.util import dt as dt_util
 
-from ..const import DEFAULT_FETCH_DAYS, INCREMENTAL_OVERLAP_DAYS
+from ..const import DEFAULT_FETCH_DAYS, HISTORY_BACKFILL_DAYS, INCREMENTAL_OVERLAP_DAYS
 
 if TYPE_CHECKING:
     pass
@@ -59,8 +59,10 @@ class RefreshMixin:
           the ``scheduled`` daily refresh may use 1 of 4, other background
           callers up to 4.  A 429 blocks only the bank that sent it, for 6h.
 
-        Fetches are incremental (last booked date minus an overlap); the
-        first fetch of an account covers ``DEFAULT_FETCH_DAYS``.  An explicit
+        Fetches are incremental (last booked date minus an overlap).  The
+        first attended fetch of an account per bank session asks for the
+        whole history (``HISTORY_BACKFILL_DAYS``, stepping down when the bank
+        rejects the period); background fetches never backfill.  An explicit
         ``days`` forces a full window.  Concurrent calls are serialised by
         ``_refresh_lock``; stats are written regardless of outcome.
         """
@@ -89,8 +91,12 @@ class RefreshMixin:
                 pass
         return floor.strftime("%Y-%m-%d")
 
-    def _raw_sink(self, bank_id: str, uid: str, attended: bool):
-        """Callback handing unaltered bank JSON to the raw archive."""
+    def _raw_sink(self, bank_id: str, uid: str, attended: bool, meta: dict[str, Any] | None = None):
+        """Callback handing unaltered bank JSON to the raw archive.
+
+        ``meta`` is read at call time, so a caller can move ``date_from`` /
+        ``fetch_id`` between attempts and every page is stamped correctly.
+        """
 
         def sink(kind: str, http_status: int, body: Any) -> None:
             if self._raw is None:
@@ -103,10 +109,78 @@ class RefreshMixin:
                     attended=attended,
                     http_status=http_status,
                     response=body,
+                    meta=meta,
                 )
             )
 
         return sink
+
+    def _needs_backfill(self, account_key_: str, session_ref: str) -> bool:
+        """Whether this account still lacks its full-history fetch.
+
+        Once per account per bank session: a fresh consent (re-link) is the
+        moment a bank opens its deepest history again.
+        """
+        done = (self._ledger.meta.get("history") or {}).get(account_key_) or {}
+        return not done.get("backfilled") or done.get("session") != session_ref
+
+    async def _async_fetch_window(
+        self,
+        client,
+        uid: str,
+        ladder: tuple[int, ...] | list[int],
+        date_to: str,
+        psu_ip: str | None,
+        sink,
+        meta: dict[str, Any],
+    ) -> tuple[str, dict[str, Any]]:
+        """Fetch transactions, stepping down the window when the bank rejects it.
+
+        ``ladder`` holds window lengths in days (longest first) or a single
+        precomputed start.  HTTP 400/422 means "period not allowed" for most
+        ASPSPs and moves to the next step; anything else is raised.
+        """
+        import aiohttp
+
+        last_exc: Exception | None = None
+        for step in ladder:
+            date_from = (
+                step
+                if isinstance(step, str)
+                else (dt_util.now() - timedelta(days=int(step))).strftime("%Y-%m-%d")
+            )
+            meta["fetch_id"] = secrets.token_hex(8)
+            meta["date_from"] = date_from
+            try:
+                txns = await client.async_get_transactions(
+                    uid, date_from, date_to, psu_ip=psu_ip, on_response=sink
+                )
+            except aiohttp.ClientResponseError as exc:
+                if exc.status not in (400, 422) or step == ladder[-1]:
+                    raise
+                _LOGGER.info(
+                    "Account %s: bank rejected a %s-day window (HTTP %s) — stepping down",
+                    uid[:8],
+                    step,
+                    exc.status,
+                )
+                last_exc = exc
+                continue
+            if len(ladder) > 1 and not txns.get("booked"):
+                # An empty answer to a full-history request is no proof the
+                # account's past vanished: merge, never erase (live + replay).
+                txns["truncated"] = True
+            sink(
+                "transactions_window",
+                200,
+                {
+                    "date_from": date_from,
+                    "date_to": date_to,
+                    "truncated": bool(txns.get("truncated")),
+                },
+            )
+            return date_from, txns
+        raise last_exc or RuntimeError("empty fetch ladder")
 
     async def _do_refresh(
         self,
@@ -199,12 +273,17 @@ class RefreshMixin:
                 akey = account_key(account)
                 name = account.get("name", uid)
                 self._budget.record_attempt(bank_id, akey, attended=attended)
-                date_from = self._fetch_date_from(akey, days)
-                sink = self._raw_sink(bank_id, uid, attended)
+                session_ref = str(bank.get("valid_until") or "")
+                # Full history only on attended calls: every rejected window is
+                # one more bank call, which the background cap cannot afford.
+                backfill = attended and not days and self._needs_backfill(akey, session_ref)
+                ladder = HISTORY_BACKFILL_DAYS if backfill else (self._fetch_date_from(akey, days),)
+                meta: dict[str, Any] = {"account_key": akey, "date_to": date_to}
+                sink = self._raw_sink(bank_id, uid, attended, meta)
 
                 try:
-                    txns = await client.async_get_transactions(
-                        uid, date_from, date_to, psu_ip=psu_ip, on_response=sink
+                    date_from, txns = await self._async_fetch_window(
+                        client, uid, ladder, date_to, psu_ip, sink, meta
                     )
                     new = self._ledger.ingest(
                         akey,
@@ -215,6 +294,14 @@ class RefreshMixin:
                     )
                     new_ids.update(f"{akey}|{t['_ledger_id']}" for t in new)
                     accounts_hit += 1
+                    if backfill:
+                        self._ledger.meta.setdefault("history", {})[akey] = {
+                            "backfilled": True,
+                            "session": session_ref,
+                            "requested_from": date_from,
+                            "earliest_booked": self._ledger.first_booked_date(akey),
+                            "at": dt_util.utcnow().isoformat(),
+                        }
                     _LOGGER.debug(
                         "Account %s: %d booked, %d pending",
                         uid[:8],
@@ -231,12 +318,7 @@ class RefreshMixin:
                         "logo": account.get("logo", ""),
                         "balances": bals,
                     }
-                    self._ledger.add_balances(
-                        akey,
-                        bals,
-                        dt_util.utcnow().isoformat(),
-                        self._raw_retention_days,
-                    )
+                    self._ledger.add_balances(akey, bals, dt_util.utcnow().isoformat())
                 except RateLimitExceeded as rle:
                     until = self._budget.block(
                         bank_id,
