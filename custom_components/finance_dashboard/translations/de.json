@@ -153,12 +153,11 @@
   "issues": {
     "restart_required": {
       "title": "Finance Update — Neustart erforderlich",
-      "description": "Finance wurde auf Version {version} aktualisiert. Ein Neustart ist erforderlich, um die neue Version zu aktivieren.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Home Assistant neustarten",
-            "description": "Finance wurde auf Version {version} aktualisiert. Home Assistant muss neu gestartet werden, um das Update zu aktivieren.\n\nKlicke auf **Absenden**, um jetzt neu zu starten."
+            "description": "Finance wurde auf Version {version} aktualisiert. Ein Neustart ist erforderlich, um die neue Version zu aktivieren.\n\nFinance wurde auf Version {version} aktualisiert. Home Assistant muss neu gestartet werden, um das Update zu aktivieren.\n\nKlicke auf **Absenden**, um jetzt neu zu starten."
           }
         }
       }
@@ -181,12 +180,11 @@
     },
     "consent_expiring": {
       "title": "Finance: Bankverbindung läuft bald ab",
-      "description": "Die Verbindung zu **{bank}** läuft bald ab. Erneuere sie jetzt, damit Kontostände und Umsätze weiter aktualisiert werden.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Bankverbindung erneuern",
-            "description": "Öffne die Finance-Integrationsseite ({link}), wähle bei **{bank}** das Drei-Punkte-Menü und klicke auf **Neu konfigurieren**. Du wirst zu deiner Bank weitergeleitet, um den Zugriff erneut zu bestätigen."
+            "description": "Die Verbindung zu **{bank}** läuft bald ab. Erneuere sie jetzt, damit Kontostände und Umsätze weiter aktualisiert werden.\n\nÖffne die Finance-Integrationsseite ({link}), wähle bei **{bank}** das Drei-Punkte-Menü und klicke auf **Neu konfigurieren**. Du wirst zu deiner Bank weitergeleitet, um den Zugriff erneut zu bestätigen."
           }
         },
         "abort": {

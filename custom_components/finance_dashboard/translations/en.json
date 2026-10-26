@@ -153,12 +153,11 @@
   "issues": {
     "restart_required": {
       "title": "Finance Update — Restart Required",
-      "description": "Finance has been updated to version {version}. A restart is required to apply the new version.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Restart Home Assistant",
-            "description": "Finance has been updated to version {version}. Home Assistant must be restarted to apply the update.\n\nClick **Submit** to restart now."
+            "description": "Finance has been updated to version {version}. A restart is required to apply the new version.\n\nFinance has been updated to version {version}. Home Assistant must be restarted to apply the update.\n\nClick **Submit** to restart now."
           }
         }
       }
@@ -181,12 +180,11 @@
     },
     "consent_expiring": {
       "title": "Finance: bank connection expires soon",
-      "description": "The connection to **{bank}** expires soon. Renew it now so that balances and transactions keep updating.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Renew bank connection",
-            "description": "Open the Finance integration page ({link}), choose the three-dot menu next to **{bank}** and click **Reconfigure**. You will be redirected to your bank to confirm access again."
+            "description": "The connection to **{bank}** expires soon. Renew it now so that balances and transactions keep updating.\n\nOpen the Finance integration page ({link}), choose the three-dot menu next to **{bank}** and click **Reconfigure**. You will be redirected to your bank to confirm access again."
           }
         },
         "abort": {
