@@ -1,0 +1,94 @@
+{
+  "services": {
+    "refresh_accounts": {
+      "service": "mdi:bank-refresh"
+    },
+    "refresh_transactions": {
+      "service": "mdi:sync"
+    },
+    "import_spreadsheet": {
+      "service": "mdi:file-excel-outline"
+    },
+    "get_transfer_plan": {
+      "service": "mdi:bank-transfer"
+    },
+    "get_balance": {
+      "service": "mdi:scale-balance"
+    },
+    "get_monthly_summary": {
+      "service": "mdi:calendar-month-outline"
+    },
+    "categorize_transactions": {
+      "service": "mdi:tag-multiple-outline"
+    },
+    "set_budget_limit": {
+      "service": "mdi:gauge"
+    },
+    "toggle_demo": {
+      "service": "mdi:flask-outline"
+    },
+    "export_csv": {
+      "service": "mdi:file-delimited-outline"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "balance": {
+        "default": "mdi:bank"
+      },
+      "available_balance": {
+        "default": "mdi:bank-check"
+      },
+      "last_update": {
+        "default": "mdi:clock-check-outline"
+      },
+      "consent_valid_until": {
+        "default": "mdi:calendar-clock"
+      },
+      "consent_state": {
+        "default": "mdi:shield-check",
+        "state": {
+          "ok": "mdi:shield-check",
+          "expiring": "mdi:shield-alert",
+          "expired": "mdi:shield-off"
+        }
+      },
+      "budget_used": {
+        "default": "mdi:counter"
+      },
+      "blocked_until": {
+        "default": "mdi:timer-lock-outline"
+      },
+      "last_error": {
+        "default": "mdi:alert-circle-outline",
+        "state": {
+          "none": "mdi:check-circle-outline"
+        }
+      },
+      "total_balance": {
+        "default": "mdi:sigma"
+      },
+      "monthly_summary": {
+        "default": "mdi:chart-bar"
+      }
+    },
+    "button": {
+      "refresh": {
+        "default": "mdi:bank-refresh"
+      }
+    },
+    "number": {
+      "budget_limit": {
+        "default": "mdi:cash"
+      }
+    },
+    "select": {
+      "split_model": {
+        "default": "mdi:scale-balance"
+      },
+      "remainder_mode": {
+        "default": "mdi:arrow-split-vertical"
+      }
+    }
+  }
+}

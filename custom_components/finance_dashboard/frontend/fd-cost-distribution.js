@@ -123,4 +123,4 @@ class FdCostDistribution extends HTMLElement {
   }
 }
 
-customElements.define("fd-cost-distribution", FdCostDistribution);
+window._fd.defineOnce("fd-cost-distribution", FdCostDistribution);

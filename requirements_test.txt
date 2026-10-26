@@ -1,10 +1,9 @@
 pytest>=8.0
-pytest-asyncio
+pytest-asyncio>=0.24
 pytest-cov
-pytest-homeassistant-custom-component
+pytest-homeassistant-custom-component>=0.13.375
 ruff
 mypy
-ha-customapps>=0.3.0
 # Direct test dependencies (imported by tests or the integration code under test)
 PyJWT>=2.8
 cryptography>=42.0

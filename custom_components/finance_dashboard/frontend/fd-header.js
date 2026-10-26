@@ -180,6 +180,7 @@ h1 {
   font-size: 13px;
   cursor: pointer;
   font-family: inherit;
+  text-decoration: none;
 }
 .btn:hover { background: var(--sf2); }
 .btn:disabled { opacity: .5; cursor: default; }
@@ -288,7 +289,7 @@ h1 {
     <button class="btn btn-demo" id="demoBtn" aria-label="${tSync("header.demo_toggle")}" aria-pressed="false">${tSync("header.demo_off")}</button>
     <span class="month-label" id="monthLabel" aria-label="Aktueller Monat: ${monthLabel}">${monthLabel}</span>
     <button class="btn btn-p" id="refreshBtn">${tSync("header.refresh.button")}</button>
-    <button class="btn" id="addAccountBtn" title="${tSync("header.add_account_title")}">${tSync("header.add_account")}</button>
+    <a class="btn" id="addAccountBtn" href="${window._fd.INTEGRATION_PATH}" aria-label="${tSync("header.add_account_title")}">${tSync("header.add_account")}</a>
   </div>
 </div>`;
 
@@ -309,11 +310,8 @@ h1 {
       });
 
     this.shadowRoot.getElementById("addAccountBtn")
-      .addEventListener("click", () => {
-        this.dispatchEvent(new CustomEvent("fd-open-wizard", {
-          bubbles: true,
-          composed: true,
-        }));
+      .addEventListener("click", (ev) => {
+        window._fd.navigate(window._fd.INTEGRATION_PATH, ev);
       });
 
     this._updateTimestamp();
@@ -397,4 +395,4 @@ h1 {
   }
 }
 
-customElements.define("fd-header", FdHeader);
+window._fd.defineOnce("fd-header", FdHeader);

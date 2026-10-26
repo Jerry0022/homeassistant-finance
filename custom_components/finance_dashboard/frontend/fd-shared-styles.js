@@ -187,7 +187,7 @@ const _i18nCache = {};
 
 async function _loadLocale(lang) {
   if (_i18nCache[lang]) return _i18nCache[lang];
-  const STATIC_BASE = "/api/finance_dashboard/static";
+  const STATIC_BASE = "/finance_dashboard_static";
   try {
     const resp = await fetch(`${STATIC_BASE}/locales/${lang}.json`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -237,10 +237,49 @@ function tSync(key, vars = {}) {
   return text;
 }
 
+/** Define a custom element unless something already did (reload / double load). */
+function defineOnce(name, ctor) {
+  if (!customElements.get(name)) customElements.define(name, ctor);
+}
+
+/** Add a Lovelace card to the picker exactly once. */
+function registerCard(def) {
+  window.customCards = window.customCards || [];
+  if (!window.customCards.some((c) => c.type === def.type)) {
+    window.customCards.push({ preview: true, ...def });
+  }
+}
+
+/** Integration page: banks are linked / renewed there (config subentries). */
+const INTEGRATION_PATH = "/config/integrations/integration/finance_dashboard";
+
+/**
+ * SPA navigation to a HA page (no full reload). Plain clicks are intercepted;
+ * ctrl/meta/middle clicks keep the anchor's native behaviour (new tab).
+ */
+function navigate(path, ev) {
+  if (ev && (ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.button === 1)) return;
+  if (ev) ev.preventDefault();
+  history.pushState(null, "", path);
+  window.dispatchEvent(new CustomEvent("location-changed", { bubbles: true, composed: true }));
+}
+
+/** Locale-aware date(+time) for an ISO string; "" when missing/invalid. */
+function fmtDate(iso, withTime = false) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const lang = (window._fd && window._fd._hass && window._fd._hass.language)
+    || navigator.language || "en";
+  return withTime
+    ? d.toLocaleString(lang, { dateStyle: "short", timeStyle: "short" })
+    : d.toLocaleDateString(lang);
+}
+
 /**
  * Attach shared constants to window._fd so classic-script components
  * (loaded via add_extra_js_url without type="module") can access them.
- * fd-shared-styles.js is always loaded first in LOVELACE_COMPONENTS.
+ * fd-shared-styles.js is always loaded first by finance-dashboard-kit.js.
  */
 window._fd = {
   escHtml,
@@ -254,6 +293,11 @@ window._fd = {
   SHARED_CSS,
   t,
   tSync,
+  defineOnce,
+  registerCard,
+  navigate,
+  fmtDate,
+  INTEGRATION_PATH,
   _hass: null,  // Set by panel shell: window._fd._hass = hass
 };
 

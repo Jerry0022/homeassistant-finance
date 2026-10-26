@@ -2,13 +2,11 @@
 
 **Your personal finance command center — right inside Home Assistant.**
 
-[![Version](https://img.shields.io/badge/version-0.4.0-blue?style=flat-square)](https://github.com/Jerry0022/homeassistant-finance/releases)
+[![Version](https://img.shields.io/github/v/release/Jerry0022/homeassistant-finance?style=flat-square)](https://github.com/Jerry0022/homeassistant-finance/releases)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![HACS](https://img.shields.io/badge/HACS-compatible-orange?style=flat-square)](https://hacs.xyz)
 [![CI](https://img.shields.io/github/actions/workflow/status/Jerry0022/homeassistant-finance/validate.yml?style=flat-square&label=CI)](https://github.com/Jerry0022/homeassistant-finance/actions)
-[![HA](https://img.shields.io/badge/Home%20Assistant-2024.1+-41BDF5?style=flat-square&logo=homeassistant&logoColor=white)](https://www.home-assistant.io)
-
-**Version: 0.4.0**
+[![HA](https://img.shields.io/badge/Home%20Assistant-2026.3+-41BDF5?style=flat-square&logo=homeassistant&logoColor=white)](https://www.home-assistant.io)
 
 <!-- TODO: Add screenshot of the Finance Dashboard sidebar panel -->
 
@@ -25,17 +23,17 @@
 
 ## 💡 What is this?
 
-Finance Dashboard connects your bank accounts to Home Assistant via [GoCardless Open Banking](https://gocardless.com/bank-account-data/), giving you a real-time overview of balances, transactions, and household budgets. Track spending across multiple people, auto-categorize transactions, and see where your money goes — all from your HA dashboard, with banking-grade security.
+Finance Dashboard connects your bank accounts to Home Assistant via [Enable Banking](https://enablebanking.com) (PSD2 Open Banking), giving you a real-time overview of balances, transactions, and household budgets. Track spending across multiple people, auto-categorize transactions, and see where your money goes — all from your HA dashboard, with banking-grade security.
 
 ## ✨ Features
 
-- 🏦 **Live Banking Data** — Connect 2400+ European banks via GoCardless Open Banking API
+- 🏦 **Live Banking Data** — Connect European banks via the Enable Banking PSD2 API (free restricted mode for your own accounts)
 - 📊 **Auto-Categorization** — Transactions are automatically classified (housing, food, transport, subscriptions, etc.)
 - 👥 **Multi-Person Households** — Configurable budget split models for any number of household members
 - 🔒 **Banking-Grade Security** — Fernet encryption, token rotation, session timeouts, full audit trail
 - 📱 **Sidebar Panel** — Dedicated finance overview accessible from the HA sidebar
 - 🎴 **Lovelace Card** — Compact balance widget for any dashboard
-- 🔄 **Companion Add-on** — One-click installation with automatic updates
+- 🔄 **HACS Distribution** — Install and update through HACS
 - 🌍 **Multilingual** — English and German translations included
 - 🤖 **HA Automations** — Expose services for balance checks, transaction refresh, and monthly summaries
 
@@ -43,45 +41,45 @@ Finance Dashboard connects your bank accounts to Home Assistant via [GoCardless 
 
 ### Prerequisites
 
-- Home Assistant 2024.1 or newer
-- A free [GoCardless Bank Account Data](https://bankaccountdata.gocardless.com) API account
-- A supported European bank (2400+ institutions across 31 countries)
+- Home Assistant 2026.3 or newer
+- [HACS](https://hacs.xyz) installed
+- A free [Enable Banking](https://enablebanking.com) application in restricted mode (links only your own accounts, non-commercial use)
+- A bank supported by Enable Banking (e.g. DKB)
 
-### Installation via HACS (Recommended)
+### Installation via HACS
+
+HACS is the only supported install path. The integration is not yet in the HACS default list, so add it as a custom repository first.
 
 1. Open HACS in Home Assistant
-2. Go to **Integrations** → **Custom Repositories**
-3. Add `https://github.com/Jerry0022/homeassistant-finance` as an **Integration**
-4. Install **Finance Dashboard**
+2. Open the three-dot menu → **Custom repositories**
+3. Add `https://github.com/Jerry0022/homeassistant-finance` with category **Integration**
+4. Search for **Finance** in HACS and download it
 5. Restart Home Assistant
+6. Go to **Settings → Devices & services → Add integration** and select **Finance**
 
-### Installation via Companion Add-on
-
-1. Add this repository URL to your Home Assistant add-on store
-2. Install the **Finance Dashboard** add-on
-3. Start the add-on — it automatically installs the integration
-4. Restart Home Assistant when prompted
+Updates are offered by HACS whenever a new GitHub Release is published.
 
 ### Manual Installation
 
 1. Copy `custom_components/finance_dashboard/` to your HA `config/custom_components/` directory
-2. Copy `www/community/finance-dashboard/` to your HA `config/www/community/` directory
-3. Restart Home Assistant
+2. Restart Home Assistant
+
+The sidebar panel and the Lovelace cards ship inside the integration and load automatically — no Lovelace resource needs to be added.
 
 ## 📖 How to Use
 
-### 1. Get GoCardless API Keys
+### 1. Create an Enable Banking application
 
-1. Sign up at [GoCardless Bank Account Data](https://bankaccountdata.gocardless.com)
-2. Create a new set of API keys (Secret ID + Secret Key)
-3. The free tier supports up to 50 bank connections
+1. Sign up at the [Enable Banking control panel](https://enablebanking.com/cp/applications)
+2. Create a production application in restricted mode and download its RSA private key
+3. Register the redirect URL `https://my.home-assistant.io/redirect/oauth`
 
 ### 2. Configure the Integration
 
-1. Go to **Settings** → **Devices & Services** → **Add Integration**
-2. Search for **Finance Dashboard**
-3. Enter your GoCardless Secret ID and Secret Key
-4. Follow the prompts to link your bank account
+1. Go to **Settings** → **Devices & Services** → **Add Integration** and select **Finance**
+2. Enter the application ID and paste the private key
+3. On the integration page choose **Add bank**, pick country and bank, and approve access in your banking app
+4. Repeat step 3 for every bank. When a bank's consent nears expiry, a repair notice links to **Reconfigure** for that bank
 
 ### 3. View Your Finances
 
@@ -144,17 +142,14 @@ automation:
 │  │  └────┬─────┘ └────────────┘ └──┬───────┘  │  │
 │  │       │                          │          │  │
 │  │  ┌────┴──────────────────────────┴───────┐  │  │
-│  │  │       GoCardless API Client           │  │  │
+│  │  │     Enable Banking API Client         │  │  │
 │  │  └────────────────┬──────────────────────┘  │  │
 │  └───────────────────┼─────────────────────────┘  │
 │                      │                            │
-│  ┌───────────────────┼─────────────────────────┐  │
-│  │  Companion Add-on │ (Payload Installer)     │  │
-│  └───────────────────┘                         │  │
 └──────────────────────┼─────────────────────────┘
                        │ HTTPS
               ┌────────┴────────┐
-              │  GoCardless API  │
+              │ Enable Banking  │
               │  (Open Banking)  │
               └────────┬────────┘
                        │ PSD2
@@ -176,7 +171,8 @@ Finance Dashboard follows banking-grade security practices:
 | **Audit Trail** | Every credential operation logged (event type + timestamp only) |
 | **API Security** | All endpoints require HA Bearer token authentication |
 | **Git Safety** | `.gitignore` blocks all runtime data, credentials, and tokens |
-| **Network** | HTTPS-only communication with GoCardless; no telemetry |
+| **Bank Data at Rest** | Raw bank responses and the transaction ledger are Fernet-encrypted in `.storage/` |
+| **Network** | HTTPS-only communication with Enable Banking; no telemetry |
 
 **No financial data is ever stored in git, logs, or configuration files.**
 

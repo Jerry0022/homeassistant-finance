@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -30,7 +31,7 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
     }
     """
 
-    def __init__(self, hass: HomeAssistant, manager) -> None:
+    def __init__(self, hass: HomeAssistant, manager, entry: ConfigEntry | None = None) -> None:
         """Initialise coordinator with a reference to the manager.
 
         ``update_interval`` is ``None`` — this coordinator is deliberately
@@ -47,10 +48,25 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=entry,
             name=DOMAIN,
             update_interval=None,
         )
         self._manager = manager
+
+    @property
+    def manager(self):
+        """The manager whose cache feeds this coordinator."""
+        return self._manager
+
+    async def _async_import_statistics(self) -> None:
+        """Push new balance history into long-term statistics (never raises)."""
+        try:
+            from .balance_statistics import async_import_balance_statistics
+
+            await async_import_balance_statistics(self.hass, self._manager)
+        except Exception:
+            _LOGGER.exception("Balance statistics import failed")
 
     async def async_load_cached(self) -> None:
         """Populate coordinator data from cache only — zero API calls.
@@ -75,6 +91,7 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
                 }
             )
             _LOGGER.debug("Loaded cached data into coordinator (no API calls)")
+            await self._async_import_statistics()
         except Exception:
             _LOGGER.exception("Failed to load cached data into coordinator")
             # Publish an empty shell so entities have a valid (even if
@@ -110,6 +127,7 @@ class FinanceDashboardCoordinator(DataUpdateCoordinator):
             summary = await self._manager.async_get_monthly_summary()
 
             rate_limited = self._manager.rate_limited_until
+            await self._async_import_statistics()
             return {
                 "balances": balances,
                 "summary": summary,

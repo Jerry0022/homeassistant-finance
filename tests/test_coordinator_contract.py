@@ -62,12 +62,21 @@ def _build_mock_client() -> MagicMock:
     return client
 
 
+def _make_entry(hass):
+    """Register a MockConfigEntry so the coordinator gets a real entry."""
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    entry = MockConfigEntry(domain="finance_dashboard", data={})
+    entry.add_to_hass(hass)
+    return entry
+
+
 # ---------------------------------------------------------------------------
 # The Guardian tests
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_coordinator_update_data_never_calls_live_api() -> None:
+async def test_coordinator_update_data_never_calls_live_api(hass) -> None:
     """GUARDIAN — coordinator._async_update_data() must never call live API.
 
     Calls _async_update_data() 5 times (simulating repeated coordinator
@@ -80,10 +89,7 @@ async def test_coordinator_update_data_never_calls_live_api() -> None:
         FinanceDashboardCoordinator,
     )
 
-    mock_hass = MagicMock()
-    mock_hass.loop = MagicMock()
-    mock_hass.bus = MagicMock()
-    mock_hass.bus.async_listen = MagicMock(return_value=lambda: None)
+    entry = _make_entry(hass)
 
     manager = _build_mock_manager()
     client = _build_mock_client()
@@ -92,7 +98,7 @@ async def test_coordinator_update_data_never_calls_live_api() -> None:
     # delegates to manager._client would still be caught.
     manager._client = client
 
-    coordinator = FinanceDashboardCoordinator(hass=mock_hass, manager=manager)
+    coordinator = FinanceDashboardCoordinator(hass, manager, entry)
 
     # Run _async_update_data() 5x — simulates repeated manual refreshes
     CALL_COUNT = 5
@@ -118,7 +124,7 @@ async def test_coordinator_update_data_never_calls_live_api() -> None:
 
 
 @pytest.mark.asyncio
-async def test_coordinator_async_load_cached_never_calls_live_api() -> None:
+async def test_coordinator_async_load_cached_never_calls_live_api(hass) -> None:
     """GUARDIAN — coordinator.async_load_cached() must never call live API.
 
     async_load_cached() is the startup path that populates entities from
@@ -129,16 +135,13 @@ async def test_coordinator_async_load_cached_never_calls_live_api() -> None:
         FinanceDashboardCoordinator,
     )
 
-    mock_hass = MagicMock()
-    mock_hass.loop = MagicMock()
-    mock_hass.bus = MagicMock()
-    mock_hass.bus.async_listen = MagicMock(return_value=lambda: None)
+    entry = _make_entry(hass)
 
     manager = _build_mock_manager()
     client = _build_mock_client()
     manager._client = client
 
-    coordinator = FinanceDashboardCoordinator(hass=mock_hass, manager=manager)
+    coordinator = FinanceDashboardCoordinator(hass, manager, entry)
 
     # Patch async_set_updated_data so we don't need a real HA event loop
     coordinator.async_set_updated_data = MagicMock()
@@ -162,7 +165,7 @@ async def test_coordinator_async_load_cached_never_calls_live_api() -> None:
 
 
 @pytest.mark.asyncio
-async def test_coordinator_update_interval_is_none() -> None:
+async def test_coordinator_update_interval_is_none(hass) -> None:
     """GUARDIAN — update_interval must be None (no background polling).
 
     A non-None update_interval would cause HA to poll the banking API
@@ -172,13 +175,10 @@ async def test_coordinator_update_interval_is_none() -> None:
         FinanceDashboardCoordinator,
     )
 
-    mock_hass = MagicMock()
-    mock_hass.loop = MagicMock()
-    mock_hass.bus = MagicMock()
-    mock_hass.bus.async_listen = MagicMock(return_value=lambda: None)
+    entry = _make_entry(hass)
 
     manager = _build_mock_manager()
-    coordinator = FinanceDashboardCoordinator(hass=mock_hass, manager=manager)
+    coordinator = FinanceDashboardCoordinator(hass, manager, entry)
 
     assert coordinator.update_interval is None, (
         "BOUNDARY VIOLATION: coordinator.update_interval is not None. "

@@ -1,6 +1,8 @@
 name: Validate
 
 on:
+  schedule:
+    - cron: "0 4 * * 1"
   push:
     branches: [main]
   pull_request:
@@ -21,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14"
 
       - name: Install test dependencies
         run: pip install -r requirements_test.txt
@@ -57,7 +59,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install Python dependencies
         run: pip install pyyaml
@@ -69,10 +71,6 @@ jobs:
       - name: Validate JavaScript syntax
         run: |
           find custom_components/finance_dashboard/frontend -name "*.js" -exec node --check {} +
-          node --check www/community/finance-dashboard/finance-dashboard.js
-
-      - name: Validate shell syntax
-        run: bash -n finance_dashboard_companion/run.sh
 
       - name: Validate YAML files
         run: |
@@ -80,8 +78,6 @@ jobs:
           import yaml, sys
           files = [
               'custom_components/finance_dashboard/services.yaml',
-              'finance_dashboard_companion/config.yaml',
-              'finance_dashboard_companion/build.yaml',
           ]
           for f in files:
               try:
@@ -114,5 +110,18 @@ jobs:
       - name: Validate version alignment
         run: python scripts/bump_versions.py --check
 
-      - name: Validate payload sync
-        run: python scripts/sync_addon_payload.py --check
+  hassfest:
+    runs-on: ubuntu-latest
+    name: Hassfest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    runs-on: ubuntu-latest
+    name: HACS validation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration

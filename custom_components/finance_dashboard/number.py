@@ -16,8 +16,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from .const import DEFAULT_CATEGORIES, DOMAIN
+from .entity import main_device_info
 
 _LOGGER = logging.getLogger(__name__)
+
+PARALLEL_UPDATES = 0
 
 CATEGORY_ICONS = {
     "housing": "mdi:home",
@@ -61,13 +64,15 @@ class BudgetLimitNumber(NumberEntity, RestoreEntity):
     _attr_native_step = 10
     _attr_native_unit_of_measurement = "EUR"
     _attr_has_entity_name = True
+    _attr_translation_key = "budget_limit"
 
     def __init__(self, entry: ConfigEntry, category: str) -> None:
         """Initialize budget limit number."""
         self._entry = entry
         self._category = category
         self._attr_unique_id = f"{DOMAIN}_budget_{category}"
-        self._attr_name = f"Budget {category.replace('_', ' ').title()}"
+        self._attr_translation_placeholders = {"category": category.replace("_", " ").title()}
+        self._attr_device_info = main_device_info(entry)
         self._attr_icon = CATEGORY_ICONS.get(category, "mdi:cash")
         # Default value: 0 = no limit set. Overridden from restored
         # state in async_added_to_hass() if the entity has been seen

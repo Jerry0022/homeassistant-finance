@@ -139,7 +139,17 @@ class FdDataProvider extends HTMLElement {
     }
   }
 
-  /** Refresh entity registry (e.g. after setup wizard completes). */
+  /**
+   * Re-read entities after the panel already ran the live refresh itself.
+   * Does NOT call the bank - the POST /refresh happened in the panel.
+   */
+  async rebuildAfterRefresh() {
+    this._prevStateHash = "";
+    this._pendingRebuild = false;
+    await this._rebuild(true);
+  }
+
+  /** Refresh entity registry (e.g. after a bank was linked). */
   async refreshRegistry() {
     this._entityMap = null;
     this._registryLoading = false;
@@ -532,4 +542,4 @@ class FdDataProvider extends HTMLElement {
   }
 }
 
-customElements.define("fd-data-provider", FdDataProvider);
+window._fd.defineOnce("fd-data-provider", FdDataProvider);

@@ -426,4 +426,4 @@ ${this._renderBenchmark(escHtml)}`;
   }
 }
 
-customElements.define("fd-budget-plan", FdBudgetPlan);
+window._fd.defineOnce("fd-budget-plan", FdBudgetPlan);

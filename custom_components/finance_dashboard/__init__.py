@@ -16,10 +16,10 @@ from __future__ import annotations
 
 import logging
 
-from ha_customapps.restart import RestartNotifier
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import HomeAssistant, SupportsResponse
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_time_change
 
 from .const import (
@@ -32,8 +32,10 @@ from .const import (
     OPT_DAILY_REFRESH_MINUTE,
     SERVICE_TOGGLE_DEMO,
 )
+from .runtime import FinanceDashboardData
 
 PLATFORMS: list[Platform] = [
+    Platform.BUTTON,
     Platform.SENSOR,
     Platform.NUMBER,
     Platform.SELECT,
@@ -41,7 +43,27 @@ PLATFORMS: list[Platform] = [
 
 _LOGGER = logging.getLogger(__name__)
 
-type FinanceDashboardConfigEntry = ConfigEntry
+type FinanceDashboardConfigEntry = ConfigEntry[FinanceDashboardData]
+
+
+def _structure_signature(entry: ConfigEntry) -> tuple:
+    """What forces a reload: the set of banks and accounts, not the options."""
+    import json
+
+    from .account_identity import account_key
+
+    subs = getattr(entry, "subentries", None) or {}
+    banks = tuple(
+        sorted(
+            (sid, json.dumps(dict(sub.data), sort_keys=True, default=str))
+            for sid, sub in subs.items()
+        )
+    )
+    accounts = tuple(sorted(account_key(a) for a in entry.data.get("accounts", [])))
+    return (banks, accounts)
+
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -52,26 +74,34 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEntry) -> bool:
     """Set up Finance Dashboard from a config entry."""
-    # Restart notification via ha-customapps (marker polling + Repairs issue)
-    notifier = RestartNotifier(hass, DOMAIN)
-    await notifier.async_setup(entry)
-
     # Initialize the manager (core business logic)
     from .manager import FinanceDashboardManager
 
     manager = FinanceDashboardManager(hass, entry)
     await manager.async_initialize()
 
+    # Installs that predate bank subentries: turn the single stored session
+    # into one bank subentry.  Never blocks setup — the virtual legacy bank
+    # keeps working if this cannot run.
+    try:
+        await manager.async_migrate_legacy_session()
+        await manager.async_prune_orphan_sessions()
+        await manager.async_update_consent_issues()
+    except Exception:
+        _LOGGER.exception("Bank migration / consent check failed — continuing setup")
+
     # Create the coordinator — single source of truth for all entities.
     # Entities read from coordinator.data instead of calling the API directly.
     from .coordinator import FinanceDashboardCoordinator
 
-    coordinator = FinanceDashboardCoordinator(hass, manager)
+    coordinator = FinanceDashboardCoordinator(hass, manager, entry)
 
     # Initialize demo mode from options
     if entry.options.get("demo_mode", False):
         manager.set_demo_mode(True)
 
+    entry.runtime_data = FinanceDashboardData(manager=manager, coordinator=coordinator)
+    # The HTTP views still resolve the manager through hass.data.
     hass.data[DOMAIN][entry.entry_id] = manager
     hass.data[DOMAIN][f"{entry.entry_id}_coordinator"] = coordinator
     hass.data[DOMAIN]["entry"] = entry
@@ -79,7 +109,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEn
     # Register services (pass coordinator so refresh service can push updates)
     await _async_register_services(hass, manager, coordinator)
 
-    # Register sidebar panel
+    # Register frontend: static mount, sidebar panel, auto-loaded cards
     from .panel import async_register_panel
 
     await async_register_panel(hass)
@@ -141,6 +171,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEn
 
     _register_daily_refresh(hass, entry, manager, coordinator)
 
+    # Banks / accounts added, removed or re-linked change which devices and
+    # entities exist; options changes (selects write them) must not reload.
+    signature = _structure_signature(entry)
+
+    async def _reload_on_structure_change(hass_: HomeAssistant, updated: ConfigEntry) -> None:
+        if _structure_signature(updated) != signature:
+            _LOGGER.info("Banks or accounts changed — reloading Finance Dashboard")
+            hass_.config_entries.async_schedule_reload(updated.entry_id)
+
+    entry.async_on_unload(entry.add_update_listener(_reload_on_structure_change))
+
     _LOGGER.info("Finance Dashboard v%s loaded", entry.version)
     return True
 
@@ -174,15 +215,15 @@ def _register_daily_refresh(
         if manager.demo_mode:
             _LOGGER.debug("Daily refresh skipped — demo mode active")
             return
-        if manager.rate_limited_until:
-            _LOGGER.info(
-                "Daily refresh skipped — rate limited until %s",
-                manager.rate_limited_until.isoformat(),
-            )
-            return
+        # No global rate-limit gate: the budget is per bank, and the
+        # scheduled fetch (background, no PSU headers) may use at most one of
+        # a bank's four daily slots — a blocked or spent bank is skipped
+        # inside the refresh, the others still run.
         try:
-            stats = await manager.async_refresh_transactions()
+            await manager.async_refresh_transactions(scheduled=True)
+            stats = manager.last_refresh_stats
             await coordinator.async_refresh()
+            await manager.async_update_consent_issues()
             _LOGGER.info(
                 "Daily refresh done: outcome=%s accounts=%s transactions=%s new=%s",
                 stats.get("outcome"),
@@ -207,6 +248,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: FinanceDashboardConfigE
         hass.data[DOMAIN].pop(f"{entry.entry_id}_coordinator", None)
         if manager:
             await manager.async_shutdown()
+        # Last entry gone -> take the frontend down so a reload re-registers
+        # cleanly and a removed integration leaves no dead sidebar item.
+        if not any(
+            e.entry_id != entry.entry_id and e.state is ConfigEntryState.LOADED
+            for e in hass.config_entries.async_entries(DOMAIN)
+        ):
+            from .panel import async_unregister_panel
+
+            await async_unregister_panel(hass)
         # Clean up entry reference if it matches
         if hass.data.get(DOMAIN, {}).get("entry") is entry:
             hass.data[DOMAIN].pop("entry", None)

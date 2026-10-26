@@ -15,18 +15,24 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN
+from .entity import main_device_info
 
 _LOGGER = logging.getLogger(__name__)
 
+PARALLEL_UPDATES = 0
+
+# Option values are stable slugs; the UI text comes from the translations
+# (entity.select.<translation_key>.state.<slug>).
 SPLIT_MODELS = {
-    "equal": "Equal (50/50)",
-    "proportional": "Proportional (by income)",
-    "custom": "Custom (manual %)",
+    "pooled_equal": "pooled_equal",
+    "equal": "equal",
+    "proportional": "proportional",
+    "custom": "custom",
 }
 
 REMAINDER_MODES = {
-    "none": "No split (each keeps own)",
-    "equal_split": "Equal distribution",
+    "none": "none",
+    "equal_split": "equal_split",
 }
 
 
@@ -60,6 +66,7 @@ class _OptionsBackedSelect(SelectEntity):
     def __init__(self, entry: ConfigEntry) -> None:
         """Initialize with the current entry option."""
         self._entry = entry
+        self._attr_device_info = main_device_info(entry)
         self._attr_options = list(self._label_map.values())
         current = entry.options.get(self._option_key, self._default_key)
         self._attr_current_option = self._label_map.get(current, self._label_map[self._default_key])
@@ -108,7 +115,7 @@ class SplitModelSelect(_OptionsBackedSelect):
     """Select entity for choosing the budget split model."""
 
     _attr_has_entity_name = True
-    _attr_name = "Split Model"
+    _attr_translation_key = "split_model"
     _attr_icon = "mdi:scale-balance"
     _option_key = "split_model"
     _default_key = "proportional"
@@ -124,7 +131,7 @@ class RemainderModeSelect(_OptionsBackedSelect):
     """Select entity for remainder split mode."""
 
     _attr_has_entity_name = True
-    _attr_name = "Remainder Mode"
+    _attr_translation_key = "remainder_mode"
     _attr_icon = "mdi:arrow-split-vertical"
     _option_key = "remainder_mode"
     _default_key = "none"

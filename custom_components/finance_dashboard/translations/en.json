@@ -3,7 +3,15 @@
     "step": {
       "user": {
         "title": "Enable Banking Setup",
-        "description": "Enter your Enable Banking API credentials.\n\n**How to get your credentials:**\n1. Go to [{enablebanking_url}/cp/applications]({enablebanking_url}/cp/applications)\n2. Choose **Sandbox** (for testing) or **Production**\n3. Select **Generate in the browser** for the key\n4. Enter an application name (e.g. \"Home Assistant Finance\")\n5. Add your HA redirect URL: `{redirect_url}`\n6. Click **Register** — your private key will download automatically\n7. Copy the **Application ID** from the confirmation page\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant.\n\nAfter setup, open the **Finance** sidebar panel to connect your bank.",
+        "description": "Enter your Enable Banking API credentials.\n\n**How to get them:**\n1. Open [{enablebanking_url}/cp/applications]({enablebanking_url}/cp/applications)\n2. Choose **Sandbox** (testing) or **Production**\n3. Select **Generate in the browser** for the key\n4. Enter an application name (e.g. \"Home Assistant Finance\")\n5. Register exactly this redirect URL: `{redirect_url}`\n6. Click **Register** - the private key downloads automatically\n7. Copy the **Application ID** from the confirmation page\n\n**Security:** Your credentials are encrypted and stored locally in Home Assistant.\n\nAfter setup, add your banks via **Add bank** on the Finance integration page.",
+        "data": {
+          "application_id": "Application ID",
+          "private_key_pem": "Private Key (PEM)"
+        }
+      },
+      "reconfigure": {
+        "title": "Replace Enable Banking credentials",
+        "description": "Enter the new Application ID and private key. Your connected banks stay as they are.\n\nThe registered redirect URL must be: `{redirect_url}`",
         "data": {
           "application_id": "Application ID",
           "private_key_pem": "Private Key (PEM)"
@@ -13,12 +21,13 @@
     "error": {
       "missing_credentials": "Please enter both Application ID and Private Key.",
       "invalid_key_format": "The private key could not be loaded. Make sure you paste the complete PEM content including the -----BEGIN/END PRIVATE KEY----- lines.",
-      "invalid_credentials": "Enable Banking rejected the credentials (HTTP 401/403). Verify that your Application ID matches the private key and the application is activated.",
-      "no_institutions": "No banking institutions found for Germany.",
+      "invalid_credentials": "Enable Banking rejected the credentials (HTTP 401/403). Check that the Application ID matches the private key and the application is activated.",
+      "no_institutions": "No banks found.",
       "connection_failed": "Connection to Enable Banking failed. Please check your internet connection."
     },
     "abort": {
-      "already_configured": "Finance is already configured."
+      "already_configured": "Finance is already configured.",
+      "reconfigure_successful": "The Enable Banking credentials were updated."
     }
   },
   "options": {
@@ -33,23 +42,110 @@
           "enable_dashboard_panel": "Show sidebar panel",
           "transfer_detection_enabled": "Transfer chain detection",
           "transfer_amount_tolerance": "Amount tolerance (EUR)",
-          "transfer_time_window": "Time window (days)"
+          "transfer_time_window": "Time window (days)",
+          "demo_mode": "Demo mode (synthetic data)",
+          "auto_refresh_on_open": "Refresh when the panel is opened",
+          "auto_refresh_max_age_minutes": "Panel refresh only if data is older than (minutes)",
+          "raw_retention_days": "Keep raw bank responses for (days, minimum 30)",
+          "show_household": "Show household budget in the panel"
+        },
+        "data_description": {
+          "raw_retention_days": "Raw responses are kept encrypted for re-processing; older ones are deleted.",
+          "show_household": "Hides the household split in the panel when you only track accounts."
         }
       }
     }
   },
   "services": {
-    "confirm_transfer_chain": {
-      "name": "Confirm transfer chain",
-      "description": "Confirm or reject a detected transfer chain.",
+    "refresh_accounts": {
+      "name": "Refresh accounts",
+      "description": "Refresh the list of linked bank accounts from Enable Banking."
+    },
+    "refresh_transactions": {
+      "name": "Refresh transactions",
+      "description": "Fetch latest transactions for all linked accounts. Counts against Enable Banking's limit of 4 calls per day per bank.",
       "fields": {
-        "chain_id": {
-          "name": "Chain ID",
-          "description": "UUID of the transfer chain"
+        "days": {
+          "name": "Days",
+          "description": "Number of days to fetch (default 90). Older cached transactions are kept."
+        }
+      }
+    },
+    "import_spreadsheet": {
+      "name": "Import household spreadsheet",
+      "description": "Import a household calculation workbook (.xlsx) into the budget plan. Replaces the current plan. Admin only. The file's directory must be listed in allowlist_external_dirs, or the file must sit in the config directory.",
+      "fields": {
+        "path": {
+          "name": "File path",
+          "description": "Absolute path to the .xlsx workbook."
+        }
+      }
+    },
+    "get_transfer_plan": {
+      "name": "Get transfer plan",
+      "description": "Return the monthly transfer choreography — which amount to move between which accounts, and each person's remaining pocket money.",
+      "fields": {
+        "month": {
+          "name": "Month",
+          "description": "Month number (1-12). Defaults to current month."
         },
-        "confirmed": {
-          "name": "Confirmed",
-          "description": "True to confirm, false to reject"
+        "year": {
+          "name": "Year",
+          "description": "Year. Defaults to current year."
+        }
+      }
+    },
+    "get_balance": {
+      "name": "Get balance",
+      "description": "Get current balances for all linked accounts."
+    },
+    "get_monthly_summary": {
+      "name": "Get monthly summary",
+      "description": "Get spending summary grouped by category for a given month.",
+      "fields": {
+        "month": {
+          "name": "Month",
+          "description": "Month number (1-12). Defaults to current month."
+        },
+        "year": {
+          "name": "Year",
+          "description": "Year. Defaults to current year."
+        }
+      }
+    },
+    "categorize_transactions": {
+      "name": "Categorize transactions",
+      "description": "Re-run auto-categorization on all cached transactions."
+    },
+    "set_budget_limit": {
+      "name": "Set budget limit",
+      "description": "Set a monthly budget limit for a spending category.",
+      "fields": {
+        "category": {
+          "name": "Category",
+          "description": "The spending category (e.g., housing, food, transport)."
+        },
+        "limit": {
+          "name": "Limit",
+          "description": "Monthly budget limit in EUR."
+        }
+      }
+    },
+    "toggle_demo": {
+      "name": "Toggle demo mode",
+      "description": "Toggle demo mode on/off. Generates realistic synthetic banking data for testing and demonstration."
+    },
+    "export_csv": {
+      "name": "Export CSV",
+      "description": "Export transactions as a CSV file for local download.",
+      "fields": {
+        "date_from": {
+          "name": "From date",
+          "description": "Start date filter (YYYY-MM-DD). Optional."
+        },
+        "date_to": {
+          "name": "To date",
+          "description": "End date filter (YYYY-MM-DD). Optional."
         }
       }
     }
@@ -57,12 +153,11 @@
   "issues": {
     "restart_required": {
       "title": "Finance Update — Restart Required",
-      "description": "Finance has been updated to version {version}. A restart is required to apply the new version.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Restart Home Assistant",
-            "description": "Finance has been updated to version {version}. Home Assistant must be restarted to apply the update.\n\nClick **Submit** to restart now."
+            "description": "Finance has been updated to version {version}. A restart is required to apply the new version.\n\nFinance has been updated to version {version}. Home Assistant must be restarted to apply the update.\n\nClick **Submit** to restart now."
           }
         }
       }
@@ -82,6 +177,161 @@
     "storage_corrupt": {
       "title": "Finance: Transaction Cache Corrupt",
       "description": "The transaction cache file `{storage_key}` could not be read ({error_class}). The integration has started with an empty cache. Trigger a manual refresh to repopulate the cache."
+    },
+    "consent_expiring": {
+      "title": "Finance: bank connection expires soon",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Renew bank connection",
+            "description": "The connection to **{bank}** expires soon. Renew it now so that balances and transactions keep updating.\n\nOpen the Finance integration page ({link}), choose the three-dot menu next to **{bank}** and click **Reconfigure**. You will be redirected to your bank to confirm access again."
+          }
+        },
+        "abort": {
+          "continue_in_integrations": "Continue on the Finance integration page. This notice disappears once the connection is renewed.",
+          "bank_not_found": "This bank connection no longer exists."
+        }
+      }
+    },
+    "consent_expired": {
+      "title": "Finance: bank connection expired",
+      "fix_flow": {
+        "step": {
+          "init": {
+            "title": "Renew bank connection",
+            "description": "The connection to **{bank}** has expired or was revoked. Balances and transactions cannot be refreshed until you renew it.\n\nOpen the Finance integration page ({link}), choose the three-dot menu next to **{bank}** and click **Reconfigure**. You will be redirected to your bank to confirm access again."
+          }
+        },
+        "abort": {
+          "continue_in_integrations": "Continue on the Finance integration page. This notice disappears once the connection is renewed.",
+          "bank_not_found": "This bank connection no longer exists."
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "bank": {
+      "entry_type": "Bank",
+      "initiate_flow": {
+        "user": "Add bank",
+        "reconfigure": "Renew bank connection"
+      },
+      "step": {
+        "user": {
+          "title": "Connect a bank",
+          "description": "Choose the country of your bank.\n\nBefore you continue, make sure this redirect URL is registered for your application at Enable Banking: `{redirect_url}`",
+          "data": {
+            "aspsp_country": "Country (ISO code, e.g. DE)"
+          }
+        },
+        "bank": {
+          "title": "Choose your bank",
+          "data": {
+            "aspsp_name": "Bank"
+          }
+        },
+        "reconfigure": {
+          "title": "Renew bank connection",
+          "description": "The connection to **{bank}** will be authorized again at your bank. Existing accounts and history stay intact.\n\nRegistered redirect URL: `{redirect_url}`"
+        },
+        "authorize": {
+          "title": "Authorize at your bank",
+          "description": "Log in at your bank in the window that opened and confirm access. Home Assistant continues automatically afterwards."
+        }
+      },
+      "error": {
+        "no_institutions": "No banks found for this country."
+      },
+      "abort": {
+        "already_configured": "This bank is already connected. Use Reconfigure on it to renew the connection.",
+        "bank_connected": "The bank was connected successfully.",
+        "reconfigure_successful": "The bank connection was renewed.",
+        "authorization_rejected": "The authorization at the bank was cancelled or rejected.",
+        "no_accounts": "The bank returned no accounts. Please check the consent you gave at the bank.",
+        "no_credentials": "No Enable Banking credentials are stored. Reconfigure the integration first.",
+        "rate_limited": "The bank's request limit is reached. Please try again later.",
+        "invalid_credentials": "Enable Banking rejected the credentials. Replace them via Reconfigure on the integration.",
+        "bank_error": "The bank or Enable Banking returned an error. Please try again later.",
+        "connection_failed": "Connection to Enable Banking failed. Please check your internet connection.",
+        "no_url_available": "No Home Assistant URL is available. Configure an internal or external URL first.",
+        "unknown": "An unexpected error occurred. See the Home Assistant log."
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "balance": {
+        "name": "Balance"
+      },
+      "available_balance": {
+        "name": "Available balance"
+      },
+      "last_update": {
+        "name": "Last update"
+      },
+      "consent_valid_until": {
+        "name": "Consent valid until"
+      },
+      "consent_state": {
+        "name": "Consent",
+        "state": {
+          "ok": "Valid",
+          "expiring": "Expiring soon",
+          "expired": "Expired"
+        }
+      },
+      "budget_used": {
+        "name": "Fetches used today"
+      },
+      "blocked_until": {
+        "name": "Blocked until"
+      },
+      "last_error": {
+        "name": "Last error",
+        "state": {
+          "none": "None",
+          "consent_expired": "Consent expired",
+          "rate_limited": "Rate limited",
+          "unauthorized": "Bank rejected the session",
+          "server_error": "Bank server error",
+          "network": "Network problem",
+          "other": "Other error"
+        }
+      },
+      "total_balance": {
+        "name": "Total balance"
+      },
+      "monthly_summary": {
+        "name": "Monthly summary"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Refresh"
+      }
+    },
+    "number": {
+      "budget_limit": {
+        "name": "Budget {category}"
+      }
+    },
+    "select": {
+      "split_model": {
+        "name": "Split model",
+        "state": {
+          "pooled_equal": "Pooled, split equally",
+          "equal": "Equal (50/50)",
+          "proportional": "Proportional (by income)",
+          "custom": "Custom (manual %)"
+        }
+      },
+      "remainder_mode": {
+        "name": "Remainder mode",
+        "state": {
+          "none": "No split (each keeps own)",
+          "equal_split": "Equal distribution"
+        }
+      }
     }
   }
 }

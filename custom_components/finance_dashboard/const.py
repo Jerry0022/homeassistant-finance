@@ -4,14 +4,21 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.15.3"
+VERSION = "0.16.0"
 
 # Panel
 PANEL_URL_PATH = "finance-dashboard"
 PANEL_TITLE = "Finance"
 PANEL_ICON = "mdi:finance"
 PANEL_COMPONENT_NAME = "finance-dashboard-panel"
-PANEL_MODULE_PATH = f"/api/{DOMAIN}/static/finance-dashboard-panel.js?v={VERSION}"
+# Frontend delivery: ONE static mount, two shells (sidebar panel + Lovelace
+# cards) built from the same web-component kit.  The ?v= query busts the
+# browser cache on every release (the static path is served with long-lived
+# cache headers).
+FRONTEND_URL_BASE = f"/{DOMAIN}_static"
+PANEL_MODULE_PATH = f"{FRONTEND_URL_BASE}/finance-dashboard-panel.js?v={VERSION}"
+# Auto-loaded on every dashboard (registers the kit + all Lovelace cards).
+CARDS_MODULE_PATH = f"{FRONTEND_URL_BASE}/finance-dashboard-kit.js?v={VERSION}"
 
 # Storage keys — all sensitive data stored in HA .storage/
 STORAGE_KEY_CREDENTIALS = f"{DOMAIN}_credentials"
@@ -31,6 +38,32 @@ RATE_LIMIT_ATTENDED_BACKOFF_MINUTES = 15
 # Catalog entries older than this are refreshed from the API on next open.
 INSTITUTION_CACHE_TTL_HOURS = 24
 STORAGE_VERSION = 1
+
+# Two-layer data storage (encrypted, versioned).  The raw layer is an
+# immutable archive of bank responses, chunked one Store per month; the
+# ledger is the processed per-account transaction + balance history.
+STORAGE_KEY_LEDGER = f"{DOMAIN}_ledger"
+STORAGE_KEY_RAW_PREFIX = f"{DOMAIN}_raw_"  # + YYYY_MM
+STORAGE_KEY_RAW_INDEX = f"{DOMAIN}_raw_index"
+LEDGER_STORAGE_VERSION = 1
+LEDGER_STORAGE_MINOR_VERSION = 1
+RAW_STORAGE_VERSION = 1
+RAW_STORAGE_MINOR_VERSION = 1
+OPT_RAW_RETENTION_DAYS = "raw_retention_days"
+DEFAULT_RAW_RETENTION_DAYS = 400
+
+# Per-bank fetch budget.  The 4/day cap is the bank's and applies only to
+# background (non-PSU) access; the scheduled daily refresh may use one slot.
+SCHEDULED_BACKGROUND_SHARE = 1
+ATTENDED_DEBOUNCE_SECONDS = 60
+INCREMENTAL_OVERLAP_DAYS = 7
+DEFAULT_FETCH_DAYS = 90
+TRANSACTION_MAX_PAGES = 200
+
+# Bank config subentries + consent expiry
+SUBENTRY_TYPE_BANK = "bank"
+CONSENT_EXPIRY_WARN_DAYS = 14
+LEGACY_BANK_ID = "legacy"
 
 # Enable Banking
 ENABLEBANKING_BASE_URL = "https://api.enablebanking.com"
@@ -292,3 +325,35 @@ OPT_AUTO_REFRESH_ON_OPEN = "auto_refresh_on_open"
 OPT_AUTO_REFRESH_MAX_AGE_MINUTES = "auto_refresh_max_age_minutes"
 DEFAULT_AUTO_REFRESH_ON_OPEN = True
 DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES = 60
+
+
+# --- Bank connect flow / config subentries (Phase 2.1) ---
+SUBENTRY_TYPE_BANK = "bank"
+CONF_ASPSP_NAME = "aspsp_name"
+CONF_ASPSP_COUNTRY = "aspsp_country"
+CONF_VALID_UNTIL = "valid_until"
+CONF_SUBENTRY_ACCOUNTS = "accounts"
+# Repairs issue id prefixes (issue creation lives in the manager)
+ISSUE_CONSENT_EXPIRING_PREFIX = "consent_expiring_"
+ISSUE_CONSENT_EXPIRED_PREFIX = "consent_expired_"
+
+
+# --- Entities, devices, statistics (Phase 1.4 / 3.1) ---
+OPT_SHOW_HOUSEHOLD = "show_household"
+DEFAULT_SHOW_HOUSEHOLD = True
+MIN_RAW_RETENTION_DAYS = 30
+MAX_RAW_RETENTION_DAYS = 3650
+STATISTICS_SOURCE = DOMAIN
+# ISO 20022 / camelCase names of balances that mean "available to spend".
+AVAILABLE_BALANCE_TYPES = ("CLAV", "ITAV", "closingAvailable", "interimAvailable")
+# Class-level error codes the "last error" sensor can show (translated).
+BANK_ERROR_OPTIONS = (
+    "none",
+    "consent_expired",
+    "rate_limited",
+    "unauthorized",
+    "server_error",
+    "network",
+    "other",
+)
+CONSENT_STATES = ("ok", "expiring", "expired")

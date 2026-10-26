@@ -18,6 +18,8 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.util import dt as dt_util
 
+from ..const import DEFAULT_FETCH_DAYS, INCREMENTAL_OVERLAP_DAYS
+
 if TYPE_CHECKING:
     pass
 
@@ -38,119 +40,90 @@ class RefreshMixin:
     """Mixin that adds all live-fetch and OAuth methods to the manager."""
 
     # ------------------------------------------------------------------
-    # Rate-limit helpers
-    # ------------------------------------------------------------------
-
-    def _set_rate_limited(
-        self,
-        retry_after_dt: datetime | None = None,
-        *,
-        attended: bool = False,
-    ) -> None:
-        """Mark API as rate-limited.
-
-        Writes the reset timestamp to both the instance field and the
-        persistent ``hass.data[DOMAIN][_GLOBAL_RATE_LIMIT_KEY]`` so that the
-        fresh-setup client factory can also respect the quota gate (F2).
-
-        The reset is capped at midnight — the ASPSP day counter resets then,
-        so waiting past it is never useful — but the default backoff is much
-        shorter than a full day: Enable Banking documents a 6h retry for
-        background fetches, and an attended 429 is a transient upstream
-        condition rather than the 4/day rule, so it pauses for minutes.
-
-        Args:
-            retry_after_dt: Optional reset datetime derived from the
-                ``Retry-After`` response header.  Takes precedence over the
-                default backoff — the bank knows better than we do.
-            attended: True when the call carried PSU headers (user present).
-        """
-        from ..const import (
-            DOMAIN,
-            RATE_LIMIT_ATTENDED_BACKOFF_MINUTES,
-            RATE_LIMIT_BACKOFF_HOURS,
-        )
-
-        now = dt_util.now()
-        midnight = (now + timedelta(days=1)).replace(
-            hour=0,
-            minute=0,
-            second=0,
-            microsecond=0,
-        )
-        if retry_after_dt is not None:
-            candidate = retry_after_dt
-        elif attended:
-            candidate = now + timedelta(minutes=RATE_LIMIT_ATTENDED_BACKOFF_MINUTES)
-        else:
-            candidate = now + timedelta(hours=RATE_LIMIT_BACKOFF_HOURS)
-        reset_at = min(midnight, candidate)
-        self._rate_limited_until = reset_at
-
-        # Persist to hass.data so the fresh-setup client gate can read it
-        # even when the manager is not consulted directly (F2).
-        try:
-            self._hass.data.setdefault(DOMAIN, {})[_GLOBAL_RATE_LIMIT_KEY] = (
-                reset_at.isoformat()
-            )
-        except Exception:  # pragma: no cover
-            _LOGGER.debug("Could not write global rate-limit key to hass.data", exc_info=True)
-
-        _LOGGER.warning(
-            "API rate-limited — serving cached data until %s",
-            reset_at.isoformat(),
-        )
-
-    # ------------------------------------------------------------------
     # Public refresh entry point
     # ------------------------------------------------------------------
 
     async def async_refresh_transactions(
-        self, days: int = 90, psu_ip: str | None = None
+        self,
+        days: int | None = None,
+        psu_ip: str | None = None,
+        scheduled: bool = False,
     ) -> list[dict[str, Any]]:
-        """Refresh transactions AND balances for all linked accounts.
+        """Refresh transactions AND balances for every linked bank.
 
-        Fetches last N days of transactions, auto-categorizes them,
-        and persists to encrypted .storage/ cache. Also refreshes
-        balances in the same user-triggered round — a single click
-        updates the entire cache.
+        Fetch budget is tracked PER BANK (see ``fetch_budget``):
 
-        If the API returns HTTP 429 (daily quota exhausted), cached
-        data is served and no further API calls are attempted until
-        the next calendar day (midnight local time).
+        * ``psu_ip`` present -> *attended*: never capped, never gated on a
+          block, only debounced per bank.
+        * no ``psu_ip`` -> *background*: counted per account per UTC day;
+          the ``scheduled`` daily refresh may use 1 of 4, other background
+          callers up to 4.  A 429 blocks only the bank that sent it, for 6h.
 
-        Concurrent calls are serialised by ``_refresh_lock`` and stats
-        are written to ``_last_refresh_stats`` regardless of outcome.
-
-        Args:
-            days: Number of days to fetch (default 90).
-            psu_ip: Optional PSU IP address from the originating HTTP request.
-                Forwarded to the Enable Banking API as ``Psu-Ip-Address``.
-                Never required — omit when not available.
+        Fetches are incremental (last booked date minus an overlap); the
+        first fetch of an account covers ``DEFAULT_FETCH_DAYS``.  An explicit
+        ``days`` forces a full window.  Concurrent calls are serialised by
+        ``_refresh_lock``; stats are written regardless of outcome.
         """
         async with self._refresh_lock:
             self._refresh_in_flight = True
             started = dt_util.now()
             t0 = time.monotonic()
             try:
-                return await self._do_refresh(days, started, t0, psu_ip=psu_ip)
+                return await self._do_refresh(days, started, t0, psu_ip=psu_ip, scheduled=scheduled)
             finally:
                 self._refresh_in_flight = False
 
+    def _fetch_date_from(self, account_key_: str, days: int | None) -> str:
+        """Start of the fetch window for one account."""
+        now = dt_util.now()
+        if days:
+            return (now - timedelta(days=int(days))).strftime("%Y-%m-%d")
+        floor = now - timedelta(days=DEFAULT_FETCH_DAYS)
+        last = self._ledger.last_booked_date(account_key_)
+        if last:
+            try:
+                start = datetime.fromisoformat(last[:10]) - timedelta(days=INCREMENTAL_OVERLAP_DAYS)
+                start = start.replace(tzinfo=floor.tzinfo)
+                return max(start, floor).strftime("%Y-%m-%d")
+            except ValueError:
+                pass
+        return floor.strftime("%Y-%m-%d")
+
+    def _raw_sink(self, bank_id: str, uid: str, attended: bool):
+        """Callback handing unaltered bank JSON to the raw archive."""
+
+        def sink(kind: str, http_status: int, body: Any) -> None:
+            if self._raw is None:
+                return
+            self._raw.record(
+                self._raw.make_snapshot(
+                    bank=bank_id,
+                    account=uid,
+                    kind=kind,
+                    attended=attended,
+                    http_status=http_status,
+                    response=body,
+                )
+            )
+
+        return sink
+
     async def _do_refresh(
         self,
-        days: int,
+        days: int | None,
         started: datetime,
         t0: float,
         psu_ip: str | None = None,
+        scheduled: bool = False,
     ) -> list[dict[str, Any]]:
+        import aiohttp
+
+        from ..account_identity import account_key
         from ..enablebanking_client import RateLimitExceeded
         from ..recurring import detect_recurring
-        from ..transfer_detector import (
-            apply_overrides,
-            detect_transfer_chains,
-            enrich_transactions,
-        )
+
+        def elapsed_ms() -> int:
+            return int((time.monotonic() - t0) * 1000)
 
         # Demo mode — regenerate fresh demo data without API calls
         if self._demo_mode:
@@ -164,31 +137,11 @@ class RefreshMixin:
             self._last_refresh_stats = self._build_stats(
                 outcome="demo",
                 started=started,
-                duration_ms=int((time.monotonic() - t0) * 1000),
+                duration_ms=elapsed_ms(),
                 accounts=len(self._accounts),
                 transactions=len(self._transactions),
                 new=0,
                 errors=[],
-            )
-            return self._transactions
-
-        # Skip API calls if we're still rate-limited.  An attended refresh
-        # (PSU headers present) is exempt: PSD2 RTS Art. 36(5)(b) caps only
-        # requests made without the user in session, so gating a user who is
-        # standing in front of the dashboard blocks a call the bank allows.
-        if self.rate_limited_until and not psu_ip:
-            _LOGGER.info(
-                "API rate-limited until %s — serving cached transactions",
-                self._rate_limited_until.isoformat(),
-            )
-            self._last_refresh_stats = self._build_stats(
-                outcome="rate_limited",
-                started=started,
-                duration_ms=int((time.monotonic() - t0) * 1000),
-                accounts=0,
-                transactions=len(self._transactions),
-                new=0,
-                errors=["Tageslimit der Bank-API erreicht (4/Tag pro Konto)"],
             )
             return self._transactions
 
@@ -197,7 +150,7 @@ class RefreshMixin:
             self._last_refresh_stats = self._build_stats(
                 outcome="error",
                 started=started,
-                duration_ms=int((time.monotonic() - t0) * 1000),
+                duration_ms=elapsed_ms(),
                 accounts=0,
                 transactions=len(self._transactions),
                 new=0,
@@ -205,135 +158,136 @@ class RefreshMixin:
             )
             return []
 
-        date_from = (dt_util.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        attended = bool(psu_ip)
         date_to = dt_util.now().strftime("%Y-%m-%d")
+        targets = await self._async_bank_targets()
 
         errors: list[str] = []
         accounts_hit = 0
-        for account in self._accounts:
-            account_id = account.get("id")
-            if not account_id:
+        new_ids: set[str] = set()
+        fresh_balances: dict[str, Any] = {}
+        skipped: dict[str, int] = {}
+        rate_limited_round = False
+
+        for bank in targets:
+            bank_id = bank["bank_id"]
+            title = bank["title"] or "Bank"
+
+            if self._consent_state(bank["valid_until"]) == "expired":
+                self._budget.record_error(bank_id, "consent_expired")
+                errors.append(f"{title}: Zustimmung abgelaufen — bitte Bank neu verbinden")
                 continue
 
-            try:
-                txns = await client.async_get_transactions(
-                    account_id, date_from, date_to, psu_ip=psu_ip
-                )
-                accounts_hit += 1
-                booked = txns.get("booked", [])
-                pending = txns.get("pending", [])
+            decision = self._budget.decide(bank_id, attended=attended, scheduled=scheduled)
+            if not decision.allowed:
+                skipped[decision.reason] = skipped.get(decision.reason, 0) + 1
+                _LOGGER.info("Bank %s skipped (%s) — serving cache", bank_id[:8], decision.reason)
+                if decision.reason in ("blocked", "budget_exhausted"):
+                    rate_limited_round = True
+                    errors.append(f"{title}: Tageslimit der Bank-API erreicht (4/Tag pro Konto)")
+                continue
 
-                # Tag each transaction with account info
-                display_name = account.get("custom_name") or account.get("name", "")
-                # Categorizer is initialised in async_initialize(); if refresh
-                # somehow races ahead of init, fall back to "other" so the txn
-                # is still persisted and visible in the UI.
-                categorizer = self._categorizer
-                if categorizer is None:
-                    _LOGGER.warning(
-                        "Categorizer not initialised — tagging %d booked + %d "
-                        "pending txns as 'other' for account %s",
-                        len(booked),
-                        len(pending),
-                        account_id,
+            if attended:
+                # Stamp before the first call so a double click is debounced
+                # even while this fetch is still running.
+                self._budget.record_attempt(bank_id, "", attended=True)
+
+            for account in bank["accounts"]:
+                uid = account.get("id")
+                if not uid:
+                    continue
+                akey = account_key(account)
+                name = account.get("name", uid)
+                self._budget.record_attempt(bank_id, akey, attended=attended)
+                date_from = self._fetch_date_from(akey, days)
+                sink = self._raw_sink(bank_id, uid, attended)
+
+                try:
+                    txns = await client.async_get_transactions(
+                        uid, date_from, date_to, psu_ip=psu_ip, on_response=sink
                     )
-                for txn in booked:
-                    txn["_account_id"] = account_id
-                    txn["_account_name"] = display_name
-                    txn["_account_type"] = account.get("type", "personal")
-                    txn["_account_person"] = account.get("person", "")
-                    txn["_account_ha_users"] = account.get("ha_users", [])
-                    txn["_status"] = "booked"
-                    txn["category"] = categorizer.categorize(txn) if categorizer else "other"
+                    new = self._ledger.ingest(
+                        akey,
+                        txns.get("booked", []),
+                        txns.get("pending", []),
+                        date_from=date_from,
+                        truncated=bool(txns.get("truncated")),
+                    )
+                    new_ids.update(f"{akey}|{t['_ledger_id']}" for t in new)
+                    accounts_hit += 1
+                    _LOGGER.debug(
+                        "Account %s: %d booked, %d pending",
+                        uid[:8],
+                        len(txns.get("booked", [])),
+                        len(txns.get("pending", [])),
+                    )
+                    bals = await client.async_get_balances(uid, psu_ip=psu_ip, on_response=sink)
+                    iban = account.get("iban", "")
+                    fresh_balances[uid] = {
+                        "account_name": account.get("name", "Unknown"),
+                        "iban": iban,
+                        "iban_masked": (f"****{iban[-4:]}" if len(iban) >= 4 else "****"),
+                        "institution": account.get("institution", ""),
+                        "logo": account.get("logo", ""),
+                        "balances": bals,
+                    }
+                    self._ledger.add_balances(
+                        akey,
+                        bals,
+                        dt_util.utcnow().isoformat(),
+                        self._raw_retention_days,
+                    )
+                except RateLimitExceeded as rle:
+                    until = self._budget.block(
+                        bank_id,
+                        retry_after_seconds=rle.retry_after_seconds,
+                        attended=attended,
+                    )
+                    self._budget.record_error(bank_id, "rate_limited")
+                    rate_limited_round = True
+                    _LOGGER.warning(
+                        "Rate limit hit for bank %s — blocked until %s", bank_id[:8], until
+                    )
+                    errors.append(f"Rate-Limit bei {title} — Tageslimit (4/Tag) aufgebraucht")
+                    break  # only THIS bank stops; other banks continue
+                except aiohttp.ClientResponseError as exc:
+                    if exc.status in (401, 403):
+                        self._mark_consent_error(bank_id, bank["valid_until"])
+                    self._budget.record_error(bank_id, f"http_{exc.status}")
+                    _LOGGER.error("Fetch failed for account %s: HTTP %s", uid[:8], exc.status)
+                    errors.append(f"{name}: HTTP {exc.status}")
+                except Exception as exc:
+                    _LOGGER.exception("Failed to fetch account %s", uid[:8])
+                    self._budget.record_error(bank_id, type(exc).__name__)
+                    errors.append(f"{name}: {str(exc)[:120]}")
+                else:
+                    self._budget.record_success(bank_id)
 
-                for txn in pending:
-                    txn["_account_id"] = account_id
-                    txn["_account_name"] = display_name
-                    # Pending transactions need the same account tags as booked
-                    # ones — the household split and the owner grouping read
-                    # them, and a pending debit that later books must not
-                    # suddenly change owner.
-                    txn["_account_type"] = account.get("type", "personal")
-                    txn["_account_person"] = account.get("person", "")
-                    txn["_account_ha_users"] = account.get("ha_users", [])
-                    txn["_status"] = "pending"
-                    txn["category"] = categorizer.categorize(txn) if categorizer else "other"
-
-                # R5: atomic per-account update — only overwrite on success.
-                # Merge instead of replace: the fetch window is a rolling
-                # ``days`` span, so a plain assignment deletes everything older
-                # and makes multi-month history impossible to accumulate.
-                self._tx_by_account[account_id] = self._merge_account_transactions(
-                    self._tx_by_account.get(account_id, []),
-                    booked,
-                    pending,
-                    date_from,
-                )
-
-                _LOGGER.debug(
-                    "Account %s: %d booked, %d pending",
-                    account_id,
-                    len(booked),
-                    len(pending),
-                )
-            except RateLimitExceeded as _rle:
-                _LOGGER.warning(
-                    "Rate limit hit for account %s — stopping all fetches",
-                    account_id,
-                )
-                retry_after_dt = None
-                if _rle.retry_after_seconds is not None:
-                    retry_after_dt = dt_util.now() + timedelta(seconds=_rle.retry_after_seconds)
-                self._set_rate_limited(retry_after_dt, attended=bool(psu_ip))
-                errors.append(
-                    f"Rate-Limit bei {account.get('name', account_id)} — "
-                    "Tageslimit (4/Tag) aufgebraucht"
-                )
-                break
-            except Exception as exc:
-                _LOGGER.exception(
-                    "Failed to fetch transactions for account %s",
-                    account_id,
-                )
-                errors.append(f"{account.get('name', account_id)}: {str(exc)[:120]}")
-                # R5: keep stale cache for this account — do NOT clear it
-
-        # F10: drop the migration-era __unknown__ bucket after the first
-        # successful live refresh — those legacy entries are now superseded
-        # by the per-account data that was just fetched.
+        # The migration-era __unknown__ bucket is superseded by real fetches.
         if accounts_hit > 0:
-            self._tx_by_account.pop("__unknown__", None)
+            self._ledger.data.get("accounts", {}).pop("__unknown__", None)
 
-        # Rebuild flat list from per-account dict (deterministic sort)
-        all_transactions = [tx for txs in self._tx_by_account.values() for tx in txs]
-
-        # Sort by booking date (newest first)
-        all_transactions.sort(
-            key=lambda t: t.get("bookingDate", ""),
-            reverse=True,
-        )
-
-        # Detect cascading transfers and refunds
-        chains, refunds = detect_transfer_chains(all_transactions, self._accounts)
-        all_transactions = enrich_transactions(all_transactions, chains, refunds)
-
-        # Apply user overrides (confirmed/rejected chains)
+        # Derivations (categories, tags, transfer chains) are rebuilt from the
+        # ledger — never carried over from a previous round.
         overrides = await self._async_load_transfer_overrides()
-        apply_overrides(all_transactions, overrides)
-
-        # Detect new transactions (compare with previous set)
-        old_ids = {t.get("transactionId") for t in self._transactions if t.get("transactionId")}
+        old_ids = {t.get("_ledger_id") for t in self._transactions}
+        all_transactions = self._derive_from_ledger(overrides)
         new_txns = [
             t
             for t in all_transactions
-            if t.get("transactionId") and t["transactionId"] not in old_ids
+            if t.get("_status") == "booked"
+            and t.get("_ledger_id")
+            and t["_ledger_id"] not in old_ids
+            and f"{t.get('_account_key', '')}|{t['_ledger_id']}" in new_ids
         ]
 
-        self._transactions = all_transactions
-        # Only claim a refresh happened when at least one account actually
-        # answered. Stamping the timestamp unconditionally made a total failure
-        # look identical to a success — the header showed "just refreshed" over
-        # an untouched cache, and the lie survived a restart via persistence.
+        if fresh_balances:
+            self._fire_balance_events(fresh_balances)
+            merged = dict(self._balances)
+            merged.update(fresh_balances)
+            self._balances = merged
+
+        # Only claim a refresh happened when at least one account answered.
         if accounts_hit > 0:
             self._last_refresh = dt_util.now()
         else:
@@ -343,25 +297,26 @@ class RefreshMixin:
                 len(errors),
             )
 
-        # Detect recurring payment patterns — must not crash transaction refresh
         try:
             self._recurring_patterns = detect_recurring(all_transactions)
         except Exception:
             _LOGGER.exception("Recurring detection failed — skipping")
             self._recurring_patterns = []
 
-        # Persist to encrypted .storage/
         await self._persist_transactions()
+        if self._raw is not None:
+            try:
+                await self._raw.async_flush()
+            except Exception:
+                _LOGGER.exception("Raw archive write failed — continuing")
 
-        # Fire events for newly detected transactions — must not crash refresh
         try:
             from ..events import fire_transaction_new
 
             for txn in new_txns:
-                amount = float(txn.get("transactionAmount", {}).get("amount", 0))
                 fire_transaction_new(
                     self._hass,
-                    amount=amount,
+                    amount=float(txn.get("transactionAmount", {}).get("amount", 0)),
                     creditor=txn.get("creditorName", ""),
                     category=txn.get("category", "other"),
                     account_name=txn.get("_account_name", ""),
@@ -369,97 +324,68 @@ class RefreshMixin:
         except Exception:
             _LOGGER.exception("Transaction event firing failed — skipping")
 
+        try:
+            await self.async_update_consent_issues()
+        except Exception:
+            _LOGGER.debug("Consent issue update failed", exc_info=True)
+
         await self._credential_manager._audit_log("transactions_refreshed")
         _LOGGER.info(
             "Refreshed %d transactions across %d accounts (%d new, %d recurring patterns)",
             len(all_transactions),
-            len(self._accounts),
+            accounts_hit,
             len(new_txns),
             len(self._recurring_patterns),
         )
 
-        # Same user click → also refresh balances so the whole cache
-        # is consistent when the UI re-reads. Failures here are logged
-        # but do not fail the transaction refresh.
-        balance_errors: list[str] = []
-        try:
-            await self._async_refresh_balances_live(client, balance_errors, psu_ip=psu_ip)
-        except Exception:
-            _LOGGER.exception("Balance refresh leg failed")
-        errors.extend(balance_errors)
-
-        # Outcome classification: full success, partial (some accounts
-        # errored), rate_limited (quota hit during the call), or error.
-        if self.rate_limited_until:
+        if rate_limited_round:
             outcome = "rate_limited"
+        elif skipped.get("debounced") and not accounts_hit and not errors:
+            outcome = "debounced"
         elif errors:
             outcome = "partial" if accounts_hit > 0 else "error"
         else:
             outcome = "ok"
 
+        if outcome == "debounced":
+            # A second attended click inside the debounce window: leave the
+            # previous result (and its stats) in place.
+            return self._transactions
+
         self._last_refresh_stats = self._build_stats(
             outcome=outcome,
             started=started,
-            duration_ms=int((time.monotonic() - t0) * 1000),
+            duration_ms=elapsed_ms(),
             accounts=accounts_hit,
             transactions=len(all_transactions),
             new=len(new_txns),
             errors=errors,
         )
-
+        await self._persist_transactions()
         return all_transactions
 
+    def _fire_balance_events(self, balances: dict[str, Any]) -> None:
+        """Fire fd_balance_changed for material changes — never crashes refresh."""
+        try:
+            from ..events import fire_balance_changed
+
+            for acc_id, data in balances.items():
+                raw = data.get("balances", [])
+                if raw:
+                    new_bal = float(raw[0].get("balanceAmount", {}).get("amount", 0))
+                    old_bal = self._previous_balances.get(acc_id)
+                    if old_bal is not None and abs(new_bal - old_bal) >= 1.0:
+                        fire_balance_changed(
+                            self._hass,
+                            account_name=data.get("account_name", ""),
+                            old_balance=old_bal,
+                            new_balance=new_bal,
+                        )
+                    self._previous_balances[acc_id] = new_bal
+        except Exception:
+            _LOGGER.exception("Balance change event firing failed — skipping")
+
     @staticmethod
-    @staticmethod
-    def _merge_account_transactions(
-        previous: list[dict[str, Any]],
-        booked: list[dict[str, Any]],
-        pending: list[dict[str, Any]],
-        date_from: str,
-    ) -> list[dict[str, Any]]:
-        """Merge a freshly fetched window into an account's cached history.
-
-        The fetch covers a rolling window (``date_from`` onwards). Within that
-        window the fresh data is authoritative — it reflects re-bookings,
-        corrections and pending-to-booked transitions. Outside the window the
-        previously cached BOOKED transactions are kept, which is what allows
-        history to accumulate beyond the window instead of being truncated on
-        every refresh.
-
-        Cached pending transactions are always discarded: pending entries are
-        volatile, and keeping an old one alongside its booked counterpart would
-        double-count the same debit.
-
-        Args:
-            previous: The account's cached transactions.
-            booked: Freshly fetched booked transactions.
-            pending: Freshly fetched pending transactions.
-            date_from: Inclusive ``YYYY-MM-DD`` start of the fetched window.
-
-        Returns:
-            The merged transaction list for this account.
-        """
-        fresh = list(booked) + list(pending)
-        fresh_ids = {t.get("transactionId") for t in fresh if t.get("transactionId")}
-
-        kept: list[dict[str, Any]] = []
-        for txn in previous:
-            if txn.get("_status") != "booked":
-                continue
-            transaction_id = txn.get("transactionId")
-            if transaction_id and transaction_id in fresh_ids:
-                continue  # superseded by the fresh copy
-            booking_date = str(txn.get("bookingDate") or "")
-            # No booking date means we cannot place it relative to the window;
-            # keep it rather than lose a real transaction.
-            if booking_date and booking_date >= date_from:
-                # Inside the refetched window and absent from the fresh data —
-                # the bank no longer reports it (reversal, correction).
-                continue
-            kept.append(txn)
-
-        return kept + fresh
-
     def _build_stats(
         outcome: str,
         started: datetime,
@@ -481,90 +407,6 @@ class RefreshMixin:
             "finished_at": finished.isoformat(),
             "errors": list(errors)[:5],  # cap payload size
         }
-
-    async def _async_refresh_balances_live(
-        self,
-        client: Any,
-        errors: list[str],
-        psu_ip: str | None = None,
-    ) -> dict[str, Any]:
-        """Live-fetch balances from the API and update the cache.
-
-        NEVER call this directly from an HTTP read endpoint — only from
-        user-triggered refresh paths.  Reads should go through
-        ``async_get_balance()`` which is cache-only.
-        """
-        from ..enablebanking_client import RateLimitExceeded
-
-        balances: dict[str, Any] = {}
-        for account in self._accounts:
-            account_id = account.get("id")
-            if not account_id:
-                continue
-
-            try:
-                account_balances = await client.async_get_balances(account_id, psu_ip=psu_ip)
-                iban = account.get("iban", "")
-                balances[account_id] = {
-                    "account_name": account.get("name", "Unknown"),
-                    "iban": iban,
-                    "iban_masked": (f"****{iban[-4:]}" if len(iban) >= 4 else "****"),
-                    "institution": account.get("institution", ""),
-                    "logo": account.get("logo", ""),
-                    "balances": account_balances,
-                }
-            except RateLimitExceeded as _rle:
-                _LOGGER.warning("Rate limit hit fetching balance for %s", account_id)
-                retry_after_dt = None
-                if _rle.retry_after_seconds is not None:
-                    retry_after_dt = dt_util.now() + timedelta(seconds=_rle.retry_after_seconds)
-                self._set_rate_limited(retry_after_dt, attended=bool(psu_ip))
-                errors.append(f"Rate-Limit beim Saldo für {account.get('name', account_id)}")
-                # Preserve the partial batch we already fetched — without
-                # this, accounts that succeeded BEFORE the 429 would lose
-                # their fresh balance and the UI would show stale numbers
-                # until the next day. Merge into existing cache so other
-                # accounts (not reached this round) keep their last value.
-                if balances:
-                    merged = dict(self._balances)
-                    merged.update(balances)
-                    self._balances = merged
-                return self._balances
-            except Exception as exc:
-                _LOGGER.exception(
-                    "Failed to fetch balance for account %s",
-                    account_id,
-                )
-                errors.append(f"Saldo {account.get('name', account_id)}: {str(exc)[:120]}")
-
-        # Fire balance-change events — must never crash the refresh
-        try:
-            from ..events import fire_balance_changed
-
-            for acc_id, data in balances.items():
-                raw = data.get("balances", [])
-                if raw:
-                    new_bal = float(raw[0].get("balanceAmount", {}).get("amount", 0))
-                    old_bal = self._previous_balances.get(acc_id)
-                    if old_bal is not None and abs(new_bal - old_bal) >= 1.0:
-                        fire_balance_changed(
-                            self._hass,
-                            account_name=data.get("account_name", ""),
-                            old_balance=old_bal,
-                            new_balance=new_bal,
-                        )
-                    self._previous_balances[acc_id] = new_bal
-        except Exception:
-            _LOGGER.exception("Balance change event firing failed — skipping")
-
-        if balances:
-            # Merge so accounts that errored this round keep their
-            # last known cached value instead of silently disappearing
-            # from the dashboard.
-            merged = dict(self._balances)
-            merged.update(balances)
-            self._balances = merged
-        return self._balances
 
     # ------------------------------------------------------------------
     # OAuth state management
@@ -667,14 +509,9 @@ class RefreshMixin:
             RateLimitExceeded: when the API is still rate-limited.
             RuntimeError: when no credentials are available and no client given.
         """
-        from ..enablebanking_client import RateLimitExceeded
-
-        if self.rate_limited_until:
-            raise RateLimitExceeded(
-                f"API rate-limited until {self._rate_limited_until.isoformat()} "
-                "— bitte morgen erneut versuchen."
-            )
-
+        # No quota gate: the setup wizard (catalog, authorize, session
+        # exchange) talks to Enable Banking, not to a bank's data API, so it
+        # neither spends nor is bound by the per-ASPSP 4/day budget.
         if client is None:
             client = await self._async_get_client()
         if not client:
