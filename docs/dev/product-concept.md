@@ -2,7 +2,7 @@
 
 Read this before planning features, the panel, cards or notifications. It records what Finance is
 for and which interactions it supports, as decided with the household in the concept rounds of
-2026-10-26 (source: `docs/concepts/2026-10-26-finance-product-purpose*`). Visual design is out of
+2026-10-26 (the interactive decision pages were not kept in the repo). Visual design is out of
 scope here; see `visual-round-handoff.md`.
 
 ## Purpose
@@ -111,7 +111,7 @@ a booking class by remittance text.
 - Goals: amount by date, category cap, savings rate, reserve top-up, dynamic suggestion.
 - Annual and irregular costs become monthly reserves in the plan. Accounts can be marked as
   savings accounts. **Virtual pots** split one account into pots that behave like separate
-  accounts (full feature set; the view can switch back to the real account). The pots together must
+  accounts (full feature set; the view can switch back to the real account). The pots together should
   always cover the real account position on both sides; a shortfall warns and names the top-up
   amount. Pots may finance ad-hoc spending.
 

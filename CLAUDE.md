@@ -17,7 +17,7 @@ A secure Home Assistant integration (HACS only) for personal finance management.
 **Hard rule — plan vs. actual**: The product has two sides that must not be conflated.
 - The **plan** (`budget_plan.py`) is what the household budgeted: cost positions with an explicit owner, income per person. It exists independently of any bank link.
 - The **actual** is live bank data.
-Ownership resolves in a fixed chain: the account's owner (person or shared) is only the *default*; a matched plan position overrides it, and a user rule overrides both — a shared subscription can be billed onward, and one person's contract can be paid from the joint account. Sign conventions are opposite on the two sides (plan: expense positive; bank: expense negative); convert with `actual_amount_to_plan_sign`.
+Ownership resolves in a fixed chain: the account's owner (person or shared) is only the *default*; a matched plan position overrides it, and a user correction (one-off or saved as a rule) overrides both — a shared subscription can be billed onward, and one person's contract can be paid from the joint account. Sign conventions are opposite on the two sides (plan: expense positive; bank: expense negative); convert with `actual_amount_to_plan_sign`.
 
 ## Security Model
 
