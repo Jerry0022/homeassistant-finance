@@ -2,6 +2,32 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.16.0] — 2026-10-26
+
+### Added
+- Own brand icon and logo (light/dark, @2x) served from the integration's `brand/` folder
+- Sidebar panel registered via `panel_custom` (admin only, cache-busted URLs); the Lovelace cards are auto-loaded on every dashboard, so they can be placed in any dashboard tab
+- Banks are config subentries linked through my.home-assistant.io (redirect URL to register at Enable Banking: `https://my.home-assistant.io/redirect/oauth`), with reconfigure and a repair issue when consent expires. The old callback was built from the request host and broke across internal/external URLs
+- Per-bank and per-account daily background fetch budget — the scheduled refresh uses at most 1 of the bank's 4 daily calls, attended calls stay uncapped but debounced, a 429 blocks only the affected bank for 6h, transactions are fetched incrementally and pagination has a loop guard
+- Every fetch is stored as a Fernet-encrypted raw snapshot (monthly stores, 400-day retention) plus a deduplicated encrypted ledger and balance series. The previous code claimed encryption at rest but stored plaintext; the legacy plaintext cache and single-session layout are migrated automatically
+- Devices per bank and per account with balance, available balance, last update, consent valid-until and state, fetch budget, blocked-until, last error and a refresh button; balance history is imported into long-term statistics; redacted diagnostics; `runtime_data`; `quality_scale.yaml`
+- Facts-only panel overview (accounts, bank status, admin-only transaction search); the existing household features sit behind the new `show_household` option
+
+### Changed
+- BREAKING — HACS-only distribution (minimum HA 2026.3). The Supervisor companion add-on and its payload sync are removed; install the integration as a HACS custom repository, uninstall the old add-on and restart
+- BREAKING — the split-model and remainder select entities now report slug states (`pooled_equal`, `equal`, `proportional`, `custom`) with translated labels. Automations that matched the old display text must be updated
+- BREAKING — the in-panel setup wizard and its `/setup/*` endpoints are removed. Banks are added under Settings → Devices & services → Finance → Add bank
+- Chore(manifest): `iot_class` is now `cloud_polling`; `my` and `recorder` added to `after_dependencies`
+- Docs: CLAUDE.md slimmed to an index; developer detail moved to `docs/dev/`
+- Test: 419 tests green on HA 2025.1.4 / Python 3.12 and on HA 2026.10.4 / Python 3.14, plus a boot smoke test on HA 2026.10.4
+
+### Fixed
+- `_build_stats` was missing `@staticmethod`, so every live refresh raised
+- The options flow dropped the `daily_refresh_*` settings
+- Panel auto-refresh referenced an undefined `DOMAIN`
+- The coordinator did not pass `config_entry`, which made setup fail on HA 2026.10
+- `strings.json` lacked the `services` section
+
 ## [0.15.3] — 2026-10-19
 
 ### Fixed
