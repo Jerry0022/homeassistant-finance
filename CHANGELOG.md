@@ -27,6 +27,7 @@ All notable changes to the Finance will be documented in this file.
 - Panel auto-refresh referenced an undefined `DOMAIN`
 - The coordinator did not pass `config_entry`, which made setup fail on HA 2026.10
 - `strings.json` lacked the `services` section
+- Hassfest — `cryptography` and `PyJWT` removed from `requirements` (both ship with Home Assistant core and must not be listed by a custom integration); `CONFIG_SCHEMA` declared as config-entry-only; the `consent_expired` repair issue carries its explanation in the fix-flow step instead of a top-level description, which hassfest rejects for fixable issues
 
 ## [0.15.3] — 2026-10-19
 

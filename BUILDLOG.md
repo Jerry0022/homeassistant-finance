@@ -20,6 +20,7 @@ Changes:
 - fix(core): the coordinator did not pass `config_entry`, which made setup fail on HA 2026.10
 - fix(i18n): `strings.json` lacked the `services` section
 - chore(manifest): `iot_class` is now `cloud_polling`; `my` and `recorder` added to `after_dependencies`
+- fix(manifest): hassfest — `cryptography` and `PyJWT` removed from `requirements` (both ship with Home Assistant core and must not be listed by a custom integration); `CONFIG_SCHEMA` declared as config-entry-only; the `consent_expired` repair issue carries its explanation in the fix-flow step instead of a top-level description, which hassfest rejects for fixable issues
 - docs: CLAUDE.md slimmed to an index; developer detail moved to `docs/dev/`
 - test: 419 tests green on HA 2025.1.4 / Python 3.12 and on HA 2026.10.4 / Python 3.14, plus a boot smoke test on HA 2026.10.4
 

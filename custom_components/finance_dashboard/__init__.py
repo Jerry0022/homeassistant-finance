@@ -19,6 +19,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED, Platform
 from homeassistant.core import HomeAssistant, SupportsResponse
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.event import async_track_time_change
 
 from .const import (
@@ -60,6 +61,9 @@ def _structure_signature(entry: ConfigEntry) -> tuple:
     )
     accounts = tuple(sorted(account_key(a) for a in entry.data.get("accounts", [])))
     return (banks, accounts)
+
+
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:

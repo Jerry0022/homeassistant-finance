@@ -197,12 +197,11 @@
     },
     "consent_expired": {
       "title": "Finance: Bankverbindung abgelaufen",
-      "description": "Die Verbindung zu **{bank}** ist abgelaufen oder wurde widerrufen. Kontostände und Umsätze lassen sich erst nach einer Erneuerung wieder abrufen.",
       "fix_flow": {
         "step": {
           "init": {
             "title": "Bankverbindung erneuern",
-            "description": "Öffne die Finance-Integrationsseite ({link}), wähle bei **{bank}** das Drei-Punkte-Menü und klicke auf **Neu konfigurieren**. Du wirst zu deiner Bank weitergeleitet, um den Zugriff erneut zu bestätigen."
+            "description": "Die Verbindung zu **{bank}** ist abgelaufen oder wurde widerrufen. Kontostände und Umsätze lassen sich erst nach einer Erneuerung wieder abrufen.\n\nÖffne die Finance-Integrationsseite ({link}), wähle bei **{bank}** das Drei-Punkte-Menü und klicke auf **Neu konfigurieren**. Du wirst zu deiner Bank weitergeleitet, um den Zugriff erneut zu bestätigen."
           }
         },
         "abort": {
