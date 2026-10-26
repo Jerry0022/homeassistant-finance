@@ -44,6 +44,15 @@ _DERIVED_PREFIXES = ("_account_", "_transfer")
 _DERIVED_KEYS = ("category",)
 PENDING_MATCH_DAYS = 3
 SHORT_ANSWER_DAYS = 31
+_STRING_FIELDS = (
+    "transactionId",
+    "bookingDate",
+    "bookingDateTime",
+    "valueDate",
+    "creditorName",
+    "debtorName",
+    "remittanceInformationUnstructured",
+)
 
 
 class StorageDecryptError(Exception):
@@ -254,6 +263,13 @@ class Ledger:
             "accounts": dict(loaded.get("accounts") or {}),
             "meta": dict(loaded.get("meta") or {}),
         }
+        # Ledgers written before PROCESSING_VERSION 2 can hold explicit nulls
+        # where every consumer expects a string.
+        for acct in self.data["accounts"].values():
+            for tx in acct.get("transactions") or []:
+                for field in _STRING_FIELDS:
+                    if field in tx and tx[field] is None:
+                        tx[field] = ""
         return True
 
     async def async_save(self) -> None:

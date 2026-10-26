@@ -513,22 +513,26 @@ class EnableBankingClient:
         creditor = txn.get("creditor")
         debtor = txn.get("debtor")
 
+        # ASPSPs send explicit nulls (a pending entry has no booking date);
+        # everything downstream sorts and slices these as strings.
         return {
-            "transactionId": txn.get("entry_reference", txn.get("transaction_id", "")),
-            "bookingDate": txn.get("booking_date", ""),
-            "bookingDateTime": txn.get("booking_date_time", ""),
-            "valueDate": txn.get("value_date", ""),
+            "transactionId": txn.get("entry_reference") or txn.get("transaction_id") or "",
+            "bookingDate": txn.get("booking_date") or "",
+            "bookingDateTime": txn.get("booking_date_time") or "",
+            "valueDate": txn.get("value_date") or "",
             "transactionAmount": {
                 "amount": cls._signed_amount(amount_data, txn),
-                "currency": amount_data.get("currency", "EUR"),
+                "currency": amount_data.get("currency") or "EUR",
             },
             "creditorName": (
-                creditor.get("name", "")
+                (creditor.get("name") or "")
                 if isinstance(creditor, dict)
-                else txn.get("creditor_name", "")
+                else (txn.get("creditor_name") or "")
             ),
             "debtorName": (
-                debtor.get("name", "") if isinstance(debtor, dict) else txn.get("debtor_name", "")
+                (debtor.get("name") or "")
+                if isinstance(debtor, dict)
+                else (txn.get("debtor_name") or "")
             ),
             "remittanceInformationUnstructured": cls._join_remittance(txn),
             "status": str(txn.get("status") or "").upper(),

@@ -429,3 +429,70 @@ async def test_rebuild_is_skipped_when_current_and_aborts_on_unreadable_archive(
     assert result["outcome"] == "error"
     assert mgr._ledger.data["accounts"]["K"]["transactions"] == [{"_ledger_id": "keep"}]
     assert mgr._ledger.meta["processing_version"] == 0  # retried next start
+
+
+# ---------------------------------------------------------------------------
+# Explicit nulls from the bank (live regression, v0.17.0)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_pending_entry_without_booking_date_does_not_break_the_refresh():
+    pending = eb_tx("p1", None, status="PDNG")
+    pending["value_date"] = None
+    pending["creditor"] = {"name": None}
+    page = {"transactions": [eb_tx("r1", "2026-02-01"), pending]}
+    client = _client(
+        [
+            (lambda p: "/transactions" in p, page),
+            (lambda p: "/balances" in p, {"balances": []}),
+        ]
+    )
+    raw = _archive()
+    mgr = _manager(client, raw)
+    result = await mgr.async_refresh_transactions(psu_ip="10.0.0.9")
+
+    assert {t["transactionId"] for t in result} == {"r1", "p1"}
+    p1 = next(t for t in result if t["transactionId"] == "p1")
+    assert p1["bookingDate"] == "" and p1["creditorName"] == ""
+    assert mgr.last_refresh_stats["outcome"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_raw_and_ledger_are_secured_even_when_derivation_fails():
+    client = _client(
+        [
+            (lambda p: "/transactions" in p, {"transactions": [eb_tx("r1", "2026-02-01")]}),
+            (lambda p: "/balances" in p, {"balances": []}),
+        ]
+    )
+    raw = _archive()
+    mgr = _manager(client, raw)
+    mgr._derive_from_ledger = MagicMock(side_effect=TypeError("boom"))
+    with pytest.raises(TypeError):
+        await mgr.async_refresh_transactions(psu_ip="10.0.0.9")
+    assert any(s["kind"] == "transactions" for s in await raw.async_read_all())
+    assert raw._pending == []  # flushed to disk, not only queued
+    assert mgr._ledger._store._data["accounts"]["iban:DE00"]["transactions"]
+
+
+@pytest.mark.asyncio
+async def test_old_ledger_with_nulls_loads_as_strings():
+    store = FakeEncryptedStore()
+    await store.async_save(
+        {
+            "accounts": {
+                "K": {
+                    "transactions": [
+                        {"_ledger_id": "x", "bookingDate": None, "creditorName": None}
+                    ],
+                    "balances": [],
+                }
+            },
+            "meta": {},
+        }
+    )
+    led = Ledger(store)
+    await led.async_load()
+    tx0 = led.transactions("K")[0]
+    assert tx0["bookingDate"] == "" and tx0["creditorName"] == ""
