@@ -22,10 +22,24 @@ budget Number entities, split Select, 4 automation events, benchmark with source
 
 ## Next (gated on explicit user approval, do not start unprompted)
 
-- [ ] **Phase 4 - Intentions**: model user intentions/use cases; replace the hard-wired 2026
-  spreadsheet model with composable building blocks; ask-and-learn categorization (the system asks
-  once, remembers the answer; drag and drop learning).
-- [ ] **Phase 5 - Visuals**: charts and visual design (6-month trend, spending trends).
+The intentions are defined in `product-concept.md` (decided 2026-10-26). Phase 4 builds them in
+this order, each step usable on its own:
+
+- [ ] **Phase 4 - Intentions** (scope per `product-concept.md`):
+  - [ ] 4a Household core: account owners (A / B / shared, N persons), ownership chain with saved
+    rules, salary cycle wired (`month_cycle.py`), calendar-week steering, free-to-spend figure.
+  - [ ] 4b Data truth: normalisation, PayPal-first enrichment, all six link types, any-interval
+    series with tolerances, corrections with reach, review inbox, restatement hint in the log.
+  - [ ] 4c Categorisation: learned merchant memory, opt-in AI tail (HA AI functions first, then
+    Grok / Claude / ChatGPT key, 100 calls/month cap).
+  - [ ] 4d Contracts and reserves: price mechanism per plan position, contract model with notice
+    reminders, savings-account flag, virtual pots with coverage check, goals.
+  - [ ] 4e Benchmarks: bundled versioned dataset from a source allowlist, region by postcode,
+    replaces the runtime crawl in `benchmark.py`.
+  - [ ] 4f Engagement: exception notifications + weekly digest, points event, setup wizard, README
+    and web handbook (`handbook-outline.md`).
+- [ ] **Phase 5 - Visuals**: presentation of all of the above incl. mobile; input in
+  `visual-round-handoff.md`.
 
 ## Open backlog
 
@@ -33,5 +47,4 @@ budget Number entities, split Select, 4 automation events, benchmark with source
   assignment; category-level split override (see `household-model.md`)
 - [ ] Cost-position editing UI (API exists, card is read-only)
 - [ ] Household-labour compensation (the workbook's own open question)
-- [ ] Benchmark auto-crawl beyond the Destatis savings rate
 - [ ] CSV export polish, `set_budget_limit` automation trigger

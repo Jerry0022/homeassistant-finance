@@ -17,7 +17,7 @@ A secure Home Assistant integration (HACS only) for personal finance management.
 **Hard rule — plan vs. actual**: The product has two sides that must not be conflated.
 - The **plan** (`budget_plan.py`) is what the household budgeted: cost positions with an explicit owner, income per person. It exists independently of any bank link.
 - The **actual** is live bank data.
-Ownership is a property of a *position*, never inferred from which account was debited — a shared subscription can be billed onward, and one person's contract can be paid from the joint account. Sign conventions are opposite on the two sides (plan: expense positive; bank: expense negative); convert with `actual_amount_to_plan_sign`.
+Ownership resolves in a fixed chain: the account's owner (person or shared) is only the *default*; a matched plan position overrides it, and a user correction (one-off or saved as a rule) overrides both — a shared subscription can be billed onward, and one person's contract can be paid from the joint account. Sign conventions are opposite on the two sides (plan: expense positive; bank: expense negative); convert with `actual_amount_to_plan_sign`.
 
 ## Security Model
 
@@ -27,7 +27,7 @@ Ownership is a property of a *position*, never inferred from which account was d
 3. **JWT auth**: short-lived (60s) RS256 JWTs per request; RSA key only in memory. PSU session max 180 days, forced re-auth after 90 by policy.
 4. **Session timeout** 30 min; **audit trail** logs event type + timestamp only, never values.
 5. **IBAN masking** (last 4 digits) in API responses; endpoints require HA auth; individual transactions are admin-only.
-6. **No external calls** except the Enable Banking API. No telemetry.
+6. **No external calls** except the Enable Banking API and the user's opt-in AI categorisation (HA AI functions first; payload merchant + remittance text only, never amount, IBAN or date). No telemetry, no runtime benchmark fetch.
 
 **Before every commit, verify:** `git diff --cached` has zero financial data (account numbers, balances, tokens); no `.storage/` files staged; no `credentials.json` / `tokens.json` staged.
 
@@ -44,7 +44,7 @@ Python 3.12+ (integration), vanilla Web Components (frontend), `cryptography` (F
 - Read `docs/dev/architecture.md` when touching the manager, config flow, refresh/rate limit, storage, API or frontend wiring.
 - Read `docs/dev/household-model.md` when touching split logic, month cycles, income or bonus detection.
 - Read `docs/dev/entities-and-services.md` when adding or changing entities, services, events or endpoints.
-- Read `docs/dev/roadmap.md` before planning new work; Phase 4/5 are gated on user approval.
+- Read `docs/dev/product-concept.md` (what Finance is for, decided interactions) and `docs/dev/roadmap.md` before planning new work; Phase 4/5 are gated on user approval.
 - Read `docs/dev/release.md` when bumping versions, writing BUILDLOG/CHANGELOG or validating.
 - Read `docs/dev/labels.md` when creating issues or PRs.
 - Read `docs/ARCHITECTURE-FRONTEND.md` for frontend component details.
