@@ -271,6 +271,13 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         if legacy and ("transactions" in legacy or "tx_by_account" in legacy):
             await self._migrate_plaintext_cache(legacy)
 
+        # Processing changed since the ledger was written -> rebuild it from
+        # the raw archive (no bank call).  Failure keeps the old ledger.
+        try:
+            await self.async_reprocess()
+        except Exception:
+            _LOGGER.exception("Ledger rebuild from raw archive failed — keeping current ledger")
+
         self._load_state_from_ledger()
         overrides: dict[str, bool] = {}
         try:

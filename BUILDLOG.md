@@ -1,5 +1,15 @@
 # Build Log
 
+## 0.17.0 — 2026-10-26
+Version: 0.17.0
+Branch: worktree-lifelong-history-k3x9
+Changes:
+- feat(data): lifelong history — the first attended fetch per bank session pulls the maximum history the bank allows (tries 3650, 730, 365, then 90 days). The raw archive and the balance history are kept forever by default (retention option 0 = forever)
+- fix(data): a short bank answer never erases older history that is already stored
+- feat(storage): raw snapshots carry replay metadata, so the ledger can be rebuilt from the raw archive. The ledger is rebuilt automatically when PROCESSING_VERSION changes; a backup of the old ledger is kept
+- feat(services): new admin service `finance_dashboard.reprocess_data` rebuilds the ledger from the raw archive on demand
+- test: 432 tests green
+
 ## 0.16.2 — 2026-10-26
 Version: 0.16.2
 Branch: fix/subentry-accounts

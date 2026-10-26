@@ -329,8 +329,7 @@ class EnableBankingClient:
         )
         if on_response:
             on_response("balances", 200, result)
-        balances = result if isinstance(result, list) else result.get("balances", [])
-        return [self._normalize_balance(b) for b in balances]
+        return self.parse_balances(result)
 
     async def async_get_transactions(
         self,
@@ -394,13 +393,9 @@ class EnableBankingClient:
             if on_response:
                 on_response("transactions", 200, result)
 
-            raw_transactions, continuation_key = self._extract_transaction_page(result)
-            for raw in raw_transactions:
-                normalized = self._normalize_transaction(raw)
-                if self._is_pending(raw):
-                    pending.append(normalized)
-                else:
-                    booked.append(normalized)
+            page_booked, page_pending, continuation_key = self.parse_transaction_page(result)
+            booked.extend(page_booked)
+            pending.extend(page_pending)
 
             if not continuation_key:
                 break
@@ -421,6 +416,31 @@ class EnableBankingClient:
             seen_keys.add(continuation_key)
 
         return {"booked": booked, "pending": pending, "truncated": truncated}
+
+    @classmethod
+    def parse_transaction_page(
+        cls, result: Any
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], str | None]:
+        """Normalise one raw ``/transactions`` page into (booked, pending, key).
+
+        Pure: the raw-archive replay runs archived pages through exactly the
+        code a live fetch uses.
+        """
+        booked: list[dict[str, Any]] = []
+        pending: list[dict[str, Any]] = []
+        raw_transactions, continuation_key = cls._extract_transaction_page(result)
+        for raw in raw_transactions:
+            if not isinstance(raw, dict):
+                continue
+            normalized = cls._normalize_transaction(raw)
+            (pending if cls._is_pending(raw) else booked).append(normalized)
+        return booked, pending, continuation_key
+
+    @classmethod
+    def parse_balances(cls, result: Any) -> list[dict[str, Any]]:
+        """Normalise one raw ``/balances`` response (pure, see above)."""
+        balances = result if isinstance(result, list) else (result or {}).get("balances", [])
+        return [cls._normalize_balance(b) for b in balances if isinstance(b, dict)]
 
     @staticmethod
     def _extract_transaction_page(

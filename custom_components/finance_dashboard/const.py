@@ -4,7 +4,7 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.16.2"
+VERSION = "0.17.0"
 
 # Panel
 PANEL_URL_PATH = "finance-dashboard"
@@ -50,7 +50,15 @@ LEDGER_STORAGE_MINOR_VERSION = 1
 RAW_STORAGE_VERSION = 1
 RAW_STORAGE_MINOR_VERSION = 1
 OPT_RAW_RETENTION_DAYS = "raw_retention_days"
-DEFAULT_RAW_RETENTION_DAYS = 400
+# 0 = keep forever.  The raw archive is the only source a changed processing
+# schema can be rebuilt from, so lifelong history is the default.
+DEFAULT_RAW_RETENTION_DAYS = 0
+STORAGE_KEY_LEDGER_BACKUP = f"{DOMAIN}_ledger_backup_v"  # + previous version
+
+# Version of the raw → ledger processing (normalisation, ingest, identity).
+# Bump it whenever that logic changes: on the next start the ledger is rebuilt
+# from the raw archive and the previous ledger is kept as a backup store.
+PROCESSING_VERSION = 1
 
 # Per-bank fetch budget.  The 4/day cap is the bank's and applies only to
 # background (non-PSU) access; the scheduled daily refresh may use one slot.
@@ -58,6 +66,9 @@ SCHEDULED_BACKGROUND_SHARE = 1
 ATTENDED_DEBOUNCE_SECONDS = 60
 INCREMENTAL_OVERLAP_DAYS = 7
 DEFAULT_FETCH_DAYS = 90
+# First attended fetch of an account per bank session asks for as much history
+# as the bank gives, stepping down when it rejects the period.
+HISTORY_BACKFILL_DAYS = (3650, 730, 365, DEFAULT_FETCH_DAYS)
 TRANSACTION_MAX_PAGES = 200
 
 # Bank config subentries + consent expiry
@@ -193,6 +204,7 @@ SERVICE_GET_BALANCE = "get_balance"
 SERVICE_GET_SUMMARY = "get_monthly_summary"
 SERVICE_SET_BUDGET_LIMIT = "set_budget_limit"
 SERVICE_EXPORT_CSV = "export_csv"
+SERVICE_REPROCESS_DATA = "reprocess_data"
 
 # Audit log
 AUDIT_EVENT_AUTH = "authentication"
@@ -341,8 +353,9 @@ ISSUE_CONSENT_EXPIRED_PREFIX = "consent_expired_"
 # --- Entities, devices, statistics (Phase 1.4 / 3.1) ---
 OPT_SHOW_HOUSEHOLD = "show_household"
 DEFAULT_SHOW_HOUSEHOLD = True
+# Retention option: 0 (forever) or MIN..MAX days.
 MIN_RAW_RETENTION_DAYS = 30
-MAX_RAW_RETENTION_DAYS = 3650
+MAX_RAW_RETENTION_DAYS = 36500
 STATISTICS_SOURCE = DOMAIN
 # ISO 20022 / camelCase names of balances that mean "available to spend".
 AVAILABLE_BALANCE_TYPES = ("CLAV", "ITAV", "closingAvailable", "interimAvailable")

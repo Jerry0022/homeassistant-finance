@@ -46,11 +46,11 @@
           "demo_mode": "Demo mode (synthetic data)",
           "auto_refresh_on_open": "Refresh when the panel is opened",
           "auto_refresh_max_age_minutes": "Panel refresh only if data is older than (minutes)",
-          "raw_retention_days": "Keep raw bank responses for (days, minimum 30)",
+          "raw_retention_days": "Keep raw bank responses for (days, 0 = forever)",
           "show_household": "Show household budget in the panel"
         },
         "data_description": {
-          "raw_retention_days": "Raw responses are kept encrypted for re-processing; older ones are deleted.",
+          "raw_retention_days": "Raw responses are kept encrypted so the data can be re-processed whenever the processing changes. 0 keeps them for life (recommended); otherwise at least 30 days.",
           "show_household": "Hides the household split in the panel when you only track accounts."
         }
       }
@@ -148,6 +148,10 @@
           "description": "End date filter (YYYY-MM-DD). Optional."
         }
       }
+    },
+    "reprocess_data": {
+      "name": "Re-process bank data",
+      "description": "Rebuild the processed transaction history from the encrypted raw bank responses. No bank call; the previous state is kept as a backup."
     }
   },
   "issues": {

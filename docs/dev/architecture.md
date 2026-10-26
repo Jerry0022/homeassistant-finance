@@ -54,10 +54,23 @@ never hit the bank.
 
 `data_store.py`: every store is HA `Store` with a Fernet-encrypted payload (key from the credential
 manager), versioned with a migrate hook.
-- **Raw layer**: every bank response unaltered, immutable snapshots, one store per month, pruned by
-  retention. Audit trail and source for re-deriving.
-- **Ledger layer**: processed, deduplicated per-account transactions and balance time series.
-  Categories, summaries and splits are derived, never stored here.
+- **Raw layer**: every bank response unaltered, immutable snapshots, one store per month. Kept
+  forever by default (option `raw_retention_days`, 0 = lifelong). Each snapshot carries replay
+  metadata (`account_key`, `fetch_id`, `date_from`); a `transactions_window` snapshot closes a fetch
+  with its `truncated` flag.
+- **Ledger layer**: processed, deduplicated per-account transactions and balance time series,
+  lifelong (no pruning, no cap). Categories, summaries and splits are derived, never stored here.
+  A fetch is evidence only for the span the bank reported: a bank that answers a long request
+  with less history never erases older ledger entries.
+- **Reprocessing** (`reprocess.py`): `PROCESSING_VERSION` (const) versions the raw → ledger
+  processing. Bump it with every change to normalisation, ingest or transaction identity. On
+  start, a ledger written by another version is rebuilt by replaying the raw archive through the
+  live code path (no bank call); the old ledger is saved to `…_ledger_backup_v<old>` first, history
+  the archive does not cover is carried over, and an unreadable archive aborts the rebuild.
+  Service `reprocess_data` forces it.
+- **History backfill**: the first attended fetch of an account per bank session requests
+  `HISTORY_BACKFILL_DAYS` (3650 → 730 → 365 → 90, stepping down on HTTP 400/422). Background fetches
+  never backfill (each rejected window would spend the 4/day cap). Later fetches are incremental.
 
 ## Entities and devices
 

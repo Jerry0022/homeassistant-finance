@@ -41,6 +41,81 @@ class PersistenceMixin:
         except Exception:
             _LOGGER.exception("Ledger write failed — data stays in memory only")
 
+    async def async_reprocess(self, *, force: bool = False) -> dict:
+        """Rebuild the ledger from the raw archive when processing changed.
+
+        Runs when the ledger's ``processing_version`` differs from
+        ``PROCESSING_VERSION`` (or on ``force``).  No bank call.  The previous
+        ledger is saved to ``…_ledger_backup_v<old>`` first, history the
+        archive does not cover is carried over, and an unreadable archive
+        month aborts the rebuild (the old ledger stays as it is).
+        """
+        from datetime import UTC, datetime
+
+        from ..account_identity import account_key
+        from ..const import (
+            LEDGER_STORAGE_MINOR_VERSION,
+            LEDGER_STORAGE_VERSION,
+            PROCESSING_VERSION,
+            STORAGE_KEY_LEDGER_BACKUP,
+        )
+        from ..data_store import StorageDecryptError
+        from ..reprocess import merge_uncovered, replay
+
+        meta = self._ledger.meta
+        old_version = int(meta.get("processing_version") or 0)
+        if not force and old_version == PROCESSING_VERSION:
+            return {"outcome": "current", "version": PROCESSING_VERSION}
+        if self._raw is None or not self._ledger_writable:
+            return {"outcome": "unavailable"}
+
+        try:
+            snapshots = await self._raw.async_read_all()
+        except StorageDecryptError as exc:
+            _LOGGER.error("Raw archive unreadable (%s) — ledger not rebuilt", exc)
+            self._raise_storage_corrupt_issue("raw_archive", "StorageDecryptError")
+            return {"outcome": "error", "reason": "raw_unreadable"}
+
+        if not snapshots:
+            meta["processing_version"] = PROCESSING_VERSION
+            await self._ledger.async_save()
+            return {"outcome": "empty", "version": PROCESSING_VERSION}
+
+        backup = self._credential_manager.encrypted_store(
+            f"{STORAGE_KEY_LEDGER_BACKUP}{old_version}",
+            LEDGER_STORAGE_VERSION,
+            LEDGER_STORAGE_MINOR_VERSION,
+        )
+        await backup.async_save(self._ledger.data)
+
+        uid_to_key = {a["id"]: account_key(a) for a in self._accounts if a.get("id")}
+        accounts, coverage, stats = replay(snapshots, uid_to_key)
+        old_accounts = self._ledger.data.get("accounts", {})
+        stats["carried"] = merge_uncovered(old_accounts, accounts, coverage)
+
+        self._ledger.data["accounts"] = accounts
+        meta["processing_version"] = PROCESSING_VERSION
+        log = list(meta.get("reprocessed") or [])
+        log.append(
+            {
+                "at": datetime.now(UTC).isoformat(),
+                "from": old_version,
+                "to": PROCESSING_VERSION,
+                **stats,
+            }
+        )
+        meta["reprocessed"] = log[-20:]
+        await self._ledger.async_save()
+        _LOGGER.info(
+            "Ledger rebuilt from %d raw snapshots (v%d → v%d, %d windows, %d carried over)",
+            stats["snapshots"],
+            old_version,
+            PROCESSING_VERSION,
+            stats["windows"],
+            stats["carried"],
+        )
+        return {"outcome": "rebuilt", "version": PROCESSING_VERSION, **stats}
+
     async def _async_load_transfer_overrides(
         self,
     ) -> dict[str, bool]:

@@ -274,6 +274,7 @@ async def _async_register_services(hass: HomeAssistant, manager, coordinator) ->
         SERVICE_IMPORT_SPREADSHEET,
         SERVICE_REFRESH_ACCOUNTS,
         SERVICE_REFRESH_TRANSACTIONS,
+        SERVICE_REPROCESS_DATA,
         SERVICE_SET_BUDGET_LIMIT,
     )
 
@@ -394,6 +395,23 @@ async def _async_register_services(hass: HomeAssistant, manager, coordinator) ->
         await coordinator.async_refresh()
         return report
 
+    async def handle_reprocess_data(call) -> dict:
+        """Rebuild the ledger from the raw archive (admin-only, no bank call)."""
+        from homeassistant.exceptions import HomeAssistantError
+
+        if not call.context or not call.context.user_id:
+            raise HomeAssistantError("admin_required")
+        user = await hass.auth.async_get_user(call.context.user_id)
+        if user is None or not user.is_admin:
+            raise HomeAssistantError("admin_required")
+
+        async with manager._refresh_lock:
+            result = await manager.async_reprocess(force=True)
+            overrides = await manager._async_load_transfer_overrides()
+            manager._derive_from_ledger(overrides)
+        await coordinator.async_refresh()
+        return result
+
     async def handle_get_transfer_plan(call) -> dict:
         """Return the monthly transfer choreography (cache read)."""
         return manager.get_transfer_plan(
@@ -431,3 +449,9 @@ async def _async_register_services(hass: HomeAssistant, manager, coordinator) ->
     hass.services.async_register(DOMAIN, SERVICE_SET_BUDGET_LIMIT, handle_set_budget_limit)
     hass.services.async_register(DOMAIN, SERVICE_EXPORT_CSV, handle_export_csv)
     hass.services.async_register(DOMAIN, SERVICE_TOGGLE_DEMO, handle_toggle_demo)
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REPROCESS_DATA,
+        handle_reprocess_data,
+        supports_response=SupportsResponse.OPTIONAL,
+    )

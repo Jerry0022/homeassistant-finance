@@ -2,6 +2,19 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.17.0] — 2026-10-26
+
+### Added
+- Lifelong history — the first attended fetch per bank session pulls the maximum history the bank allows (tries 3650, 730, 365, then 90 days). The raw archive and the balance history are kept forever by default (retention option 0 = forever)
+- Raw snapshots carry replay metadata, so the ledger can be rebuilt from the raw archive. The ledger is rebuilt automatically when PROCESSING_VERSION changes; a backup of the old ledger is kept
+- New admin service `finance_dashboard.reprocess_data` rebuilds the ledger from the raw archive on demand
+
+### Changed
+- Test: 432 tests green
+
+### Fixed
+- A short bank answer never erases older history that is already stored
+
 ## [0.16.2] — 2026-10-26
 
 ### Changed

@@ -114,6 +114,10 @@ toggle_demo:
   name: Toggle Demo Mode
   description: Toggle demo mode on/off. Generates realistic synthetic banking data for testing and demonstration.
 
+reprocess_data:
+  name: Re-process bank data
+  description: Rebuild the processed transaction history from the encrypted raw bank responses. No bank call; the previous state is kept as a backup. Admin only.
+
 export_csv:
   name: Export CSV
   description: Export transactions as a CSV file for local download.

@@ -46,11 +46,11 @@
           "demo_mode": "Demo-Modus (synthetische Daten)",
           "auto_refresh_on_open": "Beim Öffnen des Panels aktualisieren",
           "auto_refresh_max_age_minutes": "Panel aktualisiert nur, wenn die Daten älter sind als (Minuten)",
-          "raw_retention_days": "Rohantworten der Bank aufbewahren (Tage, mindestens 30)",
+          "raw_retention_days": "Rohantworten der Bank aufbewahren (Tage, 0 = für immer)",
           "show_household": "Haushaltsbudget im Panel anzeigen"
         },
         "data_description": {
-          "raw_retention_days": "Rohantworten bleiben verschlüsselt erhalten, um sie neu auswerten zu können; ältere werden gelöscht.",
+          "raw_retention_days": "Rohantworten bleiben verschlüsselt erhalten, damit die Daten bei jeder Änderung der Aufbereitung neu ausgewertet werden können. 0 bewahrt sie lebenslang auf (empfohlen); sonst mindestens 30 Tage.",
           "show_household": "Blendet die Haushaltsaufteilung im Panel aus, wenn du nur Konten verfolgst."
         }
       }
@@ -148,6 +148,10 @@
           "description": "Enddatum-Filter (JJJJ-MM-TT). Optional."
         }
       }
+    },
+    "reprocess_data": {
+      "name": "Bankdaten neu aufbereiten",
+      "description": "Baut den aufbereiteten Transaktionsbestand aus den verschlüsselten Rohantworten der Bank neu auf. Kein Bankabruf; der vorherige Stand bleibt als Sicherung erhalten."
     }
   },
   "issues": {

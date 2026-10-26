@@ -43,6 +43,7 @@ MigrateFunc = Callable[[int, int, Any], Awaitable[Any]]
 _DERIVED_PREFIXES = ("_account_", "_transfer")
 _DERIVED_KEYS = ("category",)
 PENDING_MATCH_DAYS = 3
+SHORT_ANSWER_DAYS = 31
 
 
 class StorageDecryptError(Exception):
@@ -177,6 +178,29 @@ def is_pending_match(pending: dict[str, Any], booked: dict[str, Any]) -> bool:
     return abs((d1 - d2).days) <= PENDING_MATCH_DAYS
 
 
+def reported_from(date_from: str | None, booked: list[dict[str, Any]]) -> str | None:
+    """Start of the span a fetch is evidence for.
+
+    The requested ``date_from`` — unless the earliest booked date the bank
+    returned lies more than ``SHORT_ANSWER_DAYS`` later, which means the bank
+    served less history than asked (a ten-year request answered with 90
+    days).  Then the span starts at that earliest date, so the years before
+    are not mistaken for reversals.  An ordinary incremental window keeps its
+    full span and with it reversal detection.  An empty answer covers the
+    whole requested window.
+    """
+    dates = [str(t.get("bookingDate"))[:10] for t in booked if t.get("bookingDate")]
+    if not dates:
+        return date_from
+    earliest = min(dates)
+    if not date_from:
+        return earliest
+    start, first = _parse_date(date_from), _parse_date(earliest)
+    if start and first and (first - start).days > SHORT_ANSWER_DAYS:
+        return earliest
+    return date_from
+
+
 def strip_derived(tx: dict[str, Any]) -> dict[str, Any]:
     """Copy of *tx* without derived fields (category, account tags, transfer flags)."""
     return {
@@ -205,8 +229,6 @@ class Ledger:
                                     "balances": [point...]}},
          "meta": {...}}   # refresh stamps + per-bank budget state
     """
-
-    MAX_BALANCE_POINTS = 5000
 
     def __init__(self, store: EncryptedStore | None) -> None:
         self._store = store
@@ -288,10 +310,12 @@ class Ledger:
     ) -> list[dict[str, Any]]:
         """Merge a fetched window into an account's ledger.
 
-        * Fresh data is authoritative inside the window: a cached booked
-          transaction at/after ``date_from`` that the bank no longer reports
-          is dropped (reversal) — unless the fetch was truncated, when absence
-          proves nothing.
+        * Fresh data is authoritative inside the span the bank actually
+          reported (:func:`reported_from`): a cached booked transaction there
+          that the bank no longer reports is dropped (reversal) — unless the
+          fetch was truncated, when absence proves nothing.  A bank that
+          answers a ten-year request with 90 days must not erase older
+          history.
         * Pending entries are replaced wholesale by the fresh pending set and
           by their booked counterpart (``is_pending_match``).
         * IDs: the bank's ``transactionId`` when present, else a fingerprint;
@@ -328,6 +352,7 @@ class Ledger:
         fresh_booked = prepare(booked, "booked")
         fresh_pending = prepare(pending, "pending")
         fresh_ids = {t["_ledger_id"] for t in fresh_booked}
+        authoritative_from = reported_from(date_from, fresh_booked)
 
         kept: list[dict[str, Any]] = []
         for tx in acct["transactions"]:
@@ -336,7 +361,7 @@ class Ledger:
             if tx["_ledger_id"] in fresh_ids:
                 continue
             bdate = str(tx.get("bookingDate") or "")
-            if not truncated and date_from and bdate and bdate >= date_from:
+            if not truncated and authoritative_from and bdate and bdate >= authoritative_from:
                 continue
             kept.append(tx)
 
@@ -349,10 +374,20 @@ class Ledger:
         acct["transactions"] = merged
         return new
 
-    def add_balances(
-        self, key: str, balances: list[dict[str, Any]], at: str, retention_days: int | None = None
-    ) -> None:
-        """Append one point per balance type for this fetch."""
+    def first_booked_date(self, key: str) -> str | None:
+        dates = [
+            str(t.get("bookingDate") or "")
+            for t in self.data.get("accounts", {}).get(key, {}).get("transactions", [])
+            if t.get("_status") == "booked" and t.get("bookingDate")
+        ]
+        return min(dates) if dates else None
+
+    def add_balances(self, key: str, balances: list[dict[str, Any]], at: str) -> None:
+        """Append one point per balance type for this fetch.
+
+        The series is lifelong: no retention, no cap.  A few fetches a day
+        add a few thousand small points per year.
+        """
         acct = self._acct(key)
         series = acct["balances"]
         for bal in balances:
@@ -365,11 +400,6 @@ class Ledger:
                     "currency": amount.get("currency", ""),
                 }
             )
-        if retention_days:
-            cutoff = (datetime.fromisoformat(at) - timedelta(days=retention_days)).isoformat()
-            series[:] = [p for p in series if p["at"] >= cutoff]
-        if len(series) > self.MAX_BALANCE_POINTS:
-            del series[: len(series) - self.MAX_BALANCE_POINTS]
 
 
 # ---------------------------------------------------------------------------
@@ -382,12 +412,16 @@ async def _migrate_raw(old_major: int, old_minor: int, payload: Any) -> Any:
 
 
 class RawArchive:
-    """Immutable snapshots of bank responses, one encrypted Store per month."""
+    """Immutable snapshots of bank responses, one encrypted Store per month.
+
+    ``retention_days == 0`` keeps everything forever (the default): the
+    archive is what the ledger is rebuilt from when processing changes.
+    """
 
     def __init__(self, hass, cred, retention_days: int = DEFAULT_RAW_RETENTION_DAYS) -> None:
         self._hass = hass
         self._cred = cred
-        self.retention_days = max(int(retention_days), 1)
+        self.retention_days = max(int(retention_days or 0), 0)
         self._pending: list[dict[str, Any]] = []
         self._stores: dict[str, EncryptedStore] = {}
         from homeassistant.helpers.storage import Store as _Store
@@ -416,8 +450,16 @@ class RawArchive:
         http_status: int,
         response: Any,
         fetched_at: str | None = None,
+        meta: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        return {
+        """One archived response.
+
+        ``meta`` carries what a replay needs beyond the body: ``account_key``
+        (the uid changes per bank session), ``fetch_id`` (groups the pages
+        of one transaction fetch), ``date_from`` / ``date_to``.  A
+        ``transactions_window`` snapshot closes a fetch with ``truncated``.
+        """
+        snap = {
             "fetched_at": fetched_at or datetime.now(UTC).isoformat(),
             "bank": bank,
             "account": account,
@@ -426,6 +468,9 @@ class RawArchive:
             "http_status": http_status,
             "response": response,
         }
+        if meta:
+            snap["meta"] = dict(meta)
+        return snap
 
     def record(self, snapshot: dict[str, Any]) -> None:
         """Queue a snapshot; written by :meth:`async_flush` at end of a refresh."""
@@ -463,6 +508,8 @@ class RawArchive:
 
     async def async_prune(self, now: datetime | None = None) -> int:
         """Drop months wholly older than retention; trim the boundary month."""
+        if not self.retention_days:
+            return 0  # lifelong
         now = now or datetime.now(UTC)
         cutoff = now - timedelta(days=self.retention_days)
         cutoff_month = cutoff.strftime("%Y_%m")
@@ -496,3 +543,16 @@ class RawArchive:
         """Snapshots of one month (``YYYY_MM``)."""
         data = await self._month_store(month).async_load()
         return list((data or {}).get("snapshots", []))
+
+    async def async_read_all(self) -> list[dict[str, Any]]:
+        """Every archived snapshot, oldest first, including unflushed ones.
+
+        Raises :class:`StorageDecryptError` when any month is unreadable — a
+        rebuild from a partial archive would silently lose history.
+        """
+        snapshots: list[dict[str, Any]] = []
+        for month in sorted(await self._load_index()):
+            snapshots.extend(await self.async_read_month(month))
+        snapshots.extend(self._pending)
+        snapshots.sort(key=lambda s: str(s.get("fetched_at") or ""))
+        return snapshots
