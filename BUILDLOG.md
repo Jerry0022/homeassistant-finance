@@ -1,5 +1,12 @@
 # Build Log
 
+## 0.16.1 — 2026-10-26
+Version: 0.16.1
+Branch: fix/account-details-endpoint
+Changes:
+- fix(enablebanking): adding a bank failed right after authorising at the bank ("Die Bank oder Enable Banking hat einen Fehler gemeldet"). Account details were requested from `/accounts/{id}`, which Enable Banking does not serve (HTTP 404); they are now read from `/accounts/{id}/details`, with the IBAN taken from the nested `account_id`. The scheduled and manual account refresh used the same call
+- test: 420 tests green (regression test for the details endpoint and nested IBAN)
+
 ## 0.16.0 — 2026-10-26
 Version: 0.16.0
 Branch: feat/rethink-foundation

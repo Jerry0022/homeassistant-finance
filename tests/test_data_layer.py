@@ -124,6 +124,24 @@ def _client(responses):
 
 
 @pytest.mark.asyncio
+async def test_account_details_uses_the_details_endpoint_and_nested_iban():
+    # Enable Banking has no bare /accounts/{id}; it answered 404 and broke
+    # every bank link right after the PSU authorised it.
+    client, calls = _client(
+        lambda n: {
+            "account_id": {"iban": "DE00123456780000000000"},
+            "name": "Girokonto",
+            "currency": "EUR",
+            "product": "Giro",
+        }
+    )
+    details = await client.async_get_account_details("uid-1")
+    assert calls == ["/accounts/uid-1/details"]
+    assert details["account"]["iban"] == "DE00123456780000000000"
+    assert details["account"]["name"] == "Girokonto"
+
+
+@pytest.mark.asyncio
 async def test_pagination_follows_keys_without_a_page_cap():
     pages = 25
     client, calls = _client(
