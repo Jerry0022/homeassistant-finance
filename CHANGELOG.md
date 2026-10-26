@@ -2,6 +2,15 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.16.2] — 2026-10-26
+
+### Changed
+- Test: 421 tests green (regression test for a bank linked without stored account records)
+
+### Fixed
+- "Aktualisieren" reached no account after a bank was linked, so the panel showed 0 transactions. Linking stored only account references in the bank subentry, while the refresh reads the integration's account list, which stayed empty on a fresh HACS install. Linking now also stores the account records there (merged by IBAN identity, so names and entity ids survive a re-link); the subentry still carries no account number. Accounts without an IBAN (cards) are identified by their identification or name instead of the per-session id
+- Banks linked with 0.16.0/0.16.1 are fetched without re-linking — a subentry account without a stored record gets a minimal one (named "<Bank> 1", "<Bank> 2", …) until the bank is re-authorised via the subentry's reconfigure
+
 ## [0.16.1] — 2026-10-26
 
 ### Changed
