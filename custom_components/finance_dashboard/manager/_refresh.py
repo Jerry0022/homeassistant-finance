@@ -349,6 +349,16 @@ class RefreshMixin:
         if accounts_hit > 0:
             self._ledger.data.get("accounts", {}).pop("__unknown__", None)
 
+        # Secure what the bank sent before any derivation runs: a bug further
+        # down must never cost the fetched data (raw first, then the ledger).
+        if self._raw is not None:
+            try:
+                await self._raw.async_flush()
+            except Exception:
+                _LOGGER.exception("Raw archive write failed — continuing")
+        if accounts_hit > 0:
+            await self._persist_transactions()
+
         # Derivations (categories, tags, transfer chains) are rebuilt from the
         # ledger — never carried over from a previous round.
         overrides = await self._async_load_transfer_overrides()

@@ -328,7 +328,7 @@ class BankMixin:
             tx_by_account[uid] = txs
 
         flat = [tx for txs in tx_by_account.values() for tx in txs]
-        flat.sort(key=lambda t: t.get("bookingDate", ""), reverse=True)
+        flat.sort(key=lambda t: str(t.get("bookingDate") or ""), reverse=True)
         try:
             chains, refunds = detect_transfer_chains(flat, self._accounts)
             flat = enrich_transactions(flat, chains, refunds)
