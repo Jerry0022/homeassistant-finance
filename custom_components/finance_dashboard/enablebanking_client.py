@@ -279,11 +279,15 @@ class EnableBankingClient:
             Dict normalized to GoCardless format:
             {account: {iban, name, currency, ...}}
         """
-        result = await self._async_request("GET", f"/accounts/{account_id}")
-        acct = result if "iban" in result else result.get("account", result)
+        # Enable Banking has no bare /accounts/{id} resource (404); the
+        # metadata lives under /details, with the IBAN nested in account_id.
+        result = await self._async_request("GET", f"/accounts/{account_id}/details")
+        acct = result if "iban" in result or "account_id" in result else result.get("account", result)
+        account_ref = acct.get("account_id")
+        iban = account_ref.get("iban", "") if isinstance(account_ref, dict) else ""
         return {
             "account": {
-                "iban": acct.get("iban", ""),
+                "iban": iban or acct.get("iban", ""),
                 "name": acct.get("account_name", acct.get("name", "")),
                 "currency": acct.get("currency", "EUR"),
                 "product": acct.get("product", ""),
