@@ -75,9 +75,19 @@ class RefreshMixin:
             finally:
                 self._refresh_in_flight = False
 
+    @staticmethod
+    def _bank_now() -> datetime:
+        """Clock for fetch-window dates.
+
+        UTC, never local time: between local midnight and UTC midnight a local
+        ``date_to`` lies in the future for the bank, and strict ASPSPs (PayPal)
+        reject the whole request with HTTP 422.
+        """
+        return dt_util.utcnow()
+
     def _fetch_date_from(self, account_key_: str, days: int | None) -> str:
         """Start of the fetch window for one account."""
-        now = dt_util.now()
+        now = self._bank_now()
         if days:
             return (now - timedelta(days=int(days))).strftime("%Y-%m-%d")
         floor = now - timedelta(days=DEFAULT_FETCH_DAYS)
@@ -147,7 +157,7 @@ class RefreshMixin:
             date_from = (
                 step
                 if isinstance(step, str)
-                else (dt_util.now() - timedelta(days=int(step))).strftime("%Y-%m-%d")
+                else (self._bank_now() - timedelta(days=int(step))).strftime("%Y-%m-%d")
             )
             meta["fetch_id"] = secrets.token_hex(8)
             meta["date_from"] = date_from
@@ -233,7 +243,7 @@ class RefreshMixin:
             return []
 
         attended = bool(psu_ip)
-        date_to = dt_util.now().strftime("%Y-%m-%d")
+        date_to = self._bank_now().strftime("%Y-%m-%d")
         targets = await self._async_bank_targets()
 
         errors: list[str] = []

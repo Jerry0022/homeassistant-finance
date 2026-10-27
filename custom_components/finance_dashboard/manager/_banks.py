@@ -117,7 +117,8 @@ class BankMixin:
         Each dict: ``bank_id``, ``title``, ``budget_used_today`` (background
         calls today for the busiest account), ``budget_limit`` (4),
         ``blocked_until`` (ISO or None), ``last_success``, ``last_error``
-        (class-level text), ``consent_valid_until``, ``consent_state``
+        (class-level text), ``last_attended_at`` (last uncapped fetch the
+        user started), ``consent_valid_until``, ``consent_state``
         (ok / expiring / expired).
         """
         info = dict(getattr(self, "_bank_info", {}) or {})

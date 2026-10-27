@@ -95,7 +95,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         self._raw = None
         self._ledger_writable = True
         # Per-bank fetch budget (attended vs background, 429 per bank).
-        self._budget = FetchBudget()
+        self._budget = FetchBudget(tz=dt_util.get_default_time_zone())
         self._bank_info: dict[str, dict[str, Any]] = {}
         self._consent_errors: dict[str, str] = {}
         self._accounts: list[dict[str, Any]] = entry.data.get("accounts", [])

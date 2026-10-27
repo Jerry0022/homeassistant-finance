@@ -90,6 +90,30 @@ def test_429_blocks_only_that_bank_for_six_hours():
     assert b.block("a", retry_after_seconds=120, now=NOW) - NOW == timedelta(seconds=120)
 
 
+def test_budget_day_follows_local_time_not_utc():
+    # 00:19 in Berlin is still yesterday in UTC: the 06:30 call of the day
+    # before must not show as "today" any more.
+    from zoneinfo import ZoneInfo
+
+    b = FetchBudget(tz=ZoneInfo("Europe/Berlin"))
+    scheduled = datetime(2026, 10, 27, 5, 30, tzinfo=UTC)  # 06:30 local
+    after_midnight = datetime(2026, 10, 27, 23, 19, tzinfo=UTC)  # 00:19 local
+    b.record_attempt("bank", "acc", attended=False, now=scheduled)
+    assert b.used_today("bank", scheduled) == 1
+    assert b.used_today("bank", after_midnight) == 0
+
+
+def test_status_exposes_last_manual_fetch():
+    # Attended fetches never count against the budget, so the status has to
+    # show them separately, or a manual refresh looks like it never happened.
+    b = FetchBudget()
+    assert b.status("bank", now=NOW)["last_attended_at"] is None
+    b.record_attempt("bank", "", attended=True, now=NOW)
+    status = b.status("bank", now=NOW)
+    assert status["budget_used_today"] == 0
+    assert status["last_attended_at"] == NOW.isoformat()
+
+
 def test_budget_state_round_trips_and_exposes_status():
     b = FetchBudget()
     b.record_attempt("bank", "acc", attended=False, now=NOW)
@@ -461,6 +485,38 @@ async def test_bank_linked_without_entry_accounts_is_still_fetched():
     assert {call[0] for call in client.tx_calls} == {"u1", "u2"}
     targets = await mgr._async_bank_targets()
     assert [a["name"] for a in targets[0]["accounts"]] == ["DKB 1", "DKB 2"]
+
+
+@pytest.mark.asyncio
+async def test_fetch_window_never_ends_in_the_banks_future():
+    # 2026-10-28 00:19 Berlin = 2026-10-27 23:19 UTC.  A local date_to of
+    # 2026-10-28 made PayPal answer HTTP 422 for every refresh until 01:00.
+    from zoneinfo import ZoneInfo
+
+    from homeassistant.util import dt as dt_util
+
+    class DateClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.windows = []
+
+        async def async_get_transactions(self, uid, date_from, date_to, psu_ip=None,
+                                         on_response=None):
+            self.windows.append((date_from, date_to))
+            return await super().async_get_transactions(uid, date_from, date_to, psu_ip,
+                                                        on_response)
+
+    utc_now = datetime(2026, 10, 27, 23, 19, tzinfo=UTC)
+    local_now = utc_now.astimezone(ZoneInfo("Europe/Berlin"))
+    client = DateClient()
+    mgr = _manager([_sub("b1", ["u1"])], [_account("u1", "DE111")], client)
+    with patch.object(dt_util, "utcnow", return_value=utc_now), \
+            patch.object(dt_util, "now", return_value=local_now):
+        await mgr.async_refresh_transactions(days=90, psu_ip="10.0.0.9")
+    assert client.windows, "the account was not fetched"
+    for date_from, date_to in client.windows:
+        assert date_to == "2026-10-27"
+        assert date_from <= date_to
 
 
 @pytest.mark.asyncio

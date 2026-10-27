@@ -3,7 +3,9 @@
 The 4/day cap belongs to the *bank* (ASPSP) and, under PSD2 RTS Art. 36(5)(b),
 applies only to requests made while the user is NOT in session.  So:
 
-* **Background** calls (no PSU headers) are counted per account per UTC day.
+* **Background** calls (no PSU headers) are counted per account per local
+  day (the household's "today"; a UTC day showed yesterday's 06:30 call as
+  "today" until 01:00/02:00 local time).
   The scheduled daily refresh may use at most ``scheduled_share`` of the
   ``limit``; any other background call may use the whole limit.
 * **Attended** calls (PSU headers present) are never capped and never gated on
@@ -18,7 +20,7 @@ Pure logic with injectable time, persisted via ``to_dict``/``from_dict``.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from typing import Any
 
 from .const import (
@@ -61,8 +63,10 @@ class FetchBudget:
         limit: int = ENABLEBANKING_RATE_LIMIT_DAILY,
         scheduled_share: int = SCHEDULED_BACKGROUND_SHARE,
         debounce_seconds: int = ATTENDED_DEBOUNCE_SECONDS,
+        tz: tzinfo = UTC,
     ) -> None:
         self.limit = limit
+        self.tz = tz
         self.scheduled_share = scheduled_share
         self.debounce_seconds = debounce_seconds
         self._banks: dict[str, dict[str, Any]] = {}
@@ -94,9 +98,8 @@ class FetchBudget:
 
     # -- queries -----------------------------------------------------------
 
-    @staticmethod
-    def _day(now: datetime) -> str:
-        return now.astimezone(UTC).strftime("%Y-%m-%d")
+    def _day(self, now: datetime) -> str:
+        return now.astimezone(self.tz).strftime("%Y-%m-%d")
 
     def used_today(self, bank_id: str, now: datetime | None = None) -> int:
         """Background calls today for the busiest account of the bank."""
@@ -199,5 +202,8 @@ class FetchBudget:
             "blocked_until": blocked.isoformat() if blocked else None,
             "last_success": bank["last_success"],
             "last_error": bank["last_error"],
+            # Attended fetches are uncapped and so absent from the budget count;
+            # this keeps them visible next to it.
+            "last_attended_at": bank["last_attended_at"],
             "consent_valid_until": consent_valid_until,
         }
