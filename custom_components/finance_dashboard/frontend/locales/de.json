@@ -245,7 +245,7 @@
   "home.setup.pots_title": "Noch keine Töpfe",
   "home.setup.pots_body": "Lege Töpfe an, dann siehst du hier, was du noch ausgeben kannst.",
   "hc.cycle": "Zyklus",
-  "hc.cycle.day": "Tag $day von $days",
+  "hc.cycle.day": "Tag $current von $total",
   "hc.cycle.current": "Dieser Zyklus",
   "hc.cycle.previous": "Letzter Zyklus",
   "hc.cycle.calendar": "Kalendermonat, bis ein Gehaltseingang erkannt ist.",
@@ -351,5 +351,6 @@
   "ov.fresh.link": "Aktualität & Prüfung",
   "ov.fresh.last": "Zuletzt importiert: $date",
   "ov.fresh.never": "Noch nichts importiert",
-  "home.fresh.details": "Details"
+  "home.fresh.details": "Details",
+  "fr.valid.gaps_one": "In einem Monat gibt es eine Lücke. Meist fehlen Buchungen aus der Zeit vor dem ersten Import."
 }

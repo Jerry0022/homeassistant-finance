@@ -245,7 +245,7 @@
   "home.setup.pots_title": "No pots yet",
   "home.setup.pots_body": "Create pots, then you see here what you can still spend.",
   "hc.cycle": "Cycle",
-  "hc.cycle.day": "Day $day of $days",
+  "hc.cycle.day": "Day $current of $total",
   "hc.cycle.current": "This cycle",
   "hc.cycle.previous": "Last cycle",
   "hc.cycle.calendar": "Calendar month until a salary deposit is detected.",
@@ -351,5 +351,6 @@
   "ov.fresh.link": "Freshness & checks",
   "ov.fresh.last": "Last import: $date",
   "ov.fresh.never": "Nothing imported yet",
-  "home.fresh.details": "Details"
+  "home.fresh.details": "Details",
+  "fr.valid.gaps_one": "One month has a gap. Usually bookings from before the first import are missing."
 }

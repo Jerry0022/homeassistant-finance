@@ -23,7 +23,7 @@ const DOMAIN = "finance_dashboard";
 const FB = {
   de: {
     "hc.cycle": "Zyklus",
-    "hc.cycle.day": "Tag $day von $days",
+    "hc.cycle.day": "Tag $current von $total",
     "hc.cycle.current": "Dieser Zyklus",
     "hc.cycle.previous": "Letzter Zyklus",
     "hc.cycle.calendar": "Kalendermonat, bis ein Gehaltseingang erkannt ist.",
@@ -77,7 +77,7 @@ const FB = {
   },
   en: {
     "hc.cycle": "Cycle",
-    "hc.cycle.day": "Day $day of $days",
+    "hc.cycle.day": "Day $current of $total",
     "hc.cycle.current": "This cycle",
     "hc.cycle.previous": "Last cycle",
     "hc.cycle.calendar": "Calendar month until a salary deposit is detected.",
@@ -283,7 +283,7 @@ class FdHouseholdCycle extends HTMLElement {
     const head = `<div class="card">
   <div class="head">
     <div><h3>${tr("hc.cycle")} ${escHtml(range)}</h3>
-      <div class="sub">${isCur && c.day ? escHtml(tr("hc.cycle.day", { day: c.day, days: c.days })) : ""}</div></div>
+      <div class="sub">${isCur && c.day ? escHtml(tr("hc.cycle.day", { current: c.day, total: c.days })) : ""}</div></div>
     <div class="seg" role="radiogroup" aria-label="${tr("hc.cycle")}">
       <button role="radio" data-cycle="current" aria-checked="${this._cycle === "current"}">${tr("hc.cycle.current")}</button>
       <button role="radio" data-cycle="previous" aria-checked="${this._cycle === "previous"}">${tr("hc.cycle.previous")}</button>

@@ -58,6 +58,7 @@ const FB = {
     "fr.valid.unknown": "unbekannt",
     "fr.valid.empty": "Noch nicht prüfbar – dafür braucht es mindestens zwei Saldenstände an verschiedenen Tagen eines Monats.",
     "fr.valid.more": "Weitere Monate ($n)",
+    "fr.valid.gaps_one": "In einem Monat gibt es eine Lücke. Meist fehlen Buchungen aus der Zeit vor dem ersten Import.",
     "fr.valid.gaps": "In $n Monaten gibt es eine Lücke. Meist fehlen Buchungen aus der Zeit vor dem ersten Import.",
     "fr.valid.allok": "Alle geprüften Monate stimmen.",
     "fr.deriv.title": "Geht beim Auswerten etwas verloren?",
@@ -103,6 +104,7 @@ const FB = {
     "fr.valid.unknown": "unknown",
     "fr.valid.empty": "Not checkable yet – it needs at least two balance readings on different days of a month.",
     "fr.valid.more": "More months ($n)",
+    "fr.valid.gaps_one": "One month has a gap. Usually bookings from before the first import are missing.",
     "fr.valid.gaps": "$n months have a gap. Usually bookings from before the first import are missing.",
     "fr.valid.allok": "All checked months match.",
     "fr.deriv.title": "Is anything lost while evaluating?",
@@ -233,7 +235,7 @@ class FdFreshness extends HTMLElement {
     const admin = this._isAdmin;
     const say = d.last_import ? tr("fr.say.fresh", { time: when(d.as_of) }) : tr("fr.say.noimport");
     const facts = [
-      [tr("fr.as_of"), when(d.as_of)],
+      [tr("fr.as_of"), when(d.last_import ? d.as_of : null)],
       [tr("fr.last_import"), when(d.last_import)],
     ];
     if (admin) {
@@ -256,7 +258,7 @@ class FdFreshness extends HTMLElement {
         (e.banks || []).length ? e.banks.join(", ") : "",
         e.new != null ? tr("fr.log.new", { n: e.new }) : "",
         e.total != null ? tr("fr.log.total", { n: e.total }) : "",
-        e.duration_ms != null ? `${(e.duration_ms / 1000).toFixed(1)} s` : "",
+        e.duration_ms != null ? `${(e.duration_ms / 1000).toFixed(1)} s` : "",
       ].filter(Boolean).join(" · ");
       return `<div class="row"><div class="l"><b>${escHtml(kindTxt)}</b><span>${escHtml(fmtDate(e.at, true))}${meta ? " · " + escHtml(meta) : ""}</span></div>
   <div class="r"><span class="chip ${OUTCOME_CLS[e.outcome] || "unk"}">${escHtml(ocTxt)}</span></div></div>`;
@@ -277,7 +279,7 @@ class FdFreshness extends HTMLElement {
       return `<div class="row"><div class="l">${escHtml(mfmt(v.month))}</div><div class="r"><span class="chip ${cls}">${escHtml(txt)}</span></div></div>`;
     };
     const gaps = val.filter((v) => v.status === "gap").length;
-    const vsum = !val.length ? "" : gaps ? tr("fr.valid.gaps", { n: gaps }) : val.some((v) => v.status === "ok") ? tr("fr.valid.allok") : "";
+    const vsum = !val.length ? "" : gaps ? tr(gaps === 1 ? "fr.valid.gaps_one" : "fr.valid.gaps", { n: gaps }) : val.some((v) => v.status === "ok") ? tr("fr.valid.allok") : "";
     const vbody = [...byAcc.entries()].map(([acc, list]) => `<div class="acc">${escHtml(acc)}</div>${list.slice(0, 3).map(vrow).join("")}
   ${list.length > 3 ? `<details><summary>${escHtml(tr("fr.valid.more", { n: list.length - 3 }))}</summary>${list.slice(3).map(vrow).join("")}</details>` : ""}`).join("");
     h += `<div class="card"><h3>${tr("fr.valid.title")}</h3><p class="say">${escHtml(vsum || tr("fr.valid.say"))}</p>
@@ -285,7 +287,7 @@ class FdFreshness extends HTMLElement {
 
     // Derivation check
     const dv = d.derivation;
-    if (dv) {
+    if (dv && (dv.ledger_count || !dv.ok)) {
       const txt = dv.ok ? tr("fr.deriv.ok", { n: dv.ledger_count ?? 0 })
         : tr("fr.deriv.bad", { diff: eur(Math.abs(dv.diff || 0)), ledger: dv.ledger_count ?? 0, derived: dv.derived_count ?? 0 });
       h += `<div class="card"><h3>${tr("fr.deriv.title")} <span class="chip ${dv.ok ? "ok" : "near"}">${escHtml(dv.ok ? tr("fr.valid.ok") : eur(Math.abs(dv.diff || 0)))}</span></h3>

@@ -128,6 +128,10 @@ All events use `fd-` prefix, `bubbles: true, composed: true` for Shadow DOM trav
 | `fd-month-changed` | fd-header | fd-data-provider | Month navigation (Phase 2) |
 | `fd-category-selected` | fd-donut-chart | fd-transaction-list (Phase 3) | Category drill-down |
 | `retry` | finance-status-chip | fd-header | Error recovery |
+| `fd-reprocess-requested` | fd-freshness | panel shell -> fd-overview.reprocess() | "Aktualisieren": POST `/reprocess`, stored raw data only, no bank call |
+| `fd-reprocess-done` | fd-overview | panel shell | Start + freshness page reload |
+| `fd-navigate` `{target}` | fd-home, fd-overview, fd-household-cycle, fd-budget-plan | panel shell | `freshness` opens fd-freshness; `setup` is the setup wizard's (empty plan / not configured CTA) |
+| `fd-freshness-back` | fd-freshness | panel shell | Back to the tab the page was opened from |
 
 ### Sibling Communication
 
@@ -217,3 +221,17 @@ The response's `view` is authoritative (a user without a person mapping gets the
 - Status wording: `passt` / `knapp` / `drüber` (colour carries the status, no red).
 - Design tokens (`--fd-*`) live in `SHARED_CSS` (`fd-shared-styles.js`) and map onto HA theme variables;
   `[data-tip]` / `[data-tip-info]` give the app-styled tooltip (label and info delay tiers).
+
+## Household cycle and freshness page
+
+- `fd-household-cycle` replaces the calendar-month `fd-stats-row` in the Household tab. It reads
+  `GET household_summary?cycle=current|previous` (contract: `docs/dev/contracts/household-summary.md`):
+  cycle label with dates and day x/y, Einnahmen / Ausgaben / Ueberschuss with the previous-cycle delta,
+  Sparquote only when not null (else "Gehalt erwartet am ..." / "noch kein Einkommen"), Fix vs Variabel and the
+  owner split (restricted persons: totals only). Each block has one rule-based sentence; open (unassigned)
+  expenses offer "Konten zuordnen".
+- `fd-freshness` (own view `#viewFreshness` in the panel, opened with `fd-navigate {target:"freshness"}`)
+  shows Stand, last import / processing, processing version, the import log, monthly validity per account and the
+  derivation check from `GET freshness` (contract: `docs/dev/contracts/reprocess.md`); non-admins see Stand + last import.
+- Overview bank card: "Neu importieren" (`fd-refresh-requested`, attended bank fetch) and "Aktualisieren"
+  (`POST reprocess`, no bank call); the panel passes the import progress to `fd-overview.importing`.
