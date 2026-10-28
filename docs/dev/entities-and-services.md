@@ -32,3 +32,16 @@ updates balances + transactions + recurring in one round.
 Cache reads: `/balances`, `/transactions`, `/summary`, `/refresh_status`, bank status, settings.
 Live: `/refresh`. Plan: `/budget_plan`, `/transfer_plan`, `/plan_vs_actual`, `/benchmark`, plan
 position/income/import. Demo: toggle + data. IBANs are truncated to the last 4 digits.
+
+Home screen (`api/home.py`, `home.py`, `pots.py`, `cycle.py`):
+
+- `GET /home?horizon=today|week|cycle|year&view=person|household[&demo=1]` - cache read only, never a
+  bank call. The person comes from the logged-in HA user (account `ha_users`), never from a
+  parameter; without a mapping `view=person` degrades to `household`. Household view shows shared
+  pots in full and every person only as totals (`persons[]`). Contract: see
+  `docs/concepts/20261027-2210-finance-visual-round/briefs/home-api-contract.md`.
+- `POST|PUT|DELETE /pots` - pot CRUD. Admins manage every pot; other users only their own
+  personal pots (also checked against the existing owner on update/delete, so a pot cannot be
+  taken over). Ids are server-generated on create. Pots are stored in `.storage/finance_dashboard_pots`.
+- Demo mode (`manager.demo_mode`, or `demo=1`) serves the same payload from invented data
+  (`demo.generate_demo_home`).

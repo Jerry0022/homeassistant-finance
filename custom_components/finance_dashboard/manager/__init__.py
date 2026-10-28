@@ -52,6 +52,7 @@ from ..const import (
 )
 from ..data_store import Ledger, StorageDecryptError
 from ..fetch_budget import FetchBudget
+from ..pots import Pot, PotStore
 from ..household import HouseholdMember, HouseholdModel, model_from_plan
 from ..transfer_detector import (
     apply_overrides,
@@ -131,6 +132,8 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         # per-person income). Live bank data supplies the ACTUAL side; the two
         # are compared per position in the monthly summary.
         self._plan_store = BudgetPlanStore(hass)
+        # Pots (budget envelopes) - plan data stored next to the plan.
+        self._pot_store = PotStore(hass)
         # Lazily created on first benchmark request — it reads .storage/ and
         # nothing needs it during setup.
         self._benchmark_provider = None
@@ -235,6 +238,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         # Load the budget plan. A read failure must not block startup — the
         # store falls back to an empty plan and the UI prompts for an import.
         await self._plan_store.async_load()
+        await self._pot_store.async_load()
 
         # Two-layer storage, encrypted with the credential manager's key.
         from ..data_store import RawArchive
@@ -731,6 +735,58 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         plan.set_income(entry)
         await self._plan_store.async_save(plan)
         return entry.to_dict()
+
+    # ------------------------------------------------------------------
+    # Pots + home screen (cache reads only)
+    # ------------------------------------------------------------------
+
+    @property
+    def pots(self) -> list[Pot]:
+        """All pots (empty until loaded)."""
+        return self._pot_store.pots
+
+    def resolve_person(self, user: Any) -> str | None:
+        """Person the logged-in HA user maps to (via account ``ha_users``)."""
+        from ..home import resolve_person
+
+        return resolve_person(user, self._accounts)
+
+    async def async_save_pot(self, data: dict[str, Any], *, replace: bool) -> dict[str, Any]:
+        """Create (``replace=False``) or replace a pot. Raises ``ValueError``/``KeyError``."""
+        # Server-side id on create, never client-chosen.
+        pot = Pot.from_dict({**data, "id": data.get("id") if replace else ""})
+        saved = await self._pot_store.async_upsert(pot, replace_existing=replace)
+        return saved.to_dict()
+
+    async def async_delete_pot(self, pot_id: str) -> bool:
+        """Delete a pot by id."""
+        return await self._pot_store.async_delete(pot_id)
+
+    def get_home(
+        self, *, person: str | None, view: str, horizon: str, demo: bool = False
+    ) -> dict[str, Any]:
+        """Home-screen payload from cached data. Never contacts a bank."""
+        from ..home import build_home
+
+        now = dt_util.now()
+        if demo or self._demo_mode:
+            from ..demo import generate_demo_home
+
+            return generate_demo_home(person=person, view=view, horizon=horizon, now=now)
+        banks = self.get_bank_status()
+        return build_home(
+            accounts=self._accounts,
+            transactions=get_effective_transactions(self._transactions),
+            plan=self.budget_plan,
+            pots=self.pots,
+            recurring=self._recurring_patterns,
+            banks=banks,
+            as_of=self._last_refresh,
+            now=now,
+            person=person,
+            view=view,
+            horizon=horizon,
+        )
 
     def get_budget_plan_view(
         self, month: int | None = None, year: int | None = None

@@ -200,3 +200,20 @@ Cache-read endpoints used by the Overview: `/balances`, `/bank_status`
 `/settings`, `/refresh_status`. The Refresh button posts the attended
 `/refresh` (admin-only); the `debounced` and `rate_limited` outcomes are
 reported as toasts, not retried.
+
+## Home screen (`fd-home.js`)
+
+The panel's first tab ("Start"). One cache-only request per horizon and view:
+`GET finance_dashboard/home?horizon=today|week|cycle|year&view=person|household[&demo=1]`.
+The response's `view` is authoritative (a user without a person mapping gets the household view).
+
+- Navigation, same on mobile and desktop: top bar (freshness icon, Eilmeldung pill with panel, star with question
+  badge), segment control Heute, Woche, Zyklus, Jahr (also swipeable via pointer events and arrow keys), bottom oval
+  Person / Haushalt toggle.
+- Desktop (`@container home (min-width: 760px)`): side column with pot management (create, edit, delete through
+  `POST/PUT/DELETE finance_dashboard/pots`) and rule-based "new pot" suggestions (categories without a pot,
+  dismissals kept in `localStorage`). Desktop-only controls carry the purple marker.
+- Events: `fd-categorize-requested` (star; the shell opens `fd-categorize` in a dialog), `fd-demo-toggle`.
+- Status wording: `passt` / `knapp` / `drüber` (colour carries the status, no red).
+- Design tokens (`--fd-*`) live in `SHARED_CSS` (`fd-shared-styles.js`) and map onto HA theme variables;
+  `[data-tip]` / `[data-tip-info]` give the app-styled tooltip (label and info delay tiers).

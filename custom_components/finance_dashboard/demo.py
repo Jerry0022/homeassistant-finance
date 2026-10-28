@@ -705,3 +705,134 @@ def _build_household(
         "remainder_mode": "none",
         "total_shared_costs": round(shared_costs, 2),
     }
+
+
+# ---------------------------------------------------------------------------
+# Home-screen contract in demo mode
+# ---------------------------------------------------------------------------
+
+DEMO_POTS: list[dict[str, Any]] = [
+    {
+        "id": "demo_food",
+        "name": "Lebensmittel",
+        "owner": "shared",
+        "cycle_budget": 520.0,
+        "category_keys": ["food"],
+        "kind": "spend",
+    },
+    {
+        "id": "demo_anna_fun",
+        "name": "Anna Freizeit",
+        "owner": "Anna",
+        "cycle_budget": 180.0,
+        "category_keys": ["other", "subscriptions"],
+        "kind": "spend",
+    },
+    {
+        "id": "demo_max_mobility",
+        "name": "Max Mobilität",
+        "owner": "Max",
+        "cycle_budget": 140.0,
+        "category_keys": ["transport"],
+        "kind": "spend",
+    },
+    {
+        "id": "demo_holiday",
+        "name": "Urlaub",
+        "owner": "shared",
+        "cycle_budget": 150.0,
+        "category_keys": [],
+        "kind": "reserve",
+    },
+]
+
+# (account, creditor, category, amount, days before today) - invented
+_DEMO_HOME_SPENDING: list[tuple[str, str, str, float, int]] = [
+    ("demo-ing-shared", "Markt Frisch", "food", -62.4, 1),
+    ("demo-ing-shared", "Markt Frisch", "food", -48.1, 4),
+    ("demo-ing-shared", "Bäckerei", "food", -9.8, 6),
+    ("demo-ing-shared", "Markt Frisch", "food", -77.3, 9),
+    ("demo-ing-shared", "Wochenmarkt", "food", -31.0, 13),
+    ("demo-sparkasse-anna", "Kino", "other", -24.0, 2),
+    ("demo-sparkasse-anna", "Streamingdienst", "subscriptions", -9.99, 8),
+    ("demo-dkb-max", "Tankstelle", "transport", -58.7, 3),
+    ("demo-dkb-max", "ÖPNV", "transport", -49.0, 10),
+]
+
+
+def generate_demo_home(
+    *, person: str | None, view: str, horizon: str, now: datetime | None = None
+) -> dict[str, Any]:
+    """Home contract built from invented data - same shape as the live one.
+
+    Anna's salary lands on the 1st, Max's on the 28th: the household cycle
+    therefore starts on Max's pay day (7-day rule), which demonstrates the rule.
+    """
+    from datetime import timedelta
+
+    from .home import build_home
+    from .pots import Pot
+
+    now = now or datetime.now().astimezone()
+    today = now.date()
+    accounts = _build_accounts()
+    acc_map = {a["id"]: a for a in accounts}
+
+    def _tx(acc_id: str, creditor: str, cat: str, amount: float, day, *, pending=False):
+        acc = acc_map[acc_id]
+        return {
+            "transactionId": f"demo-home-{creditor}-{day.isoformat()}-{cat}",
+            "bookingDate": day.isoformat(),
+            "transactionAmount": {"amount": str(amount), "currency": "EUR"},
+            "creditorName": creditor,
+            "category": cat,
+            "_account_id": acc_id,
+            "_account_type": acc.get("type", "personal"),
+            "_account_person": acc.get("person", ""),
+            "_status": "pending" if pending else "booked",
+        }
+
+    txs: list[dict[str, Any]] = []
+    # Over a year of salaries so the year view has cycles to show.
+    month_start = today.replace(day=1)
+    first = month_start
+    for i in range(14):
+        if i:
+            first = (first - timedelta(days=1)).replace(day=1)
+        txs.append(_tx("demo-sparkasse-anna", "Arbeitgeber A", "income", 3100.0, first))
+        prev_end = first - timedelta(days=1)
+        txs.append(
+            _tx("demo-dkb-max", "Arbeitgeber M", "income", 2400.0, prev_end.replace(day=28))
+        )
+    for acc_id, creditor, cat, amount, ago in _DEMO_HOME_SPENDING:
+        txs.append(_tx(acc_id, creditor, cat, amount, today - timedelta(days=ago)))
+    txs.append(_tx("demo-ing-shared", "Markt Frisch", "food", -18.5, today, pending=True))
+    txs.append(
+        _tx("demo-sparkasse-anna", "Streamingdienst", "subscriptions", -9.99, today, pending=True)
+    )
+    # Salaries dated in the future would distort the cycle: keep history only.
+    txs = [t for t in txs if t["_status"] == "pending" or t["bookingDate"] <= today.isoformat()]
+    txs.sort(key=lambda t: t["bookingDate"], reverse=True)
+
+    if view == "person" and person not in {"Anna", "Max"}:
+        person = "Anna"
+    out = build_home(
+        accounts=accounts,
+        transactions=txs,
+        plan=None,
+        pots=[Pot.from_dict(p) for p in DEMO_POTS],
+        recurring=[],
+        banks=[],
+        as_of=now,
+        now=now,
+        person=person if view == "person" else None,
+        view=view,
+        horizon=horizon,
+    )
+    # Demo has no HA-user mapping: always expose a person so the frontend can
+    # switch back from the household view, and show a covered-costs verdict.
+    if out.get("person") is None:
+        out["person"] = {"id": "Anna", "name": "Anna"}
+    if horizon in ("cycle", "year") and out.get("fixed_costs_covered") is None:
+        out["fixed_costs_covered"] = True
+    return out

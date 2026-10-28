@@ -1,7 +1,8 @@
 /**
  * Finance Dashboard — Sidebar Panel Shell
  *
- * Two tabs:
+ * Three tabs:
+ *   Start / Home          fd-home (Heute · Woche · Zyklus · Jahr), the default.
  *   Übersicht / Overview  fd-overview   plain facts (accounts, bank status,
  *                                       admin transaction list). Always on.
  *   Haushalt / Household  the household / budget-plan component tree.
@@ -46,7 +47,7 @@ class FinanceDashboardPanel extends HTMLElement {
     this._overlayState = null; // "loading" | "refreshing" | "error" | "onboarding" | null
     this._showHousehold = false;
     this._dpActive = false;
-    this._tab = "overview";
+    this._tab = "home";
     this._refreshing = false;
   }
 
@@ -71,6 +72,8 @@ class FinanceDashboardPanel extends HTMLElement {
     }
     const ov = this.shadowRoot.querySelector("fd-overview");
     if (ov) ov.hass = hass;
+    const home = this.shadowRoot.querySelector("fd-home");
+    if (home) home.hass = hass;
     // Forward hass to the data provider only while the household side is live
     // (it subscribes to the entity registry and reads entity states).
     if (this._dpActive) {
@@ -123,8 +126,9 @@ class FinanceDashboardPanel extends HTMLElement {
     const bar = sh.getElementById("tabs");
     if (!bar) return;
     const visible = this._householdVisible;
-    bar.hidden = !visible;
-    if (!visible && this._tab === "household") this._selectTab("overview");
+    const hb = bar.querySelector('[data-tab="household"]');
+    if (hb) hb.hidden = !visible;
+    if (!visible && this._tab === "household") this._selectTab("home");
     else this._selectTab(this._tab);
   }
 
@@ -136,6 +140,7 @@ class FinanceDashboardPanel extends HTMLElement {
       b.setAttribute("aria-selected", String(on));
       b.tabIndex = on ? 0 : -1;
     }
+    sh.getElementById("viewHome").hidden = tab !== "home";
     sh.getElementById("viewOverview").hidden = tab !== "overview";
     sh.getElementById("viewHousehold").hidden = tab !== "household";
   }
@@ -264,11 +269,13 @@ class FinanceDashboardPanel extends HTMLElement {
 <fd-data-provider></fd-data-provider>
 <div class="fd">
   <fd-header></fd-header>
-  <div class="tabs" id="tabs" role="tablist" aria-label="${tSync("tabs.label")}" hidden>
-    <button role="tab" data-tab="overview" aria-selected="true">${tSync("tabs.overview")}</button>
+  <div class="tabs" id="tabs" role="tablist" aria-label="${tSync("tabs.label")}">
+    <button role="tab" data-tab="home" aria-selected="true">${tSync("tabs.home")}</button>
+    <button role="tab" data-tab="overview" aria-selected="false" tabindex="-1">${tSync("tabs.overview")}</button>
     <button role="tab" data-tab="household" aria-selected="false" tabindex="-1">${tSync("tabs.household")}</button>
   </div>
-  <div id="viewOverview" role="tabpanel"><fd-overview></fd-overview></div>
+  <div id="viewHome" role="tabpanel"><fd-home></fd-home></div>
+  <div id="viewOverview" role="tabpanel" hidden><fd-overview></fd-overview></div>
   <div id="viewHousehold" role="tabpanel" hidden>
     <div id="overlay" class="loading">${tSync("panel.loading")}</div>
     <div id="components" class="hidden"></div>
@@ -286,13 +293,14 @@ class FinanceDashboardPanel extends HTMLElement {
     });
     tabs.addEventListener("keydown", (e) => {
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      const order = [...tabs.querySelectorAll("[role=tab]")];
+      const order = [...tabs.querySelectorAll("[role=tab]")].filter((b) => !b.hidden);
       const next = order[(order.findIndex((b) => b.dataset.tab === this._tab) + (e.key === "ArrowRight" ? 1 : -1) + order.length) % order.length];
       this._selectTab(next.dataset.tab);
       next.focus();
     });
 
     sh.addEventListener("fd-data-updated", (e) => this._onData(e.detail));
+    sh.addEventListener("fd-categorize-requested", () => this._openCategorize());
 
     sh.addEventListener("fd-refresh-requested", () => this._refresh());
 
@@ -312,11 +320,41 @@ class FinanceDashboardPanel extends HTMLElement {
           header.showToast(window._fd.tSync(enabled ? "toast.demo_started" : "toast.demo_stopped"), "info");
         }
       }
-      // Demo data only exists on the household side: show it there.
+      // The home screen reads demo data through ?demo=1.
+      const home = sh.querySelector("fd-home");
+      if (home) home.demo = enabled;
       this._updateTabs();
-      if (enabled) this._selectTab("household");
-      else if (!this._showHousehold) this._dpActive = false;
+      if (!enabled && !this._showHousehold) this._dpActive = false;
     });
+  }
+
+  /** Star on the home screen: the existing categorise card in a dialog. */
+  _openCategorize() {
+    const sh = this.shadowRoot;
+    if (sh.getElementById("catDialog") || !this._hass) return;
+    const { tSync } = window._fd;
+    const wrap = document.createElement("div");
+    wrap.id = "catDialog";
+    wrap.setAttribute("role", "dialog");
+    wrap.setAttribute("aria-modal", "true");
+    wrap.setAttribute("aria-label", tSync("home.categorize.title"));
+    wrap.style.cssText = "position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4);padding:12px;";
+    const box = document.createElement("div");
+    box.style.cssText = "width:min(720px,100%);max-height:90dvh;overflow:auto;border-radius:16px;background:var(--card-background-color,#fff);";
+    const close = document.createElement("button");
+    close.textContent = tSync("home.alert.close");
+    close.style.cssText = "display:block;margin:8px 8px 0 auto;min-height:44px;padding:0 16px;border:0;border-radius:999px;background:transparent;color:var(--primary-color);font:inherit;cursor:pointer;";
+    const card = document.createElement("fd-categorize");
+    card.setConfig?.({});
+    card.hass = this._hass;
+    const done = () => { wrap.remove(); sh.querySelector("fd-home")?.reload?.(); };
+    close.addEventListener("click", done);
+    wrap.addEventListener("click", (e) => { if (e.target === wrap) done(); });
+    wrap.addEventListener("keydown", (e) => { if (e.key === "Escape") done(); });
+    box.append(close, card);
+    wrap.append(box);
+    sh.append(wrap);
+    close.focus();
   }
 
   /**
@@ -356,6 +394,7 @@ class FinanceDashboardPanel extends HTMLElement {
       this._toastRefresh(detail);
       const ov = sh.querySelector("fd-overview");
       if (ov) ov.reload();
+      sh.querySelector("fd-home")?.reload?.();
       if (this._dpActive && dp) dp.rebuildAfterRefresh();
     } finally {
       this._refreshing = false;

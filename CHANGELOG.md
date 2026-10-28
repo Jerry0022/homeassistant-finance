@@ -2,6 +2,19 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.18.0] — 2026-10-28
+
+### Added
+- New first tab "Start" — the home screen per horizon (Heute · Woche · Zyklus · Jahr), swipeable, with a Person ⇄ Haushalt pill; Heute shows only today's free amount and pots, Woche the daily linear budget with carry-over within the cycle, Zyklus the Soll line, "Als Nächstes" (pending bookings inline with a label), "Wusstest du schon?" and reserves, Jahr a light year view
+- Income cycle rule — a person's cycle runs from their earliest highest income to the next; the household starts at the highest income unless another person's highest income falls within the 7 days before it
+- Pots with a cycle-wide balance, average per day and carry-over only within the cycle; status passt / knapp (≤ +10 % over linear) / drüber
+- `GET /api/finance_dashboard/home?horizon=&view=` (cache only, no bank call) and pot create/update/delete; a person view shows only that person's items, the household view shows other persons as totals only
+- Design-system tokens (surfaces, status semantics, person colours, desktop-only marker) and a shared tooltip style
+- Test: 45 new tests (cycle edge cases, carry-over, ±10 % status, zero line); 484 tests green
+
+### Changed
+- Docs: README marks the project as alpha, not recommended for use; roadmap records the next visual-round slices
+
 ## [0.17.2] — 2026-10-28
 
 ### Added
