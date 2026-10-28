@@ -2,6 +2,18 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.17.2] — 2026-10-28
+
+### Added
+- The bank row reads "Bank limit: x/4 automatic fetches today (manual unlimited)" and shows the last manual fetch, so an attended refresh is visible although it never counts against the limit; the budget sensor is renamed "Automatic fetches today (bank limit)"
+
+### Changed
+- Test: 3 regression tests (UTC window, local budget day, last manual fetch)
+
+### Fixed
+- Fetch-window dates are computed in UTC. Between local and UTC midnight the local `date_to` lay in the bank's future, and PayPal rejected every refresh with HTTP 422 until 01:00
+- The background fetch budget counts per local day (HA time zone) instead of per UTC day, so the 06:30 call of the day before no longer shows as "today" after midnight
+
 ## [0.17.1] — 2026-10-26
 
 ### Changed
