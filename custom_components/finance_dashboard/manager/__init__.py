@@ -939,6 +939,25 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
             horizon=horizon,
         )
 
+    def get_household_summary(
+        self, *, cycle: str = "current", person: str | None = None, is_admin: bool = False
+    ) -> dict[str, Any]:
+        """Per-cycle household figures from cached data. Never contacts a bank."""
+        from ..household_summary import build_household_summary
+
+        return build_household_summary(
+            accounts=self._accounts,
+            transactions=self._transactions,
+            plan=self.budget_plan,
+            recurring=self._recurring_patterns,
+            now=dt_util.now(),
+            cycle=cycle,
+            viewer_person=person,
+            is_admin=is_admin,
+            corrections=getattr(self, "_owner_corrections", None),
+            as_of=self._last_refresh,
+        )
+
     def get_budget_plan_view(
         self, month: int | None = None, year: int | None = None
     ) -> dict[str, Any]:
