@@ -238,6 +238,7 @@ _KIND_DE = {
     "double_charge": "mögliche Doppelbuchung",
     "missing_salary": "erwartetes Gehalt fehlt",
     "consent_expiring": "Bankzugang läuft bald ab",
+    "consent_expired": "Bankzugang abgelaufen",
 }
 
 
