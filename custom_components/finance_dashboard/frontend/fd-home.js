@@ -424,7 +424,7 @@ class FdHome extends HTMLElement {
 
   /** Empty state: name the one step that makes this screen meaningful. */
   _setupCard(d) {
-    const wiz = this._wizardCard();
+    const wiz = this._wizardCard(d);
     if (wiz) return wiz;
     const st = d.setup || {};
     const assign = st.persons === 0 || (st.accounts_total || 0) > (st.accounts_assigned || 0);
@@ -436,14 +436,18 @@ class FdHome extends HTMLElement {
   }
 
   /** Guided setup: resume card while the wizard is not completed (admin: CTA, member: calm note). */
-  _wizardCard() {
-    const w = this._wizard;
-    if (w === undefined && this._hass) this._loadWizard();
+  _wizardCard(d) {
+    const admin = !!(this._hass && this._hass.user && this._hass.user.is_admin);
+    const w = admin ? this._wizard : { completed: false, steps: {}, current_step: "persons" };
+    if (admin && w === undefined) this._loadWizard();
     if (!w || w.completed) return "";
-    if (!(this._hass.user && this._hass.user.is_admin)) {
+    if (!admin) {
+      // Members cannot read the wizard state: only claim "in progress" while the data shows it.
+      const st = (d && d.setup) || {};
+      if (!(st.persons === 0 || (st.accounts_total || 0) > (st.accounts_assigned || 0))) return "";
       return `<section class="card setup"><h3>${this._t("home.setup.member_title")}</h3><p class="muted">${this._t("home.setup.member_body")}</p></section>`;
     }
-    const order = ["persons", "accounts", "payday", "pots", "plan", "notifications", "ai", "done"];
+    const order = ["persons", "accounts", "payday", "region", "pots", "plan", "notifications", "ai", "done"];
     const n = Math.max(0, order.indexOf(w.current_step)) + 1;
     const started = Object.values(w.steps || {}).some((s) => s && s !== "pending");
     return `<section class="card setup"><h3>${this._t(started ? "home.setup.resume_title" : "home.setup.start_title", { n, total: order.length })}</h3>
@@ -452,7 +456,6 @@ class FdHome extends HTMLElement {
 
   async _loadWizard() {
     this._wizard = null;
-    if (!(this._hass.user && this._hass.user.is_admin)) { this._wizard = { completed: false, steps: {}, current_step: "persons" }; this._paint?.(); return; }
     try { this._wizard = await this._hass.callApi("GET", `${DOMAIN}/setup`); }
     catch (e) { this._wizard = { completed: true }; }
     this._paint?.();

@@ -486,7 +486,9 @@ class FdSetup extends HTMLElement {
   // ---- events -----------------------------------------------------------
   _wire() {
     const sh = this.shadowRoot;
-    sh.onclick = (ev) => {
+    if (this._wired) return;
+    this._wired = true;
+    sh.addEventListener("click", (ev) => {
       const t = ev.target.closest("button");
       if (!t) return;
       if (t.dataset.a) this._action(t.dataset.a);
@@ -503,14 +505,14 @@ class FdSetup extends HTMLElement {
         this._draft.paydays[t.dataset.use] = t.dataset.day;
         this._render();
       }
-    };
-    sh.oninput = (ev) => {
+    });
+    sh.addEventListener("input", (ev) => {
       const el = ev.target;
       if (el.dataset.dayOf !== undefined) this._draft.paydays[el.dataset.dayOf] = el.value;
       else if (el.dataset.potAmt !== undefined) this._potSug[Number(el.dataset.potAmt)].amount = el.value;
       else if (el.dataset.postcode !== undefined) this._draft.region.postcode = el.value.trim();
       else if (el.dataset.num) this._draft.notifications[el.dataset.num] = el.value === "" ? "" : Number(el.value);
-    };
+    });
     this.onkeydown = (ev) => { if (ev.key === "Escape") this._close(false); };
   }
 
@@ -568,6 +570,7 @@ class FdSetup extends HTMLElement {
     buttons.forEach((b) => { b.disabled = true; });
     if (step === "region" && status === "skipped") { this._busy = false; return this._go(this._idx + 1); }
     try {
+      if (step === "plan") status = "skipped"; // nothing is imported here; the page only explains the service
       let body = { step, status };
       if (status === "done") {
         if (step === "persons" || step === "accounts") {
@@ -582,7 +585,7 @@ class FdSetup extends HTMLElement {
             if (!Number.isInteger(day) || day < 1 || day > 31) { this._fail(`${person}: ${tr("setup.payday.err")}`); return this._unbusy(); }
             paydays.push({ person, day });
           }
-          if (paydays.length) body.paydays = paydays;
+          if (paydays.length) body.paydays = paydays; else body.status = "skipped";
         } else if (step === "region") {
           const r = this._draft.region || {};
           if (r.postcode && !/^\d{5}$/.test(r.postcode)) { this._fail(tr("setup.region.err_postcode")); return this._unbusy(); }
@@ -597,7 +600,7 @@ class FdSetup extends HTMLElement {
             await this._hass.callApi("POST", `${DOMAIN}/setup/pot_suggestions`, { accept });
             this._potSug = null;
             this._toast(tr("setup.pots.created", { n: accept.length }), "success");
-          } else if (this._potSug && this._potSug.length) body.status = "skipped";
+          } else body.status = "skipped";
         } else if (step === "notifications") {
           body.notifications = this._cleanNotifications();
         } else if (step === "ai") {
