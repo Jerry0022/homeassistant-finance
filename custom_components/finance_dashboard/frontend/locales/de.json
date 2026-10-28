@@ -355,5 +355,11 @@
   "home.setup.start_cta": "Einrichtung starten",
   "home.setup.resume_cta": "Einrichtung fortsetzen",
   "home.setup.member_title": "Die Einrichtung läuft noch",
-  "home.setup.member_body": "Ein Administrator richtet den Haushalt gerade ein. Danach siehst du hier deine Zahlen."
+  "home.setup.member_body": "Ein Administrator richtet den Haushalt gerade ein. Danach siehst du hier deine Zahlen.",
+  "setup.region.title": "Wo wohnt ihr?",
+  "setup.region.body": "Das Bundesland brauchen wir nur für den Vergleich mit typischen Ausgaben in deiner Region. Die Postleitzahl ist freiwillig.",
+  "setup.region.state": "Bundesland",
+  "setup.region.postcode": "Postleitzahl (optional)",
+  "setup.region.err_postcode": "Die Postleitzahl hat 5 Ziffern.",
+  "setup.summary.region": "Region"
 }

@@ -355,5 +355,11 @@
   "home.setup.start_cta": "Start setup",
   "home.setup.resume_cta": "Continue setup",
   "home.setup.member_title": "Setup is still in progress",
-  "home.setup.member_body": "An administrator is setting up the household. Afterwards your numbers show up here."
+  "home.setup.member_body": "An administrator is setting up the household. Afterwards your numbers show up here.",
+  "setup.region.title": "Where do you live?",
+  "setup.region.body": "We only need the state to compare against typical spending in your region. The postcode is optional.",
+  "setup.region.state": "State",
+  "setup.region.postcode": "Postcode (optional)",
+  "setup.region.err_postcode": "The postcode has 5 digits.",
+  "setup.summary.region": "Region"
 }

@@ -16,10 +16,18 @@
  */
 
 const DOMAIN = "finance_dashboard";
-const STEPS = ["persons", "accounts", "payday", "pots", "plan", "notifications", "ai", "done"];
-const SKIPPABLE = new Set(["payday", "pots", "plan", "notifications", "ai"]);
+const STEPS = ["persons", "accounts", "payday", "region", "pots", "plan", "notifications", "ai", "done"];
+const SKIPPABLE = new Set(["payday", "region", "pots", "plan", "notifications", "ai"]);
 
 // Fallback texts: used until locales/*.json carry the setup.* keys.
+// Federal states (ISO 3166-2:DE) for the benchmark comparison.
+const STATES = [
+  ["DE-BW", "Baden-Württemberg"], ["DE-BY", "Bayern"], ["DE-BE", "Berlin"], ["DE-BB", "Brandenburg"],
+  ["DE-HB", "Bremen"], ["DE-HH", "Hamburg"], ["DE-HE", "Hessen"], ["DE-MV", "Mecklenburg-Vorpommern"],
+  ["DE-NI", "Niedersachsen"], ["DE-NW", "Nordrhein-Westfalen"], ["DE-RP", "Rheinland-Pfalz"], ["DE-SL", "Saarland"],
+  ["DE-SN", "Sachsen"], ["DE-ST", "Sachsen-Anhalt"], ["DE-SH", "Schleswig-Holstein"], ["DE-TH", "Thüringen"],
+];
+
 const FB = {
   de: {
     "setup.title": "Einrichtung",
@@ -48,6 +56,12 @@ const FB = {
     "setup.payday.confirmed": "Bestätigt",
     "setup.payday.no_persons": "Noch keine Personen. Dieser Schritt kann warten.",
     "setup.payday.err": "Der Tag muss zwischen 1 und 31 liegen.",
+    "setup.region.title": "Wo wohnt ihr?",
+    "setup.region.body": "Das Bundesland brauchen wir nur für den Vergleich mit typischen Ausgaben in deiner Region. Die Postleitzahl ist freiwillig.",
+    "setup.region.state": "Bundesland",
+    "setup.region.postcode": "Postleitzahl (optional)",
+    "setup.region.err_postcode": "Die Postleitzahl hat 5 Ziffern.",
+    "setup.summary.region": "Region",
     "setup.pots.title": "Töpfe aus deiner Historie",
     "setup.pots.body": "So viel hast du in den letzten Monaten typischerweise ausgegeben. Wähle, was zu Töpfen werden soll, und passe die Beträge an.",
     "setup.pots.samples": "aus $n Monaten",
@@ -118,6 +132,12 @@ const FB = {
     "setup.payday.confirmed": "Confirmed",
     "setup.payday.no_persons": "No people yet. This step can wait.",
     "setup.payday.err": "The day must be between 1 and 31.",
+    "setup.region.title": "Where do you live?",
+    "setup.region.body": "We only need the state to compare against typical spending in your region. The postcode is optional.",
+    "setup.region.state": "State",
+    "setup.region.postcode": "Postcode (optional)",
+    "setup.region.err_postcode": "The postcode has 5 digits.",
+    "setup.summary.region": "Region",
     "setup.pots.title": "Pots from your history",
     "setup.pots.body": "This is what you typically spent in recent months. Choose what becomes a pot and adjust the amounts.",
     "setup.pots.samples": "from $n months",
@@ -207,6 +227,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--fd-a500); o
 .hit { display: inline-flex; align-items: center; min-height: var(--fd-touch); }
 input[type=number] { box-sizing: border-box; width: 92px; min-height: var(--fd-touch); padding: 0 10px; border: 1px solid var(--fd-line); border-radius: 10px; background: var(--fd-page); color: var(--fd-t1); font: inherit; text-align: right; }
 .chip { display: inline-flex; align-items: center; padding: 1px 9px; border-radius: var(--fd-r-pill); font-size: 11.5px; font-weight: 500; background: var(--fd-a50); color: var(--fd-a900); }
+.states { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 8px; }
+@container (min-width: 520px) { .states { grid-template-columns: repeat(3, 1fr); } }
+.states button { min-height: var(--fd-touch); padding: 4px 10px; border: 1px solid var(--fd-line); border-radius: 12px; background: transparent; text-align: left; overflow-wrap: anywhere; }
+.states button[aria-checked="true"] { background: var(--fd-a50); border-color: var(--fd-a500); color: var(--fd-a900); font-weight: 500; }
+input[type=text] { box-sizing: border-box; width: 110px; min-height: var(--fd-touch); padding: 0 10px; border: 1px solid var(--fd-line); border-radius: 10px; background: var(--fd-page); color: var(--fd-t1); font: inherit; text-align: right; }
 .pot.off { opacity: .55; }
 .sum { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; }
 .sum + .sum { border-top: 1px solid var(--fd-line); }
@@ -254,6 +279,7 @@ class FdSetup extends HTMLElement {
       this._draft = {
         notifications: { ...(this._st.notifications || {}) },
         ai: !!this._st.ai_opt_in,
+        region: this._initRegion(),
       };
     } catch (e) {
       console.warn("fd-setup: load failed:", e);
@@ -280,6 +306,18 @@ class FdSetup extends HTMLElement {
     }
     if (step === this._step) this._render();
     this.shadowRoot.querySelector("h2")?.focus();
+  }
+
+  /** Server value first; otherwise a state hint from hass.config when HA exposes one. */
+  _initRegion() {
+    const r = this._st.region || {};
+    let state = r.state || "";
+    if (!state) {
+      const cfg = (this._hass && this._hass.config) || {};
+      const hint = String(cfg.state || cfg.region || "").toUpperCase();
+      if (STATES.some(([c]) => c === hint)) state = hint;
+    }
+    return { state, postcode: r.postcode || "" };
   }
 
   _initPaydays() {
@@ -337,6 +375,7 @@ class FdSetup extends HTMLElement {
       case "persons": case "accounts":
         return `${this._head(step)}<div id="embed"></div>`;
       case "payday": return this._paydayBody();
+      case "region": return this._regionBody();
       case "pots": return this._potsBody();
       case "plan":
         return `${this._head("plan")}<div class="note">${escHtml(tr("setup.plan.import"))}</div><p class="muted">${escHtml(tr("setup.plan.later"))}</p>`;
@@ -382,6 +421,15 @@ class FdSetup extends HTMLElement {
     return `${this._head("payday")}${rows}`;
   }
 
+  _regionBody() {
+    const { escHtml } = window._fd;
+    const r = this._draft.region || {};
+    const chips = STATES.map(([code, name]) => `<button type="button" role="radio" aria-checked="${r.state === code}" data-state="${code}">${escHtml(name)}</button>`).join("");
+    return `${this._head("region")}<div class="states" role="radiogroup" aria-label="${escHtml(tr("setup.region.state"))}">${chips}</div>
+      <div class="row"><div class="who"><b>${escHtml(tr("setup.region.postcode"))}</b></div>
+      <input type="text" inputmode="numeric" maxlength="5" autocomplete="postal-code" data-postcode value="${escHtml(r.postcode || "")}" aria-label="${escHtml(tr("setup.region.postcode"))}"></div>`;
+  }
+
   _potsBody() {
     const { escHtml } = window._fd;
     if (this._potSug === null) return `${this._head("pots")}<p class="muted">…</p>`;
@@ -397,6 +445,12 @@ class FdSetup extends HTMLElement {
     return `${this._head("pots")}${rows}`;
   }
 
+  _regionLabel() {
+    const r = this._st.region || {};
+    const name = (STATES.find(([c]) => c === r.state) || [])[1];
+    return name ? `${name}${r.postcode ? ` · ${r.postcode}` : ""}` : tr("setup.status.skipped");
+  }
+
   _doneBody() {
     const { escHtml } = window._fd;
     const st = this._st.steps || {};
@@ -408,6 +462,7 @@ class FdSetup extends HTMLElement {
       ["persons", persons.length ? persons.map((p) => p.name).join(", ") : mark("persons")],
       ["accounts", mark("accounts")],
       ["payday", persons.length ? `${paydays} / ${persons.length}` : mark("payday")],
+      ["region", escHtml(this._regionLabel())],
       ["pots", mark("pots")],
       ["plan", mark("plan")],
       ["notifications", escHtml(tr(n.enabled === false ? "setup.status.off" : "setup.status.on"))],
@@ -440,6 +495,10 @@ class FdSetup extends HTMLElement {
         const s = this._potSug[Number(t.dataset.pot)];
         s.on = !s.on;
         this._render();
+      } else if (t.dataset.state) {
+        const r = this._draft.region;
+        r.state = r.state === t.dataset.state ? "" : t.dataset.state;
+        this._render();
       } else if (t.dataset.use) {
         this._draft.paydays[t.dataset.use] = t.dataset.day;
         this._render();
@@ -449,6 +508,7 @@ class FdSetup extends HTMLElement {
       const el = ev.target;
       if (el.dataset.dayOf !== undefined) this._draft.paydays[el.dataset.dayOf] = el.value;
       else if (el.dataset.potAmt !== undefined) this._potSug[Number(el.dataset.potAmt)].amount = el.value;
+      else if (el.dataset.postcode !== undefined) this._draft.region.postcode = el.value.trim();
       else if (el.dataset.num) this._draft.notifications[el.dataset.num] = el.value === "" ? "" : Number(el.value);
     };
     this.onkeydown = (ev) => { if (ev.key === "Escape") this._close(false); };
@@ -506,6 +566,7 @@ class FdSetup extends HTMLElement {
     this._busy = true;
     const buttons = this.shadowRoot.querySelectorAll(".foot button");
     buttons.forEach((b) => { b.disabled = true; });
+    if (step === "region" && status === "skipped") { this._busy = false; return this._go(this._idx + 1); }
     try {
       let body = { step, status };
       if (status === "done") {
@@ -522,6 +583,13 @@ class FdSetup extends HTMLElement {
             paydays.push({ person, day });
           }
           if (paydays.length) body.paydays = paydays;
+        } else if (step === "region") {
+          const r = this._draft.region || {};
+          if (r.postcode && !/^\d{5}$/.test(r.postcode)) { this._fail(tr("setup.region.err_postcode")); return this._unbusy(); }
+          if (!r.state) { this._busy = false; return this._go(this._idx + 1); }
+          this._st = await this._put({ region: { state: r.state, ...(r.postcode ? { postcode: r.postcode } : {}) } });
+          this._busy = false;
+          return this._go(this._idx + 1);
         } else if (step === "pots") {
           const accept = (this._potSug || []).filter((s) => s.on && Number(s.amount) > 0)
             .map((s) => ({ category: s.category, owner: s.owner, cycle_budget: Number(s.amount), name: s.name }));
