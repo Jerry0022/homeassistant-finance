@@ -237,5 +237,6 @@
   "home.desk.suggest_none": "No suggestions",
   "home.desk.cycle": "Current cycle",
   "panel.footer.store": "Open in HACS",
-  "panel.footer.store_title": "Open Finance in the HACS store – check for and install updates there"
+  "panel.footer.store_title": "Open Finance in the HACS store – check for and install updates there",
+  "home.fresh.refresh": "Refresh now"
 }

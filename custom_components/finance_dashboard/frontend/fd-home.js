@@ -48,7 +48,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .alert { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-left: 4px solid var(--fd-a500); border-radius: 8px; }
 .alert.warn { border-left-color: var(--fd-attn); }
 .alert + .alert { margin-top: 6px; }
-.fnote { margin: 0 0 12px; padding: 8px 12px; border-radius: 10px; background: var(--fd-sunk); color: var(--fd-t2); font-size: 12px; }
+.fnote { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; padding: 8px 12px; border-radius: 10px; background: var(--fd-sunk); color: var(--fd-t2); font-size: 12px; }
 .seg { display: flex; gap: 2px; margin: 0 0 12px; border-bottom: 1px solid var(--fd-line); }
 .seg button { flex: 1; min-height: var(--fd-touch); border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px; background: transparent; color: var(--fd-t2); font-size: 14px; }
 .seg button[aria-selected="true"] { color: var(--fd-a900); font-weight: 500; border-bottom-color: var(--fd-a500); }
@@ -394,7 +394,7 @@ class FdHome extends HTMLElement {
     let h = "";
     if (this._freshOpen && d.freshness) {
       const when = d.freshness.as_of ? new Date(d.freshness.as_of).toLocaleString(this._lang(), { dateStyle: "short", timeStyle: "short" }) : "";
-      h += `<div class="fnote">${this._t("home.fresh.as_of", { time: this._e(when) })}</div>`;
+      h += `<div class="fnote">${this._t("home.fresh.as_of", { time: this._e(when) })} <button class="btn" data-act="refresh">${this._t("home.fresh.refresh")}</button></div>`;
     }
     if (this._alertsOpen && (d.alerts || []).length) {
       h += `<div class="panel" role="region" aria-label="${this._t("home.alert.open")}">${d.alerts.map((a) => `
@@ -720,6 +720,7 @@ class FdHome extends HTMLElement {
     switch (t.dataset.act) {
       case "alerts": this._alertsOpen = !this._alertsOpen; this._paint(); break;
       case "fresh": this._freshOpen = !this._freshOpen; this._paint(); break;
+      case "refresh": this.dispatchEvent(new CustomEvent("fd-refresh-requested", { bubbles: true, composed: true })); break;
       case "renew": window._fd.navigate(window._fd.INTEGRATION_PATH, e); break;
       case "ask":
         this.dispatchEvent(new CustomEvent("fd-categorize-requested", { bubbles: true, composed: true }));

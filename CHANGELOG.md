@@ -2,6 +2,15 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.18.2] — 2026-10-28
+
+### Added
+- The old title bar is gone; the Start tab opens straight into the new home top bar, and the tabs use the HA primary colour of the new design
+- Demo, refresh and "add bank" moved to the Overview tab; the Start tab's freshness note gains a "Refresh now" button (attended refresh, same endpoint)
+
+### Changed
+- The obsolete month label and "Finance Dashboard" heading are removed
+
 ## [0.18.1] — 2026-10-28
 
 ### Added
