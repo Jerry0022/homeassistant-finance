@@ -111,7 +111,7 @@ class FinanceDashboardCard extends HTMLElement {
       if (key) {
         const path = window._fd ? window._fd.INTEGRATION_PATH : "/config/integrations/integration/finance_dashboard";
         warn = `<a href="${path}" data-fd-nav style="display:inline-block;margin-top:8px;padding:3px 10px;border-radius:999px;
-          border:1px solid var(--warning-color,#f39c12);color:var(--warning-color,#f39c12);font-size:12px;text-decoration:none;">${esc(tr(key))}</a>`;
+          border:1px solid var(--warning-color,var(--fd-near));color:var(--warning-color,var(--fd-near));font-size:12px;text-decoration:none;">${esc(tr(key))}</a>`;
       }
 
       if (!accounts.length) {

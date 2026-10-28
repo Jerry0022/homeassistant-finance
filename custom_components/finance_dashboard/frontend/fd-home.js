@@ -138,6 +138,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .btn.sm { min-height: 36px; padding: 0 12px; font-size: 12px; }
 .btn.danger { background: transparent; color: var(--fd-over); border-color: var(--fd-over-bg); }
 .btn.dsk { border-style: dashed; }
+.setup h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+.setup .acts { margin-top: 12px; }
+.nav[hidden] { display: none; }
 .nav { position: sticky; bottom: 12px; z-index: 5; display: flex; justify-content: center; pointer-events: none; }
 .toggle { pointer-events: auto; display: inline-flex; gap: 2px; padding: 4px; border-radius: var(--fd-r-pill); background: var(--fd-card); box-shadow: var(--fd-sh2); border: 1px solid var(--fd-line); }
 .toggle button { min-height: var(--fd-touch); min-width: 96px; padding: 0 18px; border: 0; border-radius: var(--fd-r-pill); background: transparent; color: var(--fd-t2); font-weight: 500; }
@@ -353,6 +356,8 @@ class FdHome extends HTMLElement {
     main.innerHTML = body;
     sh.getElementById("side").innerHTML = d ? this._sideHtml(d) : "";
     const hasPerson = !!(d && d.person);
+    // Only a user mapped to a person has two views; otherwise the pill would offer nothing.
+    sh.getElementById("toggle").parentElement.hidden = !!d && !hasPerson;
     const pName = d && d.person ? d.person.name : this._t("home.view.person");
     sh.getElementById("toggle").innerHTML = `
       <button role="radio" data-v="person" aria-checked="${this._view === "person"}" style="--pc:var(--fd-person-a)" ${hasPerson || !d ? "" : "disabled"}>${this._e(pName)}</button>
@@ -379,7 +384,7 @@ class FdHome extends HTMLElement {
   <button class="ib fresh ${fr.status || ""}" data-act="fresh" data-tip="${this._e(flabel)}" aria-label="${this._e(flabel)}" aria-expanded="${this._freshOpen}"><i>${icon}</i><span class="t">${this._e(flabel)}</span></button>
   ${center}
   <button class="ib ask" data-act="ask" data-tip="${this._e(q ? this._t("home.star", { n: q }) : this._t("home.star.none"))}" aria-label="${this._e(q ? this._t("home.star", { n: q }) : this._t("home.star.none"))}">
-    <span class="ring" style="--p:${q ? 86 : 100}%"><span>★</span></span>${q ? `<b>${q}</b>` : ""}</button>
+    <span class="ring" style="--p:${q ? 86 : 100}%"><span>★</span></span>${q ? `<b>${q > 99 ? "99+" : q}</b>` : ""}</button>
 </div>`;
   }
 
@@ -407,12 +412,25 @@ class FdHome extends HTMLElement {
 
   // ---- bodies -----------------------------------------------------------
   _body(d) {
+    // Without a budget the figures are all 0 € and "passt" would be a false reading.
+    if (this._horizon !== "year" && this._budgetTotals(d).budget <= 0) return this._setupCard(d);
     switch (this._horizon) {
       case "today": return this._today(d);
       case "week": return this._week(d);
       case "cycle": return this._cycle(d);
       default: return this._year(d);
     }
+  }
+
+  /** Empty state: name the one step that makes this screen meaningful. */
+  _setupCard(d) {
+    const st = d.setup || {};
+    const assign = st.persons === 0 || (st.accounts_total || 0) > (st.accounts_assigned || 0);
+    const key = assign ? "assign" : "pots";
+    const act = assign ? `<button class="btn" data-act="settings">${this._t("home.setup.assign_cta")}</button>`
+      : `<button class="btn" data-act="addpot">+ ${this._t("home.pot.new")}</button>`;
+    return `<section class="card setup"><h3>${this._t("home.setup." + key + "_title")}</h3>
+  <p class="muted">${this._t("home.setup." + key + "_body")}</p><div class="acts">${act}</div></section>`;
   }
 
   _budgetTotals(d) {
@@ -730,6 +748,7 @@ class FdHome extends HTMLElement {
       case "flip": this._flipped = !this._flipped; this._paint(); break;
       case "more": this._moreNext = !this._moreNext; this._paint(); break;
       case "addpot": this._openSheet(null); break;
+      case "settings": this.dispatchEvent(new CustomEvent("fd-open-settings", { bubbles: true, composed: true })); break;
       case "editpot": this._openSheet(pot(t.dataset.id)); break;
       case "delpot": this._confirmId = t.dataset.id; this._paint(); break;
       case "delyes": this._deletePot(t.dataset.id); break;

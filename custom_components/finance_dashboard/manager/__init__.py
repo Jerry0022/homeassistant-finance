@@ -38,6 +38,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
+from ..account_identity import account_key, normalize_iban
 from ..budget_plan import BudgetPlan, BudgetPlanStore, CostPosition
 from ..const import (
     BENCHMARK_METRIC_SOURCES,
@@ -70,6 +71,15 @@ TRANSACTION_CACHE_VERSION = 1
 
 # OAuth state token TTL in seconds (10 minutes) — kept here for test imports
 _OAUTH_STATE_TTL = 600
+
+
+class AssignmentError(ValueError):
+    """Invalid persons/accounts assignment; ``code`` is the API error code."""
+
+    def __init__(self, code: str, detail: str) -> None:
+        super().__init__(detail)
+        self.code = code
+        self.detail = detail
 
 
 class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
@@ -749,7 +759,137 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         """Person the logged-in HA user maps to (via account ``ha_users``)."""
         from ..home import resolve_person
 
-        return resolve_person(user, self._accounts)
+        return resolve_person(user, self._accounts, self.persons)
+
+    @property
+    def persons(self) -> list[dict[str, Any]]:
+        """Configured persons (``name`` + ``ha_users``) from the config entry."""
+        return list(self._entry.data.get("persons", []) or [])
+
+    def get_assignments(self, users: list[Any]) -> dict[str, Any]:
+        """Persons, HA users and account owners for the settings screen (cache only).
+
+        Never exposes more than the last four IBAN digits.
+        """
+        persons = [
+            {
+                "name": str(p.get("name") or ""),
+                "ha_users": [str(i) for i in p.get("ha_users") or []],
+            }
+            for p in self.persons
+        ]
+        mapped = {i for p in persons for i in p["ha_users"]}
+        ha_users = []
+        for u in users:
+            uid = str(getattr(u, "id", "") or "")
+            if getattr(u, "system_generated", False):
+                suggested, reason = False, "system"
+            elif not getattr(u, "is_active", True):
+                suggested, reason = False, "inactive"
+            elif uid in mapped:
+                suggested, reason = True, "person"
+            else:
+                suggested, reason = True, "active_user"
+            ha_users.append(
+                {
+                    "id": uid,
+                    "name": str(getattr(u, "name", "") or ""),
+                    "is_admin": bool(getattr(u, "is_admin", False)),
+                    "suggested": suggested,
+                    "reason": reason,
+                }
+            )
+        accounts = []
+        for acc in self._accounts:
+            iban = normalize_iban(acc.get("iban"))
+            institution = str(acc.get("institution") or "")
+            owner = "shared" if acc.get("type") == "shared" else str(acc.get("person") or "")
+            accounts.append(
+                {
+                    "key": account_key(acc),
+                    "name": str(acc.get("custom_name") or acc.get("name") or institution),
+                    "institution": institution,
+                    "iban_last4": iban[-4:] if iban else "",
+                    "owner": owner,
+                }
+            )
+        return {
+            "persons": persons,
+            "ha_users": ha_users,
+            "accounts": accounts,
+            "plan_persons": list(self.budget_plan.persons),
+        }
+
+    def async_set_assignments(self, data: dict[str, Any], users: list[Any]) -> None:
+        """Validate and persist persons + account owners. Raises ``AssignmentError``."""
+        if self._demo_mode:
+            raise AssignmentError("demo_mode", "Not available in demo mode")
+        known_users = {str(getattr(u, "id", "")) for u in users}
+        raw_persons = data.get("persons")
+        raw_accounts = data.get("accounts")
+        if not isinstance(raw_persons, list) or not isinstance(raw_accounts, list):
+            raise AssignmentError("invalid_body", "persons and accounts must be lists")
+
+        persons: list[dict[str, Any]] = []
+        seen_names: set[str] = set()
+        seen_users: set[str] = set()
+        for item in raw_persons:
+            if not isinstance(item, dict):
+                raise AssignmentError("invalid_person", "Person must be an object")
+            name = str(item.get("name") or "").strip()
+            if not name or len(name) > 40:
+                raise AssignmentError("invalid_person_name", "Name must be 1-40 characters")
+            if name.lower() == "shared" or name.lower() in seen_names:
+                raise AssignmentError("duplicate_person", "Duplicate or reserved person name")
+            seen_names.add(name.lower())
+            ids = item.get("ha_users") or []
+            if not isinstance(ids, list):
+                raise AssignmentError("invalid_ha_users", "ha_users must be a list")
+            clean: list[str] = []
+            for uid in (str(i) for i in ids):
+                if uid not in known_users:
+                    raise AssignmentError("unknown_ha_user", "Unknown HA user id")
+                if uid in seen_users:
+                    raise AssignmentError("ha_user_reused", "A user maps to one person only")
+                seen_users.add(uid)
+                clean.append(uid)
+            persons.append({"name": name, "ha_users": clean})
+        by_name = {p["name"]: p for p in persons}
+
+        base = self._entry.data.get("accounts", []) or []
+        keys = {account_key(a) for a in base}
+        owners: dict[str, str] = {}
+        for item in raw_accounts:
+            if not isinstance(item, dict):
+                raise AssignmentError("invalid_account", "Account must be an object")
+            key = str(item.get("key") or "")
+            owner = str(item.get("owner") or "").strip()
+            if key not in keys:
+                raise AssignmentError("unknown_account", "Unknown account key")
+            if owner not in ("", "shared") and owner not in by_name:
+                raise AssignmentError("unknown_owner", "Owner must be shared or a person")
+            owners[key] = owner
+
+        new_accounts = []
+        for acc in base:
+            acc = dict(acc)
+            key = account_key(acc)
+            if key in owners:
+                owner = owners[key]
+                if owner == "shared":
+                    acc.update(type="shared", person="")
+                elif owner:
+                    acc.update(
+                        type="personal", person=owner, ha_users=list(by_name[owner]["ha_users"])
+                    )
+                else:
+                    acc.update(type="personal", person="")
+            new_accounts.append(acc)
+
+        self._hass.config_entries.async_update_entry(
+            self._entry, data={**self._entry.data, "persons": persons, "accounts": new_accounts}
+        )
+        self._accounts = new_accounts
 
     async def async_save_pot(self, data: dict[str, Any], *, replace: bool) -> dict[str, Any]:
         """Create (``replace=False``) or replace a pot. Raises ``ValueError``/``KeyError``."""
@@ -776,6 +916,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         banks = self.get_bank_status()
         return build_home(
             accounts=self._accounts,
+            persons=self.persons,
             transactions=get_effective_transactions(self._transactions),
             plan=self.budget_plan,
             pots=self.pots,

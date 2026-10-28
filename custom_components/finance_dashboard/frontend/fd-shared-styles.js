@@ -87,15 +87,17 @@ export const MONTH_NAMES = [
  */
 export const SHARED_CSS = `
 :host {
-  --bg: var(--primary-background-color, #0a0a0f);
-  --sf: var(--card-background-color, #12121a);
-  --sf2: #1a1a28;
-  --bd: rgba(255,255,255,0.06);
-  --tx: var(--primary-text-color, #e0e0e0);
-  --tx2: var(--secondary-text-color, #9898a8);
-  --ac: var(--accent-color, #4ecca3);
-  --dg: #e74c3c;
-  --wn: #f39c12;
+  /* Legacy names now alias the design tokens (--fd-*), so every component
+     that still uses them follows the new design. Status never red. */
+  --bg: var(--fd-page);
+  --sf: var(--fd-card);
+  --sf2: var(--fd-sunk);
+  --bd: var(--fd-line);
+  --tx: var(--fd-t1);
+  --tx2: var(--fd-t2);
+  --ac: var(--fd-a700);
+  --dg: var(--fd-over);
+  --wn: var(--fd-near);
   --bl: #3b82f6;
   --pp: #8b5cf6;
   --r: 14px;
@@ -153,8 +155,8 @@ export const SHARED_CSS = `
   font-family: 'Segoe UI', system-ui, sans-serif;
   color: var(--tx);
 }
-.pos { color: var(--ac); }
-.neg { color: var(--dg); }
+.pos { color: var(--fd-ok); }
+.neg { color: var(--fd-over); }
 .neu { color: var(--tx2); }
 .card {
   background: var(--sf);

@@ -1,11 +1,33 @@
 /**
- * fd-household-section — Person cards + shared costs distribution bar.
+ * fd-household-section — mine / yours / ours.
+ *
+ * One card per person (own colour, what is left after the household share)
+ * plus the "ours" card: the shared fixed costs everybody can see and how they
+ * are split. Optimised for two persons, works for N.
  *
  * Renders conditionally: only visible when household data is present.
  *
  * Properties:
  *   data {object} — Unified data object from fd-data-provider
+ *
+ * Side channel: the latest data object is published as window._fd._actual and
+ * announced with a window "fd-actual-data" event, so fd-budget-plan can set the
+ * plan against the bank-derived actuals without owning a second data path.
  */
+
+const PERSON_COLORS = [
+  "var(--fd-person-a)", "var(--fd-person-b)", "#5d4037", "#455a64", "#9e9d24",
+];
+
+function T(key, de, en, vars = {}) {
+  const f = window._fd;
+  const s = f.tSync(key, vars);
+  if (s !== key) return s;
+  const raw = ((f._hass && f._hass.language) || navigator.language || "en").toLowerCase();
+  let text = raw.startsWith("de") ? de : en;
+  for (const [k, v] of Object.entries(vars)) text = text.replace(new RegExp(`\\$${k}`, "g"), String(v));
+  return text;
+}
 
 class FdHouseholdSection extends HTMLElement {
   constructor() {
@@ -14,109 +36,89 @@ class FdHouseholdSection extends HTMLElement {
     this._data = null;
   }
 
-  set data(v) { this._data = v; this._render(); }
-
-  disconnectedCallback() {
-    // No timers or observers to clean up in this component.
+  set data(v) {
+    this._data = v;
+    if (window._fd) {
+      window._fd._actual = v;
+      window.dispatchEvent(new CustomEvent("fd-actual-data"));
+    }
+    this._render();
   }
 
   _render() {
     const d = this._data;
-
-    // No skeleton for household section — it's conditionally shown only with real data
-    if (d === null || d === undefined) {
-      this.shadowRoot.innerHTML = "";
-      return;
-    }
-
     const household = d?.household;
     if (!household || !household.members || household.members.length === 0) {
       this.shadowRoot.innerHTML = "";
       return;
     }
 
-    const { MEMBER_COLORS, SHARED_CSS, escHtml } = window._fd;
-
-    const eur = (v) => new Intl.NumberFormat("de-DE", {
-      style: "currency", currency: "EUR",
-    }).format(v || 0);
+    const { SHARED_CSS, escHtml, eur } = window._fd;
+    const members = household.members;
+    const total = household.total_shared_costs || 0;
 
     const LOCAL_CSS = `
-:host {
-  margin-bottom: 20px;
-}
-.persons {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 14px;
-  margin-bottom: 20px;
-}
-@media (max-width: 768px) {
-  .persons { grid-template-columns: 1fr; }
-}
-.cost-bar {
-  display: flex;
-  height: 10px;
-  border-radius: 5px;
-  overflow: hidden;
-  margin: 12px 0;
-}
-.cost-bar div { height: 100%; }
-.cost-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 0 18px 14px;
-  font-size: 11px;
-  color: var(--tx2);
-}
-.legend-item { display: flex; align-items: center; gap: 5px; }
-.legend-dot { width: 7px; height: 7px; border-radius: 2px; }
+:host { display: block; margin-bottom: 14px; }
+.root { container: hh / inline-size; color: var(--fd-t1); font-size: 13px; line-height: 1.4; }
+.sect { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 2px 8px; font-size: 14px; font-weight: 500; }
+.sect small { font-size: 11.5px; font-weight: 400; color: var(--fd-t2); }
+.persons { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
+@container hh (min-width: 640px) { .persons { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); } }
+.ours { position: relative; padding: 14px 16px 14px 20px; border-radius: var(--fd-r-card); background: var(--fd-card); box-shadow: var(--fd-sh1); overflow: hidden; }
+.ours::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--fd-household); }
+.ours .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ours .name { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; }
+.ours .name i { width: 10px; height: 10px; border-radius: 50%; background: var(--fd-household); }
+.ours .big { margin: 8px 0 2px; font-size: 30px; font-weight: 500; line-height: 1.05; }
+.cap { font-size: 12px; color: var(--fd-t2); }
+.bar { display: flex; height: 12px; margin: 12px 0 8px; border-radius: 6px; overflow: hidden; background: var(--fd-sunk); }
+.bar div { height: 100%; }
+.legend { display: grid; grid-template-columns: 1fr; gap: 4px 16px; }
+@container hh (min-width: 560px) { .legend { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); } }
+.legend div { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.legend i { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.legend span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legend b { margin-left: auto; font-weight: 500; white-space: nowrap; }
+.legend em { font-style: normal; color: var(--fd-t2); font-size: 11.5px; }
 `;
+
+    const bar = members.map((m, i) => {
+      const w = total > 0 ? (m.shared_costs_share / total * 100) : 0;
+      return `<div style="width:${w}%;background:${PERSON_COLORS[i % PERSON_COLORS.length]}"></div>`;
+    }).join("");
+    const legend = members.map((m, i) => `
+<div><i style="background:${PERSON_COLORS[i % PERSON_COLORS.length]}"></i>
+  <span>${escHtml(m.person)} <em>${(m.income_ratio || 0).toFixed(0)} %</em></span>
+  <b>${eur(m.shared_costs_share)}</b></div>`).join("");
+
+    const ours = total > 0 ? `
+<div class="ours">
+  <div class="head">
+    <div class="name"><i></i>${T("hh.ours.title", "Gemeinsam", "Ours")}</div>
+  </div>
+  <div class="big">${eur(total)}</div>
+  <div class="cap">${T("hh.ours.cap", "gemeinsame Fixkosten im Monat – für alle sichtbar", "shared fixed costs per month – visible to everyone")}</div>
+  <div class="bar" role="img" aria-label="${T("hh.ours.split", "Aufteilung der gemeinsamen Fixkosten", "How the shared fixed costs are split")}">${bar}</div>
+  <div class="legend">${legend}</div>
+</div>` : "";
 
     this.shadowRoot.innerHTML = `
 <style>${SHARED_CSS}${LOCAL_CSS}</style>
+<div class="root">
+  <div class="sect">${T("hh.section.title", "Meins · Deins · Unseres", "Mine · Yours · Ours")}
+    <small>${T("hh.section.sub", "Was nach dem Haushalt übrig bleibt", "What is left after the household")}</small></div>
+  <div class="persons" id="persons"></div>
+  ${ours}
+</div>`;
 
-<div class="persons" id="persons"></div>
-<div id="shared"></div>`;
-
-    // Create person cards
     const personsEl = this.shadowRoot.getElementById("persons");
-    for (const m of household.members) {
+    members.forEach((m, i) => {
       const card = document.createElement("fd-person-card");
+      card.index = i;
       card.member = m;
       card.splitModel = household.split_model || "proportional";
       personsEl.appendChild(card);
-    }
-
-    // Shared costs bar
-    const sharedEl = this.shadowRoot.getElementById("shared");
-    if (household.total_shared_costs > 0) {
-      const barSegments = household.members.map((m, i) => {
-        const w = household.total_shared_costs > 0
-          ? (m.shared_costs_share / household.total_shared_costs * 100)
-          : 0;
-        return `<div style="width:${w}%;background:${MEMBER_COLORS[i % MEMBER_COLORS.length]}"></div>`;
-      }).join("");
-
-      const legend = household.members.map((m, i) =>
-        `<div class="legend-item">
-          <div class="legend-dot" style="background:${MEMBER_COLORS[i % MEMBER_COLORS.length]}"></div>
-          ${escHtml(m.person)} ${eur(m.shared_costs_share)} (${(m.income_ratio || 0).toFixed(0)}%)
-        </div>`
-      ).join("");
-
-      sharedEl.innerHTML = `
-<div class="card">
-  <div class="card-h">Geteilte Fixkosten
-    <span style="font-weight:400;font-size:12px;color:var(--tx2)">${eur(household.total_shared_costs)} gesamt</span>
-  </div>
-  <div style="padding:14px 18px">
-    <div class="cost-bar">${barSegments}</div>
-  </div>
-  <div class="cost-legend">${legend}</div>
-</div>`;
-    }
+    });
   }
 }
 

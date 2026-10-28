@@ -238,5 +238,10 @@
   "home.desk.cycle": "Aktueller Zyklus",
   "panel.footer.store": "In HACS öffnen",
   "panel.footer.store_title": "Finance im HACS-Store öffnen – dort Updates prüfen und installieren",
-  "home.fresh.refresh": "Jetzt aktualisieren"
+  "home.fresh.refresh": "Jetzt aktualisieren",
+  "home.setup.assign_title": "Wem gehört was?",
+  "home.setup.assign_body": "Ordne Personen und Konten zu, dann zeigt dir Start, was noch frei ist.",
+  "home.setup.assign_cta": "Personen & Konten zuordnen",
+  "home.setup.pots_title": "Noch keine Töpfe",
+  "home.setup.pots_body": "Lege Töpfe an, dann siehst du hier, was du noch ausgeben kannst."
 }

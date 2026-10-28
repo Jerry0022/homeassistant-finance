@@ -1,5 +1,17 @@
 # Build Log
 
+## 0.19.0 — 2026-10-28
+Version: 0.19.0
+Branch: claude/promote-stable-3d9130
+Changes:
+- feat(api): `GET/PUT /api/finance_dashboard/assignments` (admin only) — household persons, HA-user → person mapping with suggestions (system/inactive users flagged), account owner per IBAN identity (person, household or open); persisted in the config entry, IBAN only as last 4 digits
+- feat(core): the logged-in user resolves to a person through the persons list too; the home payload carries a `setup` block (persons, user mapped, accounts assigned, pots)
+- feat(frontend): Overview redesigned in the new design system — person and household cards (single accounts desktop-only), bank cards with consent pills and the automatic-fetch limit, transactions as cards, and the new "Personen & Konten" settings with an unassigned-accounts banner
+- feat(frontend): Household tab redesigned — "Meins · Deins · Unseres" person cards with person colours, plan vs actual verdict with rule-based "Was das heißt", who carries what, per category with fixed/variable tags; ledger, income, transfers and benchmark desktop-only
+- feat(frontend): Start shows a setup card instead of "0 € · passt" when there is no budget, hides the person toggle without a mapping, caps the question badge at 99+
+- refactor(frontend): the legacy colour variables alias the `--fd-*` tokens, so every remaining component follows the new design; no red anywhere
+- test: tests/test_assignments.py (GET flags and IBAN masking, persistence, validation, resolve_person, setup block, admin gating)
+
 ## 0.18.2 — 2026-10-28
 Version: 0.18.2
 Branch: claude/promote-stable-3d9130

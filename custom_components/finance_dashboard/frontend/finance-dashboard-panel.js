@@ -352,6 +352,21 @@ class FinanceDashboardPanel extends HTMLElement {
 
     sh.addEventListener("fd-refresh-requested", () => this._refresh());
 
+    // Person/account settings (fd-settings inside the Overview tab).
+    sh.addEventListener("fd-open-settings", () => {
+      this._selectTab("overview");
+      const ov = sh.querySelector("fd-overview");
+      const target = ov && ov.shadowRoot && ov.shadowRoot.querySelector("fd-settings");
+      (target || ov)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    sh.addEventListener("fd-toast", (e) => {
+      const d = e.detail || {};
+      sh.querySelector("fd-header")?.showToast?.(d.message || "", d.type || "info");
+    });
+    sh.addEventListener("fd-assignments-saved", () => {
+      sh.querySelector("fd-home")?.reload?.();
+    });
+
     // dp-initiated refreshes (demo mode) report through this event.
     sh.addEventListener("fd-refresh-done", (e) => this._toastRefresh(e.detail || {}));
 

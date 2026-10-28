@@ -238,5 +238,10 @@
   "home.desk.cycle": "Current cycle",
   "panel.footer.store": "Open in HACS",
   "panel.footer.store_title": "Open Finance in the HACS store – check for and install updates there",
-  "home.fresh.refresh": "Refresh now"
+  "home.fresh.refresh": "Refresh now",
+  "home.setup.assign_title": "Who owns what?",
+  "home.setup.assign_body": "Assign people and accounts, then Start shows what is still free.",
+  "home.setup.assign_cta": "Assign people & accounts",
+  "home.setup.pots_title": "No pots yet",
+  "home.setup.pots_body": "Create pots, then you see here what you can still spend."
 }

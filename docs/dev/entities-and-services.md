@@ -43,5 +43,13 @@ Home screen (`api/home.py`, `home.py`, `pots.py`, `cycle.py`):
 - `POST|PUT|DELETE /pots` - pot CRUD. Admins manage every pot; other users only their own
   personal pots (also checked against the existing owner on update/delete, so a pot cannot be
   taken over). Ids are server-generated on create. Pots are stored in `.storage/finance_dashboard_pots`.
+- `GET|PUT /assignments` (`api/assignments.py`, admin only, 403 `admin_required`) - the "Personen & Konten"
+  settings. GET returns `persons` (name + `ha_users`), `ha_users` (id, name, is_admin, `suggested`,
+  `reason` person|active_user|system|inactive), `accounts` (`key`, name, institution, `iban_last4`,
+  `owner` person|shared|"") and `plan_persons`. PUT takes `{persons, accounts:[{key, owner}]}`,
+  validates (unique names <= 40 chars, existing HA users, one person per user, owner shared or a
+  person, known account keys; else 400 `{error, detail}`), stores `persons` in the config entry and
+  writes `type`/`person`/`ha_users` onto the accounts (user-owned fields, kept on bank re-link).
+  `/home` carries `setup {persons, user_mapped, accounts_total, accounts_assigned, pots}`.
 - Demo mode (`manager.demo_mode`, or `demo=1`) serves the same payload from invented data
   (`demo.generate_demo_home`).
