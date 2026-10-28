@@ -27,6 +27,21 @@ Configurable per person: calendar month or salary-based cycle. Recurring transac
 their logical month (bank-day correction: rent on Feb 28 due to a weekend counts as March).
 `month_cycle.py` exists but is not wired.
 
+## Income cycle (wired: `cycle.py`, used by the home screen)
+
+The home screen does not use the calendar month; it uses the income cycle.
+
+- **Person**: from the person's earliest highest income to the next one. An income counts as
+  "the salary" from 80 % of the largest income seen; bookings within the +-5-day tolerance of each
+  other are one salary event (the earliest marks the start). Without any income: calendar month.
+  If the next salary is overdue the cycle runs on until it arrives.
+- **Household**: the highest income of all persons sets the start, unless another person's salary
+  falls within the 7 days *before* it (1-7 days; 8 does not count, same day does not move it) -
+  then that earlier salary is the start and that person is the "anchor". The rule and "ab Gehalt X"
+  are shown only behind the info button of the cycle card.
+- Pots (`pots.py`) accrue `cycle_budget / days_in_cycle` per day inside this cycle; unspent days
+  carry forward, nothing crosses the cycle boundary. Status uses the +-10 % rule.
+
 ## Income and bonus detection (planned)
 
 - Salary tolerance window of +-5 days for income detection.
