@@ -2,6 +2,14 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.20.2] — 2026-10-28
+
+### Changed
+- Test: middle-name and look-alike cases in the own-name filter test
+
+### Fixed
+- A payment to an account holder's own name also counts as an own transfer when the bank adds a middle name or title ("Jeremy Tim Treder" for the holder "Jeremy Treder"); every word of the holder name must appear, so a similar-looking business name stays a contract
+
 ## [0.20.1] — 2026-10-28
 
 ### Changed
