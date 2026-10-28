@@ -873,7 +873,12 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
                     raise AssignmentError("ha_user_reused", "A user maps to one person only")
                 seen_users.add(uid)
                 clean.append(uid)
-            persons.append({"name": name, "ha_users": clean})
+            record: dict[str, Any] = {"name": name, "ha_users": clean}
+            # The wizard's confirmed payday belongs to the person; keep it.
+            kept = next((p for p in self.persons if p.get("name") == name and p.get("payday")), None)
+            if kept:
+                record["payday"] = kept["payday"]
+            persons.append(record)
         by_name = {p["name"]: p for p in persons}
 
         base = self._entry.data.get("accounts", []) or []

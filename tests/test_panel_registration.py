@@ -36,7 +36,7 @@ def test_urls_are_versioned_and_inside_static_mount() -> None:
         assert (FRONTEND_DIR / url.split("/")[-1].split("?")[0]).is_file()
 
 
-async def test_register_panel_admin_only_with_cache_busting() -> None:
+async def test_register_panel_open_to_members_with_cache_busting() -> None:
     hass = _hass()
     with (
         patch.object(panel.panel_custom, "async_register_panel", new=AsyncMock()) as reg,
@@ -52,7 +52,7 @@ async def test_register_panel_admin_only_with_cache_busting() -> None:
 
     add_js.assert_called_once_with(hass, CARDS_MODULE_PATH)
     kwargs = reg.await_args.kwargs
-    assert kwargs["require_admin"] is True
+    assert kwargs["require_admin"] is False  # members open it; endpoints gate themselves
     assert kwargs["config_panel_domain"] == DOMAIN
     assert kwargs["frontend_url_path"] == PANEL_URL_PATH
     assert kwargs["webcomponent_name"] == PANEL_COMPONENT_NAME

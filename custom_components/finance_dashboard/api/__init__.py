@@ -44,6 +44,11 @@ from .plan import (
     FinanceDashboardPlanVsActualView,
     FinanceDashboardTransferPlanView,
 )
+from .setup import (
+    FinanceDashboardPaydaySuggestionsView,
+    FinanceDashboardPotSuggestionsView,
+    FinanceDashboardSetupView,
+)
 from .refresh import (
     FinanceDashboardFreshnessView,
     FinanceDashboardRefreshStatusView,
@@ -84,6 +89,9 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
     "FinanceDashboardAccountSavingsView",
     "FinanceDashboardQuestionAnswerView",
     "FinanceDashboardQuestionsView",
+    "FinanceDashboardSetupView",
+    "FinanceDashboardPaydaySuggestionsView",
+    "FinanceDashboardPotSuggestionsView",
     # Refresh
     "FinanceDashboardRefreshStatusView",
     "FinanceDashboardReprocessView",
@@ -128,4 +136,7 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardAccountSavingsView())
     hass.http.register_view(FinanceDashboardQuestionsView())
     hass.http.register_view(FinanceDashboardQuestionAnswerView())
+    hass.http.register_view(FinanceDashboardSetupView())
+    hass.http.register_view(FinanceDashboardPaydaySuggestionsView())
+    hass.http.register_view(FinanceDashboardPotSuggestionsView())
     _LOGGER.debug("Finance API endpoints registered")

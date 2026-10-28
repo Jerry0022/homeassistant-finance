@@ -19,7 +19,7 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 
 from ..const import DOMAIN
-from ._helpers import _get_manager
+from ._helpers import _get_manager, visible_account_ids
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -88,9 +88,12 @@ class FinanceDashboardBalanceView(HomeAssistantView):
 
         balances = await manager.async_get_balance()
         keys = _account_keys_by_uid(manager)
+        visible = visible_account_ids(manager, request)  # non-admin: own + shared only
 
         sanitized = {}
         for account_id, data in balances.items():
+            if visible is not None and str(account_id) not in visible:
+                continue
             raw = data.get("balances", [])
             key = keys.get(str(account_id))
             sanitized[account_id] = {
