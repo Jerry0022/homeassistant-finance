@@ -1,5 +1,13 @@
 # Build Log
 
+## 0.18.1 — 2026-10-28
+Version: 0.18.1
+Branch: claude/promote-stable-3d9130
+Changes:
+- fix(frontend): the panel no longer stays blank forever. HA assigned hass/narrow/route/panel before the panel class was defined (the kit import delays the definition), so the values shadowed the setters and the panel never rendered; the constructor now re-assigns them through the class
+- fix(frontend): on phones the header wraps instead of pushing the freshness text off-screen, and the panel shows HA's menu button so the sidebar can be opened
+- feat(frontend): a quiet desktop-only footer "Finance vX.Y.Z · Open in HACS" deep-links to the HACS repository page to check for and install updates
+
 ## 0.18.0 — 2026-10-28
 Version: 0.18.0
 Branch: worktree-concept-finance-visual-m4r8
