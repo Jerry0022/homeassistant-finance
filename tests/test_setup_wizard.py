@@ -408,3 +408,13 @@ async def test_admin_can_run_setup_endpoints(monkeypatch) -> None:
     assert resp._data["steps"]["plan"] == "skipped"
     resp = await view.put(_request(True, body={"step": "persons", "status": "skipped"}))
     assert resp._status == 400 and resp._data["error"] == "not_skippable"
+
+
+def test_region_validation() -> None:
+    from custom_components.finance_dashboard.api.setup import _region
+
+    assert _region({"state": "rp", "postcode": "56179"}) == {
+        "benchmark_state": "RP", "benchmark_postcode": "56179"}
+    assert _region({"state": "DE-RP"})["benchmark_state"] == "DE-RP"
+    assert _region({"state": "Rheinland"}) is None
+    assert _region({"postcode": "5617"}) is None

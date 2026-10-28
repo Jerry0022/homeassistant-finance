@@ -12,7 +12,7 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.util import dt as dt_util
 
 from .. import setup_wizard as wiz
-from ..const import DOMAIN
+from ..const import DOMAIN, OPT_BENCHMARK_POSTCODE, OPT_BENCHMARK_STATE
 from ..pots import Pot
 from ..transfer_detector import get_effective_transactions
 from ._helpers import _get_manager, admin_denied
@@ -30,6 +30,25 @@ def _bad(view, err: wiz.SetupError) -> web.Response:
     return view.json({"error": err.code, "detail": err.detail}, status_code=400)
 
 
+def _options(manager) -> dict:
+    entry = getattr(manager, "_entry", None)
+    return dict(getattr(entry, "options", None) or {})
+
+
+def _region(raw) -> dict | None:
+    """Benchmark region from the wizard: federal state code + optional postcode."""
+    if not isinstance(raw, dict):
+        return None
+    state = str(raw.get("state") or "").strip().upper()
+    postcode = str(raw.get("postcode") or "").strip()
+    code = state.removeprefix("DE-")
+    if state and not (code.isalpha() and len(code) == 2):
+        return None
+    if postcode and not (postcode.isdigit() and len(postcode) == 5):
+        return None
+    return {OPT_BENCHMARK_STATE: state, OPT_BENCHMARK_POSTCODE: postcode}
+
+
 async def _payload(hass, manager) -> dict:
     state = await wiz.async_load_state(hass)
     accounts = getattr(manager, "_accounts", []) or []
@@ -44,6 +63,10 @@ async def _payload(hass, manager) -> dict:
             {"name": str(p.get("name") or ""), "payday": wiz.person_payday(p)}
             for p in manager.persons
         ],
+        "region": {
+            "state": _options(manager).get(OPT_BENCHMARK_STATE) or "",
+            "postcode": _options(manager).get(OPT_BENCHMARK_POSTCODE) or "",
+        },
     }
 
 
@@ -91,6 +114,14 @@ class FinanceDashboardSetupView(HomeAssistantView):
                     **manager._entry.data,  # noqa: SLF001
                     "persons": wiz.apply_paydays(manager.persons, paydays),
                 },
+            )
+        if "region" in body:
+            region = _region(body["region"])
+            if region is None:
+                return self.json({"error": "invalid_region"}, status_code=400)
+            hass.config_entries.async_update_entry(
+                manager._entry,  # noqa: SLF001
+                options={**manager._entry.options, **region},  # noqa: SLF001
             )
         await wiz.async_save_state(hass, state)
         return self.json(await _payload(hass, manager))

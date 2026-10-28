@@ -384,7 +384,7 @@ class FdHome extends HTMLElement {
   <button class="ib fresh ${fr.status || ""}" data-act="fresh" data-tip="${this._e(flabel)}" aria-label="${this._e(flabel)}" aria-expanded="${this._freshOpen}"><i>${icon}</i><span class="t">${this._e(flabel)}</span></button>
   ${center}
   <button class="ib ask" data-act="ask" data-tip="${this._e(q ? this._t("home.star", { n: q }) : this._t("home.star.none"))}" aria-label="${this._e(q ? this._t("home.star", { n: q }) : this._t("home.star.none"))}">
-    <span class="ring" style="--p:${q ? 86 : 100}%"><span>★</span></span>${q ? `<b>${q > 99 ? "99+" : q}</b>` : ""}</button>
+    <span class="ring" style="--p:${q ? 86 : 100}%"><span>★</span></span>${q ? `<b>${Math.min(q, 10)}</b>` : ""}</button>
 </div>`;
   }
 

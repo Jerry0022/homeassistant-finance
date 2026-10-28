@@ -1,324 +1,375 @@
-"""Benchmark data provider — German national average comparisons.
+"""Benchmark data provider - bundled, versioned German household benchmarks.
 
-Auto-crawls statistical data from public sources and caches locally.
-Each datapoint includes: value, source, survey year, fetch date.
+Reads ``data/benchmarks_de.json`` only. There is no network code in this
+module by design (CLAUDE.md: "no runtime benchmark fetch"). The dataset is
+refreshed by a maintainer and shipped with a release - see
+``docs/dev/benchmark-sources.md`` for the source allowlist and the update
+procedure.
 
-Sources:
-- Destatis (Statistisches Bundesamt): housing, food, savings
-- Bundesbank: debt/credit ratios
-- GDV (Gesamtverband der Versicherungswirtschaft): insurance
-- Deutscher Mieterbund: utility costs (Betriebskostenspiegel)
+Each comparison uses the finest level the dataset carries for the requested
+location: postcode -> district -> state -> country. The bundled dataset has
+no postcode or district values today, so those requests fall back to the
+state (when known) or to Germany - the response says which level was used.
 
-Display: text-based comparison, no visual gauges.
-Example: "Wohnkosten: 35% (DE Ø 36%, Destatis 2024)"
-
-SECURITY: Only public statistical data is fetched. No user data
-is sent to any external service. Cached in .storage/.
+Every value is labelled with its statistic (median / mean / ...), source,
+reference year and publication year. Dimensions without a sourced value are
+present with an empty ``values`` list and a ``note`` and are never compared.
 """
 
 from __future__ import annotations
 
+import json
 import logging
-from datetime import datetime
-from typing import Any
+from functools import lru_cache
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
-import aiohttp
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.storage import Store
-
-from .const import DOMAIN, STORAGE_VERSION
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
-BENCHMARK_STORE_KEY = f"{DOMAIN}_benchmark"
-BENCHMARK_CHECK_INTERVAL_DAYS = 30
+DATASET_PATH = Path(__file__).parent / "data" / "benchmarks_de.json"
+LEVELS = ("postcode", "district", "state", "country")
+COUNTRY_REGION = "DE"
 
-# Embedded baseline data — updated manually with each release.
-# Auto-crawl attempts to refresh these values monthly.
-BASELINE_BENCHMARKS: list[dict[str, Any]] = [
-    {
-        "id": "housing_pct",
-        "category": "housing",
-        "label": "Wohnkosten",
-        "metric": "Anteil am Haushaltseinkommen",
-        "value": 36.0,
-        "unit": "%",
-        "source": "Destatis — Einkommens- und Verbrauchsstichprobe",
-        "survey_year": 2023,
-        "url": "https://www.destatis.de/DE/Themen/Gesellschaft-Umwelt/Wohnen/_inhalt.html",
-    },
-    {
-        "id": "food_pct",
-        "category": "food",
-        "label": "Nahrungsmittel",
-        "metric": "Anteil am Haushaltseinkommen",
-        "value": 15.0,
-        "unit": "%",
-        "source": "Destatis — Einkommens- und Verbrauchsstichprobe",
-        "survey_year": 2023,
-        "url": "https://www.destatis.de/DE/Themen/Gesellschaft-Umwelt/Einkommen-Konsum-Lebensbedingungen/_inhalt.html",
-    },
-    {
-        "id": "savings_rate",
-        "category": "savings",
-        "label": "Sparquote",
-        "metric": "Private Sparquote",
-        "value": 11.4,
-        "unit": "%",
-        "source": "Destatis — Volkswirtschaftliche Gesamtrechnungen",
-        "survey_year": 2024,
-        "url": "https://www.destatis.de/DE/Themen/Wirtschaft/Volkswirtschaftliche-Gesamtrechnungen-Inlandsprodukt/_inhalt.html",
-    },
-    {
-        "id": "debt_ratio",
-        "category": "loans",
-        "label": "Kreditbelastung",
-        "metric": "Schuldendienstquote privater Haushalte",
-        "value": 7.0,
-        "unit": "%",
-        "source": "Deutsche Bundesbank — Finanzstabilitätsbericht",
-        "survey_year": 2024,
-        "url": "https://www.bundesbank.de/de/publikationen/berichte/finanzstabilitaetsberichte",
-    },
-    {
-        "id": "insurance_eur",
-        "category": "insurance",
-        "label": "Versicherungen",
-        "metric": "Durchschnittliche monatliche Ausgaben",
-        "value": 200.0,
-        "unit": "EUR",
-        "source": "GDV — Statistisches Taschenbuch der Versicherungswirtschaft",
-        "survey_year": 2023,
-        "url": "https://www.gdv.de/gdv/medien/zahlen-und-fakten",
-    },
-    {
-        "id": "utilities_sqm",
-        "category": "utilities",
-        "label": "Nebenkosten",
-        "metric": "Betriebskosten pro m² (warm)",
-        "value": 2.88,
-        "unit": "EUR/m²",
-        "source": "Deutscher Mieterbund — Betriebskostenspiegel",
-        "survey_year": 2022,
-        "url": "https://www.mieterbund.de/mietrecht/betriebskostenspiegel.html",
-    },
-    {
-        "id": "transport_eur",
-        "category": "transport",
-        "label": "Mobilität",
-        "metric": "Monatliche Mobilitätskosten pro Haushalt",
-        "value": 350.0,
-        "unit": "EUR",
-        "source": "Destatis / ADAC",
-        "survey_year": 2023,
-        "url": "https://www.destatis.de/DE/Themen/Gesellschaft-Umwelt/Einkommen-Konsum-Lebensbedingungen/_inhalt.html",
-    },
-]
+# Plan category -> dataset dimension. A category whose dimension has no
+# sourced value (insurance, loans) resolves to None and is not compared.
+CATEGORY_DIMENSIONS: dict[str, str] = {
+    "housing": "housing_energy",
+    "food": "food",
+    "transport": "mobility",
+    "subscriptions": "communication",
+    "insurance": "insurance",
+    "loans": "debt_ratio",
+    "savings": "savings_rate",
+}
+
+# Context values shown next to the category comparisons (not compared with
+# plan amounts): dimension id -> variant to pick (None = first match).
+REFERENCE_DIMENSIONS: dict[str, str | None] = {
+    "rent_per_sqm": None,
+    "electricity_price": None,
+    "electricity_consumption": None,
+    "heating_gas_price": "multi_family_house",
+    "savings_rate": None,
+    "equivalised_income": None,
+    "regelbedarf": "rbs1",
+}
+
+# ISO 3166-2 codes of the 16 federal states, keyed by short code and name.
+_STATES: dict[str, str] = {
+    "BW": "Baden-Württemberg",
+    "BY": "Bayern",
+    "BE": "Berlin",
+    "BB": "Brandenburg",
+    "HB": "Bremen",
+    "HH": "Hamburg",
+    "HE": "Hessen",
+    "MV": "Mecklenburg-Vorpommern",
+    "NI": "Niedersachsen",
+    "NW": "Nordrhein-Westfalen",
+    "RP": "Rheinland-Pfalz",
+    "SL": "Saarland",
+    "SN": "Sachsen",
+    "ST": "Sachsen-Anhalt",
+    "SH": "Schleswig-Holstein",
+    "TH": "Thüringen",
+}
+
+
+def normalize_state(value: str | None) -> str | None:
+    """Return the ISO code ``DE-XX`` for a state code or name, else None."""
+    if not value:
+        return None
+    text = str(value).strip()
+    upper = text.upper()
+    if upper.startswith("DE-"):
+        upper = upper[3:]
+    if upper in _STATES:
+        return "DE-" + upper
+    lowered = text.casefold()
+    for code, name in _STATES.items():
+        if name.casefold() == lowered:
+            return "DE-" + code
+    return None
+
+
+def load_dataset(path: Path | None = None) -> dict[str, Any]:
+    """Read the bundled dataset from disk (blocking - use an executor in HA)."""
+    with open(path or DATASET_PATH, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+@lru_cache(maxsize=1)
+def _cached_dataset() -> dict[str, Any]:
+    return load_dataset()
+
+
+def household_size_keys(size: int | None) -> list[str]:
+    """Size classes to try for a household of ``size`` persons, finest first."""
+    if not size or size < 1:
+        return ["all"]
+    keys = [str(size)]
+    if size >= 5:
+        keys.append("5+")
+    if size >= 4:
+        keys.append("4+")
+    keys.append("all")
+    return keys
+
+
+def _source_meta(dataset: dict[str, Any], source_id: str) -> dict[str, Any]:
+    for source in dataset.get("sources", []):
+        if source.get("id") == source_id:
+            return source
+    return {}
+
+
+def resolve(  # noqa: PLR0913
+    dataset: dict[str, Any],
+    dimension_id: str,
+    *,
+    state: str | None = None,
+    postcode: str | None = None,
+    district: str | None = None,
+    household_size: int | None = None,
+    variant: str | None = None,
+) -> dict[str, Any] | None:
+    """Pick the finest available value of one dimension for a location.
+
+    Walks postcode -> district -> state -> country starting at the finest
+    level the caller supplied, and within each level the household-size
+    classes from exact size to "all". Returns None when the dimension has
+    no sourced value.
+    """
+    dim = dataset.get("dimensions", {}).get(dimension_id)
+    if not dim or not dim.get("values"):
+        return None
+    state_code = normalize_state(state)
+    regions = {
+        "postcode": str(postcode).strip() if postcode else None,
+        "district": str(district).strip() if district else None,
+        "state": state_code,
+        "country": COUNTRY_REGION,
+    }
+    requested = next((lvl for lvl in LEVELS if regions[lvl]), "country")
+    sizes = household_size_keys(household_size)
+    start = LEVELS.index(requested)
+    for level in LEVELS[start:]:
+        region = regions[level]
+        if not region:
+            continue
+        for size in sizes:
+            for entry in dim["values"]:
+                if entry.get("level") != level or entry.get("region") != region:
+                    continue
+                if entry.get("household_size", "all") != size:
+                    continue
+                if variant is not None and entry.get("variant") != variant:
+                    continue
+                return _labelled(dataset, dimension_id, dim, entry, requested)
+    return None
+
+
+def _labelled(
+    dataset: dict[str, Any],
+    dimension_id: str,
+    dim: dict[str, Any],
+    entry: dict[str, Any],
+    requested: str,
+) -> dict[str, Any]:
+    source = _source_meta(dataset, entry["source"])
+    return {
+        "id": dimension_id,
+        "label": dim.get("label_de", dimension_id),
+        "label_en": dim.get("label_en", dimension_id),
+        "value": entry["value"],
+        "unit": dim.get("unit", ""),
+        "direction": dim.get("direction", "lower_is_better"),
+        "statistic": entry["statistic"],
+        "derived": bool(entry.get("derived", False)),
+        "variant": entry.get("variant"),
+        "household_size": entry.get("household_size", "all"),
+        "level": entry["level"],
+        "requested_level": requested,
+        "region": entry["region"],
+        "source_id": entry["source"],
+        "source": source.get("title", entry["source"]),
+        "publisher": source.get("publisher", ""),
+        "source_url": source.get("url", ""),
+        "reference_year": entry["reference_year"],
+        "publication_year": entry["publication_year"],
+        # Kept for the existing frontend, which renders ``survey_year``.
+        "survey_year": entry["reference_year"],
+        "note": dim.get("note", ""),
+        "dataset_version": dataset.get("dataset_version", ""),
+    }
 
 
 class BenchmarkProvider:
-    """Provides German national average benchmark data."""
+    """Serves the bundled benchmark dataset. Never touches the network."""
 
-    def __init__(self, hass: HomeAssistant) -> None:
-        """Initialize the benchmark provider."""
+    def __init__(
+        self, hass: HomeAssistant | None = None, dataset: dict[str, Any] | None = None
+    ) -> None:
+        """Initialize; ``dataset`` injects a parsed dataset (tests)."""
         self._hass = hass
-        self._store = Store(hass, STORAGE_VERSION, BENCHMARK_STORE_KEY)
-        self._data: list[dict[str, Any]] = []
-        self._last_check: datetime | None = None
+        self._dataset = dataset
 
     async def async_initialize(self) -> None:
-        """Load cached benchmark data or use baseline."""
-        cached = await self._store.async_load()
-        if cached and "benchmarks" in cached:
-            self._data = cached["benchmarks"]
-            last_check = cached.get("last_check")
-            if last_check:
-                self._last_check = datetime.fromisoformat(last_check)
-            _LOGGER.debug(
-                "Loaded %d cached benchmarks (checked: %s)",
-                len(self._data),
-                self._last_check,
-            )
+        """Load the bundled file off the event loop."""
+        if self._dataset is not None:
+            return
+        if self._hass is not None:
+            self._dataset = await self._hass.async_add_executor_job(_cached_dataset)
         else:
-            # Use embedded baseline
-            self._data = BASELINE_BENCHMARKS
-            await self._persist()
-            _LOGGER.info("Initialized with %d baseline benchmarks", len(self._data))
+            self._dataset = _cached_dataset()
+        _LOGGER.debug("Benchmark dataset %s loaded", self._dataset.get("dataset_version"))
 
-    async def async_check_for_updates(self) -> bool:
-        """Check if newer benchmark data is available.
+    @property
+    def dataset(self) -> dict[str, Any]:
+        """The parsed dataset (loads synchronously if not initialised)."""
+        if self._dataset is None:
+            self._dataset = _cached_dataset()
+        return self._dataset
 
-        Runs monthly. Attempts to fetch updated values from public
-        statistical APIs. Falls back to baseline if fetch fails.
-
-        Returns True if data was updated.
-        """
-        if self._last_check:
-            days_since = (datetime.now() - self._last_check).days
-            if days_since < BENCHMARK_CHECK_INTERVAL_DAYS:
-                return False
-
-        _LOGGER.info("Checking for benchmark data updates...")
-        updated = False
-
-        try:
-            # Attempt to fetch Destatis savings rate (public JSON API)
-            savings = await self._fetch_destatis_savings_rate()
-            if savings is not None:
-                self._update_value("savings_rate", savings)
-                updated = True
-        except Exception:
-            _LOGGER.debug("Destatis savings rate fetch failed, using cached")
-
-        self._last_check = datetime.now()
-        await self._persist()
-
-        if updated:
-            _LOGGER.info("Benchmark data updated")
-        else:
-            _LOGGER.debug("No benchmark updates available")
-
-        return updated
+    def dataset_info(self) -> dict[str, Any]:
+        """Version stamp for API responses."""
+        data = self.dataset
+        return {
+            "dataset_version": data.get("dataset_version"),
+            "generated": data.get("generated"),
+            "country": data.get("country", COUNTRY_REGION),
+        }
 
     def get_benchmarks(self) -> list[dict[str, Any]]:
-        """Get all benchmark datapoints."""
-        return self._data
+        """Every dimension with a sourced value, at country level for all households."""
+        result = []
+        for dim_id in self.dataset.get("dimensions", {}):
+            value = resolve(self.dataset, dim_id)
+            if value is None:
+                dim = self.dataset["dimensions"][dim_id]
+                # Dimensions such as poverty_threshold only carry size-specific values.
+                if dim.get("values"):
+                    first = dim["values"][0]
+                    value = _labelled(self.dataset, dim_id, dim, first, first["level"])
+            if value is not None:
+                result.append(value)
+        return result
 
-    def get_benchmark(self, benchmark_id: str) -> dict[str, Any] | None:
-        """Get a specific benchmark by ID."""
-        for b in self._data:
-            if b["id"] == benchmark_id:
-                return b
-        return None
+    def get_benchmark(
+        self,
+        benchmark_id: str,
+        state: str | None = None,
+        postcode: str | None = None,
+        household_size: int | None = None,
+        variant: str | None = None,
+    ) -> dict[str, Any] | None:
+        """One dimension, resolved for a location and household size."""
+        return resolve(
+            self.dataset,
+            benchmark_id,
+            state=state,
+            postcode=postcode,
+            household_size=household_size,
+            variant=variant,
+        )
 
-    def get_benchmark_for_category(self, category: str) -> dict[str, Any] | None:
-        """Get the benchmark that covers a spending category.
+    def get_benchmark_for_category(
+        self,
+        category: str,
+        state: str | None = None,
+        postcode: str | None = None,
+        household_size: int | None = None,
+    ) -> dict[str, Any] | None:
+        """The benchmark covering a plan category, or None if unsourced.
 
-        Callers need the unit before computing their own value: a percentage
-        metric is a share of net income, an EUR metric is an absolute monthly
-        amount, and computing the wrong one silently produces a nonsense
-        comparison.
+        Callers need the unit before computing their own value: a "%" metric
+        is a share of net income, an EUR metric an absolute monthly amount.
         """
-        for b in self._data:
-            if b.get("category") == category:
-                return b
-        return None
+        dim_id = CATEGORY_DIMENSIONS.get(category)
+        if dim_id is None:
+            return None
+        return self.get_benchmark(
+            dim_id, state=state, postcode=postcode, household_size=household_size
+        )
 
-    def compare(self, category: str, user_value: float) -> dict[str, Any] | None:
-        """Compare a user's value against the national average.
+    def references(
+        self,
+        state: str | None = None,
+        postcode: str | None = None,
+        household_size: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Context values (rent per m², energy prices, floor ...) for a location."""
+        result = []
+        for dim_id, variant in REFERENCE_DIMENSIONS.items():
+            value = resolve(
+                self.dataset,
+                dim_id,
+                state=state,
+                postcode=postcode,
+                household_size=household_size,
+                variant=variant,
+            )
+            if value is not None:
+                result.append(value)
+        return result
 
-        Returns comparison result with formatted text.
-        Example: {
-            "label": "Wohnkosten",
-            "user_value": 35.0,
-            "benchmark_value": 36.0,
-            "difference": -1.0,
-            "better": True,
-            "text": "Wohnkosten: 35% (DE Ø 36%, Destatis 2023)"
-        }
+    def unavailable(self) -> list[dict[str, str]]:
+        """Dimensions without a sourced value, with the reason."""
+        return [
+            {"id": dim_id, "label": dim.get("label_de", dim_id), "note": dim.get("note", "")}
+            for dim_id, dim in self.dataset.get("dimensions", {}).items()
+            if not dim.get("values")
+        ]
+
+    def compare(
+        self,
+        category: str,
+        user_value: float,
+        state: str | None = None,
+        postcode: str | None = None,
+        household_size: int | None = None,
+    ) -> dict[str, Any] | None:
+        """Compare a value from the plan with the benchmark for its category.
+
+        Example text: "Nahrungsmittel, Getränke, Tabak: 520 EUR/month
+        (DE Ø 505 EUR/month, LWR 2024, 2 Pers.)".
         """
-        # Find benchmark by category
-        benchmark = None
-        for b in self._data:
-            if b["category"] == category:
-                benchmark = b
-                break
-
+        benchmark = self.get_benchmark_for_category(
+            category, state=state, postcode=postcode, household_size=household_size
+        )
         if not benchmark:
             return None
-
         bv = benchmark["value"]
         diff = user_value - bv
-        unit = benchmark.get("unit", "%")
-
-        # "Better" depends on context:
-        # For costs: lower is better
-        # For savings: higher is better
-        better_is_lower = category != "savings"
-        is_better = diff < 0 if better_is_lower else diff > 0
-
-        # Format comparison text
-        source_short = benchmark["source"].split("—")[0].strip()
+        lower_is_better = benchmark["direction"] != "higher_is_better"
+        is_better = diff < 0 if lower_is_better else diff > 0
+        unit = benchmark["unit"]
+        symbol = "Median" if benchmark["statistic"] == "median" else "Ø"
+        size = benchmark["household_size"]
+        size_text = "" if size == "all" else f", {size} Pers."
+        publisher = benchmark["publisher"]
+        short = (
+            publisher.split("(")[-1].rstrip(")") if "(" in publisher else publisher.split(" ")[0]
+        ) or benchmark["source_id"]
         text = (
-            f"{benchmark['label']}: {user_value:.0f}{unit} "
-            f"(DE Ø {bv:.0f}{unit}, {source_short} {benchmark['survey_year']})"
+            f"{benchmark['label']}: {user_value:.0f} {unit} "
+            f"({benchmark['region']} {symbol} {bv:.0f} {unit}, {short} "
+            f"{benchmark['reference_year']}{size_text})"
         )
-
-        return {
-            "label": benchmark["label"],
-            "category": category,
-            "user_value": user_value,
-            "benchmark_value": bv,
-            "difference": round(diff, 1),
-            "better": is_better,
-            "unit": unit,
-            "source": benchmark["source"],
-            "survey_year": benchmark["survey_year"],
-            "fetch_date": (
-                self._last_check.strftime("%Y-%m-%d") if self._last_check else "embedded"
-            ),
-            "text": text,
-        }
-
-    def _update_value(self, benchmark_id: str, new_value: float) -> None:
-        """Update a benchmark value."""
-        for b in self._data:
-            if b["id"] == benchmark_id:
-                old = b["value"]
-                b["value"] = new_value
-                b["fetch_date"] = datetime.now().strftime("%Y-%m-%d")
-                _LOGGER.info(
-                    "Benchmark %s updated: %.1f → %.1f",
-                    benchmark_id,
-                    old,
-                    new_value,
-                )
-                break
-
-    async def _fetch_destatis_savings_rate(self) -> float | None:
-        """Attempt to fetch the latest savings rate from Destatis GENESIS API."""
-        # Destatis GENESIS-Online has a public REST API for some datasets
-        # Table 81000-0120: Sparquote der privaten Haushalte
-        url = (
-            "https://www-genesis.destatis.de/genesisWS/rest/2020/"
-            "data/tablefile?username=GEST&password=GEST&"
-            "name=81000-0120&area=all&compress=false&"
-            "format=ffcsv&language=de"
-        )
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
-                    if resp.status == 200:
-                        text = await resp.text()
-                        # Parse CSV for latest savings rate
-                        return self._parse_destatis_csv(text)
-                    _LOGGER.debug("Destatis API returned %d", resp.status)
-        except Exception:
-            _LOGGER.debug("Destatis API not reachable")
-        return None
-
-    @staticmethod
-    def _parse_destatis_csv(csv_text: str) -> float | None:
-        """Parse Destatis CSV for the latest savings rate value."""
-        lines = csv_text.strip().split("\n")
-        # Look for the last data line with a numeric value
-        for line in reversed(lines):
-            parts = line.split(";")
-            for part in reversed(parts):
-                part = part.strip().replace(",", ".")
-                try:
-                    val = float(part)
-                    if 0 < val < 100:  # Sanity check for percentage
-                        return val
-                except ValueError:
-                    continue
-        return None
-
-    async def _persist(self) -> None:
-        """Save benchmark data to .storage/."""
-        await self._store.async_save(
+        result = dict(benchmark)
+        result.update(
             {
-                "benchmarks": self._data,
-                "last_check": (self._last_check.isoformat() if self._last_check else None),
+                "category": category,
+                "dimension": benchmark["id"],
+                "user_value": user_value,
+                "benchmark_value": bv,
+                "difference": round(diff, 2),
+                "better": is_better,
+                "fetch_date": "bundled",
+                "text": text,
             }
         )
+        return result

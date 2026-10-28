@@ -1,0 +1,853 @@
+{
+  "dataset_version": "2026.10.1",
+  "generated": "2026-10-28",
+  "country": "DE",
+  "schema": 1,
+  "levels": [
+    "postcode",
+    "district",
+    "state",
+    "country"
+  ],
+  "statistics": [
+    "median",
+    "mean",
+    "aggregate_ratio",
+    "statutory",
+    "threshold_60pct_median"
+  ],
+  "allowed_domains": [
+    "destatis.de",
+    "statistikportal.de",
+    "regionalstatistik.de",
+    "zensus2022.de",
+    "statistik-nord.de",
+    "statistik-berlin-brandenburg.de",
+    "statistik.bayern.de",
+    "statistik-bw.de",
+    "statistik.sachsen.de",
+    "statistik.sachsen-anhalt.de",
+    "statistik.thueringen.de",
+    "statistik.hessen.de",
+    "it.nrw",
+    "statistik.niedersachsen.de",
+    "statistik.rlp.de",
+    "statistik.saarland.de",
+    "statistik-bremen.de",
+    "statistik-mv.de",
+    "bdew.de",
+    "bundesnetzagentur.de",
+    "bmas.de",
+    "recht.bund.de",
+    "bundesbank.de"
+  ],
+  "sources": [
+    {
+      "id": "destatis_lwr_2024_haushaltsgroesse",
+      "publisher": "Statistisches Bundesamt (Destatis)",
+      "title": "Laufende Wirtschaftsrechnungen (LWR) 2024 - Konsumausgaben privater Haushalte nach Haushaltsgröße",
+      "url": "https://www.destatis.de/DE/Themen/Gesellschaft-Umwelt/Einkommen-Konsum-Lebensbedingungen/Konsumausgaben-Lebenshaltungskosten/Tabellen/privater-konsum-haushaltsgroesse-lwr.html",
+      "published": "2026-08-17",
+      "reference_period": "2024"
+    },
+    {
+      "id": "destatis_zensus2022_pm45",
+      "publisher": "Statistisches Bundesamt (Destatis)",
+      "title": "Zensus 2022, Pressemitteilung Nr. 45 vom 25. Juni 2024 (Nettokaltmiete)",
+      "url": "https://www.destatis.de/DE/Presse/Pressemitteilungen/Zensus2022-Pressemitteilungen/PM_zenus2022_45.html",
+      "published": "2024-06-25",
+      "reference_period": "2022-05-15"
+    },
+    {
+      "id": "statistik_nord_si24_085",
+      "publisher": "Statistisches Amt für Hamburg und Schleswig-Holstein",
+      "title": "Zensus 2022 in Hamburg - Nettokaltmiete (SI24/085)",
+      "url": "https://statistik-nord.de/fileadmin/Dokumente/Presseinformationen/SI24_085.pdf",
+      "published": "2024",
+      "reference_period": "2022-05-15"
+    },
+    {
+      "id": "bdew_strompreisanalyse_2026_10",
+      "publisher": "BDEW Bundesverband der Energie- und Wasserwirtschaft",
+      "title": "BDEW-Strompreisanalyse Oktober 2026",
+      "url": "https://www.bdew.de/media/documents/BDEW_Strompreisanalyse_102026_1.pdf",
+      "published": "2026-10",
+      "reference_period": "2026 (year to date)"
+    },
+    {
+      "id": "bdew_gaspreisanalyse_2026_10",
+      "publisher": "BDEW Bundesverband der Energie- und Wasserwirtschaft",
+      "title": "BDEW-Gaspreisanalyse Oktober 2026",
+      "url": "https://www.bdew.de/media/documents/BDEW_Gaspreisanalyse_102026_1.pdf",
+      "published": "2026-10",
+      "reference_period": "2026 (year to date)"
+    },
+    {
+      "id": "bdew_stromverbrauch_2025",
+      "publisher": "BDEW Bundesverband der Energie- und Wasserwirtschaft",
+      "title": "Stromverbrauch im Haushalt 2025 (Kurzfassung)",
+      "url": "https://www.bdew.de/media/documents/BDEW_Stromverbrauchsanalyse_20260520_Kurzfassung_FINAL_T09F4Rr.pdf",
+      "published": "2026-05",
+      "reference_period": "2025"
+    },
+    {
+      "id": "destatis_pm_n059_2025",
+      "publisher": "Statistisches Bundesamt (Destatis)",
+      "title": "Pressemitteilung Nr. N059 vom 28. Oktober 2025 (Sparquote)",
+      "url": "https://www.destatis.de/DE/Presse/Pressemitteilungen/2025/10/PD25_N059_81.html",
+      "published": "2025-10-28",
+      "reference_period": "2024"
+    },
+    {
+      "id": "destatis_pm_039_2026",
+      "publisher": "Statistisches Bundesamt (Destatis)",
+      "title": "Pressemitteilung Nr. 039 vom 3. Februar 2026 (Armutsgefährdung, EU-SILC 2025 Erstergebnisse)",
+      "url": "https://www.destatis.de/DE/Presse/Pressemitteilungen/2026/02/PD26_039_63.html",
+      "published": "2026-02-03",
+      "reference_period": "income year 2024"
+    },
+    {
+      "id": "bgbl_2025_i_243_rbsfv_2026",
+      "publisher": "Bundesministerium für Arbeit und Soziales (Bundesgesetzblatt)",
+      "title": "Verordnung zur Fortschreibung der Regelbedarfsstufen für das Jahr 2026 vom 17. Oktober 2025 (BGBl. 2025 I Nr. 243)",
+      "url": "https://www.recht.bund.de/bgbl/1/2025/243/regelungstext.pdf",
+      "published": "2025-10-22",
+      "reference_period": "2026"
+    }
+  ],
+  "dimensions": {
+    "rent_per_sqm": {
+      "label_de": "Nettokaltmiete je m²",
+      "label_en": "Net cold rent per m²",
+      "unit": "EUR/m²/month",
+      "direction": "lower_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 7.28,
+          "statistic": "mean",
+          "source": "destatis_zensus2022_pm45",
+          "reference_year": 2022,
+          "publication_year": 2024
+        },
+        {
+          "level": "state",
+          "region": "DE-ST",
+          "household_size": "all",
+          "value": 5.38,
+          "statistic": "mean",
+          "source": "destatis_zensus2022_pm45",
+          "reference_year": 2022,
+          "publication_year": 2024
+        },
+        {
+          "level": "state",
+          "region": "DE-TH",
+          "household_size": "all",
+          "value": 5.65,
+          "statistic": "mean",
+          "source": "destatis_zensus2022_pm45",
+          "reference_year": 2022,
+          "publication_year": 2024
+        },
+        {
+          "level": "state",
+          "region": "DE-SN",
+          "household_size": "all",
+          "value": 5.72,
+          "statistic": "mean",
+          "source": "destatis_zensus2022_pm45",
+          "reference_year": 2022,
+          "publication_year": 2024
+        },
+        {
+          "level": "state",
+          "region": "DE-HH",
+          "household_size": "all",
+          "value": 9.16,
+          "statistic": "mean",
+          "source": "statistik_nord_si24_085",
+          "reference_year": 2022,
+          "publication_year": 2024
+        },
+        {
+          "level": "state",
+          "region": "DE-BY",
+          "household_size": "all",
+          "value": 8.74,
+          "statistic": "mean",
+          "source": "destatis_zensus2022_pm45",
+          "reference_year": 2022,
+          "publication_year": 2024
+        },
+        {
+          "level": "state",
+          "region": "DE-HE",
+          "household_size": "all",
+          "value": 8.21,
+          "statistic": "mean",
+          "source": "destatis_zensus2022_pm45",
+          "reference_year": 2022,
+          "publication_year": 2024
+        },
+        {
+          "level": "state",
+          "region": "DE-BW",
+          "household_size": "all",
+          "value": 8.13,
+          "statistic": "mean",
+          "source": "destatis_zensus2022_pm45",
+          "reference_year": 2022,
+          "publication_year": 2024
+        }
+      ],
+      "note": "Zensus 2022 (reference date 2022-05-15), rented dwellings in residential buildings excl. residential homes. Destatis names only the three cheapest and four most expensive states. The other nine states fall back to the country value until their Statistisches Landesamt figure is added. Destatis published a second Zensus cut (2025-04-09) with 7.34 EUR/m² on a household basis (1 person 7.53, 2+ persons 7.09), not mixed in here because the base differs."
+    },
+    "electricity_price": {
+      "label_de": "Strompreis Haushalte",
+      "label_en": "Household electricity price",
+      "unit": "EUR/kWh",
+      "direction": "lower_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 0.373,
+          "statistic": "mean",
+          "source": "bdew_strompreisanalyse_2026_10",
+          "reference_year": 2026,
+          "publication_year": 2026,
+          "basis": "3500 kWh/year, base charge apportioned, new-customer tariffs, year to date"
+        }
+      ],
+      "note": "BDEW average over tariffs offered to new customers, 2026 year to date (data as of 10/2026). Existing contracts can differ."
+    },
+    "electricity_consumption": {
+      "label_de": "Stromverbrauch je Haushalt",
+      "label_en": "Electricity consumption per household",
+      "unit": "kWh/year",
+      "direction": "lower_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 2434,
+          "statistic": "mean",
+          "source": "bdew_stromverbrauch_2025",
+          "reference_year": 2025,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "1",
+          "value": 1556,
+          "statistic": "mean",
+          "source": "bdew_stromverbrauch_2025",
+          "reference_year": 2025,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "2",
+          "value": 2551,
+          "statistic": "mean",
+          "source": "bdew_stromverbrauch_2025",
+          "reference_year": 2025,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "3",
+          "value": 3508,
+          "statistic": "mean",
+          "source": "bdew_stromverbrauch_2025",
+          "reference_year": 2025,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "4+",
+          "value": 4175,
+          "statistic": "mean",
+          "source": "bdew_stromverbrauch_2025",
+          "reference_year": 2025,
+          "publication_year": 2026
+        }
+      ],
+      "note": "Households without electric heating. Size class 4+ means four or more persons (BDEW reports 3919 kWh for exactly four)."
+    },
+    "heating_gas_price": {
+      "label_de": "Gaspreis Heizung",
+      "label_en": "Heating gas price",
+      "unit": "EUR/kWh",
+      "direction": "lower_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 0.1223,
+          "statistic": "mean",
+          "source": "bdew_gaspreisanalyse_2026_10",
+          "reference_year": 2026,
+          "publication_year": 2026,
+          "variant": "single_family_house",
+          "basis": "20000 kWh/year, gas central heating incl. hot water, new-customer tariffs, year to date"
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 0.1167,
+          "statistic": "mean",
+          "source": "bdew_gaspreisanalyse_2026_10",
+          "reference_year": 2026,
+          "publication_year": 2026,
+          "variant": "multi_family_house",
+          "basis": "6-unit building, new-customer tariffs, year to date"
+        }
+      ],
+      "note": "BDEW Gaspreisanalyse October 2026, 2026 year to date."
+    },
+    "heating_district_heating_price": {
+      "label_de": "Fernwärmepreis",
+      "label_en": "District heating price",
+      "unit": "EUR/kWh",
+      "direction": "lower_is_better",
+      "values": [],
+      "note": "Not sourced yet: no allowlisted nationwide average found in this research round."
+    },
+    "heating_oil_price": {
+      "label_de": "Heizölpreis",
+      "label_en": "Heating oil price",
+      "unit": "EUR/100 l",
+      "direction": "lower_is_better",
+      "values": [],
+      "note": "Not sourced yet: Destatis publishes a heating-oil price index, not an absolute household price in a form verified here."
+    },
+    "heating_heat_pump_price": {
+      "label_de": "Wärmepumpenstrompreis",
+      "label_en": "Heat pump electricity price",
+      "unit": "EUR/kWh",
+      "direction": "lower_is_better",
+      "values": [],
+      "note": "Not sourced yet: BDEW Strompreisanalyse excludes heat-pump tariffs. Bundesnetzagentur Monitoringbericht not yet extracted."
+    },
+    "housing_energy": {
+      "label_de": "Wohnen, Energie, Instandhaltung",
+      "label_en": "Housing, energy, maintenance",
+      "unit": "EUR/month",
+      "direction": "lower_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 1181,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "1",
+          "value": 853,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "2",
+          "value": 1312,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "3",
+          "value": 1483,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "4",
+          "value": 1666,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "5+",
+          "value": 1740,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        }
+      ],
+      "note": "LWR consumption concept (rent incl. imputed rent of owner-occupiers, energy, maintenance). Compared against plan categories housing + utilities."
+    },
+    "food": {
+      "label_de": "Nahrungsmittel, Getränke, Tabak",
+      "label_en": "Food, beverages, tobacco",
+      "unit": "EUR/month",
+      "direction": "lower_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 457,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "1",
+          "value": 270,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "2",
+          "value": 505,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "3",
+          "value": 653,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "4",
+          "value": 759,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "5+",
+          "value": 896,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        }
+      ],
+      "note": "Excludes restaurants and accommodation (separate LWR line, 215 EUR for all households)."
+    },
+    "mobility": {
+      "label_de": "Verkehr",
+      "label_en": "Transport",
+      "unit": "EUR/month",
+      "direction": "lower_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 448,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "1",
+          "value": 231,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "2",
+          "value": 519,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "3",
+          "value": 697,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "4",
+          "value": 777,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "5+",
+          "value": 791,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        }
+      ],
+      "note": "LWR Verkehr: vehicle purchase, fuel, maintenance, public transport."
+    },
+    "communication": {
+      "label_de": "Information und Kommunikation",
+      "label_en": "Information and communication",
+      "unit": "EUR/month",
+      "direction": "lower_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 140,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "1",
+          "value": 102,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "2",
+          "value": 150,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "3",
+          "value": 188,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "4",
+          "value": 202,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "5+",
+          "value": 191,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        }
+      ],
+      "note": "LWR Information und Kommunikation (devices and services). Closest official proxy for the plan category subscriptions. Some subscriptions are booked elsewhere in COICOP."
+    },
+    "consumption_total": {
+      "label_de": "Konsumausgaben insgesamt",
+      "label_en": "Total consumption expenditure",
+      "unit": "EUR/month",
+      "direction": "lower_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 3257,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "1",
+          "value": 2042,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "2",
+          "value": 3721,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "3",
+          "value": 4467,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "4",
+          "value": 5067,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "5+",
+          "value": 5231,
+          "statistic": "mean",
+          "source": "destatis_lwr_2024_haushaltsgroesse",
+          "reference_year": 2024,
+          "publication_year": 2026
+        }
+      ],
+      "note": "Context value."
+    },
+    "insurance": {
+      "label_de": "Versicherungen",
+      "label_en": "Insurance",
+      "unit": "EUR/month",
+      "direction": "lower_is_better",
+      "values": [],
+      "note": "Not sourced: the LWR consumption table only carries Versicherungs- und Finanzdienstleistungen (6 EUR/month), which excludes most premiums by COICOP convention and would be misleading. LWR premium totals (GENESIS 63121) not yet extracted."
+    },
+    "debt_ratio": {
+      "label_de": "Schuldendienstquote",
+      "label_en": "Debt service ratio",
+      "unit": "%",
+      "direction": "lower_is_better",
+      "values": [],
+      "note": "Not sourced: no verified Deutsche Bundesbank household debt-service ratio in this research round."
+    },
+    "savings_rate": {
+      "label_de": "Sparquote",
+      "label_en": "Savings rate",
+      "unit": "%",
+      "direction": "higher_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 11.2,
+          "statistic": "aggregate_ratio",
+          "source": "destatis_pm_n059_2025",
+          "reference_year": 2024,
+          "publication_year": 2025,
+          "definition": "net saving / disposable income of the household sector (national accounts)"
+        }
+      ],
+      "note": "Macro ratio for the whole household sector, not a per-household mean or median. First half 2025: 10.3 % (seasonally adjusted, same release)."
+    },
+    "equivalised_income": {
+      "label_de": "Nettoäquivalenzeinkommen (Median)",
+      "label_en": "Median equivalised net income",
+      "unit": "EUR/month",
+      "direction": "higher_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 2410,
+          "statistic": "median",
+          "source": "destatis_pm_039_2026",
+          "reference_year": 2024,
+          "publication_year": 2026,
+          "derived": true,
+          "derivation": "published at-risk-of-poverty threshold 1446 EUR / 0.6 (threshold is defined as 60 % of the median)"
+        }
+      ],
+      "note": "EU-SILC 2025 first results, income year 2024. Divide household net income by the modified OECD scale (1.0 first adult, 0.5 per further person 14+, 0.3 per child under 14) before comparing."
+    },
+    "poverty_threshold": {
+      "label_de": "Armutsgefährdungsschwelle",
+      "label_en": "At-risk-of-poverty threshold",
+      "unit": "EUR/month",
+      "direction": "higher_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "1",
+          "value": 1446,
+          "statistic": "threshold_60pct_median",
+          "source": "destatis_pm_039_2026",
+          "reference_year": 2024,
+          "publication_year": 2026,
+          "variant": "single_adult"
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "4",
+          "value": 3036,
+          "statistic": "threshold_60pct_median",
+          "source": "destatis_pm_039_2026",
+          "reference_year": 2024,
+          "publication_year": 2026,
+          "variant": "two_adults_two_children_under_14"
+        }
+      ],
+      "note": "Net household income per month."
+    },
+    "regelbedarf": {
+      "label_de": "Regelbedarf (Bürgergeld/Sozialhilfe)",
+      "label_en": "Standard needs rate (Bürgergeld)",
+      "unit": "EUR/month/person",
+      "direction": "higher_is_better",
+      "values": [
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 563,
+          "statistic": "statutory",
+          "source": "bgbl_2025_i_243_rbsfv_2026",
+          "reference_year": 2026,
+          "publication_year": 2025,
+          "variant": "rbs1"
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 506,
+          "statistic": "statutory",
+          "source": "bgbl_2025_i_243_rbsfv_2026",
+          "reference_year": 2026,
+          "publication_year": 2025,
+          "variant": "rbs2"
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 451,
+          "statistic": "statutory",
+          "source": "bgbl_2025_i_243_rbsfv_2026",
+          "reference_year": 2026,
+          "publication_year": 2025,
+          "variant": "rbs3"
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 471,
+          "statistic": "statutory",
+          "source": "bgbl_2025_i_243_rbsfv_2026",
+          "reference_year": 2026,
+          "publication_year": 2025,
+          "variant": "rbs4"
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 390,
+          "statistic": "statutory",
+          "source": "bgbl_2025_i_243_rbsfv_2026",
+          "reference_year": 2026,
+          "publication_year": 2025,
+          "variant": "rbs5"
+        },
+        {
+          "level": "country",
+          "region": "DE",
+          "household_size": "all",
+          "value": 357,
+          "statistic": "statutory",
+          "source": "bgbl_2025_i_243_rbsfv_2026",
+          "reference_year": 2026,
+          "publication_year": 2025,
+          "variant": "rbs6"
+        }
+      ],
+      "note": "Floor, not an average. RBS1 single adult, RBS2 each adult partner, RBS3 adults in institutions or the parents' household, RBS4 youth 14-17, RBS5 children 6-13, RBS6 children 0-5. Unchanged from 2025 (§ 28a Abs. 5 SGB XII). Excludes housing and heating."
+    }
+  }
+}
