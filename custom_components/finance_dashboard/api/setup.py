@@ -30,6 +30,11 @@ def _bad(view, err: wiz.SetupError) -> web.Response:
     return view.json({"error": err.code, "detail": err.detail}, status_code=400)
 
 
+def _options(manager) -> dict:
+    entry = getattr(manager, "_entry", None)
+    return dict(getattr(entry, "options", None) or {})
+
+
 def _region(raw) -> dict | None:
     """Benchmark region from the wizard: federal state code + optional postcode."""
     if not isinstance(raw, dict):
@@ -59,8 +64,8 @@ async def _payload(hass, manager) -> dict:
             for p in manager.persons
         ],
         "region": {
-            "state": manager._entry.options.get(OPT_BENCHMARK_STATE) or "",  # noqa: SLF001
-            "postcode": manager._entry.options.get(OPT_BENCHMARK_POSTCODE) or "",  # noqa: SLF001
+            "state": _options(manager).get(OPT_BENCHMARK_STATE) or "",
+            "postcode": _options(manager).get(OPT_BENCHMARK_POSTCODE) or "",
         },
     }
 
