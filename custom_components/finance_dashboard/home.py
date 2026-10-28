@@ -64,12 +64,25 @@ def account_owner(account: dict[str, Any]) -> str:
     return str(account.get("person") or "") or POT_OWNER_SHARED
 
 
-def resolve_person(user: Any, accounts: list[dict[str, Any]]) -> str | None:
-    """Map the logged-in HA user to a person via the accounts' ``ha_users``."""
+def resolve_person(
+    user: Any,
+    accounts: list[dict[str, Any]],
+    persons: list[dict[str, Any]] | None = None,
+) -> str | None:
+    """Map the logged-in HA user to a person.
+
+    First through the configured persons (``entry.data["persons"]``, which work
+    before any account is assigned), then - as fallback - through the accounts'
+    ``ha_users``.
+    """
     if user is None:
         return None
     ids = {str(getattr(user, "id", "") or "")} - {""}
     names = {str(getattr(user, "name", "") or "").lower()} - {""}
+    for cfg in persons or []:
+        name = str(cfg.get("name") or "")
+        if name and ids & {str(i) for i in cfg.get("ha_users") or []}:
+            return name
     for acc in accounts:
         person = str(acc.get("person") or "")
         if not person or acc.get("type") == "shared":
@@ -83,6 +96,30 @@ def resolve_person(user: Any, accounts: list[dict[str, Any]]) -> str | None:
             if (eid and eid in ids) or (ename and ename in names):
                 return person
     return None
+
+
+def setup_block(
+    accounts: list[dict[str, Any]],
+    persons: list[dict[str, Any]] | None,
+    pots: int,
+    *,
+    user_mapped: bool,
+) -> dict[str, Any]:
+    """Cheap onboarding status: are persons and accounts set up?"""
+    names = {str(p.get("name") or "") for p in persons or []} - {""}
+    names |= {
+        str(a.get("person") or "")
+        for a in accounts
+        if a.get("type") != "shared" and a.get("person")
+    }
+    assigned = sum(1 for a in accounts if a.get("type") == "shared" or str(a.get("person") or ""))
+    return {
+        "persons": len(names),
+        "user_mapped": user_mapped,
+        "accounts_total": len(accounts),
+        "accounts_assigned": assigned,
+        "pots": pots,
+    }
 
 
 def _to_date(value: Any) -> date | None:
@@ -334,9 +371,12 @@ def build_home(  # noqa: PLR0912, PLR0915
     person: str | None,
     view: str,
     horizon: str,
+    persons: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Assemble the home contract. ``view`` degrades to household without a person."""
     today = now.date()
+    user_mapped = bool(person)
+    persons_cfg = persons
     banks = banks or []
     if horizon not in HORIZONS:
         horizon = "cycle"
@@ -433,6 +473,8 @@ def build_home(  # noqa: PLR0912, PLR0915
         "remaining": head["balance"],
         "pots": pot_rows,
     }
+
+    out["setup"] = setup_block(accounts, persons_cfg, len(pots), user_mapped=user_mapped)
 
     if view == "household":
         persons = sorted({p.owner for p in pots if not p.is_shared})
