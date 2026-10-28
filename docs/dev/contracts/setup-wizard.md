@@ -99,3 +99,12 @@ Household level only. Text is English.
   (e.g. per-person income totals); not audited in depth - another agent owns the plan model.
 - `home.py` does not yet consume `payday_cycle` (not my file).
 - The frontend must tolerate 403 on `/transfer_plan` and `/benchmark` for members (check `/settings.is_admin`).
+
+## Region (benchmark comparison)
+
+`GET /setup` also returns `region: {state, postcode}` (from the entry options
+`benchmark_state` / `benchmark_postcode`). `PUT /setup` accepts
+`{"region": {"state": "DE-RP" | "RP", "postcode": "56179"}}` — state is a
+two-letter code with optional `DE-` prefix, postcode optional and 5 digits;
+anything else returns `400 invalid_region`. The frontend shows Region as its own
+screen between Zahltag and Töpfe; it has no backend step status.

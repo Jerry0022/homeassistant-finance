@@ -427,7 +427,7 @@ class FdHome extends HTMLElement {
     let h = "";
     if (this._freshOpen && d.freshness) {
       const when = d.freshness.as_of ? new Date(d.freshness.as_of).toLocaleString(this._lang(), { dateStyle: "short", timeStyle: "short" }) : "";
-      h += `<div class="fnote">${this._t("home.fresh.as_of", { time: this._e(when) })} <button class="btn" data-act="refresh">${this._t("home.fresh.refresh")}</button> <button class="btn ghost" data-act="freshpage">${this._t("home.fresh.details")}</button></div>`;
+      h += `<div class="fnote">${this._t("home.fresh.as_of", { time: this._e(when) })} ${this._hass && this._hass.user && this._hass.user.is_admin ? `<button class="btn" data-act="refresh">${this._t("home.fresh.refresh")}</button> ` : ""}<button class="btn ghost" data-act="freshpage">${this._t("home.fresh.details")}</button></div>`;
     }
     if (this._alertsOpen && (d.alerts || []).length) {
       h += `<div class="panel" role="region" aria-label="${this._t("home.alert.open")}">${d.alerts.map((a) => `

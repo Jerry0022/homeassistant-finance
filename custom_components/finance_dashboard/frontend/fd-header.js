@@ -53,7 +53,18 @@ class FdHeader extends HTMLElement {
     this._updateDemoBtn();
   }
 
+  /** Members cannot import, toggle demo or add banks: those calls are admin-only. */
+  _applyRole() {
+    const h = window._fd && window._fd._hass;
+    const admin = !!(h && h.user && h.user.is_admin);
+    for (const id of ["refreshBtn", "demoBtn", "addAccountBtn"]) {
+      const el = this.shadowRoot.getElementById(id);
+      if (el) el.hidden = !admin;
+    }
+  }
+
   _updateRefreshBtn() {
+    this._applyRole();
     const btn = this.shadowRoot.getElementById("refreshBtn");
     if (!btn) return;
     const { tSync } = window._fd;

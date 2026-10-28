@@ -82,7 +82,7 @@ const FB = {
     "setup.notif.missing_salary": "Gehalt nicht eingegangen",
     "setup.notif.consent_expiring": "Bankzugang läuft bald ab",
     "setup.notif.digest_enabled": "Wochenübersicht",
-    "setup.notif.factor": "Hoch heißt: mehr als das Faktor-fache des Üblichen",
+    "setup.notif.factor": "Hoch heißt: mehr als so viel mal das Übliche",
     "setup.notif.factor_label": "Faktor",
     "setup.notif.threshold": "Oder ab diesem Betrag in Euro (0 = aus)",
     "setup.ai.title": "KI-Kategorisierung",
@@ -577,6 +577,9 @@ class FdSetup extends HTMLElement {
           const s = this._settingsEl;
           if (step === "persons" && s && s._draft && !s._draft.persons.length) { this._fail(tr("setup.persons.need_one")); return this._unbusy(); }
           if (s && !(await s.save())) return this._unbusy();
+          // Nothing assigned yet: the step is not done, only passed for now.
+          if (step === "accounts" && s && s._draft
+              && !Object.values(s._draft.owners || {}).some((o) => o)) body.status = "skipped";
         } else if (step === "payday") {
           const paydays = [];
           for (const [person, v] of Object.entries(this._draft.paydays || {})) {
@@ -645,6 +648,22 @@ class FdSetup extends HTMLElement {
 
   _toast(message, type) {
     this.dispatchEvent(new CustomEvent("fd-toast", { bubbles: true, composed: true, detail: { message, type } }));
+    // The panel's toast lives in the Overview header, under this full-screen
+    // layer — echo it inside the wizard so it is actually seen.
+    let el = this.shadowRoot.getElementById("wtoast");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "wtoast";
+      el.setAttribute("role", "status");
+      el.style.cssText = "position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:5;"
+        + "max-width:min(360px,calc(100vw - 32px));padding:10px 16px;border-radius:12px;"
+        + "background:var(--fd-t1);color:var(--fd-card);font-size:14px;box-shadow:var(--fd-sh2);";
+      this.shadowRoot.appendChild(el);
+    }
+    el.textContent = message;
+    el.hidden = false;
+    clearTimeout(this._wtoastT);
+    this._wtoastT = setTimeout(() => { el.hidden = true; }, 3200);
   }
 }
 

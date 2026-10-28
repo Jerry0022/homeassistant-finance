@@ -435,7 +435,7 @@
   "setup.notif.missing_salary": "Gehalt nicht eingegangen",
   "setup.notif.consent_expiring": "Bankzugang läuft bald ab",
   "setup.notif.digest_enabled": "Wochenübersicht",
-  "setup.notif.factor": "Hoch heißt: mehr als das Faktor-fache des Üblichen",
+  "setup.notif.factor": "Hoch heißt: mehr als so viel mal das Übliche",
   "setup.notif.factor_label": "Faktor",
   "setup.notif.threshold": "Oder ab diesem Betrag in Euro (0 = aus)",
   "setup.ai.title": "KI-Kategorisierung",

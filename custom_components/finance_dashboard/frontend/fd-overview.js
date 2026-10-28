@@ -485,7 +485,7 @@ ${cards.length ? `<div class="grid">${cards.join("")}</div>`
     if (b.last_error) {
       facts.push(`<span class="warn">${escHtml(tSync("ov.banks.last_error", { error: b.last_error }))}</span>`);
     }
-    const renew = state === "ok"
+    const renew = state === "ok" || !this._isAdmin
       ? ""
       : `<a class="btn sm" data-nav href="${window._fd.INTEGRATION_PATH}">${tSync("ov.banks.renew")}</a>`;
     return `

@@ -281,7 +281,8 @@ class FdSettings extends HTMLElement {
     const { escHtml } = window._fd;
     const p = this._personOf(u.id);
     const on = !!p;
-    const reason = tr(`settings.reason.${u.reason || "active_user"}`);
+    const rkey = `settings.reason.${u.reason || "active_user"}`;
+    const reason = tr(rkey) === rkey ? "" : tr(rkey);
     return `<div class="row" data-user="${escHtml(u.id)}">
   <div class="who"><b>${escHtml(u.name)}${u.is_admin ? `<span class="chip">${escHtml(tr("settings.admin"))}</span>` : ""}</b>
     <span>${escHtml(u.suggested ? tr("settings.suggested") + " · " : "")}${escHtml(reason)}</span></div>
