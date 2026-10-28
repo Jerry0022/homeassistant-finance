@@ -115,6 +115,40 @@ export const SHARED_CSS = `
   --sp-md: 12px;
   --sp-lg: 18px;
   --sp-xl: 24px;
+  /* Design system (round 5). Surfaces, text and accent map onto the HA theme
+     variables so light/dark themes keep working; statuses, persons and the
+     desktop marker are fixed hues with theme-mixed backgrounds. */
+  --fd-page: var(--primary-background-color, #f4f6f8);
+  --fd-card: var(--card-background-color, #ffffff);
+  --fd-sunk: color-mix(in srgb, var(--fd-t1) 6%, var(--fd-card));
+  --fd-line: var(--divider-color, #e6e9ed);
+  --fd-t1: var(--primary-text-color, #1b1f24);
+  --fd-t2: var(--secondary-text-color, #5b6470);
+  --fd-t3: color-mix(in srgb, var(--fd-t2) 70%, var(--fd-card));
+  --fd-a500: var(--primary-color, #03a9f4);
+  --fd-a700: color-mix(in srgb, var(--fd-a500) 78%, var(--fd-t1));
+  --fd-a900: color-mix(in srgb, var(--fd-a500) 55%, var(--fd-t1));
+  --fd-a300: color-mix(in srgb, var(--fd-a500) 60%, var(--fd-card));
+  --fd-a100: color-mix(in srgb, var(--fd-a500) 28%, var(--fd-card));
+  --fd-a50: color-mix(in srgb, var(--fd-a500) 12%, var(--fd-card));
+  --fd-ok: #2e7d32;
+  --fd-near: #689f38;
+  --fd-over: #e65100;
+  --fd-ok-bg: color-mix(in srgb, var(--fd-ok) 16%, var(--fd-card));
+  --fd-near-bg: color-mix(in srgb, var(--fd-near) 16%, var(--fd-card));
+  --fd-over-bg: color-mix(in srgb, var(--fd-over) 16%, var(--fd-card));
+  --fd-attn: #ffa000;
+  --fd-gold: #f9a825;
+  --fd-person-a: #00897b;
+  --fd-person-b: #c2185b;
+  --fd-household: #0277bd;
+  --fd-desktop: #7e57c2;
+  --fd-desktop-bg: color-mix(in srgb, var(--fd-desktop) 14%, var(--fd-card));
+  --fd-r-card: 14px;
+  --fd-r-pill: 999px;
+  --fd-sh1: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  --fd-sh2: 0 8px 24px rgba(16,24,40,.16);
+  --fd-touch: 44px;
   display: block;
   font-family: 'Segoe UI', system-ui, sans-serif;
   color: var(--tx);
@@ -156,6 +190,30 @@ button:focus:not(:focus-visible),
 a:focus:not(:focus-visible),
 [tabindex]:focus:not(:focus-visible) {
   outline: none;
+}
+/* Scrollbars: styled once, from tokens. */
+* { scrollbar-width: thin; scrollbar-color: var(--fd-a100) transparent; }
+/* App-styled tooltip (never the native title attribute). data-tip = label
+   tier (short delay), data-tip-info = info tier (longer delay). Shown on
+   hover and keyboard focus; touch users get the same text as aria-label. */
+[data-tip], [data-tip-info] { position: relative; }
+[data-tip]::after, [data-tip-info]::after {
+  content: attr(data-tip) attr(data-tip-info);
+  position: absolute; left: 50%; top: calc(100% + 6px); transform: translateX(-50%);
+  z-index: 30; width: max-content; max-width: 240px; padding: 5px 9px;
+  border-radius: 8px; font-size: 11.5px; font-weight: 400; line-height: 1.3;
+  white-space: normal; text-align: left; pointer-events: none;
+  background: var(--fd-card); color: var(--fd-t1);
+  border: 1px solid var(--fd-line); border-left: 3px solid var(--fd-a500);
+  box-shadow: var(--fd-sh2); opacity: 0; visibility: hidden;
+  transition: opacity .12s;
+}
+@media (hover: hover) {
+  [data-tip]:hover::after { opacity: 1; visibility: visible; transition-delay: .35s; }
+  [data-tip-info]:hover::after { opacity: 1; visibility: visible; transition-delay: .8s; }
+}
+[data-tip]:focus-visible::after, [data-tip-info]:focus-visible::after {
+  opacity: 1; visibility: visible; transition-delay: .35s;
 }
 @media (prefers-reduced-motion: reduce) {
   *,
