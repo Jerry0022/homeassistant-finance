@@ -285,7 +285,7 @@
         }
       },
       "budget_used": {
-        "name": "Fetches used today"
+        "name": "Automatic fetches today (bank limit)"
       },
       "blocked_until": {
         "name": "Blocked until"

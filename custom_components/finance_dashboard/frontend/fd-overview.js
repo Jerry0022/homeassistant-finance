@@ -253,6 +253,11 @@ td .p { overflow-wrap: anywhere; }
       `<span class="${state === "ok" ? "" : state === "expired" ? "err" : "warn"}">${escHtml(consent)}</span>`,
       `<span>${escHtml(tSync("ov.banks.budget", { used: b.budget_used_today ?? 0, limit: b.budget_limit ?? 4 }))}</span>`,
     ];
+    // Manual fetches are uncapped, so the budget never counts them; show the
+    // latest one so a refresh visibly happened.
+    if (b.last_attended_at) {
+      facts.push(`<span>${escHtml(tSync("ov.banks.last_manual", { date: fmtDate(b.last_attended_at, true) }))}</span>`);
+    }
     if (blocked) {
       facts.push(`<span class="warn">${escHtml(tSync("ov.banks.blocked", { date: fmtDate(b.blocked_until, true) }))}</span>`);
     }

@@ -136,6 +136,7 @@ class FinanceDashboardBankStatusView(HomeAssistantView):
                     "blocked_until": b.get("blocked_until"),
                     "last_success": b.get("last_success"),
                     "last_error": b.get("last_error"),
+                    "last_attended_at": b.get("last_attended_at"),
                     "consent_valid_until": b.get("consent_valid_until"),
                     "consent_state": b.get("consent_state", "ok"),
                 }

@@ -285,7 +285,7 @@
         }
       },
       "budget_used": {
-        "name": "Heutige Abrufe"
+        "name": "Automatische Abrufe heute (Bank-Limit)"
       },
       "blocked_until": {
         "name": "Gesperrt bis"
