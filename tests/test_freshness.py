@@ -101,6 +101,16 @@ def test_non_admin_payload_is_minimal():
     assert full["last_reprocess"] is None and full["log"][0]["kind"] == "import_attended"
 
 
+def test_last_import_falls_back_to_bank_fetch_before_the_log_existed():
+    kw = {"as_of": "A", "processing_version": 2, "validity": [], "check": {}}
+    reprocess_only = [make_entry("reprocess", at="R", processing_version=2, outcome="ok")]
+    out = build_freshness(admin=True, log=reprocess_only, last_bank_success="B", **kw)
+    assert out["last_import"] == "B"
+    logged = [make_entry("import_attended", at="T", processing_version=2, outcome="ok")]
+    assert build_freshness(admin=False, log=logged, last_bank_success="B", **kw)["last_import"] == "T"
+    assert build_freshness(admin=False, log=[], **kw)["last_import"] is None
+
+
 @pytest.mark.asyncio
 async def test_import_and_reprocess_are_logged_and_reprocess_never_calls_bank():
     client = _client(

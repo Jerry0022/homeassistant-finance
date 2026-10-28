@@ -313,8 +313,8 @@ class FdContracts extends HTMLElement {
           .filter((a) => a && typeof a === "object" && !a.error && a.account_key)
           .map((a) => ({
             key: a.account_key,
-            name: a.custom_name || a.name || a.institution || a.account_key,
-            institution: a.institution || "",
+            name: a.custom_name || a.account_name || a.name || a.institution || a.account_key,
+            institution: [a.institution, a.iban_masked].filter(Boolean).join(" · "),
             savings: a.savings != null ? !!a.savings : !!saved.get(a.account_key),
           }));
       } catch (e) { /* no account list: the toggles simply stay hidden */ }
@@ -409,12 +409,12 @@ class FdContracts extends HTMLElement {
     if (c.special_termination_available) badges.push(`<span class="badge ok">${e(tr("ct.special"))}</span>`);
     const interval = tr(`ct.interval.${c.interval}`);
     const sub = [interval, ended ? "" : tr("ct.next", { date: this._date(c.next_expected) }), this._ownerLabel(c.owner)].filter(Boolean).join(" · ");
-    const inner = `<div class="l1"><span class="nm"><i aria-hidden="true">${this._catIcon(c.category)}</i><span>${e(c.creditor)}</span></span>
+    const inner = `<div class="l1"><span class="nm"><i aria-hidden="true">${this._catIcon(c.category)}</i><span>${e(c.display_name || c.creditor)}</span></span>
   <span class="amt"><b>${e(tr("ct.per_year", { amount: this._m(c.annual_cost) }))}</b><span class="muted">${e(tr("ct.per_month", { amount: this._m(c.monthly_equivalent, 2) }))}</span></span></div>
 <div class="l2">${badges.join("")}</div>
 <div class="l3"><span class="muted">${e(sub)}</span>${this._spark(c)}</div>`;
     return this._isAdmin && c.contract
-      ? `<button type="button" class="ct${ended ? " ended" : ""}" data-edit="${e(c.id)}" aria-label="${e(tr("ct.edit") + ": " + c.creditor)}">${inner}</button>`
+      ? `<button type="button" class="ct${ended ? " ended" : ""}" data-edit="${e(c.id)}" aria-label="${e(tr("ct.edit") + ": " + (c.display_name || c.creditor))}">${inner}</button>`
       : `<div class="ct${ended ? " ended" : ""}">${inner}</div>`;
   }
 
@@ -427,7 +427,7 @@ class FdContracts extends HTMLElement {
     let h = `<section class="card"><h3>${e(tr("rs.title"))}</h3><p class="muted" style="margin:0 0 6px">${e(tr("rs.intro"))}</p>`;
     if (!items.length) h += `<p class="muted">${e(tr("rs.empty"))}</p>`;
     else {
-      h += items.map((i) => `<div class="rw"><span><b>${e(i.creditor)}</b><span class="muted">${e(tr(`ct.interval.${i.interval}`))} · ${e(tr("rs.due", { date: this._date(i.next_due) }))}</span></span>
+      h += items.map((i) => `<div class="rw"><span><b>${e(i.display_name || i.creditor)}</b><span class="muted">${e(tr(`ct.interval.${i.interval}`))} · ${e(tr("rs.due", { date: this._date(i.next_due) }))}</span></span>
         <b>${e(tr("rs.month", { amount: this._m(i.monthly_reserve, 2) }))}</b></div>`).join("");
       h += `<div class="rw"><span><b>${e(tr("rs.total", { amount: this._m(r.total_monthly, 2) }))}</b>${owners.length > 1
         ? `<span class="muted">${owners.map(([o, v]) => e(tr("rs.owner_total", { owner: this._ownerLabel(o), amount: this._m(v, 2) }))).join(" · ")}</span>` : ""}</span></div>`;
@@ -504,7 +504,7 @@ class FdContracts extends HTMLElement {
     const def = this._defaultsFor(s.c.category);
     const opt = (grp, val, label, cur) => `<button type="button" role="radio" aria-checked="${cur === val}" data-grp="${grp}" data-val="${e(val)}">${e(label)}</button>`;
     el.innerHTML = `<div class="scrim" data-act="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="${e(tr("ct.edit"))}">
-  <h3>${e(s.c.creditor)}</h3>
+  <h3>${e(s.c.display_name || s.c.creditor)}</h3>
   <p class="muted" style="margin:0">${e(this._catLabel(s.c.category))} · ${e(tr(`ct.interval.${s.c.interval}`))}</p>
   <label for="f-start">${e(tr("ct.f.start"))}</label><input id="f-start" type="date" data-f="start" value="${e(d.start)}">
   <label for="f-term">${e(tr("ct.f.min_term"))}</label><input id="f-term" type="number" min="0" max="240" data-f="min_term_months" value="${d.min_term_months ?? ""}">

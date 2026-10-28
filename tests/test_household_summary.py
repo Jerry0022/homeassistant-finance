@@ -170,3 +170,10 @@ def test_privacy_other_persons_as_totals_only():
     # admin sees all
     full = build(txs)
     assert full["privacy"] == "full" and not any(o["restricted"] for o in full["owners"])
+
+
+def test_owner_kinds_follow_the_contract():
+    """kind is person|shared|open — the frontend sums the household share by "shared"."""
+    txs = [tx("a1", -60, 4, "Shop"), tx("a3", -10, 6, "Market", cat="food")]
+    kinds = {o["kind"] for o in build(txs)["owners"]}
+    assert kinds <= {"person", "shared", "open"} and "shared" in kinds

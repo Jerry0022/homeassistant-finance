@@ -198,6 +198,10 @@ class PersistenceMixin:
             validity=validity,
             check=check,
             admin=admin,
+            last_bank_success=max(
+                (b["last_success"] for b in self.get_bank_status() if b.get("last_success")),
+                default=None,
+            ),
         )
 
     async def _async_load_transfer_overrides(

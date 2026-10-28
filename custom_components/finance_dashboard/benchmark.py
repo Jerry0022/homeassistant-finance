@@ -203,6 +203,7 @@ def _labelled(
         # Kept for the existing frontend, which renders ``survey_year``.
         "survey_year": entry["reference_year"],
         "note": dim.get("note", ""),
+        "note_de": dim.get("note_de", ""),
         "dataset_version": dataset.get("dataset_version", ""),
     }
 
@@ -319,7 +320,12 @@ class BenchmarkProvider:
     def unavailable(self) -> list[dict[str, str]]:
         """Dimensions without a sourced value, with the reason."""
         return [
-            {"id": dim_id, "label": dim.get("label_de", dim_id), "note": dim.get("note", "")}
+            {
+                "id": dim_id,
+                "label": dim.get("label_de", dim_id),
+                "note": dim.get("note", ""),
+                "note_de": dim.get("note_de", ""),
+            }
             for dim_id, dim in self.dataset.get("dimensions", {}).items()
             if not dim.get("values")
         ]

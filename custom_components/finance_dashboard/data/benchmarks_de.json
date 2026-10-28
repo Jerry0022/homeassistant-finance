@@ -203,7 +203,8 @@
           "publication_year": 2024
         }
       ],
-      "note": "Zensus 2022 (reference date 2022-05-15), rented dwellings in residential buildings excl. residential homes. Destatis names only the three cheapest and four most expensive states. The other nine states fall back to the country value until their Statistisches Landesamt figure is added. Destatis published a second Zensus cut (2025-04-09) with 7.34 EUR/m² on a household basis (1 person 7.53, 2+ persons 7.09), not mixed in here because the base differs."
+      "note": "Zensus 2022 (reference date 2022-05-15), rented dwellings in residential buildings excl. residential homes. Destatis names only the three cheapest and four most expensive states. The other nine states fall back to the country value until their Statistisches Landesamt figure is added. Destatis published a second Zensus cut (2025-04-09) with 7.34 EUR/m² on a household basis (1 person 7.53, 2+ persons 7.09), not mixed in here because the base differs.",
+      "note_de": "Zensus 2022 (Stichtag 15.05.2022), vermietete Wohnungen in Wohngebäuden ohne Wohnheime. Destatis nennt nur die drei günstigsten und vier teuersten Länder; die übrigen neun Länder nutzen den Bundeswert, bis ihre Landesamt-Zahl ergänzt ist. Ein zweiter Zensus-Schnitt (09.04.2025) mit 7,34 €/m² auf Haushaltsbasis (1 Person 7,53, ab 2 Personen 7,09) ist wegen anderer Basis nicht eingemischt."
     },
     "electricity_price": {
       "label_de": "Strompreis Haushalte",
@@ -223,7 +224,8 @@
           "basis": "3500 kWh/year, base charge apportioned, new-customer tariffs, year to date"
         }
       ],
-      "note": "BDEW average over tariffs offered to new customers, 2026 year to date (data as of 10/2026). Existing contracts can differ."
+      "note": "BDEW average over tariffs offered to new customers, 2026 year to date (data as of 10/2026). Existing contracts can differ.",
+      "note_de": "BDEW-Durchschnitt der Neukundentarife, 2026 bis heute (Stand 10/2026). Bestandsverträge können abweichen."
     },
     "electricity_consumption": {
       "label_de": "Stromverbrauch je Haushalt",
@@ -282,7 +284,8 @@
           "publication_year": 2026
         }
       ],
-      "note": "Households without electric heating. Size class 4+ means four or more persons (BDEW reports 3919 kWh for exactly four)."
+      "note": "Households without electric heating. Size class 4+ means four or more persons (BDEW reports 3919 kWh for exactly four).",
+      "note_de": "Haushalte ohne elektrische Heizung. Größenklasse 4+ heißt vier oder mehr Personen (für genau vier Personen nennt der BDEW 3.919 kWh)."
     },
     "heating_gas_price": {
       "label_de": "Gaspreis Heizung",
@@ -315,7 +318,8 @@
           "basis": "6-unit building, new-customer tariffs, year to date"
         }
       ],
-      "note": "BDEW Gaspreisanalyse October 2026, 2026 year to date."
+      "note": "BDEW Gaspreisanalyse October 2026, 2026 year to date.",
+      "note_de": "BDEW-Gaspreisanalyse Oktober 2026, 2026 bis heute."
     },
     "heating_district_heating_price": {
       "label_de": "Fernwärmepreis",
@@ -323,7 +327,8 @@
       "unit": "EUR/kWh",
       "direction": "lower_is_better",
       "values": [],
-      "note": "Not sourced yet: no allowlisted nationwide average found in this research round."
+      "note": "Not sourced yet: no allowlisted nationwide average found in this research round.",
+      "note_de": "Noch keine Quelle: kein bundesweiter Durchschnitt aus einer zugelassenen Quelle gefunden."
     },
     "heating_oil_price": {
       "label_de": "Heizölpreis",
@@ -331,7 +336,8 @@
       "unit": "EUR/100 l",
       "direction": "lower_is_better",
       "values": [],
-      "note": "Not sourced yet: Destatis publishes a heating-oil price index, not an absolute household price in a form verified here."
+      "note": "Not sourced yet: Destatis publishes a heating-oil price index, not an absolute household price in a form verified here.",
+      "note_de": "Noch keine Quelle: Destatis veröffentlicht nur einen Heizöl-Preisindex, keinen absoluten Haushaltspreis."
     },
     "heating_heat_pump_price": {
       "label_de": "Wärmepumpenstrompreis",
@@ -339,7 +345,8 @@
       "unit": "EUR/kWh",
       "direction": "lower_is_better",
       "values": [],
-      "note": "Not sourced yet: BDEW Strompreisanalyse excludes heat-pump tariffs. Bundesnetzagentur Monitoringbericht not yet extracted."
+      "note": "Not sourced yet: BDEW Strompreisanalyse excludes heat-pump tariffs. Bundesnetzagentur Monitoringbericht not yet extracted.",
+      "note_de": "Noch keine Quelle: die BDEW-Strompreisanalyse schließt Wärmepumpentarife aus; der Monitoringbericht der Bundesnetzagentur ist noch nicht ausgewertet."
     },
     "housing_energy": {
       "label_de": "Wohnen, Energie, Instandhaltung",
@@ -408,7 +415,8 @@
           "publication_year": 2026
         }
       ],
-      "note": "LWR consumption concept (rent incl. imputed rent of owner-occupiers, energy, maintenance). Compared against plan categories housing + utilities."
+      "note": "LWR consumption concept (rent incl. imputed rent of owner-occupiers, energy, maintenance). Compared against plan categories housing + utilities.",
+      "note_de": "Konsumbegriff der LWR (Miete inkl. unterstellter Miete von Eigentümern, Energie, Instandhaltung). Verglichen mit den Plan-Kategorien Wohnen und Nebenkosten."
     },
     "food": {
       "label_de": "Nahrungsmittel, Getränke, Tabak",
@@ -477,7 +485,8 @@
           "publication_year": 2026
         }
       ],
-      "note": "Excludes restaurants and accommodation (separate LWR line, 215 EUR for all households)."
+      "note": "Excludes restaurants and accommodation (separate LWR line, 215 EUR for all households).",
+      "note_de": "Ohne Gaststätten und Übernachtungen (eigene LWR-Zeile, 215 € für alle Haushalte)."
     },
     "mobility": {
       "label_de": "Verkehr",
@@ -546,7 +555,8 @@
           "publication_year": 2026
         }
       ],
-      "note": "LWR Verkehr: vehicle purchase, fuel, maintenance, public transport."
+      "note": "LWR Verkehr: vehicle purchase, fuel, maintenance, public transport.",
+      "note_de": "LWR Verkehr: Fahrzeugkauf, Kraftstoff, Wartung, öffentlicher Verkehr."
     },
     "communication": {
       "label_de": "Information und Kommunikation",
@@ -615,7 +625,8 @@
           "publication_year": 2026
         }
       ],
-      "note": "LWR Information und Kommunikation (devices and services). Closest official proxy for the plan category subscriptions. Some subscriptions are booked elsewhere in COICOP."
+      "note": "LWR Information und Kommunikation (devices and services). Closest official proxy for the plan category subscriptions. Some subscriptions are booked elsewhere in COICOP.",
+      "note_de": "LWR Information und Kommunikation (Geräte und Dienste). Nächster amtlicher Vergleichswert für die Plan-Kategorie Abos; manche Abos verbucht COICOP an anderer Stelle."
     },
     "consumption_total": {
       "label_de": "Konsumausgaben insgesamt",
@@ -684,7 +695,8 @@
           "publication_year": 2026
         }
       ],
-      "note": "Context value."
+      "note": "Context value.",
+      "note_de": "Kontextwert."
     },
     "insurance": {
       "label_de": "Versicherungen",
@@ -692,7 +704,8 @@
       "unit": "EUR/month",
       "direction": "lower_is_better",
       "values": [],
-      "note": "Not sourced: the LWR consumption table only carries Versicherungs- und Finanzdienstleistungen (6 EUR/month), which excludes most premiums by COICOP convention and would be misleading. LWR premium totals (GENESIS 63121) not yet extracted."
+      "note": "Not sourced: the LWR consumption table only carries Versicherungs- und Finanzdienstleistungen (6 EUR/month), which excludes most premiums by COICOP convention and would be misleading. LWR premium totals (GENESIS 63121) not yet extracted.",
+      "note_de": "Keine Quelle: die LWR-Konsumtabelle führt nur Versicherungs- und Finanzdienstleistungen (6 €/Monat), die die meisten Prämien nicht enthalten – das wäre irreführend."
     },
     "debt_ratio": {
       "label_de": "Schuldendienstquote",
@@ -700,7 +713,8 @@
       "unit": "%",
       "direction": "lower_is_better",
       "values": [],
-      "note": "Not sourced: no verified Deutsche Bundesbank household debt-service ratio in this research round."
+      "note": "Not sourced: no verified Deutsche Bundesbank household debt-service ratio in this research round.",
+      "note_de": "Keine Quelle: keine geprüfte Schuldendienstquote der Bundesbank für Haushalte."
     },
     "savings_rate": {
       "label_de": "Sparquote",
@@ -720,7 +734,8 @@
           "definition": "net saving / disposable income of the household sector (national accounts)"
         }
       ],
-      "note": "Macro ratio for the whole household sector, not a per-household mean or median. First half 2025: 10.3 % (seasonally adjusted, same release)."
+      "note": "Macro ratio for the whole household sector, not a per-household mean or median. First half 2025: 10.3 % (seasonally adjusted, same release).",
+      "note_de": "Makro-Quote für den gesamten Haushaltssektor, kein Mittelwert je Haushalt. Erstes Halbjahr 2025: 10,3 % (saisonbereinigt)."
     },
     "equivalised_income": {
       "label_de": "Nettoäquivalenzeinkommen (Median)",
@@ -741,7 +756,8 @@
           "derivation": "published at-risk-of-poverty threshold 1446 EUR / 0.6 (threshold is defined as 60 % of the median)"
         }
       ],
-      "note": "EU-SILC 2025 first results, income year 2024. Divide household net income by the modified OECD scale (1.0 first adult, 0.5 per further person 14+, 0.3 per child under 14) before comparing."
+      "note": "EU-SILC 2025 first results, income year 2024. Divide household net income by the modified OECD scale (1.0 first adult, 0.5 per further person 14+, 0.3 per child under 14) before comparing.",
+      "note_de": "EU-SILC 2025 Erstergebnisse, Einkommensjahr 2024. Haushaltsnettoeinkommen vor dem Vergleich durch die modifizierte OECD-Skala teilen (1,0 erster Erwachsener, 0,5 je weitere Person ab 14, 0,3 je Kind unter 14)."
     },
     "poverty_threshold": {
       "label_de": "Armutsgefährdungsschwelle",
@@ -772,7 +788,8 @@
           "variant": "two_adults_two_children_under_14"
         }
       ],
-      "note": "Net household income per month."
+      "note": "Net household income per month.",
+      "note_de": "Haushaltsnettoeinkommen pro Monat."
     },
     "regelbedarf": {
       "label_de": "Regelbedarf (Bürgergeld/Sozialhilfe)",
@@ -847,7 +864,8 @@
           "variant": "rbs6"
         }
       ],
-      "note": "Floor, not an average. RBS1 single adult, RBS2 each adult partner, RBS3 adults in institutions or the parents' household, RBS4 youth 14-17, RBS5 children 6-13, RBS6 children 0-5. Unchanged from 2025 (§ 28a Abs. 5 SGB XII). Excludes housing and heating."
+      "note": "Floor, not an average. RBS1 single adult, RBS2 each adult partner, RBS3 adults in institutions or the parents' household, RBS4 youth 14-17, RBS5 children 6-13, RBS6 children 0-5. Unchanged from 2025 (§ 28a Abs. 5 SGB XII). Excludes housing and heating.",
+      "note_de": "Untergrenze, kein Durchschnitt. RBS1 Alleinstehende, RBS2 je Partner, RBS3 Erwachsene in Einrichtungen oder im Elternhaushalt, RBS4 Jugendliche 14–17, RBS5 Kinder 6–13, RBS6 Kinder 0–5. Unverändert gegenüber 2025 (§ 28a Abs. 5 SGB XII). Ohne Wohnen und Heizung."
     }
   }
 }

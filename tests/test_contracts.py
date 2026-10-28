@@ -177,6 +177,7 @@ def test_build_contracts_sorted_and_flags(monkeypatch):
     )
     out = build_contracts(rows, store, today=TODAY)
     assert {c["creditor"] for c in out} == {"strom ag", "streamingdienst"}
+    assert {c["display_name"] for c in out} == {"Strom AG", "Streamingdienst"}
     deadlines = [c["next_deadline"] for c in out]
     assert deadlines == sorted(deadlines)
     strom = next(c for c in out if c["creditor"] == "strom ag")
@@ -310,3 +311,30 @@ def test_member_contract_view_is_gated_and_reduced() -> None:
         view = aggregate_view(item)
         assert "contract" not in view and set(view) < set(item)
         assert view["id"] == item["id"]
+
+
+def test_own_transfers_are_not_contracts():
+    from custom_components.finance_dashboard.household_summary import counted_transactions
+
+    store = ContractStore.__new__(ContractStore)
+    store.contracts, store.notified = {}, set()
+    own = [
+        {**r, "_transfer_chain_id": f"c{i}", "_transfer_role": "source"}
+        for i, r in enumerate(monthly([-500] * 4, name="Herr Max Muster"))
+    ]
+    real = monthly([-9.99] * 4, name="Streamingdienst", category="subscriptions")
+    out = build_contracts(counted_transactions(own + real, []), store, today=TODAY)
+    assert {c["creditor"] for c in out} == {"streamingdienst"}
+
+
+def test_payments_to_own_account_holders_are_not_contracts():
+    from custom_components.finance_dashboard.contracts import own_account_names
+
+    names = own_account_names([{"name": "Max Muster und Erika Muster"}, {"name": "PayPal"}])
+    assert names == {"max muster", "erika muster"}
+    store = ContractStore.__new__(ContractStore)
+    store.contracts, store.notified = {}, set()
+    rows = monthly([-500] * 4, name="Herr Max Muster") + monthly(
+        [-9.99] * 4, name="Streamingdienst", category="subscriptions")
+    out = build_contracts(rows, store, today=TODAY, own_names=names)
+    assert {c["creditor"] for c in out} == {"streamingdienst"}

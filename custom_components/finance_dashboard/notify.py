@@ -343,7 +343,15 @@ async def _run(hass: HomeAssistant, manager: Any, now: datetime | None) -> None:
     # Contract notice deadlines ≤30 days away (fires once per deadline).
     from .contracts import async_fire_notice_due
 
-    await async_fire_notice_due(hass, transactions)
+    from .contracts import own_account_names
+    from .household_summary import counted_transactions
+
+    accounts = getattr(manager, "_accounts", []) or []
+    await async_fire_notice_due(
+        hass,
+        counted_transactions(manager._transactions, accounts),  # noqa: SLF001
+        own_names=own_account_names(accounts),
+    )
 
     week = iso_week(today)
     if settings.get("digest_enabled") and state["last_digest_week"] != week:

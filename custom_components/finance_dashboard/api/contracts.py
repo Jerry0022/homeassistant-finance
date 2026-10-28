@@ -11,6 +11,7 @@ from homeassistant.components.http import HomeAssistantView
 
 from ..const import DOMAIN
 from ..contracts import (
+    own_account_names,
     ContractError,
     aggregate_view,
     async_get_store,
@@ -20,7 +21,7 @@ from ..contracts import (
     visible_to,
 )
 from ..pots import pot_coverage
-from ..transfer_detector import get_effective_transactions
+from ..household_summary import counted_transactions
 from ._helpers import _get_manager
 
 
@@ -30,10 +31,14 @@ def _is_admin(request: web.Request) -> bool:
 
 
 async def _contracts_for(request: web.Request, manager):
-    """All expense contracts from the cache (never hits the bank)."""
+    """All expense contracts from the cache (never hits the bank).
+
+    Only real expenses count: own transfers between household accounts
+    (whole chains, also their source leg) are not contracts.
+    """
     store = await async_get_store(request.app["hass"])
-    txns = get_effective_transactions(manager._transactions)  # noqa: SLF001
-    return store, build_contracts(txns, store)
+    txns = counted_transactions(manager._transactions, manager._accounts)  # noqa: SLF001
+    return store, build_contracts(txns, store, own_names=own_account_names(manager._accounts))  # noqa: SLF001
 
 
 class FinanceDashboardContractsView(HomeAssistantView):
