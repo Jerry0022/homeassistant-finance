@@ -1,20 +1,127 @@
 /**
- * fd-overview — plain facts: accounts, bank status, transaction list.
+ * fd-overview — facts: people & household, bank connections, transactions, assignment.
  *
- * No interpretation, no household logic. Self-contained: it reads three
- * cache-read endpoints and never triggers a live bank call itself
+ * Accounts are aggregated under persons and the household (shared accounts);
+ * single accounts are listed only on desktop (purple marker). Self-contained:
+ * it reads cache endpoints and never triggers a live bank call itself
  * (the header's Refresh button does that through the panel).
  *
  *   GET finance_dashboard/balances      accounts + booked/available + last_update
  *   GET finance_dashboard/bank_status   per bank: consent, fetch budget, errors
+ *   GET finance_dashboard/assignments   admin only: persons, account owners
  *   GET finance_dashboard/transactions  admin only; q/account/limit/offset
  *
  * Properties:  hass (required), reload() re-reads everything.
+ * Contains <fd-settings> ("Personen & Konten"); reloads on fd-assignments-saved.
  */
 
 const DOMAIN = "finance_dashboard";
 const PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 300;
+const PERSON_COLORS = ["var(--fd-person-a)", "var(--fd-person-b)", "#ef6c00", "#5e35b1", "#6d4c41"];
+
+// Fallback texts until locales/*.json carry the new ov.* keys.
+const FB = {
+  de: {
+    "ov.persons.title": "Personen & Haushalt",
+    "ov.persons.household": "Haushalt",
+    "ov.persons.open": "Noch offen",
+    "ov.persons.all": "Alle Konten",
+    "ov.persons.accounts_one": "1 Konto",
+    "ov.persons.accounts_other": "$n Konten",
+    "ov.persons.available": "Verfügbar $amount",
+    "ov.persons.desktop_tag": "Nur am Desktop",
+    "ov.persons.detail": "Einzelne Konten",
+    "ov.persons.empty": "Sobald eine Bank verbunden ist, erscheinen hier Personen und Haushalt.",
+    "ov.unassigned.one": "1 Konto ist noch niemandem zugeordnet",
+    "ov.unassigned.other": "$n Konten sind noch niemandem zugeordnet",
+    "ov.unassigned.action": "Jetzt zuordnen",
+  },
+  en: {
+    "ov.persons.title": "People & household",
+    "ov.persons.household": "Household",
+    "ov.persons.open": "Not assigned yet",
+    "ov.persons.all": "All accounts",
+    "ov.persons.accounts_one": "1 account",
+    "ov.persons.accounts_other": "$n accounts",
+    "ov.persons.available": "Available $amount",
+    "ov.persons.desktop_tag": "Desktop only",
+    "ov.persons.detail": "Individual accounts",
+    "ov.persons.empty": "Once a bank is connected, people and household show up here.",
+    "ov.unassigned.one": "1 account is not assigned to anyone yet",
+    "ov.unassigned.other": "$n accounts are not assigned to anyone yet",
+    "ov.unassigned.action": "Assign now",
+  },
+};
+
+function tr(key, vars = {}) {
+  let s = window._fd.tSync(key, vars);
+  if (s !== key) return s;
+  const raw = ((window._fd._hass && window._fd._hass.language) || navigator.language || "en").toLowerCase();
+  s = (FB[raw.startsWith("de") ? "de" : "en"][key]) || key;
+  for (const [k, v] of Object.entries(vars)) s = s.replace(new RegExp(`\\$${k}`, "g"), String(v));
+  return s;
+}
+
+const CSS = `
+:host { display: block; }
+.root { container: ov / inline-size; color: var(--fd-t1); font-size: 13px; line-height: 1.4; }
+button { font: inherit; color: inherit; cursor: pointer; }
+section { margin: 0 0 16px; }
+.card { margin: 0 0 12px; padding: 12px 14px; border: 0; border-radius: var(--fd-r-card); background: var(--fd-card); box-shadow: var(--fd-sh1); }
+.h { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; font-size: 14px; font-weight: 500; }
+.muted { color: var(--fd-t2); font-size: 11.5px; }
+.empty { padding: 24px 12px; text-align: center; color: var(--fd-t2); }
+.err { color: var(--fd-over); }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: var(--fd-touch); padding: 0 16px; border: 1px solid transparent; border-radius: var(--fd-r-pill); background: var(--fd-a700); color: #fff; font-weight: 500; text-decoration: none; }
+.btn.ghost { background: transparent; color: var(--fd-a700); border-color: var(--fd-a100); }
+.btn.sm { min-height: 36px; padding: 0 12px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: default; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--fd-a500); outline-offset: 2px; }
+.dtag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: var(--fd-r-pill); font-size: 10.5px; font-weight: 500; background: var(--fd-desktop-bg); color: var(--fd-desktop); }
+.dtag::before { content: "\\25C6"; font-size: 8px; }
+.st-ok { --cbg: var(--fd-ok-bg); --cfg: color-mix(in srgb, var(--fd-ok) 72%, var(--fd-t1)); }
+.st-near { --cbg: var(--fd-near-bg); --cfg: color-mix(in srgb, var(--fd-near) 72%, var(--fd-t1)); }
+.st-over { --cbg: var(--fd-over-bg); --cfg: color-mix(in srgb, var(--fd-over) 72%, var(--fd-t1)); }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: var(--fd-r-pill); font-size: 11.5px; font-weight: 500; white-space: nowrap; background: var(--cbg); color: var(--cfg); }
+.chip.pend { --cbg: var(--fd-sunk); --cfg: var(--fd-t2); margin-left: 4px; }
+
+.banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 12px; padding: 8px 12px; border-left: 4px solid var(--fd-attn); border-radius: 10px; background: var(--fd-card); box-shadow: var(--fd-sh1); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.grid .card { margin: 0; border-top: 4px solid var(--c, var(--fd-a500)); }
+.pc .nm { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.pc .nm i { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.pc .big { margin: 6px 0 2px; font-size: 28px; font-weight: 500; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.pc .meta { display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--fd-t2); font-size: 11.5px; }
+.pc .det { display: none; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--fd-desktop); }
+.pc .det .dh { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.pc .det .ar { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; font-size: 12px; }
+.pc .det .ar span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.pc .det .ar span:last-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+@container ov (min-width: 760px) { .pc .det { display: block; } }
+
+.bk { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 10px 0; }
+.bk + .bk { border-top: 1px solid var(--fd-line); }
+.bk .nm { font-weight: 500; overflow-wrap: anywhere; }
+.facts { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 4px; color: var(--fd-t2); font-size: 11.5px; overflow-wrap: anywhere; }
+.facts .warn { color: var(--fd-over); }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
+.filters input, .filters select { box-sizing: border-box; min-height: var(--fd-touch); padding: 0 12px; border: 1px solid var(--fd-line); border-radius: 10px; background: var(--fd-page); color: var(--fd-t1); font: inherit; max-width: 100%; }
+.filters input { flex: 1 1 200px; min-width: 0; }
+.filters select { flex: 1 1 200px; }
+.tx { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; }
+.tx + .tx { border-top: 1px solid var(--fd-line); }
+.tx .l { min-width: 0; flex: 1; }
+.tx .p { font-weight: 500; overflow-wrap: anywhere; }
+.tx .s { color: var(--fd-t2); font-size: 11.5px; overflow-wrap: anywhere; }
+.tx .r { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tx .r .a { font-weight: 500; }
+.tx .r .a.in { color: var(--fd-ok); }
+.pager { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 8px; border-top: 1px solid var(--fd-line); }
+.pager .btns { display: flex; gap: 6px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+`;
 
 class FdOverview extends HTMLElement {
   constructor() {
@@ -23,6 +130,7 @@ class FdOverview extends HTMLElement {
     this._hass = null;
     this._accounts = [];
     this._banks = [];
+    this._assign = null;
     this._loaded = false;
     this._error = false;
     this._tx = { items: [], total: 0, offset: 0, error: false, loading: false };
@@ -70,9 +178,25 @@ class FdOverview extends HTMLElement {
       console.warn("fd-overview: load failed:", e);
       this._error = true;
     }
+    this._assign = null;
+    if (this._isAdmin) {
+      try {
+        this._assign = await this._hass.callApi("GET", `${DOMAIN}/assignments`);
+      } catch (e) {
+        console.warn("fd-overview: assignments unavailable:", e);
+      }
+    }
     this._loaded = true;
     this._renderTop();
+    this._feedSettings();
     await this._loadTransactions(0);
+  }
+
+  _feedSettings() {
+    const st = this.shadowRoot.querySelector("fd-settings");
+    if (!st) return;
+    if (this._assign) st.data = this._assign;
+    st.hass = this._hass;
   }
 
   async _loadTransactions(offset) {
@@ -111,130 +235,122 @@ class FdOverview extends HTMLElement {
     this._built = true;
     const { SHARED_CSS, tSync } = window._fd;
     this.shadowRoot.innerHTML = `
-<style>${SHARED_CSS}
-:host { display: block; }
-section { margin-bottom: var(--sp-xl); }
-.card { overflow: hidden; }
-.card-h .actions { display: flex; gap: var(--sp-sm); align-items: center; }
-.muted { color: var(--tx2); font-size: var(--fs-md); }
-.empty { padding: var(--sp-xl); text-align: center; color: var(--tx2); }
-.row { display: flex; justify-content: space-between; gap: var(--sp-lg);
-  padding: var(--sp-md) 18px; border-bottom: 1px solid var(--bd); align-items: flex-start; }
-.row:last-child { border-bottom: none; }
-.grow { flex: 1; min-width: 0; }
-.name { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
-.sub { color: var(--tx2); font-size: var(--fs-sm); margin-top: 2px; overflow-wrap: anywhere; }
-.amt { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.amt .big { font-size: var(--fs-lg); font-weight: 700; }
-.total { padding: var(--sp-md) 18px; display: flex; justify-content: space-between;
-  border-top: 1px solid var(--bd); font-weight: 600; }
-.facts { display: flex; flex-wrap: wrap; gap: 2px var(--sp-lg); margin-top: var(--sp-xs);
-  color: var(--tx2); font-size: var(--fs-sm); }
-.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: var(--fs-sm);
-  font-weight: 600; border: 1px solid var(--bd); color: var(--tx2); }
-.badge.ok { color: var(--ac); border-color: color-mix(in srgb, var(--ac) 40%, transparent); }
-.badge.expiring { color: var(--wn); border-color: color-mix(in srgb, var(--wn) 50%, transparent); }
-.badge.expired { color: var(--dg); border-color: color-mix(in srgb, var(--dg) 50%, transparent); }
-.warn { color: var(--wn); }
-.err { color: var(--dg); }
-.btn { padding: 6px 12px; border-radius: 10px; border: 1px solid var(--bd); background: var(--sf);
-  color: var(--tx); font-size: var(--fs-md); cursor: pointer; font-family: inherit;
-  text-decoration: none; display: inline-block; }
-.btn:hover { background: var(--sf2); }
-.btn:disabled { opacity: .5; cursor: default; }
-.btn-p { background: var(--ac); color: var(--bg); border-color: var(--ac); font-weight: 600; }
-a.link { color: var(--ac); text-decoration: underline; cursor: pointer; }
-.filters { display: flex; gap: var(--sp-sm); padding: var(--sp-md) 18px; flex-wrap: wrap;
-  border-bottom: 1px solid var(--bd); }
-input, select { background: var(--bg); color: var(--tx); border: 1px solid var(--bd);
-  border-radius: 10px; padding: 7px 10px; font-size: var(--fs-md); font-family: inherit; }
-input { flex: 1; min-width: 180px; }
-select { max-width: 100%; }
-table { width: 100%; border-collapse: collapse; font-size: var(--fs-md); }
-th { text-align: left; color: var(--tx2); font-weight: 500; font-size: var(--fs-sm);
-  padding: var(--sp-sm) var(--sp-md); border-bottom: 1px solid var(--bd); }
-th.r, td.r { text-align: right; }
-td { padding: var(--sp-sm) var(--sp-md); border-bottom: 1px solid var(--bd); vertical-align: top; }
-td.date, td.r { white-space: nowrap; font-variant-numeric: tabular-nums; }
-td .p { overflow-wrap: anywhere; }
-.pager { display: flex; justify-content: space-between; align-items: center;
-  padding: var(--sp-md) 18px; gap: var(--sp-sm); }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-@media (max-width: 640px) {
-  .row { flex-direction: column; gap: var(--sp-xs); }
-  .amt { text-align: left; }
-  th.acc, td.acc { display: none; }
-}
-</style>
-<section id="accounts"></section>
-<section id="banks"></section>
-<section id="txsec">
-  <div class="card">
-    <div class="card-h"><span>${tSync("ov.tx.title")}</span></div>
-    <div id="tx"></div>
-  </div>
-</section>`;
+<style>${SHARED_CSS}${CSS}</style>
+<div class="root">
+  <div id="banner"></div>
+  <section id="persons"></section>
+  <section id="banks"></section>
+  <section id="txsec">
+    <div class="card">
+      <div class="h"><span>${tSync("ov.tx.title")}</span></div>
+      <div id="tx"></div>
+    </div>
+  </section>
+  <section id="settings"><fd-settings></fd-settings></section>
+</div>`;
     const sh = this.shadowRoot;
     sh.addEventListener("click", (ev) => {
       const a = ev.target.closest("[data-nav]");
-      if (a) window._fd.navigate(a.getAttribute("href") || window._fd.INTEGRATION_PATH, ev);
+      if (a) { window._fd.navigate(a.getAttribute("href") || window._fd.INTEGRATION_PATH, ev); return; }
+      if (ev.target.closest("[data-goto-settings]")) {
+        const el = sh.getElementById("settings");
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.querySelector("fd-settings")?.focus?.();
+      }
     });
+    sh.addEventListener("fd-assignments-saved", (ev) => {
+      const p = ev.detail && ev.detail.payload;
+      if (p) this._assign = p;
+      this._renderTop();
+    });
+  }
+
+  /** Groups: each person, household (shared), not-yet-assigned. Without
+   *  assignment data (non-admin) everything is one "all accounts" group. */
+  _groups() {
+    const ownerOf = {};
+    if (this._assign) for (const a of this._assign.accounts || []) ownerOf[a.key] = a.owner || "";
+    const known = this._assign ? ownerOf : null;
+    const groups = [];
+    const mk = (id, label, color, accounts) => {
+      let booked = 0, avail = 0, hasAvail = false, latest = "";
+      for (const a of accounts) {
+        const b = a.booked ? parseFloat(a.booked.amount) : NaN;
+        const v = a.available ? parseFloat(a.available.amount) : NaN;
+        if (!isNaN(b)) booked += b;
+        if (!isNaN(v)) { avail += v; hasAvail = true; }
+        if (a.last_update && a.last_update > latest) latest = a.last_update;
+      }
+      groups.push({ id, label, color, accounts, booked, avail: hasAvail ? avail : null, latest });
+    };
+    if (!known) {
+      if (this._accounts.length) mk("all", tr("ov.persons.all"), "var(--fd-a500)", this._accounts);
+      return groups;
+    }
+    const mine = (o) => this._accounts.filter((a) => (ownerOf[a.account_key] || "") === o);
+    (this._assign.persons || []).forEach((p, i) => {
+      mk("p:" + p.name, p.name, PERSON_COLORS[i % PERSON_COLORS.length], mine(p.name));
+    });
+    mk("shared", tr("ov.persons.household"), "var(--fd-household)", mine("shared"));
+    mk("open", tr("ov.persons.open"), "var(--fd-t3)", mine(""));
+    return groups.filter((g) => g.accounts.length || g.id.startsWith("p:") || g.id === "shared")
+      .filter((g) => g.accounts.length || this._accounts.length);
   }
 
   _renderTop() {
     const { tSync, eur, escHtml, fmtDate } = window._fd;
-    const acc = this.shadowRoot.getElementById("accounts");
+    const per = this.shadowRoot.getElementById("persons");
     const banks = this.shadowRoot.getElementById("banks");
-    if (!acc || !banks) return;
+    const banner = this.shadowRoot.getElementById("banner");
+    if (!per || !banks) return;
 
     if (this._error) {
-      acc.innerHTML = `<div class="card"><div class="empty err">${tSync("ov.error")}</div></div>`;
+      per.innerHTML = `<div class="card"><div class="empty err">${tSync("ov.error")}</div></div>`;
       banks.innerHTML = "";
       return;
     }
 
-    // ---- accounts ----
-    let total = 0;
-    const rows = this._accounts.map((a) => {
-      const booked = a.booked ? parseFloat(a.booked.amount) : NaN;
-      const avail = a.available ? parseFloat(a.available.amount) : NaN;
-      if (!isNaN(booked)) total += booked;
-      const upd = a.last_update
-        ? tSync("ov.accounts.updated", { date: fmtDate(a.last_update, true) })
-        : tSync("ov.accounts.never");
-      return `
-<div class="row">
-  <div class="grow">
-    <div class="name">${escHtml(a.account_name)}</div>
-    <div class="sub">${escHtml(a.institution)} · ${escHtml(a.iban_masked)}</div>
-    <div class="sub">${escHtml(upd)}</div>
+    // ---- unassigned banner ----
+    const open = this._assign ? (this._assign.accounts || []).filter((a) => !a.owner).length : 0;
+    banner.innerHTML = open
+      ? `<div class="banner" role="status"><span>${escHtml(open === 1 ? tr("ov.unassigned.one") : tr("ov.unassigned.other", { n: open }))}</span>
+          <button type="button" class="btn sm" data-goto-settings>${escHtml(tr("ov.unassigned.action"))}</button></div>`
+      : "";
+
+    // ---- persons & household ----
+    const cards = this._groups().map((g) => {
+      const n = g.accounts.length;
+      const list = g.accounts.map((a) => {
+        const b = a.booked ? parseFloat(a.booked.amount) : NaN;
+        return `<div class="ar"><span>${escHtml(a.account_name)} · ${escHtml(a.iban_masked)}</span><span>${isNaN(b) ? "–" : eur(b)}</span></div>`;
+      }).join("");
+      return `<div class="card pc" style="--c:${g.color}">
+  <div class="nm"><i></i>${escHtml(g.label)}</div>
+  <div class="big">${n ? eur(g.booked) : "–"}</div>
+  <div class="meta">
+    <span>${escHtml(n === 1 ? tr("ov.persons.accounts_one") : tr("ov.persons.accounts_other", { n }))}</span>
+    ${g.avail != null ? `<span>${escHtml(tr("ov.persons.available", { amount: eur(g.avail) }))}</span>` : ""}
+    ${g.latest ? `<span>${escHtml(tSync("ov.accounts.updated", { date: fmtDate(g.latest, true) }))}</span>` : ""}
   </div>
-  <div class="amt">
-    <div class="big ${booked < 0 ? "neg" : ""}">${isNaN(booked) ? "–" : eur(booked)}</div>
-    <div class="sub">${tSync("ov.accounts.booked")}</div>
-    ${isNaN(avail) ? "" : `<div class="sub">${tSync("ov.accounts.available")}: ${eur(avail)}</div>`}
-  </div>
+  ${n ? `<div class="det"><div class="dh"><span class="muted">${escHtml(tr("ov.persons.detail"))}</span><span class="dtag">${escHtml(tr("ov.persons.desktop_tag"))}</span></div>${list}</div>` : ""}
 </div>`;
     });
-    acc.innerHTML = `
-<div class="card">
-  <div class="card-h"><span>${tSync("ov.accounts.title")}</span></div>
-  ${rows.length ? rows.join("") : `<div class="empty">${tSync("ov.accounts.empty")}
-    <div style="margin-top:12px"><a class="btn btn-p" data-nav href="${window._fd.INTEGRATION_PATH}">${tSync("header.add_account")}</a></div></div>`}
-  ${rows.length > 1 ? `<div class="total"><span>${tSync("ov.accounts.total")}</span><span>${eur(total)}</span></div>` : ""}
-</div>`;
+    per.innerHTML = `
+<div class="h"><span>${tr("ov.persons.title")}</span></div>
+${cards.length ? `<div class="grid">${cards.join("")}</div>`
+  : `<div class="card"><div class="empty">${tr("ov.persons.empty")}
+      <div style="margin-top:12px"><a class="btn" data-nav href="${window._fd.INTEGRATION_PATH}">${tSync("header.add_account")}</a></div></div></div>`}`;
 
     // ---- banks ----
     const bankRows = this._banks.map((b) => this._bankRow(b));
     banks.innerHTML = `
 <div class="card">
-  <div class="card-h"><span>${tSync("ov.banks.title")}</span>
-    <span class="actions"><a class="btn" data-nav href="${window._fd.INTEGRATION_PATH}">${tSync("ov.banks.manage")}</a></span>
+  <div class="h"><span>${tSync("ov.banks.title")}</span>
+    <a class="btn ghost sm" data-nav href="${window._fd.INTEGRATION_PATH}">${tSync("ov.banks.manage")}</a>
   </div>
   ${bankRows.length ? bankRows.join("") : `<div class="empty">${tSync("ov.banks.empty")}</div>`}
 </div>`;
 
-    // account filter options (needs the account list)
     this._renderFilters();
   }
 
@@ -248,13 +364,13 @@ td .p { overflow-wrap: anywhere; }
     else if (until) consent = tSync("ov.banks.consent_ok", { date: until });
     else consent = tSync("ov.banks.consent_unknown");
     const badge = tSync(`ov.banks.badge_${state === "expired" || state === "expiring" ? state : "ok"}`);
+    const cls = state === "expired" ? "st-over" : state === "expiring" ? "st-near" : "st-ok";
     const blocked = b.blocked_until && new Date(b.blocked_until) > new Date();
     const facts = [
-      `<span class="${state === "ok" ? "" : state === "expired" ? "err" : "warn"}">${escHtml(consent)}</span>`,
+      `<span>${escHtml(consent)}</span>`,
       `<span>${escHtml(tSync("ov.banks.budget", { used: b.budget_used_today ?? 0, limit: b.budget_limit ?? 4 }))}</span>`,
     ];
-    // Manual fetches are uncapped, so the budget never counts them; show the
-    // latest one so a refresh visibly happened.
+    // Manual fetches are uncapped, so the budget never counts them.
     if (b.last_attended_at) {
       facts.push(`<span>${escHtml(tSync("ov.banks.last_manual", { date: fmtDate(b.last_attended_at, true) }))}</span>`);
     }
@@ -265,15 +381,15 @@ td .p { overflow-wrap: anywhere; }
       facts.push(`<span>${escHtml(tSync("ov.banks.last_success", { date: fmtDate(b.last_success, true) }))}</span>`);
     }
     if (b.last_error) {
-      facts.push(`<span class="err">${escHtml(tSync("ov.banks.last_error", { error: b.last_error }))}</span>`);
+      facts.push(`<span class="warn">${escHtml(tSync("ov.banks.last_error", { error: b.last_error }))}</span>`);
     }
     const renew = state === "ok"
       ? ""
-      : `<a class="btn btn-p" data-nav href="${window._fd.INTEGRATION_PATH}">${tSync("ov.banks.renew")}</a>`;
+      : `<a class="btn sm" data-nav href="${window._fd.INTEGRATION_PATH}">${tSync("ov.banks.renew")}</a>`;
     return `
-<div class="row">
-  <div class="grow">
-    <div class="name">${escHtml(b.title || "Bank")} <span class="badge ${state}">${escHtml(badge)}</span></div>
+<div class="bk">
+  <div style="min-width:0;flex:1">
+    <div class="nm">${escHtml(b.title || "Bank")} <span class="chip ${cls}">${escHtml(badge)}</span></div>
     <div class="facts">${facts.join("")}</div>
   </div>
   ${renew}
@@ -348,27 +464,21 @@ td .p { overflow-wrap: anywhere; }
       const n = parseFloat(tx.amount);
       const party = tx.creditor || tx.debtor || "";
       const pending = tx.status && tx.status !== "booked"
-        ? ` <span class="badge">${tSync("ov.tx.pending")}</span>` : "";
-      return `<tr>
-  <td class="date">${escHtml(fmtDate(tx.date))}</td>
-  <td><div class="p">${escHtml(party)}${pending}</div><div class="sub">${escHtml(tx.description)}</div></td>
-  <td class="acc sub">${escHtml(tx.account_name)}</td>
-  <td class="r ${n < 0 ? "neg" : "pos"}">${escHtml(fmtAmt(tx))}</td>
-</tr>`;
+        ? ` <span class="chip pend">${tSync("ov.tx.pending")}</span>` : "";
+      return `<div class="tx">
+  <div class="l"><div class="p">${escHtml(party)}${pending}</div><div class="s">${escHtml(tx.description)}</div></div>
+  <div class="r"><div class="a ${n > 0 ? "in" : ""}">${escHtml(fmtAmt(tx))}</div><div class="s">${escHtml(fmtDate(tx.date))} · ${escHtml(tx.account_name)}</div></div>
+</div>`;
     });
     const from = t.offset + 1;
     const to = t.offset + t.items.length;
     list.innerHTML = `
-<table>
-  <thead><tr><th>${tSync("ov.tx.col_date")}</th><th>${tSync("ov.tx.col_party")}</th>
-  <th class="acc">${tSync("ov.tx.col_account")}</th><th class="r">${tSync("ov.tx.col_amount")}</th></tr></thead>
-  <tbody>${body.join("")}</tbody>
-</table>
+${body.join("")}
 <div class="pager">
   <span class="muted">${escHtml(tSync("ov.tx.range", { first: from, last: to, count: t.total }))}</span>
-  <span>
-    <button class="btn" id="prev" ${t.offset <= 0 ? "disabled" : ""}>${tSync("ov.tx.prev")}</button>
-    <button class="btn" id="next" ${to >= t.total ? "disabled" : ""}>${tSync("ov.tx.next")}</button>
+  <span class="btns">
+    <button class="btn ghost sm" id="prev" ${t.offset <= 0 ? "disabled" : ""}>${tSync("ov.tx.prev")}</button>
+    <button class="btn ghost sm" id="next" ${to >= t.total ? "disabled" : ""}>${tSync("ov.tx.next")}</button>
   </span>
 </div>`;
     list.querySelector("#prev").addEventListener("click", () => this._loadTransactions(Math.max(0, t.offset - PAGE_SIZE)));
