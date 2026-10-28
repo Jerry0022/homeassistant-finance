@@ -192,6 +192,8 @@ class FdHome extends HTMLElement {
     this._alertsOpen = false;
     this._freshOpen = false;
     this._sheet = null;
+    this._sub = null;
+    this._subEl = null;
     this._rendered = false;
     this._toastTimer = null;
   }
@@ -214,6 +216,30 @@ class FdHome extends HTMLElement {
   }
 
   reload() { return this._load(); }
+
+  // ---- Jahr sub-views: Verträge (fd-contracts) and Vergleich (fd-benchmark) ----
+  _openSub(kind) {
+    this._sub = kind;
+    this._subEl = null; // a fresh element reloads its data each time it is opened
+    this._paint();
+    const host = this.shadowRoot.getElementById("main");
+    if (host && host.scrollIntoView) host.scrollIntoView({ block: "start" });
+  }
+
+  _subHtml() {
+    const title = this._t(this._sub === "contracts" ? "home.year.contracts" : "home.year.benchmark");
+    return `<button class="more" data-act="subback" aria-label="${this._e(this._t("ct.back"))}">← ${this._e(this._t("ct.back"))} · ${this._e(title)}</button><div id="subhost"></div>`;
+  }
+
+  _mountSub() {
+    const host = this.shadowRoot.getElementById("subhost");
+    if (!host || !this._sub) return;
+    if (!this._subEl) {
+      this._subEl = document.createElement(this._sub === "contracts" ? "fd-contracts" : "fd-benchmark");
+      this._subEl.hass = this._hass;
+    }
+    host.appendChild(this._subEl);
+  }
 
   // ---- data -------------------------------------------------------------
   async _load(dir) {
@@ -239,6 +265,7 @@ class FdHome extends HTMLElement {
     if (!HORIZONS.includes(h) || h === this._horizon) return;
     const from = HORIZONS.indexOf(this._horizon);
     this._horizon = h;
+    this._sub = null;
     this._flipped = false;
     this._moreNext = false;
     this._load(HORIZONS.indexOf(h) > from ? "l" : "r");
@@ -354,6 +381,7 @@ class FdHome extends HTMLElement {
     else if (!d) body = `<div class="msg">${this._t("home.loading")}</div>`;
     else body = this._body(d);
     main.innerHTML = body;
+    this._mountSub();
     sh.getElementById("side").innerHTML = d ? this._sideHtml(d) : "";
     const hasPerson = !!(d && d.person);
     // Only a user mapped to a person has two views; otherwise the pill would offer nothing.
@@ -414,6 +442,7 @@ class FdHome extends HTMLElement {
   _body(d) {
     // Without a budget the figures are all 0 € and "passt" would be a false reading.
     if (this._horizon !== "year" && this._budgetTotals(d).budget <= 0) return this._setupCard(d);
+    if (this._sub && this._horizon === "year") return this._subHtml();
     switch (this._horizon) {
       case "today": return this._today(d);
       case "week": return this._week(d);
@@ -632,11 +661,10 @@ class FdHome extends HTMLElement {
         <div class="cmp prev"><i style="width:${(v.spent_last_year / mx) * 100}%"></i></div>
         <div class="muted">${this._t(v.delta <= 0 ? "home.year.vs_less" : "home.year.vs_more", { amount: this._m(Math.abs(v.delta), false) })}</div>`;
     } else vs = `<div class="muted">${this._t("home.year.vs_na")}</div>`;
-    const soon = `<span class="tag">${this._t("home.soon")}</span>`;
     return `<section class="card"><div class="h"><span>${this._t("home.year.title")}</span></div><div class="cyc">${cyc}</div></section>
       <section class="card"><div class="h"><span>${this._t("home.year.vs")}</span></div>${vs}</section>
-      <button class="entry" aria-disabled="true"><i>☰</i><span><b>${this._t("home.year.contracts")}${soon}</b><small class="muted">${this._t("home.year.contracts_sub")}</small></span></button>
-      <button class="entry" aria-disabled="true"><i>≈</i><span><b>${this._t("home.year.benchmark")}${soon}</b><small class="muted">${this._t("home.year.benchmark_sub")}</small></span></button>
+      <button class="entry" data-act="sub" data-sub="contracts"><i>☰</i><span><b>${this._t("home.year.contracts")}</b><small class="muted">${this._t("home.year.contracts_sub")}</small></span></button>
+      <button class="entry" data-act="sub" data-sub="benchmark"><i>≈</i><span><b>${this._t("home.year.benchmark")}</b><small class="muted">${this._t("home.year.benchmark_sub")}</small></span></button>
       ${this._dyk(d)}${this._reserves(d)}`;
   }
 
@@ -773,6 +801,8 @@ class FdHome extends HTMLElement {
         this.dispatchEvent(new CustomEvent("fd-categorize-requested", { bubbles: true, composed: true }));
         break;
       case "retry": this._load(); break;
+      case "sub": this._openSub(t.dataset.sub); break;
+      case "subback": this._openSub(null); break;
       case "demo": this.dispatchEvent(new CustomEvent("fd-demo-toggle", { bubbles: true, composed: true })); break;
       case "flip": this._flipped = !this._flipped; this._paint(); break;
       case "more": this._moreNext = !this._moreNext; this._paint(); break;
