@@ -66,6 +66,7 @@ class Pot:
     cycle_budget: float = 0.0  # plan sign: positive
     category_keys: list[str] = field(default_factory=list)
     kind: str = POT_KIND_SPEND
+    account_key: str = ""  # account the virtual pot sits on (coverage check)
 
     @property
     def is_shared(self) -> bool:
@@ -79,6 +80,7 @@ class Pot:
             "cycle_budget": round(self.cycle_budget, 2),
             "category_keys": list(self.category_keys),
             "kind": self.kind,
+            "account_key": self.account_key,
         }
 
     @classmethod
@@ -111,6 +113,7 @@ class Pot:
             cycle_budget=budget,
             category_keys=keys,
             kind=kind,
+            account_key=str(data.get("account_key") or "").strip()[:80],
         )
 
 
@@ -351,4 +354,81 @@ def week_status(
             "items": pending[:UPCOMING_TOP_N],
             "count": len(pending),
         },
+    }
+
+
+# ---------------------------------------------------------------------------
+# Coverage: virtual pots vs. the real position of the accounts they sit on
+# ---------------------------------------------------------------------------
+
+COVERAGE_COVERED = "covered"
+COVERAGE_SHORTFALL = "shortfall"
+
+
+def pot_coverage(
+    pots: list[Pot],
+    accounts: list[dict[str, Any]],
+    balances: dict[str, Any],
+    *,
+    amounts: dict[str, float] | None = None,
+) -> dict[str, Any]:
+    """Compare the sum of reserve pots per account with its real balance.
+
+    Only ``reserve`` pots that name an ``account_key`` count; ``amounts`` may
+    override a pot's virtual amount (default: its ``cycle_budget``). An account
+    flagged ``savings`` is reported as such. ``top_up`` is the amount missing
+    on the account (0 when covered). Accounts without a cached balance are
+    reported with ``real_balance`` None and status ``unknown``.
+    """
+    from .account_identity import account_key
+    from .balances import amount_of, pick_balance
+
+    amounts = amounts or {}
+    by_key = {account_key(a): a for a in accounts}
+    virtual: dict[str, float] = {}
+    pot_ids: dict[str, list[str]] = {}
+    unassigned = 0
+    for pot in pots:
+        if pot.kind != POT_KIND_RESERVE:
+            continue
+        if not pot.account_key or pot.account_key not in by_key:
+            unassigned += 1
+            continue
+        virtual[pot.account_key] = virtual.get(pot.account_key, 0.0) + float(
+            amounts.get(pot.id, pot.cycle_budget)
+        )
+        pot_ids.setdefault(pot.account_key, []).append(pot.id)
+
+    rows = []
+    for key, total in virtual.items():
+        acc = by_key[key]
+        entry = balances.get(acc.get("id")) if acc.get("id") else None
+        raw = entry.get("balances") if isinstance(entry, dict) else None
+        real = amount_of(pick_balance(raw or []))
+        if real is None:
+            status, top_up = "unknown", 0.0
+        elif real >= total:
+            status, top_up = COVERAGE_COVERED, 0.0
+        else:
+            status, top_up = COVERAGE_SHORTFALL, round(total - real, 2)
+        rows.append(
+            {
+                "account_key": key,
+                "name": str(acc.get("custom_name") or acc.get("name") or ""),
+                "savings": bool(acc.get("savings")),
+                "pot_ids": pot_ids[key],
+                "virtual_total": round(total, 2),
+                "real_balance": None if real is None else round(real, 2),
+                "status": status,
+                "top_up": top_up,
+            }
+        )
+    rows.sort(key=lambda r: r["name"])
+    return {
+        "accounts": rows,
+        "unassigned_pots": unassigned,
+        "total_top_up": round(sum(r["top_up"] for r in rows), 2),
+        "status": COVERAGE_SHORTFALL
+        if any(r["status"] == COVERAGE_SHORTFALL for r in rows)
+        else COVERAGE_COVERED,
     }
