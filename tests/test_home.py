@@ -162,7 +162,7 @@ def _manager():
     pots = [Pot("fun", "Anna Fun", "Anna", 150.0, ["leisure"]),
             Pot("food", "Food", "shared", 300.0, ["food"])]
     mgr = SimpleNamespace(
-        _demo_mode=False, _accounts=ACCOUNTS, _transactions=TXS, budget_plan=BudgetPlan(),
+        _demo_mode=False, _accounts=ACCOUNTS, persons=[], _transactions=TXS, budget_plan=BudgetPlan(),
         pots=pots, _recurring_patterns=[], _last_refresh=NOW,
         get_bank_status=lambda: [], _banking_client=MagicMock(), _refresh_lock=MagicMock(),
     )

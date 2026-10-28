@@ -833,6 +833,13 @@ def generate_demo_home(
     # switch back from the household view, and show a covered-costs verdict.
     if out.get("person") is None:
         out["person"] = {"id": "Anna", "name": "Anna"}
+    out["setup"] = {
+        "persons": 2,
+        "user_mapped": True,
+        "accounts_total": len(accounts),
+        "accounts_assigned": len(accounts),
+        "pots": len(DEMO_POTS),
+    }
     if horizon in ("cycle", "year") and out.get("fixed_costs_covered") is None:
         out["fixed_costs_covered"] = True
     return out
