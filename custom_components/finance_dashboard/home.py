@@ -35,6 +35,7 @@ from .cycle import (
     person_cycle,
     salary_starts,
 )
+from .merchants import display_name, merchant_key
 from .pots import (
     POT_KIND_RESERVE,
     POT_KIND_SPEND,
@@ -46,6 +47,8 @@ from .pots import (
     week_bounds,
     week_status,
 )
+
+from .questions import select_questions  # noqa: E402
 
 HORIZONS = ("today", "week", "cycle", "year")
 VIEWS = ("person", "household")
@@ -150,7 +153,13 @@ def _booking(tx: dict[str, Any], today: date) -> dict[str, Any] | None:
         if tx.get("_account_type") == "shared"
         else str(tx.get("_account_person") or "") or POT_OWNER_SHARED
     )
+    # A learned merchant owner (user answer) overrides the account default.
+    owner = str(tx.get("_owner_override") or owner)
     return {
+        "lid": str(tx.get("_ledger_id") or ""),
+        "merchant": merchant_key(tx),
+        "display": display_name(tx),
+        "in_chain": bool(tx.get("_transfer_chain_id")),
         "date": max(day, today) if pending else day,
         "amount": actual_amount_to_plan_sign(amount),
         "bank_amount": amount,
@@ -342,7 +351,13 @@ def _year_block(
 def _did_you_know(scope_bookings: list[dict[str, Any]], cycle: tuple[date, date], today: date):
     by_cat: dict[str, float] = defaultdict(float)
     for b in scope_bookings:
-        if _expense(b) and not b["pending"] and cycle[0] <= b["date"] <= today:
+        # "other" is the absence of a category -- never a headline fact.
+        if (
+            _expense(b)
+            and not b["pending"]
+            and b["category"] != "other"
+            and cycle[0] <= b["date"] <= today
+        ):
             by_cat[b["category"]] += b["amount"]
     total = sum(by_cat.values())
     if total <= 0:
@@ -372,6 +387,9 @@ def build_home(  # noqa: PLR0912, PLR0915
     view: str,
     horizon: str,
     persons: list[dict[str, Any]] | None = None,
+    week_answered: int = 0,
+    suggest: Any = None,
+    include_questions: bool = False,
 ) -> dict[str, Any]:
     """Assemble the home contract. ``view`` degrades to household without a person."""
     today = now.date()
@@ -449,18 +467,25 @@ def build_home(  # noqa: PLR0912, PLR0915
     scope_spend = [p for p in scope_pots if p.kind == POT_KIND_SPEND]
     head = _agg([status_by_id[p.id] for p in scope_spend])
 
+    candidates = [
+        {"merchant": b["merchant"], "display": b["display"], "amount": b["bank_amount"],
+         "date": b["date"], "lid": b["lid"]}
+        for b in scope
+        if _expense(b) and not b["pending"] and b["category"] == "other"
+        and not b["in_chain"] and cycle[0] <= b["date"] <= cycle[1]
+    ]
+    questions, questions_total = select_questions(
+        candidates, week_answered=week_answered, suggest=suggest
+    )
+
     out: dict[str, Any] = {
         "view": view,
         "person": {"id": person, "name": person} if person else None,
         "horizon": horizon,
         "freshness": _freshness(as_of, now, banks),
         "alerts": _alerts(banks),
-        "questions_open": sum(
-            1
-            for b in scope
-            if _expense(b) and not b["pending"] and b["category"] == "other"
-            and cycle[0] <= b["date"] <= cycle[1]
-        ),
+        "questions_open": len(questions),
+        "questions_total": questions_total,
         "cycle": {
             "start": start.isoformat(),
             "end": end.isoformat(),
@@ -473,6 +498,9 @@ def build_home(  # noqa: PLR0912, PLR0915
         "remaining": head["balance"],
         "pots": pot_rows,
     }
+
+    if include_questions:
+        out["questions"] = questions  # internal: admin question list, not in the public home view
 
     out["setup"] = setup_block(accounts, persons_cfg, len(pots), user_mapped=user_mapped)
 

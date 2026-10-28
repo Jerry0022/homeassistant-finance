@@ -339,6 +339,7 @@ class BankMixin:
         by_uid = {a.get("id"): a for a in self._accounts if a.get("id")}
         uid_for_key = {account_key(a): uid for uid, a in by_uid.items()}
         categorizer = self._categorizer
+        memory = getattr(self, "_memory", None)
 
         tx_by_account: dict[str, list[dict[str, Any]]] = {}
         for akey in self._ledger.account_keys():
@@ -354,6 +355,8 @@ class BankMixin:
                 tx["_account_person"] = account.get("person", "")
                 tx["_account_ha_users"] = account.get("ha_users", [])
                 tx["category"] = categorizer.categorize(tx) if categorizer else "other"
+                rule = memory.resolve(tx) if memory else None
+                tx["_owner_override"] = (rule or {}).get("owner")
             tx_by_account[uid] = txs
 
         flat = [tx for txs in tx_by_account.values() for tx in txs]
