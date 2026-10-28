@@ -227,6 +227,20 @@ def consent_exceptions(banks: list[dict[str, Any]], today: date) -> list[dict[st
     return out
 
 
+_CATEGORY_DE = {
+    "housing": "Wohnen", "food": "Lebensmittel", "transport": "Mobilität",
+    "insurance": "Versicherungen", "subscriptions": "Abos", "loans": "Kredite",
+    "utilities": "Nebenkosten", "income": "Einnahmen", "transfers": "Umbuchungen",
+    "other": "Sonstiges", "shopping": "Einkaufen", "health": "Gesundheit", "leisure": "Freizeit",
+}
+_KIND_DE = {
+    "large_debit": "ungewöhnlich hohe Abbuchung",
+    "double_charge": "mögliche Doppelbuchung",
+    "missing_salary": "erwartetes Gehalt fehlt",
+    "consent_expiring": "Bankzugang läuft bald ab",
+}
+
+
 def build_digest(
     transactions: list[dict[str, Any]], today: date, home: dict[str, Any] | None
 ) -> dict[str, Any]:
@@ -250,12 +264,14 @@ def build_digest(
     home = home or {}
     status = home.get("status", "unknown")
     questions = int(home.get("questions_open") or 0)
-    lines = [f"Cycle status: {status}."]
+    status_de = {"good": "passt", "near": "knapp", "over": "drüber"}.get(status, status)
+    lines = [f"Zyklus: {status_de}."]
     if "remaining" in home:
-        lines.append(f"Remaining this cycle: {home['remaining']:.0f} EUR.")
+        lines.append(f"Noch frei in diesem Zyklus: {home['remaining']:.0f} €.")
     for c in changes:
-        lines.append(f"{c['category']}: {c['delta']:+.0f} EUR vs. last week.")
-    lines.append(f"Open questions: {questions}.")
+        label = _CATEGORY_DE.get(c["category"], c["category"])
+        lines.append(f"{label}: {c['delta']:+.0f} € zur Vorwoche.")
+    lines.append(f"Offene Fragen: {questions}.")
     return {
         "week": iso_week(today),
         "status": status,
@@ -281,13 +297,13 @@ def _persistent(hass: HomeAssistant, notification_id: str, title: str, message: 
 def deliver_exception(hass: HomeAssistant, exc: dict[str, Any]) -> None:
     payload = {k: v for k, v in exc.items() if k != "id" and v is not None}
     hass.bus.async_fire(EVENT_EXCEPTION, payload)
-    who = exc["person"] if exc["person"] != "shared" else "household"
+    who = exc["person"] if exc["person"] != "shared" else "den Haushalt"
     detail = f" ({exc['merchant']})" if exc["person"] == "shared" and exc["merchant"] else ""
     _persistent(
         hass,
         exc["id"],
         "Finance",
-        f"Something needs a look for {who}: {exc['kind'].replace('_', ' ')}{detail}.",
+        f"Bitte kurz ansehen für {who}: {_KIND_DE.get(exc['kind'], exc['kind'].replace('_', ' '))}{detail}.",
     )
 
 
@@ -337,6 +353,6 @@ async def _run(hass: HomeAssistant, manager: Any, now: datetime | None) -> None:
             _LOGGER.debug("Digest without home payload", exc_info=True)
         digest = build_digest(transactions, today, home)
         hass.bus.async_fire(EVENT_WEEKLY_DIGEST, digest)
-        _persistent(hass, f"digest_{week}", "Finance - weekly digest", digest["text"])
+        _persistent(hass, f"digest_{week}", "Finance – Wochenüberblick", digest["text"])
         state["last_digest_week"] = week
     await async_save_state(hass, state)

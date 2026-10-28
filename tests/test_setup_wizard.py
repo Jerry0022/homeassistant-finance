@@ -220,7 +220,7 @@ def test_digest_text() -> None:
     txs = [_tx(-100, 18, cat="food"), _tx(-40, 10, cat="food")]
     d = notify.build_digest(txs, TODAY, {"status": "good", "remaining": 321.0, "questions_open": 2})
     assert d["questions_open"] == 2 and d["week"] == "2026-W17"
-    assert "good" in d["text"] and d["top_changes"][0]["category"] == "food"
+    assert "passt" in d["text"] and "Lebensmittel" in d["text"] and d["top_changes"][0]["category"] == "food"
 
 
 def _hass_for_run():
