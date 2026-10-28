@@ -2,6 +2,9 @@
 
 **Your personal finance command center — right inside Home Assistant.**
 
+> [!WARNING]
+> **Alpha — not recommended for use.** Finance is under active redesign. Features, data model and storage format may change without migration, and things may break. Do not rely on it for your real finances yet.
+
 [![Version](https://img.shields.io/github/v/release/Jerry0022/homeassistant-finance?style=flat-square)](https://github.com/Jerry0022/homeassistant-finance/releases)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![HACS](https://img.shields.io/badge/HACS-compatible-orange?style=flat-square)](https://hacs.xyz)
