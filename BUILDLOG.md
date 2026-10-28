@@ -1,5 +1,12 @@
 # Build Log
 
+## 0.19.2 — 2026-10-28
+Version: 0.19.2
+Branch: claude/home-assistant-live-analysis-c86a08
+Changes:
+- fix(frontend): locale files load with the version query. The static path is cached long, so after an update a browser kept the old `de.json` and Start showed raw keys such as `home.setup.assign_title`
+- fix(frontend): "Personen & Konten" offers the suggested household members directly as account owners; picking one makes them a person, so an account can be assigned to a person without first switching them on in step 1 (before, only "Haushalt" and "Offen" were offered)
+
 ## 0.19.1 — 2026-10-28
 Version: 0.19.1
 Branch: claude/home-assistant-live-analysis-c86a08

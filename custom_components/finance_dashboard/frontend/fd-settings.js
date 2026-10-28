@@ -294,12 +294,16 @@ class FdSettings extends HTMLElement {
     const accounts = this._data.accounts || [];
     if (!accounts.length) { box.innerHTML = `<p class="muted">${escHtml(tr("settings.no_accounts"))}</p>`; return; }
     const persons = this._draft.persons;
-    const note = persons.length ? "" : `<p class="muted">${escHtml(tr("settings.no_persons"))}</p>`;
+    // Suggested users that are not persons yet are offered right here:
+    // picking one makes them a person, so nobody has to do step 1 first.
+    const candidates = (this._data.ha_users || []).filter((u) => u.suggested && !this._personOf(u.id));
+    const note = persons.length || candidates.length ? "" : `<p class="muted">${escHtml(tr("settings.no_persons"))}</p>`;
     box.innerHTML = note + accounts.map((a) => {
       const cur = this._draft.owners[a.key] || "";
       const opt = (val, label, color) =>
         `<button type="button" role="radio" aria-checked="${cur === val}" data-acc="${escHtml(a.key)}" data-owner="${escHtml(val)}" style="--c:${color}"><i></i>${escHtml(label)}</button>`;
       const opts = persons.map((p) => opt(p.name, p.name, this._color(p.name)))
+        .concat(candidates.map((u, i) => opt(`user:${u.id}`, u.name, PERSON_COLORS[(persons.length + i) % PERSON_COLORS.length])))
         .concat([opt("shared", tr("settings.owner_shared"), "var(--fd-household)"), opt("", tr("settings.owner_none"), "var(--fd-t3)")]);
       return `<div class="acc"><div class="nm"><b>${escHtml(a.name)}</b><span>${escHtml(a.institution || "")}${a.iban_last4 ? ` · ••${escHtml(a.iban_last4)}` : ""}</span></div>
   <div class="seg" role="radiogroup" aria-label="${escHtml(a.name)}">${opts.join("")}</div></div>`;
@@ -324,6 +328,12 @@ class FdSettings extends HTMLElement {
         inputs[inputs.length - 1]?.focus();
       } else if (t.dataset.rm !== undefined) {
         this._removePerson(this._draft.persons[Number(t.dataset.rm)]);
+        this._render();
+      } else if (t.dataset.acc && t.dataset.owner.startsWith("user:")) {
+        const u = (this._data.ha_users || []).find((x) => `user:${x.id}` === t.dataset.owner);
+        if (!u) return;
+        if (!this._personOf(u.id)) this._toggleUser(u);
+        this._draft.owners[t.dataset.acc] = this._personOf(u.id).name;
         this._render();
       } else if (t.dataset.acc) {
         this._draft.owners[t.dataset.acc] = t.dataset.owner;
