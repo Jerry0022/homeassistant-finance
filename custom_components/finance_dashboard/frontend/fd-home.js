@@ -424,6 +424,8 @@ class FdHome extends HTMLElement {
 
   /** Empty state: name the one step that makes this screen meaningful. */
   _setupCard(d) {
+    const wiz = this._wizardCard(d);
+    if (wiz) return wiz;
     const st = d.setup || {};
     const assign = st.persons === 0 || (st.accounts_total || 0) > (st.accounts_assigned || 0);
     const key = assign ? "assign" : "pots";
@@ -431,6 +433,32 @@ class FdHome extends HTMLElement {
       : `<button class="btn" data-act="addpot">+ ${this._t("home.pot.new")}</button>`;
     return `<section class="card setup"><h3>${this._t("home.setup." + key + "_title")}</h3>
   <p class="muted">${this._t("home.setup." + key + "_body")}</p><div class="acts">${act}</div></section>`;
+  }
+
+  /** Guided setup: resume card while the wizard is not completed (admin: CTA, member: calm note). */
+  _wizardCard(d) {
+    const admin = !!(this._hass && this._hass.user && this._hass.user.is_admin);
+    const w = admin ? this._wizard : { completed: false, steps: {}, current_step: "persons" };
+    if (admin && w === undefined) this._loadWizard();
+    if (!w || w.completed) return "";
+    if (!admin) {
+      // Members cannot read the wizard state: only claim "in progress" while the data shows it.
+      const st = (d && d.setup) || {};
+      if (!(st.persons === 0 || (st.accounts_total || 0) > (st.accounts_assigned || 0))) return "";
+      return `<section class="card setup"><h3>${this._t("home.setup.member_title")}</h3><p class="muted">${this._t("home.setup.member_body")}</p></section>`;
+    }
+    const order = ["persons", "accounts", "payday", "region", "pots", "plan", "notifications", "ai", "done"];
+    const n = Math.max(0, order.indexOf(w.current_step)) + 1;
+    const started = Object.values(w.steps || {}).some((s) => s && s !== "pending");
+    return `<section class="card setup"><h3>${this._t(started ? "home.setup.resume_title" : "home.setup.start_title", { n, total: order.length })}</h3>
+  <p class="muted">${this._t("home.setup.resume_body")}</p><div class="acts"><button class="btn" data-act="wizard">${this._t(started ? "home.setup.resume_cta" : "home.setup.start_cta")}</button></div></section>`;
+  }
+
+  async _loadWizard() {
+    this._wizard = null;
+    try { this._wizard = await this._hass.callApi("GET", `${DOMAIN}/setup`); }
+    catch (e) { this._wizard = { completed: true }; }
+    this._paint?.();
   }
 
   _budgetTotals(d) {
@@ -749,6 +777,7 @@ class FdHome extends HTMLElement {
       case "flip": this._flipped = !this._flipped; this._paint(); break;
       case "more": this._moreNext = !this._moreNext; this._paint(); break;
       case "addpot": this._openSheet(null); break;
+      case "wizard": this.dispatchEvent(new CustomEvent("fd-open-setup", { bubbles: true, composed: true })); break;
       case "settings": this.dispatchEvent(new CustomEvent("fd-open-settings", { bubbles: true, composed: true })); break;
       case "editpot": this._openSheet(pot(t.dataset.id)); break;
       case "delpot": this._confirmId = t.dataset.id; this._paint(); break;

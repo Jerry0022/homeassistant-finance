@@ -40,6 +40,7 @@ const COMPONENTS = [
   "fd-recurring-list.js",
   "fd-transactions-log.js",
   "fd-settings.js",
+  "fd-setup.js",
   "fd-overview.js",
   "fd-home.js",
   "fd-questions.js",
