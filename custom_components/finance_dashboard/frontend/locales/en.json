@@ -172,7 +172,7 @@
   "home.cycle.rule.person_highest_income": "Your cycle starts with your highest income (from $name's salary) and ends before the next one.",
   "home.cycle.rule.household_7_day": "The household cycle starts at the highest income. If another person's highest income falls in the 7 days before it, the cycle starts there (from $name's salary).",
   "home.cycle.rule.calendar_fallback": "No income recognised yet, so the calendar month applies.",
-  "home.cycle.day": "Day $day of $days",
+  "home.cycle.day": "Day $n of $total",
   "home.cycle.verdict.good": "Doing well",
   "home.cycle.verdict.knapp": "Just within range",
   "home.cycle.verdict.over": "Over range",

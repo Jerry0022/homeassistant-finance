@@ -209,11 +209,11 @@ a:focus:not(:focus-visible),
   transition: opacity .12s;
 }
 @media (hover: hover) {
-  [data-tip]:hover::after { opacity: 1; visibility: visible; transition-delay: .35s; }
-  [data-tip-info]:hover::after { opacity: 1; visibility: visible; transition-delay: .8s; }
+  [data-tip]:hover::after { opacity: 1; visibility: visible; transition-delay: .5s; }
+  [data-tip-info]:hover::after { opacity: 1; visibility: visible; transition-delay: 1.5s; }
 }
 [data-tip]:focus-visible::after, [data-tip-info]:focus-visible::after {
-  opacity: 1; visibility: visible; transition-delay: .35s;
+  opacity: 1; visibility: visible; transition-delay: .5s;
 }
 @media (prefers-reduced-motion: reduce) {
   *,
