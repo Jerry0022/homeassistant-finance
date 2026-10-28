@@ -1,0 +1,146 @@
+"""Contracts, reserves and savings-account endpoints (cache only).
+
+Reads: admin sees everything; other users only shared/own contracts, reduced
+to aggregates (no payment history). Edits are admin-only.
+"""
+
+from __future__ import annotations
+
+from aiohttp import web
+from homeassistant.components.http import HomeAssistantView
+
+from ..const import DOMAIN
+from ..contracts import (
+    ContractError,
+    aggregate_view,
+    async_get_store,
+    build_contracts,
+    build_reserves,
+    set_account_savings,
+    visible_to,
+)
+from ..pots import pot_coverage
+from ..transfer_detector import get_effective_transactions
+from ._helpers import _get_manager
+
+
+def _is_admin(request: web.Request) -> bool:
+    user = request.get("hass_user")
+    return bool(user and user.is_admin)
+
+
+async def _contracts_for(request: web.Request, manager):
+    """All expense contracts from the cache (never hits the bank)."""
+    store = await async_get_store(request.app["hass"])
+    txns = get_effective_transactions(manager._transactions)  # noqa: SLF001
+    return store, build_contracts(txns, store)
+
+
+class FinanceDashboardContractsView(HomeAssistantView):
+    """Series + contract fields + derived deadlines, soonest deadline first."""
+
+    url = f"/api/{DOMAIN}/contracts"
+    name = f"api:{DOMAIN}:contracts"
+    requires_auth = True
+
+    async def get(self, request: web.Request) -> web.Response:
+        manager = _get_manager(request.app["hass"])
+        if not manager:
+            return self.json({"error": "Not configured"}, status_code=404)
+        _store, contracts = await _contracts_for(request, manager)
+        if _is_admin(request):
+            return self.json({"contracts": contracts})
+        person = manager.resolve_person(request.get("hass_user"))
+        shown = [aggregate_view(c) for c in contracts if visible_to(c, person)]
+        return self.json({"contracts": shown})
+
+
+class FinanceDashboardContractView(HomeAssistantView):
+    """Edit the contract fields of one series (admin only)."""
+
+    url = f"/api/{DOMAIN}/contracts/{{series_id}}"
+    name = f"api:{DOMAIN}:contract"
+    requires_auth = True
+
+    async def put(self, request: web.Request, series_id: str) -> web.Response:
+        if not _is_admin(request):
+            return self.json({"error": "admin_required"}, status_code=403)
+        manager = _get_manager(request.app["hass"])
+        if not manager:
+            return self.json({"error": "Not configured"}, status_code=404)
+        try:
+            body = await request.json()
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            return self.json(
+                {"error": "invalid_body", "detail": "Body must be a JSON object"},
+                status_code=400,
+            )
+        store, contracts = await _contracts_for(request, manager)
+        if not any(c["id"] == series_id for c in contracts):
+            return self.json({"error": "unknown_series"}, status_code=404)
+        contract = store.get(series_id)
+        try:
+            contract.apply(body)
+        except ContractError as err:
+            return self.json({"error": err.code, "detail": err.detail}, status_code=400)
+        store.contracts[series_id] = contract
+        await store.async_save()
+        _store, contracts = await _contracts_for(request, manager)
+        return self.json(next(c for c in contracts if c["id"] == series_id))
+
+
+class FinanceDashboardReservesView(HomeAssistantView):
+    """Monthly reserves for annual/irregular costs + pot coverage."""
+
+    url = f"/api/{DOMAIN}/reserves"
+    name = f"api:{DOMAIN}:reserves"
+    requires_auth = True
+
+    async def get(self, request: web.Request) -> web.Response:
+        manager = _get_manager(request.app["hass"])
+        if not manager:
+            return self.json({"error": "Not configured"}, status_code=404)
+        _store, contracts = await _contracts_for(request, manager)
+        if _is_admin(request):
+            coverage = pot_coverage(
+                manager.pots,
+                manager._accounts,  # noqa: SLF001
+                manager.get_cached_balances(),
+            )
+            return self.json({"reserves": build_reserves(contracts), "coverage": coverage})
+        person = manager.resolve_person(request.get("hass_user"))
+        shown = [c for c in contracts if visible_to(c, person)]
+        reserves = build_reserves(shown)
+        reserves["items"] = [
+            {k: i[k] for k in ("creditor", "owner", "interval", "next_due", "monthly_reserve")}
+            for i in reserves["items"]
+        ]
+        return self.json({"reserves": reserves, "coverage": None})
+
+
+class FinanceDashboardAccountSavingsView(HomeAssistantView):
+    """Flag an account as savings account (admin only)."""
+
+    url = f"/api/{DOMAIN}/accounts/{{key}}/savings"
+    name = f"api:{DOMAIN}:account_savings"
+    requires_auth = True
+
+    async def put(self, request: web.Request, key: str) -> web.Response:
+        if not _is_admin(request):
+            return self.json({"error": "admin_required"}, status_code=403)
+        manager = _get_manager(request.app["hass"])
+        if not manager:
+            return self.json({"error": "Not configured"}, status_code=404)
+        try:
+            body = await request.json()
+        except ValueError:
+            body = None
+        if not isinstance(body, dict) or not isinstance(body.get("savings"), bool):
+            return self.json(
+                {"error": "invalid_body", "detail": "Expected {savings: bool}"}, status_code=400
+            )
+        if not set_account_savings(manager, key, body["savings"]):
+            return self.json({"error": "unknown_account"}, status_code=404)
+        return self.json({"key": key, "savings": body["savings"]})

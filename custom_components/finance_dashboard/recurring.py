@@ -11,9 +11,11 @@ assigned to their logical month (with bank day correction).
 
 from __future__ import annotations
 
+import hashlib
 import logging
+import statistics
 from collections import defaultdict
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 _LOGGER = logging.getLogger(__name__)
@@ -152,3 +154,247 @@ def _most_common(values: list[int]) -> int:
     for v in values:
         counts[v] = counts.get(v, 0) + 1
     return max(counts, key=counts.get)
+
+
+# ---------------------------------------------------------------------------
+# Series of any interval (Phase 4d)
+# ---------------------------------------------------------------------------
+#
+# ``detect_recurring`` above stays the monthly-only detector that feeds the
+# home screen. ``detect_series`` is the wider model behind contracts and
+# reserves: weekly .. yearly, tolerances configurable, expected next date and
+# amount, a ``missing`` state, price-change detection and the annual cost.
+
+SERIES_AMOUNT_TOLERANCE = 0.20  # ±20 %
+SERIES_DATE_TOLERANCE_DAYS = 5  # ±5 days
+
+# interval -> (nominal days, payments per year, minimum occurrences)
+INTERVALS: dict[str, tuple[int, int, int]] = {
+    "weekly": (7, 52, 4),
+    "monthly": (30, 12, 2),
+    "quarterly": (91, 4, 2),
+    "half_yearly": (182, 2, 2),
+    "yearly": (365, 1, 2),
+}
+IRREGULAR_INTERVALS = ("quarterly", "half_yearly", "yearly")
+
+PLAN_MODE_HIGHEST = "highest"
+PLAN_MODE_AVERAGE = "average"
+PLAN_MODE_LAST = "last"
+PLAN_MODE_MEDIAN = "median"
+PLAN_MODE_FIXED = "fixed"
+PLAN_MODES = (
+    PLAN_MODE_HIGHEST,
+    PLAN_MODE_AVERAGE,
+    PLAN_MODE_LAST,
+    PLAN_MODE_MEDIAN,
+    PLAN_MODE_FIXED,
+)
+
+STATUS_ACTIVE = "active"
+STATUS_MISSING = "missing"  # overdue by more than the date tolerance
+STATUS_ENDED = "ended"  # overdue by more than two periods
+
+
+def series_id(creditor: str, negative: bool) -> str:
+    """Stable id from the normalized counterparty and the direction."""
+    raw = f"{_normalize_name(creditor)}|{'out' if negative else 'in'}"
+    return "s_" + hashlib.sha1(raw.encode()).hexdigest()[:12]  # noqa: S324 - not security
+
+
+def plan_amount(
+    amounts: list[float], mode: str = PLAN_MODE_HIGHEST, fixed: float | None = None
+) -> float:
+    """Amount (absolute) a series contributes to the plan, per ``mode``."""
+    mags = [abs(a) for a in amounts] or [0.0]
+    if mode == PLAN_MODE_FIXED and fixed is not None:
+        return round(abs(fixed), 2)
+    if mode == PLAN_MODE_AVERAGE:
+        return round(sum(mags) / len(mags), 2)
+    if mode == PLAN_MODE_LAST:
+        return round(mags[-1], 2)
+    if mode == PLAN_MODE_MEDIAN:
+        return round(statistics.median(mags), 2)
+    return round(max(mags), 2)
+
+
+def _classify_interval(dates: list[date], date_tol: int) -> str | None:
+    """Return the interval name when every gap fits it, else None."""
+    gaps = [(dates[i + 1] - dates[i]).days for i in range(len(dates) - 1)]
+    med = statistics.median(gaps)
+    for name, (nominal, _per_year, min_occ) in INTERVALS.items():
+        # weekly must not swallow neighbours; month-based periods drift by calendar
+        tol = min(date_tol, 2) if name == "weekly" else date_tol + 2
+        if abs(med - nominal) > tol:
+            continue
+        if len(dates) < min_occ:
+            return None
+        if all(abs(g - nominal) <= tol + 2 for g in gaps):
+            return name
+        return None
+    return None
+
+
+def _amounts_consistent(amounts: list[float], tolerance: float) -> bool:
+    """Stable within ``tolerance`` between payments, allowing one price step."""
+    mags = [abs(a) for a in amounts]
+    if not mags or min(mags) == 0:
+        return False
+    jumps = [
+        i for i in range(1, len(mags)) if abs(mags[i] - mags[i - 1]) / mags[i - 1] > tolerance
+    ]
+    if not jumps:
+        return True
+    if len(jumps) > 1:
+        return False
+    after = mags[jumps[0] :]
+    return all(abs(a - after[-1]) / after[-1] <= tolerance for a in after)
+
+
+def _parse_day(value: Any) -> date | None:
+    try:
+        return datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def detect_series(
+    transactions: list[dict[str, Any]],
+    *,
+    today: date | None = None,
+    amount_tolerance: float = SERIES_AMOUNT_TOLERANCE,
+    date_tolerance_days: int = SERIES_DATE_TOLERANCE_DAYS,
+    overrides: dict[str, dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Detect recurring series of any interval in booked transactions.
+
+    ``overrides`` maps a series id to ``{"plan_mode", "plan_fixed_amount"}``.
+    Amounts in the result are in the bank sign (expense negative).
+    """
+    today = today or date.today()
+    overrides = overrides or {}
+    groups: dict[tuple[str, bool], list[tuple[date, float, dict[str, Any]]]] = defaultdict(list)
+    for txn in transactions:
+        if txn.get("_status") != "booked":
+            continue
+        name = _normalize_name(txn.get("creditorName", "") or txn.get("debtorName", ""))
+        day = _parse_day(txn.get("bookingDate", ""))
+        if not name or day is None:
+            continue
+        try:
+            amount = float(txn.get("transactionAmount", {}).get("amount", 0))
+        except (TypeError, ValueError):
+            continue
+        if amount == 0:
+            continue
+        groups[(name, amount < 0)].append((day, amount, txn))
+
+    out: list[dict[str, Any]] = []
+    for (name, negative), rows in groups.items():
+        rows.sort(key=lambda r: r[0])
+        dedup: list[tuple[date, float, dict[str, Any]]] = []
+        for row in rows:  # same-day duplicates carry no interval information
+            if dedup and dedup[-1][0] == row[0]:
+                continue
+            dedup.append(row)
+        if len(dedup) < 2:
+            continue
+        interval = _classify_interval([r[0] for r in dedup], date_tolerance_days)
+        if interval is None or not _amounts_consistent([r[1] for r in dedup], amount_tolerance):
+            continue
+        out.append(
+            _build_series(name, negative, dedup, interval, today, date_tolerance_days, overrides)
+        )
+    out.sort(key=lambda s: s["annual_cost"], reverse=True)
+    return out
+
+
+def _most_common_value(values: list[Any], default: Any) -> Any:
+    counts: dict[Any, int] = {}
+    for v in values:
+        if v not in (None, ""):
+            counts[v] = counts.get(v, 0) + 1
+    return max(counts, key=counts.get) if counts else default
+
+
+def _build_series(
+    name: str,
+    negative: bool,
+    rows: list[tuple[date, float, dict[str, Any]]],
+    interval: str,
+    today: date,
+    date_tol: int,
+    overrides: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    nominal, per_year, _ = INTERVALS[interval]
+    dates = [r[0] for r in rows]
+    amounts = [r[1] for r in rows]
+    sid = series_id(name, negative)
+    ov = overrides.get(sid, {})
+    mode = ov.get("plan_mode") if ov.get("plan_mode") in PLAN_MODES else PLAN_MODE_HIGHEST
+    fixed = ov.get("plan_fixed_amount")
+    plan = plan_amount(amounts, mode, fixed)
+
+    next_expected = _add_period(dates[-1], interval)
+    overdue = (today - next_expected).days
+    if overdue > 2 * nominal:
+        status = STATUS_ENDED
+    elif overdue > date_tol:
+        status = STATUS_MISSING
+    else:
+        status = STATUS_ACTIVE
+
+    sign = -1.0 if negative else 1.0
+    price_change = None
+    if len(amounts) >= 2 and round(abs(amounts[-1]), 2) != round(abs(amounts[-2]), 2):
+        prev, last = abs(amounts[-2]), abs(amounts[-1])
+        price_change = {
+            "previous": round(sign * prev, 2),
+            "last": round(sign * last, 2),
+            "change_pct": round((last - prev) / prev * 100, 1) if prev else None,
+            "increase": last > prev,
+            "date": dates[-1].isoformat(),
+        }
+
+    txns = [r[2] for r in rows]
+    return {
+        "id": sid,
+        "creditor": name,
+        "direction": "out" if negative else "in",
+        "interval": interval,
+        "period_days": nominal,
+        "occurrences": len(rows),
+        "first_seen": dates[0].isoformat(),
+        "last_seen": dates[-1].isoformat(),
+        "expected_day": _most_common([d.day for d in dates]),
+        "last_amount": round(amounts[-1], 2),
+        "previous_amount": round(amounts[-2], 2) if len(amounts) >= 2 else None,
+        "amounts": [round(a, 2) for a in amounts[-12:]],
+        "dates": [d.isoformat() for d in dates[-12:]],
+        "next_expected": next_expected.isoformat(),
+        "expected_amount": round(sign * plan, 2),
+        "plan_mode": mode,
+        "plan_fixed_amount": fixed if mode == PLAN_MODE_FIXED else None,
+        "plan_amount": round(sign * plan, 2),
+        "annual_cost": round(plan * per_year, 2),
+        "status": status,
+        "price_change": price_change,
+        "category": _most_common_value([t.get("category") for t in txns], "other"),
+        "account_key": _most_common_value([t.get("_account_key") for t in txns], ""),
+        "account_type": _most_common_value([t.get("_account_type") for t in txns], "personal"),
+        "account_person": _most_common_value([t.get("_account_person") for t in txns], ""),
+    }
+
+
+def add_months(day: date, months: int) -> date:
+    """``day`` plus ``months`` calendar months, clamped to the month length."""
+    year, month0 = divmod(day.year * 12 + (day.month - 1) + months, 12)
+    month = month0 + 1
+    first_next = date(year + (month == 12), month % 12 + 1, 1)
+    return date(year, month, min(day.day, (first_next - timedelta(days=1)).day))
+
+
+def _add_period(start: date, interval: str) -> date:
+    """Next occurrence: calendar months for month-based intervals, 7 days weekly."""
+    months = {"monthly": 1, "quarterly": 3, "half_yearly": 6, "yearly": 12}.get(interval)
+    return start + timedelta(days=7) if months is None else add_months(start, months)

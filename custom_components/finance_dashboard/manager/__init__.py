@@ -423,6 +423,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
                 acc_data["person"] = account.get("person", "")
                 acc_data["ha_users"] = account.get("ha_users", [])
                 acc_data["custom_name"] = account.get("custom_name", "")
+                acc_data["savings"] = bool(account.get("savings"))
                 acc_data["institution"] = account.get("institution", "")
                 acc_data["logo"] = account.get("logo", "")
                 refreshed.append(acc_data)
