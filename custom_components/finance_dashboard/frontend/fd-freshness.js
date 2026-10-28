@@ -1,0 +1,300 @@
+/**
+ * fd-freshness — "Aktualität" subpage: how current the data is and why to trust it.
+ *
+ *   GET finance_dashboard/freshness   (cache read; contract: docs/dev/contracts/reprocess.md)
+ *     non-admin: {as_of, last_import}
+ *     admin:     + last_reprocess, processing_version, log[], validity[], derivation
+ *
+ * Reached from the Start tab's freshness icon (fd-home) and the Overview bank
+ * card; both dispatch the bubbling `fd-navigate` event with {target:"freshness"},
+ * which the panel turns into showing this component.
+ *
+ * Properties: hass (required), reload().
+ * Events (bubbling, composed):
+ *   fd-freshness-back    — Zurück pressed (panel shows the previous tab again)
+ *   fd-refresh-requested — "Neu importieren" (admin)
+ *   fd-reprocess-requested — "Aktualisieren" (admin)
+ */
+
+const DOMAIN = "finance_dashboard";
+
+/*FB-START*/
+const FB = {
+  de: {
+    "fr.back": "Zurück",
+    "fr.title": "Aktualität",
+    "fr.loading": "Wird geladen …",
+    "fr.error": "Die Aktualität konnte nicht geladen werden.",
+    "fr.retry": "Erneut versuchen",
+    "fr.as_of": "Stand",
+    "fr.last_import": "Letzter Import",
+    "fr.last_reprocess": "Letzte Aufbereitung",
+    "fr.version": "Verarbeitungsversion",
+    "fr.never": "noch nie",
+    "fr.say.fresh": "Die Daten stammen vom $time.",
+    "fr.say.noimport": "Es wurde noch nichts von der Bank importiert. „Neu importieren“ holt die Umsätze.",
+    "fr.import": "Neu importieren",
+    "fr.reprocess": "Aktualisieren",
+    "fr.log.title": "Protokoll",
+    "fr.log.say": "Jeder Import und jede Aufbereitung – ohne Beträge oder Kontonummern.",
+    "fr.log.empty": "Noch keine Einträge. Nach dem nächsten Import erscheint er hier.",
+    "fr.log.new": "$n neu",
+    "fr.log.total": "$n gesamt",
+    "fr.kind.import_attended": "Import (von dir ausgelöst)",
+    "fr.kind.import_scheduled": "Import (täglich automatisch)",
+    "fr.kind.reprocess": "Aktualisierung (ohne Bank)",
+    "fr.kind.processing_upgrade": "Automatische Neuaufbereitung nach Update",
+    "fr.outcome.ok": "erfolgreich",
+    "fr.outcome.partial": "teilweise",
+    "fr.outcome.rate_limited": "Bank-Limit erreicht",
+    "fr.outcome.error": "fehlgeschlagen",
+    "fr.outcome.rebuilt": "neu aufgebaut",
+    "fr.outcome.empty": "keine Rohdaten",
+    "fr.outcome.unavailable": "nicht verfügbar",
+    "fr.valid.title": "Stimmen die Monate?",
+    "fr.valid.say": "Pro Konto und Monat: Der Saldo-Unterschied zwischen erstem und letztem Stand muss zu den Buchungen passen.",
+    "fr.valid.ok": "stimmt",
+    "fr.valid.gap": "Lücke $amount",
+    "fr.valid.unknown": "unbekannt",
+    "fr.valid.empty": "Noch nicht prüfbar – dafür braucht es mindestens zwei Saldenstände an verschiedenen Tagen eines Monats.",
+    "fr.valid.more": "Weitere Monate ($n)",
+    "fr.valid.gaps_one": "In einem Monat gibt es eine Lücke. Meist fehlen Buchungen aus der Zeit vor dem ersten Import.",
+    "fr.valid.gaps": "In $n Monaten gibt es eine Lücke. Meist fehlen Buchungen aus der Zeit vor dem ersten Import.",
+    "fr.valid.allok": "Alle geprüften Monate stimmen.",
+    "fr.deriv.title": "Geht beim Auswerten etwas verloren?",
+    "fr.deriv.ok": "Nein. Alle $n Buchungen sind vollständig in Kategorien und Umbuchungen eingeflossen.",
+    "fr.deriv.bad": "Ja: $diff weichen ab ($ledger Buchungen im Bestand, $derived ausgewertet). „Aktualisieren“ baut alles aus den gespeicherten Rohdaten neu auf.",
+    "fr.nonadmin": "Details zu Import und Prüfung sieht nur ein Administrator.",
+  },
+  en: {
+    "fr.back": "Back",
+    "fr.title": "Freshness",
+    "fr.loading": "Loading …",
+    "fr.error": "Freshness could not be loaded.",
+    "fr.retry": "Try again",
+    "fr.as_of": "As of",
+    "fr.last_import": "Last import",
+    "fr.last_reprocess": "Last processing",
+    "fr.version": "Processing version",
+    "fr.never": "never",
+    "fr.say.fresh": "The data is from $time.",
+    "fr.say.noimport": "Nothing has been imported from the bank yet. \"Import again\" fetches the transactions.",
+    "fr.import": "Import again",
+    "fr.reprocess": "Refresh",
+    "fr.log.title": "Log",
+    "fr.log.say": "Every import and processing run – without amounts or account numbers.",
+    "fr.log.empty": "No entries yet. The next import will show up here.",
+    "fr.log.new": "$n new",
+    "fr.log.total": "$n total",
+    "fr.kind.import_attended": "Import (triggered by you)",
+    "fr.kind.import_scheduled": "Import (daily, automatic)",
+    "fr.kind.reprocess": "Refresh (no bank)",
+    "fr.kind.processing_upgrade": "Automatic reprocessing after an update",
+    "fr.outcome.ok": "succeeded",
+    "fr.outcome.partial": "partly",
+    "fr.outcome.rate_limited": "bank limit reached",
+    "fr.outcome.error": "failed",
+    "fr.outcome.rebuilt": "rebuilt",
+    "fr.outcome.empty": "no raw data",
+    "fr.outcome.unavailable": "unavailable",
+    "fr.valid.title": "Do the months add up?",
+    "fr.valid.say": "Per account and month: the balance change between first and last reading must match the bookings.",
+    "fr.valid.ok": "matches",
+    "fr.valid.gap": "gap $amount",
+    "fr.valid.unknown": "unknown",
+    "fr.valid.empty": "Not checkable yet – it needs at least two balance readings on different days of a month.",
+    "fr.valid.more": "More months ($n)",
+    "fr.valid.gaps_one": "One month has a gap. Usually bookings from before the first import are missing.",
+    "fr.valid.gaps": "$n months have a gap. Usually bookings from before the first import are missing.",
+    "fr.valid.allok": "All checked months match.",
+    "fr.deriv.title": "Is anything lost while evaluating?",
+    "fr.deriv.ok": "No. All $n bookings flowed completely into categories and transfers.",
+    "fr.deriv.bad": "Yes: $diff differ ($ledger bookings stored, $derived evaluated). \"Refresh\" rebuilds everything from the stored raw data.",
+    "fr.nonadmin": "Only an administrator sees import and check details.",
+  },
+};
+/*FB-END*/
+
+function tr(key, vars = {}) {
+  let s = window._fd.tSync(key, vars);
+  if (s !== key) return s;
+  const raw = ((window._fd._hass && window._fd._hass.language) || navigator.language || "en").toLowerCase();
+  s = (FB[raw.startsWith("de") ? "de" : "en"][key]) || key;
+  for (const [k, v] of Object.entries(vars)) s = s.replace(new RegExp(`\\$${k}`, "g"), String(v));
+  return s;
+}
+
+const CSS = `
+:host { display: block; }
+.root { color: var(--fd-t1); font-size: 13px; line-height: 1.4; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.top { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.top h2 { margin: 0; font-size: 18px; font-weight: 500; }
+.back { display: inline-flex; align-items: center; gap: 4px; min-height: var(--fd-touch); padding: 0 14px 0 8px; border: 0; border-radius: var(--fd-r-pill); background: transparent; color: var(--fd-a700); font-weight: 500; }
+.back:hover { background: var(--fd-a50); }
+.card { padding: 14px 16px; border-radius: var(--fd-r-card); background: var(--fd-card); box-shadow: var(--fd-sh1); margin-bottom: 12px; }
+h3 { margin: 0 0 2px; font-size: 14px; font-weight: 500; }
+.say { margin: 4px 0 8px; color: var(--fd-t2); font-size: 12.5px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 16px; margin-top: 10px; }
+.facts .lab { color: var(--fd-t2); font-size: 11.5px; }
+.facts .v { font-weight: 500; font-variant-numeric: tabular-nums; }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.btn { min-height: var(--fd-touch); padding: 0 16px; border: 1px solid transparent; border-radius: var(--fd-r-pill); background: var(--fd-a700); color: #fff; font-weight: 500; }
+.btn.ghost { background: transparent; color: var(--fd-a700); border-color: var(--fd-a100); }
+.row { display: flex; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; padding: 8px 0; }
+.row + .row { border-top: 1px solid var(--fd-line); }
+.row .l { flex: 1 1 200px; min-width: 0; }
+.row .l b { font-weight: 500; display: block; }
+.row .l span, .row .r span { color: var(--fd-t2); font-size: 11.5px; }
+.row .r { text-align: right; }
+.chip { display: inline-flex; align-items: center; padding: 1px 10px; border-radius: var(--fd-r-pill); font-size: 11.5px; font-weight: 500; white-space: nowrap; }
+.chip.ok { background: var(--fd-ok-bg); color: var(--fd-ok); }
+.chip.near { background: var(--fd-near-bg); color: var(--fd-near); }
+.chip.over { background: var(--fd-over-bg); color: var(--fd-over); }
+.chip.unk { background: var(--fd-sunk); color: var(--fd-t2); }
+.acc { margin-top: 10px; font-weight: 500; }
+details { margin-top: 4px; }
+summary { min-height: var(--fd-touch); display: flex; align-items: center; color: var(--fd-t2); cursor: pointer; }
+.empty { color: var(--fd-t2); line-height: 1.6; }
+.empty b { display: block; color: var(--fd-t1); font-weight: 500; }
+.empty .btn { margin-top: 10px; }
+`;
+
+const OUTCOME_CLS = { ok: "ok", rebuilt: "ok", partial: "near", rate_limited: "near", empty: "unk", unavailable: "unk", error: "over" };
+
+class FdFreshness extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._hass = null;
+    this._d = null;
+    this._state = "loading"; // loading | ok | error
+    this._seq = 0;
+    this._built = false;
+  }
+
+  set hass(h) {
+    const first = !this._hass;
+    this._hass = h;
+    if (first) this.reload();
+  }
+
+  get _isAdmin() { return !!(this._hass && this._hass.user && this._hass.user.is_admin); }
+
+  async reload() {
+    if (!this._hass) return;
+    const seq = ++this._seq;
+    await window._fd.t("fr.title");
+    if (!this._built) { this._built = true; this._bind(); }
+    if (!this._d) { this._state = "loading"; this._render(); }
+    try {
+      const r = await this._hass.callApi("GET", `${DOMAIN}/freshness`);
+      if (seq !== this._seq) return;
+      this._d = r || {};
+      this._state = "ok";
+    } catch (e) {
+      if (seq !== this._seq) return;
+      this._state = "error";
+    }
+    this._render();
+  }
+
+  _bind() {
+    const sh = this.shadowRoot;
+    sh.addEventListener("click", (ev) => {
+      const t = ev.target.closest("[data-act]");
+      if (!t) return;
+      const fire = (n) => this.dispatchEvent(new CustomEvent(n, { bubbles: true, composed: true }));
+      switch (t.dataset.act) {
+        case "back": fire("fd-freshness-back"); break;
+        case "import": fire("fd-refresh-requested"); break;
+        case "reprocess": fire("fd-reprocess-requested"); break;
+        case "retry": this.reload(); break;
+        default: break;
+      }
+    });
+    sh.addEventListener("keydown", (ev) => { if (ev.key === "Escape") this.dispatchEvent(new CustomEvent("fd-freshness-back", { bubbles: true, composed: true })); });
+  }
+
+  _render() {
+    if (!this._built) return;
+    const { SHARED_CSS } = window._fd;
+    let body;
+    if (this._state === "loading") body = `<div class="card"><div class="empty">${tr("fr.loading")}</div></div>`;
+    else if (this._state === "error") {
+      body = `<div class="card"><div class="empty"><b>${tr("fr.error")}</b><button class="btn ghost" data-act="retry">${tr("fr.retry")}</button></div></div>`;
+    } else body = this._body(this._d || {});
+    this.shadowRoot.innerHTML = `<style>${SHARED_CSS}${CSS}</style><div class="root">
+  <div class="top"><button class="back" data-act="back" aria-label="${tr("fr.back")}"><span aria-hidden="true">←</span>${tr("fr.back")}</button><h2>${tr("fr.title")}</h2></div>
+  ${body}</div>`;
+  }
+
+  _body(d) {
+    const { escHtml, eur, fmtDate } = window._fd;
+    const when = (iso) => (iso ? fmtDate(iso, true) : tr("fr.never"));
+    const admin = this._isAdmin;
+    const say = d.last_import ? tr("fr.say.fresh", { time: when(d.as_of) }) : tr("fr.say.noimport");
+    const facts = [
+      [tr("fr.as_of"), when(d.last_import ? d.as_of : null)],
+      [tr("fr.last_import"), when(d.last_import)],
+    ];
+    if (admin) {
+      facts.push([tr("fr.last_reprocess"), when(d.last_reprocess)]);
+      if (d.processing_version != null) facts.push([tr("fr.version"), String(d.processing_version)]);
+    }
+    let h = `<div class="card"><h3>${tr("fr.as_of")}</h3><p class="say">${escHtml(say)}</p>
+  <div class="facts">${facts.map(([l, v]) => `<div><div class="lab">${escHtml(l)}</div><div class="v">${escHtml(v)}</div></div>`).join("")}</div>
+  ${admin ? `<div class="acts"><button class="btn" data-act="import">${tr("fr.import")}</button><button class="btn ghost" data-act="reprocess">${tr("fr.reprocess")}</button></div>` : ""}</div>`;
+    if (!admin) return h + `<div class="card"><div class="empty">${tr("fr.nonadmin")}</div></div>`;
+
+    // Log
+    const log = d.log || [];
+    const rows = log.map((e) => {
+      const kind = tr("fr.kind." + e.kind);
+      const kindTxt = kind === "fr.kind." + e.kind ? e.kind : kind;
+      const oc = tr("fr.outcome." + e.outcome);
+      const ocTxt = oc === "fr.outcome." + e.outcome ? (e.outcome || "") : oc;
+      const meta = [
+        (e.banks || []).length ? e.banks.join(", ") : "",
+        e.new != null ? tr("fr.log.new", { n: e.new }) : "",
+        e.total != null ? tr("fr.log.total", { n: e.total }) : "",
+        e.duration_ms != null ? `${(e.duration_ms / 1000).toFixed(1)} s` : "",
+      ].filter(Boolean).join(" · ");
+      return `<div class="row"><div class="l"><b>${escHtml(kindTxt)}</b><span>${escHtml(fmtDate(e.at, true))}${meta ? " · " + escHtml(meta) : ""}</span></div>
+  <div class="r"><span class="chip ${OUTCOME_CLS[e.outcome] || "unk"}">${escHtml(ocTxt)}</span></div></div>`;
+    });
+    h += `<div class="card"><h3>${tr("fr.log.title")}</h3><p class="say">${tr("fr.log.say")}</p>
+  ${rows.length ? rows.slice(0, 8).join("") + (rows.length > 8 ? `<details><summary>${escHtml(tr("fr.valid.more", { n: rows.length - 8 }))}</summary>${rows.slice(8).join("")}</details>` : "")
+    : `<div class="empty">${tr("fr.log.empty")}</div>`}</div>`;
+
+    // Validity per account
+    const val = d.validity || [];
+    const byAcc = new Map();
+    for (const v of val) { if (!byAcc.has(v.account_name)) byAcc.set(v.account_name, []); byAcc.get(v.account_name).push(v); }
+    const lang = (window._fd._hass && window._fd._hass.language) || navigator.language || "de";
+    const mfmt = (m) => new Date(m + "-01T00:00:00").toLocaleDateString(lang, { month: "long", year: "numeric" });
+    const vrow = (v) => {
+      const cls = v.status === "ok" ? "ok" : v.status === "gap" ? "near" : "unk";
+      const txt = v.status === "ok" ? tr("fr.valid.ok") : v.status === "gap" ? tr("fr.valid.gap", { amount: eur(Math.abs(v.diff || 0)) }) : tr("fr.valid.unknown");
+      return `<div class="row"><div class="l">${escHtml(mfmt(v.month))}</div><div class="r"><span class="chip ${cls}">${escHtml(txt)}</span></div></div>`;
+    };
+    const gaps = val.filter((v) => v.status === "gap").length;
+    const vsum = !val.length ? "" : gaps ? tr(gaps === 1 ? "fr.valid.gaps_one" : "fr.valid.gaps", { n: gaps }) : val.some((v) => v.status === "ok") ? tr("fr.valid.allok") : "";
+    const vbody = [...byAcc.entries()].map(([acc, list]) => `<div class="acc">${escHtml(acc)}</div>${list.slice(0, 3).map(vrow).join("")}
+  ${list.length > 3 ? `<details><summary>${escHtml(tr("fr.valid.more", { n: list.length - 3 }))}</summary>${list.slice(3).map(vrow).join("")}</details>` : ""}`).join("");
+    h += `<div class="card"><h3>${tr("fr.valid.title")}</h3><p class="say">${escHtml(vsum || tr("fr.valid.say"))}</p>
+  ${val.length ? vbody : `<div class="empty">${tr("fr.valid.empty")}</div>`}</div>`;
+
+    // Derivation check
+    const dv = d.derivation;
+    if (dv && (dv.ledger_count || !dv.ok)) {
+      const txt = dv.ok ? tr("fr.deriv.ok", { n: dv.ledger_count ?? 0 })
+        : tr("fr.deriv.bad", { diff: eur(Math.abs(dv.diff || 0)), ledger: dv.ledger_count ?? 0, derived: dv.derived_count ?? 0 });
+      h += `<div class="card"><h3>${tr("fr.deriv.title")} <span class="chip ${dv.ok ? "ok" : "near"}">${escHtml(dv.ok ? tr("fr.valid.ok") : eur(Math.abs(dv.diff || 0)))}</span></h3>
+  <p class="say" style="margin-bottom:0">${escHtml(txt)}</p></div>`;
+    }
+    return h;
+  }
+}
+
+window._fd.defineOnce("fd-freshness", FdFreshness);

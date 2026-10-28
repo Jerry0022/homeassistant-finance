@@ -32,6 +32,8 @@ const COMPONENTS = [
   "fd-header.js",
   "fd-stats-row.js",
   "fd-household-section.js",
+  "fd-household-cycle.js",
+  "fd-freshness.js",
   "fd-budget-plan.js",
   "fd-category-section.js",
   "fd-cost-distribution.js",
