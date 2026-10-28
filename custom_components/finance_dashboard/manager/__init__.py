@@ -717,9 +717,21 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
 
         Returns the import report (counts and warnings only, never amounts).
         """
+        return await self._async_import_workbook(path)
+
+    async def async_import_spreadsheet_bytes(self, data: bytes) -> dict[str, Any]:
+        """Import a household workbook from raw ``.xlsx`` bytes.
+
+        Used by the upload and the Google Sheets import — the bytes are parsed
+        in memory and never written to disk.
+        """
+        return await self._async_import_workbook(data)
+
+    async def _async_import_workbook(self, source: str | bytes) -> dict[str, Any]:
+        """Parse a workbook in the executor and replace the plan with it."""
         from ..spreadsheet_import import parse_workbook
 
-        plan, report = await self._hass.async_add_executor_job(parse_workbook, path)
+        plan, report = await self._hass.async_add_executor_job(parse_workbook, source)
         await self._plan_store.async_save(plan)
         _LOGGER.info(
             "Budget plan replaced by spreadsheet import: %d positions, %d persons",

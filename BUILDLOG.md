@@ -1,5 +1,14 @@
 # Build Log
 
+## 0.21.0 — 2026-10-28
+Version: 0.21.0
+Branch: claude/gerade-aktualisierung-fehler-571559
+Changes:
+- feat(setup): the budget-plan step imports the household spreadsheet directly — upload an .xlsx file or paste a Google Sheets link; before, it only pointed to the import_spreadsheet service and a file in the config folder
+- feat(api): `POST /budget_plan/upload` (base64 .xlsx, max 5 MB, parsed in memory, never written to disk) and `POST /budget_plan/import_url` (Google Sheets shared "anyone with the link"; only the sheet id is taken from the link and the export URL on docs.google.com is built by the integration, so a pasted link cannot target another host); both admin-only
+- docs(security): the Google Sheets export download is the one further allowed external call — user-triggered, nothing sent
+- test: link parsing and host rejection, upload decoding, size cap, unshared-sheet detection, parsing from bytes, admin gating of both endpoints
+
 ## 0.20.2 — 2026-10-28
 Version: 0.20.2
 Branch: claude/finance-own-name-0-20-2

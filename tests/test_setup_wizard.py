@@ -313,6 +313,7 @@ def _patch_manager(monkeypatch, module, mgr):
     ("FinanceDashboardTransferPlanView", "get"), ("FinanceDashboardBenchmarkView", "get"),
     ("FinanceDashboardTransferChainsView", "get"),
     ("FinanceDashboardAssignmentsView", "get"),
+    ("FinanceDashboardPlanUploadView", "post"), ("FinanceDashboardPlanImportUrlView", "post"),
 ])
 async def test_admin_only_endpoints_refuse_members(name, method, monkeypatch) -> None:
     from custom_components.finance_dashboard import api

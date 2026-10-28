@@ -27,7 +27,7 @@ Ownership resolves in a fixed chain: the account's owner (person or shared) is o
 3. **JWT auth**: short-lived (60s) RS256 JWTs per request; RSA key only in memory. PSU session max 180 days, forced re-auth after 90 by policy.
 4. **Session timeout** 30 min; **audit trail** logs event type + timestamp only, never values.
 5. **IBAN masking** (last 4 digits) in API responses; endpoints require HA auth; individual transactions are admin-only.
-6. **No external calls** except the Enable Banking API and the user's opt-in AI categorisation (HA AI functions first; payload merchant + remittance text only, never amount, IBAN or date). No telemetry, no runtime benchmark fetch.
+6. **No external calls** except the Enable Banking API and the user's opt-in AI categorisation (HA AI functions first; payload merchant + remittance text only, never amount, IBAN or date). The one further exception is the user-triggered budget-plan import from a Google Sheets link: only the xlsx export of that sheet id is downloaded from `docs.google.com` (`sheet_source.py`, URL built from the id, never the pasted URL), nothing is sent. No telemetry, no runtime benchmark fetch.
 
 **Before every commit, verify:** `git diff --cached` has zero financial data (account numbers, balances, tokens); no `.storage/` files staged; no `credentials.json` / `tokens.json` staged.
 
