@@ -399,7 +399,7 @@ class FdHome extends HTMLElement {
     let h = "";
     if (this._freshOpen && d.freshness) {
       const when = d.freshness.as_of ? new Date(d.freshness.as_of).toLocaleString(this._lang(), { dateStyle: "short", timeStyle: "short" }) : "";
-      h += `<div class="fnote">${this._t("home.fresh.as_of", { time: this._e(when) })} <button class="btn" data-act="refresh">${this._t("home.fresh.refresh")}</button></div>`;
+      h += `<div class="fnote">${this._t("home.fresh.as_of", { time: this._e(when) })} <button class="btn" data-act="refresh">${this._t("home.fresh.refresh")}</button> <button class="btn ghost" data-act="freshpage">${this._t("home.fresh.details")}</button></div>`;
     }
     if (this._alertsOpen && (d.alerts || []).length) {
       h += `<div class="panel" role="region" aria-label="${this._t("home.alert.open")}">${d.alerts.map((a) => `
@@ -738,6 +738,7 @@ class FdHome extends HTMLElement {
     switch (t.dataset.act) {
       case "alerts": this._alertsOpen = !this._alertsOpen; this._paint(); break;
       case "fresh": this._freshOpen = !this._freshOpen; this._paint(); break;
+      case "freshpage": this.dispatchEvent(new CustomEvent("fd-navigate", { bubbles: true, composed: true, detail: { target: "freshness" } })); break;
       case "refresh": this.dispatchEvent(new CustomEvent("fd-refresh-requested", { bubbles: true, composed: true })); break;
       case "renew": window._fd.navigate(window._fd.INTEGRATION_PATH, e); break;
       case "ask":

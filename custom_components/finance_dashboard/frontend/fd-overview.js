@@ -36,6 +36,20 @@ const FB = {
     "ov.unassigned.one": "1 Konto ist noch niemandem zugeordnet",
     "ov.unassigned.other": "$n Konten sind noch niemandem zugeordnet",
     "ov.unassigned.action": "Jetzt zuordnen",
+    "ov.import.btn": "Neu importieren",
+    "ov.import.busy": "Importiere …",
+    "ov.import.tip": "Holt Rohdaten von der Bank und wertet sie aus. Zählt nicht gegen das automatische Limit.",
+    "ov.reprocess.btn": "Aktualisieren",
+    "ov.reprocess.busy": "Aktualisiere …",
+    "ov.reprocess.tip": "Wertet die gespeicherten Rohdaten neu aus. Kein Bankabruf.",
+    "ov.reprocess.ok": "Aktualisiert — $tx Buchungen aus $snapshots Abrufen neu ausgewertet (Version $version).",
+    "ov.reprocess.empty": "Noch keine gespeicherten Rohdaten — „Neu importieren“ holt sie von der Bank.",
+    "ov.reprocess.unavailable": "Aktualisieren ist gerade nicht möglich (kein Rohdaten-Archiv).",
+    "ov.reprocess.error": "Aktualisieren fehlgeschlagen — die bisherigen Daten bleiben erhalten.",
+    "ov.reprocess.admin": "Nur Administratoren können aktualisieren.",
+    "ov.fresh.link": "Aktualität & Prüfung",
+    "ov.fresh.last": "Zuletzt importiert: $date",
+    "ov.fresh.never": "Noch nichts importiert",
   },
   en: {
     "ov.persons.title": "People & household",
@@ -51,6 +65,20 @@ const FB = {
     "ov.unassigned.one": "1 account is not assigned to anyone yet",
     "ov.unassigned.other": "$n accounts are not assigned to anyone yet",
     "ov.unassigned.action": "Assign now",
+    "ov.import.btn": "Import again",
+    "ov.import.busy": "Importing …",
+    "ov.import.tip": "Fetches raw data from the bank and processes it. Does not count against the automatic limit.",
+    "ov.reprocess.btn": "Refresh",
+    "ov.reprocess.busy": "Refreshing …",
+    "ov.reprocess.tip": "Re-processes the stored raw data. No bank call.",
+    "ov.reprocess.ok": "Refreshed — $tx bookings from $snapshots fetches re-evaluated (version $version).",
+    "ov.reprocess.empty": "No stored raw data yet — \"Import again\" fetches it from the bank.",
+    "ov.reprocess.unavailable": "Refreshing is not possible right now (no raw archive).",
+    "ov.reprocess.error": "Refreshing failed — the previous data is kept.",
+    "ov.reprocess.admin": "Only administrators can refresh.",
+    "ov.fresh.link": "Freshness & checks",
+    "ov.fresh.last": "Last import: $date",
+    "ov.fresh.never": "Nothing imported yet",
   },
 };
 
@@ -106,6 +134,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .facts { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 4px; color: var(--fd-t2); font-size: 11.5px; overflow-wrap: anywhere; }
 .facts .warn { color: var(--fd-over); }
 
+.acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--fd-line); }
+.acts .lastimp { flex: 1 1 100%; font-size: 11.5px; }
 .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 8px; }
 .filters input, .filters select { box-sizing: border-box; min-height: var(--fd-touch); padding: 0 12px; border: 1px solid var(--fd-line); border-radius: 10px; background: var(--fd-page); color: var(--fd-t1); font: inherit; max-width: 100%; }
 .filters input { flex: 1 1 200px; min-width: 0; }
@@ -173,6 +203,7 @@ class FdOverview extends HTMLElement {
         .filter(([, a]) => a && typeof a === "object" && !a.error)
         .map(([id, a]) => ({ id, ...a }));
       this._banks = (status && status.banks) || [];
+      this._lastImport = this._banks.map((b) => b.last_success).filter(Boolean).sort().pop() || null;
       this._error = false;
     } catch (e) {
       console.warn("fd-overview: load failed:", e);
@@ -252,6 +283,9 @@ class FdOverview extends HTMLElement {
     sh.addEventListener("click", (ev) => {
       const a = ev.target.closest("[data-nav]");
       if (a) { window._fd.navigate(a.getAttribute("href") || window._fd.INTEGRATION_PATH, ev); return; }
+      if (ev.target.closest("#btnImport")) { this.dispatchEvent(new CustomEvent("fd-refresh-requested", { bubbles: true, composed: true })); return; }
+      if (ev.target.closest("#btnReprocess")) { this.reprocess(); return; }
+      if (ev.target.closest("#btnFresh")) { this.dispatchEvent(new CustomEvent("fd-navigate", { bubbles: true, composed: true, detail: { target: "freshness" } })); return; }
       if (ev.target.closest("[data-goto-settings]")) {
         const el = sh.getElementById("settings");
         el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -349,9 +383,72 @@ ${cards.length ? `<div class="grid">${cards.join("")}</div>`
     <a class="btn ghost sm" data-nav href="${window._fd.INTEGRATION_PATH}">${tSync("ov.banks.manage")}</a>
   </div>
   ${bankRows.length ? bankRows.join("") : `<div class="empty">${tSync("ov.banks.empty")}</div>`}
+  ${this._isAdmin && bankRows.length ? this._actionsHtml() : ""}
 </div>`;
+    this._syncActions();
 
     this._renderFilters();
+  }
+
+  /** Import / refresh buttons of the bank card (admin only) + the link to the freshness page. */
+  _actionsHtml() {
+    const { escHtml, fmtDate } = window._fd;
+    const last = this._lastImport ? tr("ov.fresh.last", { date: fmtDate(this._lastImport, true) }) : tr("ov.fresh.never");
+    return `<div class="acts">
+  <button type="button" class="btn" id="btnImport" data-tip="${escHtml(tr("ov.import.tip"))}">${escHtml(tr("ov.import.btn"))}</button>
+  <button type="button" class="btn ghost" id="btnReprocess" data-tip="${escHtml(tr("ov.reprocess.tip"))}">${escHtml(tr("ov.reprocess.btn"))}</button>
+  <button type="button" class="btn ghost" id="btnFresh">${escHtml(tr("ov.fresh.link"))}</button>
+  <span class="muted lastimp">${escHtml(last)}</span>
+</div>`;
+  }
+
+  /** Busy/disabled state of the two buttons (import comes from the panel, refresh is ours). */
+  _syncActions() {
+    const imp = this.shadowRoot.getElementById("btnImport");
+    const rep = this.shadowRoot.getElementById("btnReprocess");
+    const busy = !!(this._importing || this._reprocessing);
+    if (imp) {
+      imp.disabled = busy;
+      imp.textContent = this._importing ? tr("ov.import.busy") : tr("ov.import.btn");
+      imp.setAttribute("aria-busy", String(!!this._importing));
+    }
+    if (rep) {
+      rep.disabled = busy;
+      rep.textContent = this._reprocessing ? tr("ov.reprocess.busy") : tr("ov.reprocess.btn");
+      rep.setAttribute("aria-busy", String(!!this._reprocessing));
+    }
+  }
+
+  /** Set by the panel while an attended import runs. */
+  set importing(v) { this._importing = !!v; this._syncActions(); }
+
+  /** POST /reprocess: re-derive from stored raw data, never a bank call. The toast carries the stats. */
+  async reprocess() {
+    if (this._reprocessing || !this._hass) return;
+    this._reprocessing = true;
+    this._syncActions();
+    const toast = (message, type) => this.dispatchEvent(new CustomEvent("fd-toast", { bubbles: true, composed: true, detail: { message, type } }));
+    try {
+      const r = await this._hass.callApi("POST", `${DOMAIN}/reprocess`);
+      const st = (r && r.stats) || {};
+      if (r && r.ok && st.outcome === "rebuilt") {
+        toast(tr("ov.reprocess.ok", { tx: st.transactions ?? 0, snapshots: st.snapshots ?? 0, version: st.version ?? "" }), "success");
+      } else if (r && r.ok) {
+        toast(tr("ov.reprocess.empty"), "info");
+      } else if (st.outcome === "unavailable") {
+        toast(tr("ov.reprocess.unavailable"), "warn");
+      } else {
+        toast(tr("ov.reprocess.error"), "error");
+      }
+    } catch (e) {
+      const denied = e && (e.status_code === 403 || (e.body && e.body.error === "admin_required"));
+      toast(tr(denied ? "ov.reprocess.admin" : "ov.reprocess.error"), denied ? "warn" : "error");
+    } finally {
+      this._reprocessing = false;
+      this._syncActions();
+    }
+    this.dispatchEvent(new CustomEvent("fd-reprocess-done", { bubbles: true, composed: true }));
+    this.reload();
   }
 
   _bankRow(b) {
