@@ -248,8 +248,11 @@ const _i18nCache = {};
 async function _loadLocale(lang) {
   if (_i18nCache[lang]) return _i18nCache[lang];
   const STATIC_BASE = "/finance_dashboard_static";
+  // The static path is served with long cache headers: without the module's
+  // ?v=<VERSION> a browser kept the previous locale and showed raw keys.
+  const query = new URL(import.meta.url).search;
   try {
-    const resp = await fetch(`${STATIC_BASE}/locales/${lang}.json`);
+    const resp = await fetch(`${STATIC_BASE}/locales/${lang}.json${query}`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     _i18nCache[lang] = await resp.json();
   } catch (_) {
