@@ -1,5 +1,12 @@
 # Build Log
 
+## 0.20.2 — 2026-10-28
+Version: 0.20.2
+Branch: claude/finance-own-name-0-20-2
+Changes:
+- fix(contracts): a payment to an account holder's own name also counts as an own transfer when the bank adds a middle name or title ("Jeremy Tim Treder" for the holder "Jeremy Treder"); every word of the holder name must appear, so a similar-looking business name stays a contract
+- test: middle-name and look-alike cases in the own-name filter test
+
 ## 0.20.1 — 2026-10-28
 Version: 0.20.1
 Branch: claude/finance-live-fixes-0-20-1

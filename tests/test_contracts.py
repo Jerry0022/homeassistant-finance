@@ -335,6 +335,7 @@ def test_payments_to_own_account_holders_are_not_contracts():
     store = ContractStore.__new__(ContractStore)
     store.contracts, store.notified = {}, set()
     rows = monthly([-500] * 4, name="Herr Max Muster") + monthly(
+        [-300] * 4, name="Max Peter Muster") + monthly([-20] * 4, name="Maxi Musterhaus") + monthly(
         [-9.99] * 4, name="Streamingdienst", category="subscriptions")
     out = build_contracts(rows, store, today=TODAY, own_names=names)
-    assert {c["creditor"] for c in out} == {"streamingdienst"}
+    assert {c["creditor"] for c in out} == {"streamingdienst", "maxi musterhaus"}
