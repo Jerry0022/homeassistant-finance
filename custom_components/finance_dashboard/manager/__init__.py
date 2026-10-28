@@ -46,6 +46,8 @@ from ..const import (
     DEFAULT_WATER_BENCHMARK,
     DOMAIN,
     ENABLEBANKING_RATE_LIMIT_DAILY,
+    OPT_BENCHMARK_POSTCODE,
+    OPT_BENCHMARK_STATE,
     OPT_WATER_RATIO,
     OWNER_SHARED,
     STORAGE_KEY_LEDGER,
@@ -1190,13 +1192,15 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
     async def async_get_benchmarks(
         self, month: int | None = None, year: int | None = None
     ) -> dict[str, Any]:
-        """Compare our own ratios against German national averages.
+        """Compare our own plan against the bundled German benchmark dataset.
 
         The spreadsheet compared four hand-maintained figures against values
         copied out of Destatis/Statista once. Here the "ours" side is computed
         from the plan and the reference side comes from
-        :class:`~.benchmark.BenchmarkProvider`, whose baseline is versioned with
-        the integration — so the comparison stays current without retyping.
+        :class:`~.benchmark.BenchmarkProvider`, which reads the versioned dataset
+        shipped with the integration (no runtime fetch). Location (state,
+        postcode) comes from the options, household size from the plan persons -
+        each value falls back to the finest level the dataset carries.
 
         Percentage metrics are expressed as a share of pooled net income, which
         is the basis the spreadsheet used. Absolute metrics (EUR) are compared
@@ -1217,13 +1221,19 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
         plan = self.budget_plan
         income = plan.income_net_total()
         by_category = plan.category_totals(target_month, target_year)
+        options = self._entry.options
+        location = dict(
+            state=options.get(OPT_BENCHMARK_STATE),
+            postcode=options.get(OPT_BENCHMARK_POSTCODE),
+            household_size=len(plan.persons) or None,
+        )
 
         comparisons: list[dict[str, Any]] = []
         for metric_category, source_categories in BENCHMARK_METRIC_SOURCES.items():
             numerator = round(sum(by_category.get(c, 0.0) for c in source_categories), 2)
             if numerator <= 0:
                 continue
-            benchmark = provider.get_benchmark_for_category(metric_category)
+            benchmark = provider.get_benchmark_for_category(metric_category, **location)
             if not benchmark:
                 continue
             if benchmark.get("unit") == "%":
@@ -1232,7 +1242,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
                 our_value = round(numerator / income * 100, 2)
             else:
                 our_value = numerator
-            result = provider.compare(metric_category, our_value)
+            result = provider.compare(metric_category, our_value, **location)
             if result:
                 result["our_amount"] = numerator
                 result["source_categories"] = source_categories
@@ -1258,6 +1268,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
                         "difference": round(value - DEFAULT_WATER_BENCHMARK, 2),
                         "better": value < DEFAULT_WATER_BENCHMARK,
                         "unit": "x Ø",
+                        "statistic": "manual",
                         "source": "Nebenkostenabrechnung (manuell gepflegt)",
                         "survey_year": target_year,
                         "fetch_date": "manual",
@@ -1274,6 +1285,10 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
             "year": target_year,
             "income_net_total": income,
             "comparisons": comparisons,
+            "references": provider.references(**location),
+            "unavailable": provider.unavailable(),
+            "dataset": provider.dataset_info(),
+            "location": location,
             "has_plan": not plan.is_empty(),
         }
 
