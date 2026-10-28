@@ -323,6 +323,11 @@ async def _run(hass: HomeAssistant, manager: Any, now: datetime | None) -> None:
         notified[exc["id"]] = today.isoformat()
     state["notified"] = notified
 
+    # Contract notice deadlines ≤30 days away (fires once per deadline).
+    from .contracts import async_fire_notice_due
+
+    await async_fire_notice_due(hass, transactions)
+
     week = iso_week(today)
     if settings.get("digest_enabled") and state["last_digest_week"] != week:
         home = None

@@ -246,3 +246,14 @@ async def test_pot_update_and_delete_check_existing_owner() -> None:
 
 def test_today_is_a_date() -> None:
     assert isinstance(NOW.date(), date)
+
+
+def test_confirmed_payday_anchors_cycle_without_salary_bookings() -> None:
+    persons = [{"name": "Anna", "ha_users": [], "payday": {"day": 25, "confirmed": True}}]
+    out = build_home(
+        accounts=ACCOUNTS, transactions=[], plan=BudgetPlan(), pots=[],
+        recurring=[], banks=[], as_of=NOW, now=NOW, person=None, view="household",
+        horizon="cycle", persons=persons,
+    )
+    assert out["cycle"]["rule"] == "payday_confirmed"
+    assert out["cycle"]["start"].endswith("-25")

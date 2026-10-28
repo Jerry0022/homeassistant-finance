@@ -423,6 +423,19 @@ def build_home(  # noqa: PLR0912, PLR0915
         rule = "household_7_day" if starts else "calendar_fallback"
     if not starts:
         start, end = calendar_cycle(today)
+        # No salary seen in the bookings yet: a payday the user confirmed in
+        # the setup wizard is the next best anchor (the person's own, or the
+        # earliest confirmed one for the household).
+        from .setup_wizard import payday_cycle, person_payday
+
+        days = [
+            d
+            for p in persons or []
+            if (view != "person" or p.get("name") == person) and (d := person_payday(p))
+        ]
+        if days:
+            start, end = payday_cycle(min(days), today)
+            rule = "payday_confirmed"
     cycle = (start, end)
 
     # --- pots ----------------------------------------------------------
