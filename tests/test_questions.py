@@ -284,3 +284,13 @@ async def test_views_admin_only() -> None:
         assert resp._status == 400 and resp._data["error"] == "invalid_category"
         resp = await ans.post(_req(True, [1]))
         assert resp._data["error"] == "invalid_body"
+
+
+def test_forget_merchant_removes_only_that_rule() -> None:
+    mem = MerchantMemory(store=FakeStore())
+    mem.learn_merchant("rossmann", "health")
+    mem.learn_merchant("aldi", "food")
+    assert mem.forget_merchant("rossmann") is True
+    assert mem.forget_merchant("rossmann") is False
+    assert mem.resolve(_tx("Rossmann")) is None
+    assert mem.resolve(_tx("Aldi"))["category"] == "food"

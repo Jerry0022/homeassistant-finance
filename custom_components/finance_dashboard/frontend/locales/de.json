@@ -171,6 +171,7 @@
   "home.cycle.back": "Zurück zur Übersicht",
   "home.cycle.rule.person_highest_income": "Dein Zyklus beginnt mit deinem höchsten Einkommen (ab Gehalt $name) und endet vor dem nächsten.",
   "home.cycle.rule.household_7_day": "Der Haushalts-Zyklus beginnt beim höchsten Einkommen. Fällt das höchste Einkommen einer anderen Person in die 7 Tage davor, beginnt er dort (ab Gehalt $name).",
+  "home.cycle.rule.payday_confirmed": "Dein Zyklus beginnt an deinem bestätigten Zahltag und endet vor dem nächsten.",
   "home.cycle.rule.calendar_fallback": "Noch kein Einkommen erkannt, deshalb gilt der Kalendermonat.",
   "home.cycle.day": "Tag $n von $total",
   "home.cycle.verdict.good": "Gut dabei",

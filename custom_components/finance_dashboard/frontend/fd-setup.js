@@ -448,7 +448,7 @@ class FdSetup extends HTMLElement {
   _regionLabel() {
     const r = this._st.region || {};
     const name = (STATES.find(([c]) => c === r.state) || [])[1];
-    return name ? `${name}${r.postcode ? ` · ${r.postcode}` : ""}` : tr("setup.status.skipped");
+    return name ? `${name}${r.postcode ? ` · ${window._fd.escHtml(String(r.postcode))}` : ""}` : tr("setup.status.skipped");
   }
 
   _doneBody() {

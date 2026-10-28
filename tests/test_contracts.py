@@ -276,3 +276,37 @@ async def test_notice_due_event_fires_once(monkeypatch):
     assert n == 1 and fired[0][0] == "finance_dashboard_notice_due"
     assert "amount" not in fired[0][1]
     assert await mod.async_fire_notice_due(hass, rows, today=today) == 0
+
+
+def test_set_account_savings_flags_known_key_without_mutating_source() -> None:
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from custom_components.finance_dashboard.contracts import set_account_savings
+
+    acc = {"id": "uid1", "iban": "DE00000000000000000001"}
+    mgr = SimpleNamespace(_accounts=[acc], async_set_accounts=MagicMock())
+    assert set_account_savings(mgr, account_key(acc), True) is True
+    written = mgr.async_set_accounts.call_args.args[0]
+    assert written[0]["savings"] is True and "savings" not in acc
+    mgr.async_set_accounts.reset_mock()
+    assert set_account_savings(mgr, "unknown", True) is False
+    mgr.async_set_accounts.assert_not_called()
+
+
+def test_member_contract_view_is_gated_and_reduced() -> None:
+    from custom_components.finance_dashboard.contracts import aggregate_view, visible_to
+
+    shared, anna = {"owner": "shared"}, {"owner": "Anna"}
+    assert visible_to(shared, None) and visible_to(anna, "Anna")
+    assert not visible_to(anna, "Max") and not visible_to(anna, None) and not visible_to(anna, "")
+
+    store = ContractStore.__new__(ContractStore)
+    store.contracts, store.notified = {}, set()
+    items = build_contracts(monthly([-9.99] * 4, name="Streamingdienst",
+                                    category="subscriptions"), store, today=TODAY)
+    assert items
+    for item in items:
+        view = aggregate_view(item)
+        assert "contract" not in view and set(view) < set(item)
+        assert view["id"] == item["id"]

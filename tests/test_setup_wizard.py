@@ -418,3 +418,31 @@ def test_region_validation() -> None:
     assert _region({"state": "DE-RP"})["benchmark_state"] == "DE-RP"
     assert _region({"state": "Rheinland"}) is None
     assert _region({"postcode": "5617"}) is None
+
+
+async def test_invalid_region_rejects_before_any_write(monkeypatch) -> None:
+    """A bad region must 400 without having stored paydays or wizard state."""
+    from custom_components.finance_dashboard.api import setup
+
+    updates, saved = [], []
+    entry = SimpleNamespace(data={"persons": [{"name": "Anna"}]}, options={})
+    mgr = SimpleNamespace(persons=[{"name": "Anna"}], pots=[], _accounts=[], _transactions=[],
+                          demo_mode=False, _entry=entry)
+    monkeypatch.setattr(setup, "_get_manager", lambda hass: mgr)
+
+    async def _load(hass):
+        return wiz._merge_state(None)
+
+    async def _save(hass, state):
+        saved.append(state)
+
+    monkeypatch.setattr(setup.wiz, "async_load_state", _load)
+    monkeypatch.setattr(setup.wiz, "async_save_state", _save)
+    req = _request(True, body={"paydays": [{"person": "Anna", "day": 25}], "region": {"state": "Rheinland"}})
+    req.app["hass"].config_entries = SimpleNamespace(
+        async_update_entry=lambda *a, **kw: updates.append(kw))
+    view = setup.FinanceDashboardSetupView()
+    view.json = _Json().json
+    resp = await view.put(req)
+    assert resp._status == 400 and resp._data["error"] == "invalid_region"
+    assert updates == [] and saved == []

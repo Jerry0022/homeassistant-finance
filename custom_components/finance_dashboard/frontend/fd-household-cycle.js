@@ -155,6 +155,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .prog i { display: block; height: 100%; background: var(--fd-a500); }
 .seg { display: inline-flex; border: 1px solid var(--fd-line); border-radius: var(--fd-r-pill); overflow: hidden; }
 .seg button { min-height: var(--fd-touch); padding: 0 14px; border: 0; background: transparent; }
+.seg button:hover:not([aria-checked="true"]) { background: var(--fd-sunk); }
+.seg button:disabled { opacity: .5; cursor: default; }
 .seg button[aria-checked="true"] { background: var(--fd-a50); color: var(--fd-a900); font-weight: 500; }
 .kpis { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
 @media (min-width: 640px) { .kpis { grid-template-columns: repeat(3, 1fr); } }

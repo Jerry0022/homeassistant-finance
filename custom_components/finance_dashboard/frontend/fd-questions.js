@@ -215,7 +215,10 @@ class FdQuestions extends HTMLElement {
   }
 
   connectedCallback() { this.addEventListener("keydown", this._onKey); }
-  disconnectedCallback() { this.removeEventListener("keydown", this._onKey); }
+  disconnectedCallback() {
+    this.removeEventListener("keydown", this._onKey);
+    clearTimeout(this._skipTimer);
+  }
 
   get _isAdmin() { return !!(this._hass && this._hass.user && this._hass.user.is_admin); }
 
@@ -416,7 +419,7 @@ class FdQuestions extends HTMLElement {
       this._resetCard();
       this._render();
     };
-    if (card) { card.classList.add("leave"); setTimeout(go, 220); } else go();
+    if (card) { card.classList.add("leave"); this._skipTimer = setTimeout(go, 220); } else go();
   }
 
   _errText(e) {

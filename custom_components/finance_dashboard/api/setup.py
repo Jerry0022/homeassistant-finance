@@ -105,6 +105,9 @@ class FinanceDashboardSetupView(HomeAssistantView):
             )
         except wiz.SetupError as err:
             return _bad(self, err)
+        region = _region(body["region"]) if "region" in body else None
+        if "region" in body and region is None:
+            return self.json({"error": "invalid_region"}, status_code=400)
         if paydays:
             if getattr(manager, "demo_mode", False):
                 return self.json({"error": "demo_mode"}, status_code=400)
@@ -115,10 +118,7 @@ class FinanceDashboardSetupView(HomeAssistantView):
                     "persons": wiz.apply_paydays(manager.persons, paydays),
                 },
             )
-        if "region" in body:
-            region = _region(body["region"])
-            if region is None:
-                return self.json({"error": "invalid_region"}, status_code=400)
+        if region is not None:
             hass.config_entries.async_update_entry(
                 manager._entry,  # noqa: SLF001
                 options={**manager._entry.options, **region},  # noqa: SLF001
