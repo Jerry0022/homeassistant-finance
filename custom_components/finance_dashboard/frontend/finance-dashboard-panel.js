@@ -348,7 +348,8 @@ class FinanceDashboardPanel extends HTMLElement {
     sh.getElementById("storeLink").addEventListener("click", (e) => window._fd.navigate(HACS_REPO_PATH, e));
 
     sh.addEventListener("fd-data-updated", (e) => this._onData(e.detail));
-    sh.addEventListener("fd-categorize-requested", () => this._openCategorize());
+    sh.addEventListener("fd-categorize-requested", () => this._openQuestions());
+    sh.addEventListener("fd-questions-all", () => this._openCategorize());
 
     sh.addEventListener("fd-refresh-requested", () => this._refresh());
 
@@ -391,7 +392,23 @@ class FinanceDashboardPanel extends HTMLElement {
     });
   }
 
-  /** Star on the home screen: the existing categorise card in a dialog. */
+  /** Star on the home screen: open questions as flash cards (full-screen layer). */
+  _openQuestions() {
+    const sh = this.shadowRoot;
+    if (sh.getElementById("questionsLayer") || !this._hass) return;
+    const wrap = document.createElement("div");
+    wrap.id = "questionsLayer";
+    wrap.style.cssText = "position:fixed;inset:0;z-index:55;overflow:auto;background:var(--primary-background-color,#f4f6f8);";
+    const card = document.createElement("fd-questions");
+    card.hass = this._hass;
+    const done = () => { wrap.remove(); sh.querySelector("fd-home")?.reload?.(); };
+    card.addEventListener("fd-questions-close", done);
+    wrap.addEventListener("keydown", (e) => { if (e.key === "Escape") done(); });
+    wrap.append(card);
+    sh.append(wrap);
+  }
+
+  /** Desktop link inside the questions view: the existing categorise card in a dialog. */
   _openCategorize() {
     const sh = this.shadowRoot;
     if (sh.getElementById("catDialog") || !this._hass) return;

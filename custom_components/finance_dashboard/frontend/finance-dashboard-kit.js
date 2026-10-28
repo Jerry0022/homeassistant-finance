@@ -40,6 +40,7 @@ const COMPONENTS = [
   "fd-settings.js",
   "fd-overview.js",
   "fd-home.js",
+  "fd-questions.js",
 ];
 
 const CARDS = [

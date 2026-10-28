@@ -348,7 +348,9 @@ class FdQuestions extends HTMLElement {
 
   _wire() {
     const sh = this.shadowRoot;
-    sh.onclick = (e) => {
+    if (this._wired) { this._wireCard(); return; }
+    this._wired = true;
+    sh.addEventListener("click", (e) => {
       const t = e.target.closest("button");
       if (!t || t.disabled) return;
       if (t.dataset.cat) return this._answer(t.dataset.cat);
@@ -362,8 +364,12 @@ class FdQuestions extends HTMLElement {
         case "all": return this.dispatchEvent(new CustomEvent("fd-questions-all", { bubbles: true, composed: true }));
         case "continue": this._celebrate = null; return this._render();
       }
-    };
-    const card = sh.getElementById("card");
+    });
+    this._wireCard();
+  }
+
+  _wireCard() {
+    const card = this.shadowRoot.getElementById("card");
     if (!card) return;
     let x0 = null, dx = 0;
     card.onpointerdown = (e) => { if (e.target.closest("button")) return; x0 = e.clientX; dx = 0; };
