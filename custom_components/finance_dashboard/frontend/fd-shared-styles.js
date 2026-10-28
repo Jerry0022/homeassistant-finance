@@ -52,6 +52,9 @@ export const CAT_COLORS = {
   cleaning: "#a855f7",
   income: "#4ecca3",
   transfers: "#6b7280",
+  shopping: "#d946ef",
+  health: "#14b8a6",
+  leisure: "#f59e0b",
   other: "#6b7280",
 };
 
@@ -67,7 +70,17 @@ export const CAT_LABELS = {
   cleaning: "Reinigung",
   income: "Einkommen",
   transfers: "Überträge",
+  shopping: "Shopping",
+  health: "Gesundheit",
+  leisure: "Freizeit",
   other: "Sonstiges",
+};
+
+/** Category icons (emoji, decorative). */
+export const CAT_ICONS = {
+  housing: "🏠", loans: "🏦", food: "🛒", utilities: "💡", insurance: "🛡️",
+  subscriptions: "🔁", transport: "🚌", cleaning: "🧽", income: "💶",
+  transfers: "↔️", shopping: "🛍️", health: "💊", leisure: "🎭", other: "📦",
 };
 
 /** Member color palette for household charts. */
@@ -351,6 +364,7 @@ window._fd = {
   pct,
   CAT_COLORS,
   CAT_LABELS,
+  CAT_ICONS,
   MEMBER_COLORS,
   MONTH_NAMES,
   SHARED_CSS,
