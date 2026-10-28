@@ -70,7 +70,7 @@ class FdStatsRow extends HTMLElement {
     expenses.label = "Ausgaben";
     expenses.value = eur(totalExp);
     expenses.subtitle = `${txnCount} Transaktionen`;
-    expenses.accent = "var(--dg, #e74c3c)";
+    expenses.accent = "var(--dg, var(--fd-over))";
     expenses.valclass = "neg";
 
     const income = this.shadowRoot.getElementById("income");
