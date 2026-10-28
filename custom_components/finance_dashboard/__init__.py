@@ -85,6 +85,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FinanceDashboardConfigEn
     # keeps working if this cannot run.
     try:
         await manager.async_migrate_legacy_session()
+        manager.async_adopt_subentry_accounts()
         await manager.async_prune_orphan_sessions()
         await manager.async_update_consent_issues()
     except Exception:

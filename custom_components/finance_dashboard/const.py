@@ -4,7 +4,7 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.19.0"
+VERSION = "0.19.1"
 
 # Panel
 PANEL_URL_PATH = "finance-dashboard"
@@ -120,12 +120,17 @@ CATEGORIZATION_RULES = {
         "wohnung",
         "hausgeld",
         "nebenkosten",
+        "mietpool",
     ],
     CATEGORY_FOOD: [
         "rewe",
         "edeka",
         "aldi",
         "lidl",
+        "kaufland",
+        "penny",
+        "globus",
+        "metro",
         "hellofresh",
         "lieferando",
         "uber eats",

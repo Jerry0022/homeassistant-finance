@@ -65,6 +65,20 @@ def test_get_flags_users_and_masks_iban() -> None:
     assert "DE00" not in str(out)
 
 
+def test_users_without_a_person_entity_are_not_suggested() -> None:
+    # Live: MQTT, a wall tablet and a PC login were offered as household people.
+    mgr = _mgr()
+    mgr._hass.states.async_all.return_value = [
+        SimpleNamespace(attributes={"user_id": "u1"}),
+        SimpleNamespace(attributes={"user_id": None}),
+    ]
+    out = FinanceDashboardManager.get_assignments(mgr, USERS)
+    reasons = {u["id"]: (u["suggested"], u["reason"]) for u in out["ha_users"]}
+    assert reasons["u1"] == (True, "active_user")
+    assert reasons["u2"] == (False, "no_person")
+    mgr._hass.states.async_all.assert_called_with("person")
+
+
 def test_put_persists_and_updates_memory() -> None:
     mgr = _mgr()
     k0, k1 = account_key(ACCS[0]), account_key(ACCS[1])

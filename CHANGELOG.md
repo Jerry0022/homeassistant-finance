@@ -2,6 +2,21 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.19.1] — 2026-10-28
+
+### Added
+- Rent pool, Kaufland, Penny, Globus and Metro are recognised (housing / food)
+
+### Changed
+- Docs: the test skill points at the local, out-of-repo HA access file
+- Test: 4 regression tests (subentry adoption, attended IBAN fill, no details on background, person-entity suggestion)
+
+### Fixed
+- Bank accounts referenced only by a bank subentry (banks linked by 0.16.0/0.16.1) are adopted into the entry on setup. The live install had none stored, so every balance carried an empty account key, "Personen & Konten" listed no account and Start stayed on "Wem gehört was?" with no way out
+- An attended refresh fills a missing IBAN and bank account name once per account (details call with PSU headers, never on the background fetch); the entity key stays the same
+- The household "Gesamtsaldo" counted the available-balance sensors as extra accounts — 7 instead of 4 accounts and booked plus available summed
+- HA users not linked to a person entity (MQTT, wall tablet, PC logins) are no longer suggested as household people when the install has person entities
+
 ## [0.19.0] — 2026-10-28
 
 ### Added

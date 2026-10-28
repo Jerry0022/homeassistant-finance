@@ -487,6 +487,61 @@ async def test_bank_linked_without_entry_accounts_is_still_fetched():
     assert [a["name"] for a in targets[0]["accounts"]] == ["DKB 1", "DKB 2"]
 
 
+def test_subentry_accounts_are_adopted_into_the_entry():
+    # Live 0.19.0: balances carried an empty account_key and "Personen &
+    # Konten" listed no account, because _accounts stayed empty.
+    from custom_components.finance_dashboard.account_identity import account_key
+
+    sub = _sub("b1", ["u1", "u2"], name="DKB")
+    mgr = _manager([sub], [], FakeClient())
+    assert mgr.async_adopt_subentry_accounts() == 2
+    assert [a["id"] for a in mgr._accounts] == ["u1", "u2"]
+    stored = mgr._hass.config_entries.async_update_entry.call_args.kwargs["data"]["accounts"]
+    assert [account_key(a) for a in stored] == [account_key(a) for a in mgr._accounts]
+    # Idempotent: a second setup adopts nothing and writes nothing.
+    mgr._hass.config_entries.async_update_entry.reset_mock()
+    assert mgr.async_adopt_subentry_accounts() == 0
+    mgr._hass.config_entries.async_update_entry.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_attended_refresh_fills_missing_iban_once_and_keeps_the_key():
+    from custom_components.finance_dashboard.account_identity import account_key
+
+    class DetailsClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.detail_calls = []
+
+        async def async_get_account_details(self, uid, psu_ip=None):
+            self.detail_calls.append((uid, psu_ip))
+            return {"account": {"iban": f"DE000000000000000000{uid[-1]}9", "name": "Giro"}}
+
+    client = DetailsClient()
+    sub = _sub("b1", ["u1"], name="DKB")
+    mgr = _manager([sub], [], client)
+    mgr.async_adopt_subentry_accounts()
+    key = account_key(mgr._accounts[0])
+    await mgr.async_refresh_transactions(psu_ip="10.0.0.9")
+    assert client.detail_calls == [("u1", "10.0.0.9")]
+    assert mgr._accounts[0]["name"] == "Giro" and mgr._accounts[0]["iban"].endswith("19")
+    assert account_key(mgr._accounts[0]) == key
+    await mgr.async_refresh_transactions(psu_ip="10.0.0.9")
+    assert len(client.detail_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_background_refresh_never_asks_for_account_details():
+    class DetailsClient(FakeClient):
+        async def async_get_account_details(self, uid, psu_ip=None):
+            raise AssertionError("background call must not spend the bank cap")
+
+    mgr = _manager([_sub("b1", ["u1"], name="DKB")], [], DetailsClient())
+    mgr.async_adopt_subentry_accounts()
+    await mgr.async_refresh_transactions(scheduled=True)
+    assert "iban" not in mgr._accounts[0]
+
+
 @pytest.mark.asyncio
 async def test_fetch_window_never_ends_in_the_banks_future():
     # 2026-10-28 00:19 Berlin = 2026-10-27 23:19 UTC.  A local date_to of

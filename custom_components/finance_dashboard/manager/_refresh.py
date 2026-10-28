@@ -134,6 +134,37 @@ class RefreshMixin:
         done = (self._ledger.meta.get("history") or {}).get(account_key_) or {}
         return not done.get("backfilled") or done.get("session") != session_ref
 
+    async def _async_enrich_account(
+        self, client: Any, account: dict[str, Any], psu_ip: str | None
+    ) -> bool:
+        """Fill IBAN and bank name of a record that has neither (attended only).
+
+        Records adopted from a bank subentry carry just uid and key, so the
+        UI showed "DKB 1" and no IBAN digits.  One details call per such
+        account, sent with PSU headers, so it never touches the background
+        cap.  The stored key is kept — entity identity does not move.  A rate
+        limit propagates (the caller backs the bank off); any other failure
+        leaves the record as it was.
+        """
+        from ..enablebanking_client import RateLimitExceeded
+
+        try:
+            details = (await client.async_get_account_details(account["id"], psu_ip=psu_ip)).get(
+                "account"
+            ) or {}
+        except RateLimitExceeded:
+            raise
+        except Exception:
+            _LOGGER.debug("Account details unavailable for %s", str(account.get("id"))[:8])
+            return False
+        iban = details.get("iban") or ""
+        if not iban:
+            return False
+        account["iban"] = iban
+        if details.get("name"):
+            account["name"] = details["name"]
+        return True
+
     async def _async_fetch_window(
         self,
         client,
@@ -252,6 +283,7 @@ class RefreshMixin:
         fresh_balances: dict[str, Any] = {}
         skipped: dict[str, int] = {}
         rate_limited_round = False
+        enriched = False
 
         for bank in targets:
             bank_id = bank["bank_id"]
@@ -292,6 +324,8 @@ class RefreshMixin:
                 sink = self._raw_sink(bank_id, uid, attended, meta)
 
                 try:
+                    if attended and not account.get("iban"):
+                        enriched |= await self._async_enrich_account(client, account, psu_ip)
                     date_from, txns = await self._async_fetch_window(
                         client, uid, ladder, date_to, psu_ip, sink, meta
                     )
@@ -354,6 +388,9 @@ class RefreshMixin:
                     errors.append(f"{name}: {str(exc)[:120]}")
                 else:
                     self._budget.record_success(bank_id)
+
+        if enriched:
+            self.async_set_accounts(list(self._accounts))
 
         # The migration-era __unknown__ bucket is superseded by real fetches.
         if accounts_hit > 0:
