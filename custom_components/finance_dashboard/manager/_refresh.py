@@ -163,6 +163,9 @@ class RefreshMixin:
         account["iban"] = iban
         if details.get("name"):
             account["name"] = details["name"]
+        # A minimal record built for this round is not in _accounts yet.
+        if not any(a is account for a in self._accounts):
+            self._accounts.append(account)
         return True
 
     async def _async_fetch_window(
