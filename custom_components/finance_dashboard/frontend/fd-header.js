@@ -137,8 +137,10 @@ class FdHeader extends HTMLElement {
 }
 .hdr {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 .title-row {
   display: flex;
@@ -164,8 +166,11 @@ h1 {
 }
 .right {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 .ts {
   font-size: 11px;
@@ -233,6 +238,11 @@ h1 {
   font-size: 10px;
   color: var(--tx2);
   opacity: 0.85;
+}
+/* Phone: the status text gets its own full line instead of being squeezed off-screen. */
+@media (max-width: 600px) {
+  .right { justify-content: flex-start; }
+  .ts-stack { flex-basis: 100%; align-items: flex-start; }
 }
 .ts.loading { color: var(--ac); }
 .ts.empty   { color: var(--tx2); font-style: italic; }

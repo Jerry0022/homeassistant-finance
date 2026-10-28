@@ -29,6 +29,10 @@
 await import(new URL("finance-dashboard-kit.js" + new URL(import.meta.url).search, import.meta.url).href);
 
 const DOMAIN = "finance_dashboard";
+// The module URL carries ?v=<VERSION> (panel.py), so the footer needs no API call.
+const VERSION = new URL(import.meta.url).searchParams.get("v") || "";
+// HACS routes a repository page by its GitHub repository id (JerryT2T/homeassistant-finance).
+const HACS_REPO_PATH = "/hacs/repository/1190753760";
 
 class FinanceDashboardPanel extends HTMLElement {
   constructor() {
@@ -49,6 +53,17 @@ class FinanceDashboardPanel extends HTMLElement {
     this._dpActive = false;
     this._tab = "home";
     this._refreshing = false;
+    // The top-level kit import delays customElements.define, so HA can create
+    // the element and assign hass/narrow/route/panel before this class exists.
+    // Those land as own properties that shadow the setters - the panel would
+    // stay blank forever. Re-assign them through the class.
+    for (const prop of ["hass", "narrow", "route", "panel"]) {
+      if (Object.prototype.hasOwnProperty.call(this, prop)) {
+        const value = this[prop];
+        delete this[prop];
+        this[prop] = value;
+      }
+    }
   }
 
   set hass(hass) {
@@ -70,6 +85,7 @@ class FinanceDashboardPanel extends HTMLElement {
       }
       return;
     }
+    this._syncMenu();
     const ov = this.shadowRoot.querySelector("fd-overview");
     if (ov) ov.hass = hass;
     const home = this.shadowRoot.querySelector("fd-home");
@@ -81,6 +97,23 @@ class FinanceDashboardPanel extends HTMLElement {
       if (dp) dp.hass = hass;
       if (this._budgetPlan && !this._budgetPlan.hass) this._budgetPlan.hass = hass;
     }
+  }
+
+  set narrow(value) {
+    this._narrow = !!value;
+    this._syncMenu();
+  }
+
+  get narrow() {
+    return this._narrow;
+  }
+
+  _syncMenu() {
+    const menu = this.shadowRoot && this.shadowRoot.getElementById("menu");
+    if (!menu) return;
+    menu.hass = this._hass;
+    menu.narrow = this._narrow;
+    menu.hidden = !this._narrow;
   }
 
   async _init() {
@@ -239,6 +272,8 @@ class FinanceDashboardPanel extends HTMLElement {
   color: var(--dg);
 }
 [hidden] { display: none !important; }
+/* HA hides its sidebar on narrow screens; a custom panel must offer the menu button itself. */
+#menu { display: block; margin: -12px 0 4px -12px; color: var(--tx); }
 .tabs {
   display: flex;
   gap: 4px;
@@ -264,10 +299,17 @@ class FinanceDashboardPanel extends HTMLElement {
 /* Component tree is hidden while overlay is shown */
 #components { display: block; }
 #components.hidden { display: none; }
+/* Store link: a quiet footer for desktop pointers only - a phone never sees it. */
+.foot { display: none; margin-top: 48px; text-align: right; font-size: 11px; color: var(--tx2); opacity: .45; }
+.foot:hover, .foot:focus-within { opacity: 1; }
+.foot a { color: inherit; text-decoration: none; }
+.foot a:hover { color: var(--ac); text-decoration: underline; }
+@media (hover: hover) and (pointer: fine) and (min-width: 900px) { .foot { display: block; } }
 </style>
 
 <fd-data-provider></fd-data-provider>
 <div class="fd">
+  <ha-menu-button id="menu" hidden></ha-menu-button>
   <fd-header></fd-header>
   <div class="tabs" id="tabs" role="tablist" aria-label="${tSync("tabs.label")}">
     <button role="tab" data-tab="home" aria-selected="true">${tSync("tabs.home")}</button>
@@ -280,6 +322,7 @@ class FinanceDashboardPanel extends HTMLElement {
     <div id="overlay" class="loading">${tSync("panel.loading")}</div>
     <div id="components" class="hidden"></div>
   </div>
+  <div class="foot">Finance ${VERSION ? `v${VERSION} · ` : ""}<a id="storeLink" href="${HACS_REPO_PATH}" title="${tSync("panel.footer.store_title")}">${tSync("panel.footer.store")}</a></div>
 </div>`;
 
     this._overlay = this.shadowRoot.getElementById("overlay");
@@ -298,6 +341,8 @@ class FinanceDashboardPanel extends HTMLElement {
       this._selectTab(next.dataset.tab);
       next.focus();
     });
+
+    sh.getElementById("storeLink").addEventListener("click", (e) => window._fd.navigate(HACS_REPO_PATH, e));
 
     sh.addEventListener("fd-data-updated", (e) => this._onData(e.detail));
     sh.addEventListener("fd-categorize-requested", () => this._openCategorize());

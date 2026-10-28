@@ -2,6 +2,15 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.18.1] — 2026-10-28
+
+### Added
+- A quiet desktop-only footer "Finance vX.Y.Z · Open in HACS" deep-links to the HACS repository page to check for and install updates
+
+### Fixed
+- The panel no longer stays blank forever. HA assigned hass/narrow/route/panel before the panel class was defined (the kit import delays the definition), so the values shadowed the setters and the panel never rendered; the constructor now re-assigns them through the class
+- On phones the header wraps instead of pushing the freshness text off-screen, and the panel shows HA's menu button so the sidebar can be opened
+
 ## [0.18.0] — 2026-10-28
 
 ### Added
