@@ -61,6 +61,7 @@ from ..transfer_detector import (
 )
 from ..transfer_plan import build_transfer_plan
 from ._banks import BankMixin
+from ._questions import QuestionsMixin
 from ._persistence import PersistenceMixin
 from ._refresh import RefreshMixin
 
@@ -82,7 +83,7 @@ class AssignmentError(ValueError):
         self.detail = detail
 
 
-class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
+class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, QuestionsMixin):
     """Central orchestrator for the Finance integration.
 
     Inherits from:
@@ -121,6 +122,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         self._rate_limited_until: datetime | None = None
         self._transfer_override_store = Store(hass, 1, STORAGE_KEY_TRANSFER_OVERRIDES)
         self._transfer_overrides: dict[str, bool] = {}
+        self._memory = None  # MerchantMemory, created in async_initialize
         self._recurring_patterns: list[dict[str, Any]] = []
         self._previous_balances: dict[str, float] = {}
         self._demo_mode: bool = False
@@ -243,7 +245,14 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         self._credential_manager = CredentialManager(self._hass)
         await self._credential_manager.async_initialize()
 
-        self._categorizer = TransactionCategorizer()
+        from ..merchants import MerchantMemory
+
+        self._memory = MerchantMemory(self._hass)
+        try:
+            await self._memory.async_load()
+        except Exception:
+            _LOGGER.exception("Merchant memory unreadable — starting empty")
+        self._categorizer = TransactionCategorizer(memory=self._memory)
 
         # Load the budget plan. A read failure must not block startup — the
         # store falls back to an empty plan and the UI prompts for an import.
@@ -913,7 +922,13 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         return await self._pot_store.async_delete(pot_id)
 
     def get_home(
-        self, *, person: str | None, view: str, horizon: str, demo: bool = False
+        self,
+        *,
+        person: str | None,
+        view: str,
+        horizon: str,
+        demo: bool = False,
+        include_questions: bool = False,
     ) -> dict[str, Any]:
         """Home-screen payload from cached data. Never contacts a bank."""
         from ..home import build_home
@@ -925,6 +940,8 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
             return generate_demo_home(person=person, view=view, horizon=horizon, now=now)
         banks = self.get_bank_status()
         return build_home(
+            **(self._question_kwargs() if hasattr(self, "_question_kwargs") else {}),
+            include_questions=include_questions,
             accounts=self._accounts,
             persons=self.persons,
             transactions=get_effective_transactions(self._transactions),

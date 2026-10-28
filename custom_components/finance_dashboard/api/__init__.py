@@ -17,6 +17,7 @@ from homeassistant.core import HomeAssistant
 
 from ._helpers import _get_manager, _get_setup_client
 from .assignments import FinanceDashboardAssignmentsView
+from .questions import FinanceDashboardQuestionAnswerView, FinanceDashboardQuestionsView
 from .data import (
     FinanceDashboardBalanceView,
     FinanceDashboardBankStatusView,
@@ -67,6 +68,8 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
     "FinanceDashboardHomeView",
     "FinanceDashboardPotsView",
     "FinanceDashboardAssignmentsView",
+    "FinanceDashboardQuestionAnswerView",
+    "FinanceDashboardQuestionsView",
     # Refresh
     "FinanceDashboardRefreshStatusView",
     "FinanceDashboardRefreshTriggerView",
@@ -100,4 +103,6 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardHomeView())
     hass.http.register_view(FinanceDashboardPotsView())
     hass.http.register_view(FinanceDashboardAssignmentsView())
+    hass.http.register_view(FinanceDashboardQuestionsView())
+    hass.http.register_view(FinanceDashboardQuestionAnswerView())
     _LOGGER.debug("Finance API endpoints registered")
