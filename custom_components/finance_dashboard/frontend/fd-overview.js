@@ -246,12 +246,17 @@ class FdOverview extends HTMLElement {
       <div id="tx"></div>
     </div>
   </section>
-  <section id="settings"><fd-settings></fd-settings></section>
+  <section id="settings">${this._isAdmin ? `<div class="card" id="setupEntry"><div class="h"><span>${tSync("setup.title")}</span></div>
+    <button type="button" class="btn ghost" data-open-setup>${tSync("setup.entry")}</button></div>` : ""}<fd-settings></fd-settings></section>
 </div>`;
     const sh = this.shadowRoot;
     sh.addEventListener("click", (ev) => {
       const a = ev.target.closest("[data-nav]");
       if (a) { window._fd.navigate(a.getAttribute("href") || window._fd.INTEGRATION_PATH, ev); return; }
+      if (ev.target.closest("[data-open-setup]")) {
+        this.dispatchEvent(new CustomEvent("fd-open-setup", { bubbles: true, composed: true }));
+        return;
+      }
       if (ev.target.closest("[data-goto-settings]")) {
         const el = sh.getElementById("settings");
         el.scrollIntoView({ behavior: "smooth", block: "start" });

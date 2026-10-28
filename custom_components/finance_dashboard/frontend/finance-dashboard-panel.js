@@ -359,6 +359,11 @@ class FinanceDashboardPanel extends HTMLElement {
       const target = ov && ov.shadowRoot && ov.shadowRoot.querySelector("fd-settings");
       (target || ov)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+    // Guided setup wizard: Start card, Overview entry and fd-navigate {target:"setup"}.
+    sh.addEventListener("fd-open-setup", () => this._openSetup());
+    sh.addEventListener("fd-navigate", (e) => {
+      if (e.detail && e.detail.target === "setup") this._openSetup();
+    });
     sh.addEventListener("fd-toast", (e) => {
       const d = e.detail || {};
       sh.querySelector("fd-header")?.showToast?.(d.message || "", d.type || "info");
@@ -392,6 +397,21 @@ class FinanceDashboardPanel extends HTMLElement {
   }
 
   /** Star on the home screen: the existing categorise card in a dialog. */
+  _openSetup() {
+    const sh = this.shadowRoot;
+    if (sh.querySelector("fd-setup") || !this._hass) return;
+    const wiz = document.createElement("fd-setup");
+    wiz.hass = this._hass;
+    wiz.addEventListener("fd-setup-close", () => {
+      wiz.remove();
+      const home = sh.querySelector("fd-home");
+      if (home) { home._wizard = undefined; home.reload?.(); }
+      sh.querySelector("fd-overview")?.reload?.();
+    });
+    sh.append(wiz);
+    wiz.shadowRoot.querySelector("h2, button")?.focus();
+  }
+
   _openCategorize() {
     const sh = this.shadowRoot;
     if (sh.getElementById("catDialog") || !this._hass) return;
