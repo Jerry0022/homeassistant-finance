@@ -70,7 +70,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .big { font-size: 40px; font-weight: 500; line-height: 1.05; color: var(--cfg, var(--fd-t1)); }
 .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
 .cap { margin-top: 4px; font-size: 12.5px; color: var(--fd-t2); }
-.meter { position: relative; height: 12px; margin: 26px 0 6px; border-radius: 6px; background: var(--fd-sunk); }
+.meter { position: relative; height: 12px; margin: 14px 0 6px; border-radius: 6px; background: var(--fd-sunk); }
 .meter > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: var(--c); }
 .meter > b { position: absolute; top: -6px; width: 4px; height: 24px; margin-left: -2px; border-radius: 2px; background: var(--fd-t1); box-shadow: 0 0 0 2px var(--fd-card); }
 .meter > b span { position: absolute; bottom: 26px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 500; white-space: nowrap; }
@@ -114,12 +114,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .tank > b.r span { left: auto; right: 6px; }
 .flip { animation: flipin .28s ease-out; }
 @keyframes flipin { from { opacity: 0; transform: rotateY(60deg); } }
-.info { display: inline-flex; align-items: center; justify-content: center; width: var(--fd-touch); height: var(--fd-touch); margin: -10px 0 -10px -6px; border: 0; border-radius: 50%; background: transparent; color: var(--fd-a700); font-size: 15px; }
+.info { flex: none; box-sizing: border-box; min-width: var(--fd-touch); display: inline-flex; align-items: center; justify-content: center; width: var(--fd-touch); height: var(--fd-touch); margin: -10px 0 -10px -6px; border: 0; border-radius: 50%; background: transparent; color: var(--fd-a700); font-size: 15px; }
 .verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .verdict .chip { padding: 3px 12px; font-size: 14px; }
 .know { display: flex; gap: 10px; align-items: flex-start; border-left: 4px solid var(--fd-a500); }
 .know b { display: block; margin-bottom: 2px; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--fd-a700); }
-.cyc { display: grid; grid-template-columns: repeat(auto-fill, minmax(34px, 1fr)); gap: 4px; }
+.cyc { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 4px; }
 .cyc span { display: flex; align-items: flex-end; justify-content: center; height: 36px; padding-bottom: 2px; border-radius: 6px; font-size: 9px; color: #fff; background: var(--c, var(--fd-sunk)); }
 .cyc span.run { background: repeating-linear-gradient(135deg, var(--fd-near) 0 4px, color-mix(in srgb, var(--fd-near) 60%, #fff) 4px 8px); }
 .cyc span.fut { background: var(--fd-sunk); color: var(--fd-t3); }
@@ -140,7 +140,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .btn.dsk { border-style: dashed; }
 .nav { position: sticky; bottom: 12px; z-index: 5; display: flex; justify-content: center; pointer-events: none; }
 .toggle { pointer-events: auto; display: inline-flex; gap: 2px; padding: 4px; border-radius: var(--fd-r-pill); background: var(--fd-card); box-shadow: var(--fd-sh2); border: 1px solid var(--fd-line); }
-.toggle button { min-height: 40px; min-width: 96px; padding: 0 18px; border: 0; border-radius: var(--fd-r-pill); background: transparent; color: var(--fd-t2); font-weight: 500; }
+.toggle button { min-height: var(--fd-touch); min-width: 96px; padding: 0 18px; border: 0; border-radius: var(--fd-r-pill); background: transparent; color: var(--fd-t2); font-weight: 500; }
 .toggle button[aria-checked="true"] { background: var(--pc, var(--fd-a700)); color: #fff; }
 .toggle button:disabled { opacity: .4; cursor: not-allowed; }
 .msg { padding: 32px 12px; text-align: center; color: var(--fd-t2); }
@@ -325,11 +325,10 @@ class FdHome extends HTMLElement {
   _onKey(e) {
     if (e.key === "Escape" && this._sheet) { this._closeSheet(); return; }
     if (this._sheet) return;
-    if (e.target.closest && e.target.closest("input, textarea")) return;
-    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+    if ((e.key === "ArrowRight" || e.key === "ArrowLeft") && e.target.closest && e.target.closest("#seg")) {
       this._step(e.key === "ArrowRight" ? 1 : -1);
       const b = this.shadowRoot.querySelector(`#seg [data-h="${this._horizon}"]`);
-      if (b && e.target.closest && e.target.closest("#seg")) b.focus();
+      if (b) b.focus();
     }
   }
 
@@ -430,12 +429,11 @@ class FdHome extends HTMLElement {
     const cy = d.cycle || { days: 1, day: 1 };
     const left = Math.max(0, d.remaining || 0);
     const pctFill = budget > 0 ? Math.min(100, (left / budget) * 100) : 0;
-    const sollPct = cy.days > 0 ? Math.max(0, Math.min(100, ((cy.days - cy.day) / cy.days) * 100)) : 0;
     const days = t.daily_budget > 0 ? Math.floor(left / t.daily_budget) : null;
     return `<section class="card ${c}">
   <div class="hero"><div><div class="big">${this._m(d.remaining, false)}</div><div class="cap">${this._t("home.today.remaining")}</div></div>${this._chip(d.status)}</div>
   ${budget > 0 ? `<div class="meter" role="img" aria-label="${this._e(this._t("home.today.bar"))}: ${this._m(left, false)}">
-    <i style="width:${pctFill.toFixed(1)}%"></i><b style="left:${sollPct.toFixed(1)}%"><span>${this._t("home.today.soll")}</span></b></div>
+    <i style="width:${pctFill.toFixed(1)}%"></i></div>
     <div class="muted">${this._t("home.today.bar")}</div>` : ""}
   <div class="tiles" style="grid-template-columns:1fr 1fr">
     <div class="tile"><span>${this._t("home.today.spent")}</span><b>${this._m(t.spent, true)}</b></div>
@@ -522,7 +520,7 @@ class FdHome extends HTMLElement {
       <div class="verdict"><span class="chip">${this._t("home.cycle.verdict." + verdictKey)}</span>
         <span class="muted">${this._t(delta >= 0 ? "home.cycle.ahead" : "home.cycle.behind", { amount: this._m(Math.abs(delta), false) })}</span></div>
       <div class="tank" role="img" aria-label="${this._e(this._t("home.cycle.left"))}: ${this._m(d.remaining, false)}">
-        <i style="width:${(frac * 100).toFixed(1)}%"></i><b class="${soll > 0.7 ? "r" : ""}" style="left:${(soll * 100).toFixed(1)}%"><span>${this._t("home.cycle.soll")}</span></b>
+        <i style="width:${(frac * 100).toFixed(1)}%"></i><b style="left:${(soll * 100).toFixed(1)}%" aria-hidden="true"></b>
         <div class="ta">${this._m(d.remaining, false)}<small>${this._t("home.cycle.left")}</small></div></div>
       <div class="tiles"><div class="tile"><span>${this._t("home.cycle.budget")}</span><b>${this._m(budget, false)}</b></div>
         <div class="tile"><span>${this._t("home.cycle.spent")}</span><b>${this._m(spent, false)}</b></div>
@@ -569,10 +567,12 @@ class FdHome extends HTMLElement {
 
   _year(d) {
     const y = d.year || {};
-    const cyc = (y.cycles || []).map((c) => {
+    const list = [...new Map((y.cycles || []).map((c) => [c.start, c])).values()].sort((a, b) => a.start.localeCompare(b.start));
+    const multiYear = new Set(list.map((c) => c.start.slice(0, 4))).size > 1;
+    const cyc = list.map((c) => {
       const cls = c.current ? "run" : (c.status === "good" || c.status === "knapp" || c.status === "over") ? "" : "fut";
       const col = c.status === "over" ? "var(--fd-over)" : c.status === "knapp" ? "var(--fd-near)" : "var(--fd-ok)";
-      const lab = new Date(`${c.start}T12:00:00`).toLocaleDateString(this._lang(), { month: "short" });
+      const lab = new Date(`${c.start}T12:00:00`).toLocaleDateString(this._lang(), multiYear ? { month: "short", year: "2-digit" } : { month: "short" });
       const st = c.status && !cls.includes("fut") ? this._t("home.status." + c.status) : "";
       return `<span class="${cls}" style="--c:${col}" aria-label="${this._e(lab + " " + (c.current ? this._t("home.year.running") : st))}" data-tip="${this._e(lab + (st ? " · " + st : ""))}">${this._e(lab)}</span>`;
     }).join("");
@@ -613,7 +613,9 @@ class FdHome extends HTMLElement {
     const sug = this._suggestions(d);
     const cats = window._fd.CAT_LABELS || {};
     return `<section class="card"><div class="h"><span>${this._t("home.desk.manage")} <span class="dtag">${this._t("home.desk.marker")}</span></span></div>
-      ${pots.length ? pots.map((p) => `<div class="mg"><span><b>${this._e(p.name)}</b><small class="muted">${this._m(p.cycle_budget, false)} · ${p.owner === "shared" ? this._t("home.pot.owner.shared") : this._e(p.owner)}</small></span>
+      ${pots.length ? pots.map((p) => this._confirmId === p.id ? `<div class="mg" role="alertdialog" aria-label="${this._e(this._t("home.pot.delete_confirm", { name: p.name }))}"><span>${this._e(this._t("home.pot.delete_confirm", { name: p.name }))}</span>
+        <span class="btns"><button class="btn ghost sm" data-act="delno">${this._t("home.pot.cancel")}</button>
+        <button class="btn danger sm" data-act="delyes" data-id="${this._e(p.id)}">${this._t("home.pot.delete")}</button></span></div>` : `<div class="mg"><span><b>${this._e(p.name)}</b><small class="muted">${this._m(p.cycle_budget, false)} · ${p.owner === "shared" ? this._t("home.pot.owner.shared") : this._e(p.owner)}</small></span>
         <span class="btns"><button class="btn ghost sm" data-act="editpot" data-id="${this._e(p.id)}">${this._t("home.pot.edit_btn")}</button>
         <button class="btn danger sm" data-act="delpot" data-id="${this._e(p.id)}">${this._t("home.pot.delete")}</button></span></div>`).join("")
         : `<div class="muted">${this._t("home.pots.empty")}</div>`}
@@ -690,7 +692,8 @@ class FdHome extends HTMLElement {
 
   async _deletePot(id) {
     const p = this._allPots(this._data || {}).find((x) => x.id === id);
-    if (!p || !window.confirm(this._t("home.pot.delete_confirm", { name: p.name }))) return;
+    this._confirmId = null;
+    if (!p) return;
     try {
       await this._hass.callApi("DELETE", `${DOMAIN}/pots?id=${encodeURIComponent(id)}`);
       this._load();
@@ -727,7 +730,9 @@ class FdHome extends HTMLElement {
       case "more": this._moreNext = !this._moreNext; this._paint(); break;
       case "addpot": this._openSheet(null); break;
       case "editpot": this._openSheet(pot(t.dataset.id)); break;
-      case "delpot": this._deletePot(t.dataset.id); break;
+      case "delpot": this._confirmId = t.dataset.id; this._paint(); break;
+      case "delyes": this._deletePot(t.dataset.id); break;
+      case "delno": this._confirmId = null; this._paint(); break;
       case "cancel": this._closeSheet(); break;
       case "scrim": if (e.target === t) this._closeSheet(); break;
       case "sugcreate": {

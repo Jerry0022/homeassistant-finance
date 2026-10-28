@@ -795,8 +795,10 @@ def generate_demo_home(
     txs: list[dict[str, Any]] = []
     # Over a year of salaries so the year view has cycles to show.
     month_start = today.replace(day=1)
+    first = month_start
     for i in range(14):
-        first = (month_start - timedelta(days=31 * i)).replace(day=1)
+        if i:
+            first = (first - timedelta(days=1)).replace(day=1)
         txs.append(_tx("demo-sparkasse-anna", "Arbeitgeber A", "income", 3100.0, first))
         prev_end = first - timedelta(days=1)
         txs.append(
@@ -814,7 +816,7 @@ def generate_demo_home(
 
     if view == "person" and person not in {"Anna", "Max"}:
         person = "Anna"
-    return build_home(
+    out = build_home(
         accounts=accounts,
         transactions=txs,
         plan=None,
@@ -827,3 +829,10 @@ def generate_demo_home(
         view=view,
         horizon=horizon,
     )
+    # Demo has no HA-user mapping: always expose a person so the frontend can
+    # switch back from the household view, and show a covered-costs verdict.
+    if out.get("person") is None:
+        out["person"] = {"id": "Anna", "name": "Anna"}
+    if horizon in ("cycle", "year") and out.get("fixed_costs_covered") is None:
+        out["fixed_costs_covered"] = True
+    return out
