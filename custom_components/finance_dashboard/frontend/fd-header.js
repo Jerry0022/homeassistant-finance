@@ -63,15 +63,15 @@ class FdHeader extends HTMLElement {
     if (this._rateLimitedUntil && new Date(this._rateLimitedUntil) > new Date()) {
       btn.disabled = false;
       btn.textContent = tSync("header.refresh.button");
-      btn.title = tSync("header.refresh.rate_limited_title");
+      btn.setAttribute("data-tip", tSync("header.refresh.rate_limited_title"));
     } else if (this._refreshing) {
       btn.disabled = true;
       btn.textContent = tSync("header.refresh.refreshing");
-      btn.title = tSync("header.refresh.refreshing");
+      btn.setAttribute("data-tip", tSync("header.refresh.refreshing"));
     } else {
       btn.disabled = false;
       btn.textContent = tSync("header.refresh.button");
-      btn.title = tSync("header.refresh.button_title");
+      btn.setAttribute("data-tip", tSync("header.refresh.button_title"));
     }
   }
 
@@ -127,134 +127,57 @@ class FdHeader extends HTMLElement {
     const { SHARED_CSS, tSync } = window._fd;
 
     const LOCAL_CSS = `
-:host {
-  --demo: var(--wn, #f39c12);
-  margin-bottom: 24px;
-}
+:host { margin-bottom: 12px; color: var(--fd-t1); font-size: 13px; line-height: 1.4; }
 /* The shell shows the action bar only on the Overview tab; elsewhere it is just the toast host. */
 :host([toast-only]) { margin-bottom: 0; }
 :host([toast-only]) .hdr { display: none; }
+button, a { font: inherit; cursor: pointer; }
 .hdr {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px;
+  padding: 10px 14px; border-radius: var(--fd-r-card); background: var(--fd-card); box-shadow: var(--fd-sh1);
 }
+.ts-stack { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 200px; }
+.ts { font-size: 12.5px; color: var(--fd-t1); }
+.ts-stats { font-size: 11.5px; color: var(--fd-t2); }
+.ts.loading { color: var(--fd-a700); }
+.ts.empty { color: var(--fd-t2); }
+.ts.rate { color: var(--fd-over); }
+.right { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .demo-badge {
-  display: none;
-  padding: 3px 10px;
-  border-radius: 6px;
-  background: var(--demo);
-  color: var(--bg, #0a0a0f);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-.right {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-.ts {
-  font-size: 11px;
-  color: var(--tx2);
+  display: none; padding: 1px 9px; border-radius: var(--fd-r-pill); font-size: 11px; font-weight: 500;
+  background: var(--fd-desktop-bg); color: var(--fd-desktop);
 }
 .btn {
-  padding: 7px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--bd);
-  background: var(--sf);
-  color: var(--tx);
-  font-size: 13px;
-  cursor: pointer;
-  font-family: inherit;
-  text-decoration: none;
+  display: inline-flex; align-items: center; justify-content: center; min-height: var(--fd-touch);
+  padding: 0 16px; border: 1px solid var(--fd-a100); border-radius: var(--fd-r-pill);
+  background: transparent; color: var(--fd-a700); font-weight: 500; text-decoration: none;
 }
-.btn:hover { background: var(--sf2); }
+.btn:hover { background: var(--fd-a50); }
+.btn-p { background: var(--fd-a700); color: #fff; border-color: transparent; }
+.btn-p:hover { background: var(--fd-a900); }
 .btn:disabled { opacity: .5; cursor: default; }
-.btn-p {
-  background: var(--ac);
-  color: var(--bg, #0a0a0f);
-  border-color: var(--ac);
-  font-weight: 600;
-}
-.btn-demo {
-  /* Neutral ghost style — matches secondary buttons, no orange hint */
-  border-color: var(--bd);
-  background: var(--sf);
-  color: var(--tx2);
-}
-.btn-demo:hover {
-  background: var(--sf2);
-  color: var(--tx);
-}
-.btn-demo-active {
-  /* Filled orange only when demo mode is ON */
-  border-color: var(--demo);
-  background: var(--demo);
-  color: var(--bg, #0a0a0f);
-  font-weight: 600;
-}
-.btn-demo-active:hover {
-  background: color-mix(in srgb, var(--demo) 85%, black);
-  border-color: color-mix(in srgb, var(--demo) 85%, black);
-}
-.ts-stack {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  line-height: 1.2;
-}
-.ts-stats {
-  font-size: 10px;
-  color: var(--tx2);
-  opacity: 0.85;
-}
-/* Phone: the status text gets its own full line instead of being squeezed off-screen. */
-@media (max-width: 600px) {
-  .ts-stack { flex-basis: 100%; align-items: flex-start; }
-}
-.ts.loading { color: var(--ac); }
-.ts.empty   { color: var(--tx2); font-style: italic; }
-.ts.rate    { color: var(--demo); }
+.btn-demo-active { background: var(--fd-desktop-bg); color: var(--fd-desktop); border-color: var(--fd-desktop); border-style: dashed; }
+.btn-demo-active:hover { background: var(--fd-desktop-bg); }
+.btn:focus-visible { outline: 2px solid var(--fd-a500); outline-offset: 2px; }
+/* data-tip tooltips anchor at the right edge so they never leave the viewport */
+.btn[data-tip]::after { left: auto; right: 0; transform: none; }
 
 /* Toast */
 .toast {
-  position: fixed;
-  top: 18px;
-  right: 18px;
-  z-index: 2000;
-  padding: 10px 18px;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 500;
-  background: var(--sf);
-  color: var(--tx);
-  border: 1px solid var(--bd);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-  opacity: 0;
-  transform: translateY(-10px);
-  pointer-events: none;
-  transition: opacity 0.25s, transform 0.25s;
-  max-width: 360px;
-  white-space: pre-wrap;
+  position: fixed; top: 16px; left: 50%; z-index: 2000; max-width: min(360px, calc(100vw - 32px));
+  padding: 10px 16px; border: 1px solid var(--fd-line); border-left: 4px solid var(--fd-a500);
+  border-radius: var(--fd-r-pill); background: var(--fd-card); color: var(--fd-t1);
+  box-shadow: var(--fd-sh2); font-size: 12.5px; font-weight: 500; white-space: pre-wrap;
+  opacity: 0; transform: translate(-50%, -10px); pointer-events: none; transition: opacity .25s, transform .25s;
 }
-.toast.show { opacity: 1; transform: translateY(0); }
-.toast-success { border-color: var(--ac); }
-.toast-info    { border-color: color-mix(in srgb, var(--ac) 30%, transparent); }
-.toast-warn    { border-color: var(--demo); color: var(--demo); }
-.toast-error   { border-color: var(--dg); color: var(--dg); }
-
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast-success { border-left-color: var(--fd-ok); }
+.toast-info { border-left-color: var(--fd-a500); }
+.toast-warn { border-left-color: var(--fd-attn); }
+.toast-error { border-left-color: var(--fd-over); }
 @media (max-width: 600px) {
-  .hdr { flex-wrap: wrap; gap: 10px; }
-  .right { width: 100%; justify-content: flex-end; }
-  .btn { padding: 6px 10px; font-size: 12px; }
+  .right { width: 100%; }
+  .right .btn { flex: 1 1 auto; padding: 0 12px; }
 }
 `;
 
@@ -269,8 +192,8 @@ class FdHeader extends HTMLElement {
       <span class="ts-stats" id="tsStats"></span>
     </div>
     <button class="btn btn-demo" id="demoBtn" aria-label="${tSync("header.demo_toggle")}" aria-pressed="false">${tSync("header.demo_off")}</button>
-    <button class="btn btn-p" id="refreshBtn">${tSync("header.refresh.button")}</button>
-    <a class="btn" id="addAccountBtn" href="${window._fd.INTEGRATION_PATH}" aria-label="${tSync("header.add_account_title")}">${tSync("header.add_account")}</a>
+    <button class="btn btn-p" id="refreshBtn" data-tip="${tSync("header.refresh.button_title")}">${tSync("header.refresh.button")}</button>
+    <a class="btn" id="addAccountBtn" data-tip="${tSync("header.add_account_title")}" href="${window._fd.INTEGRATION_PATH}" aria-label="${tSync("header.add_account_title")}">${tSync("header.add_account")}</a>
   </div>
 </div>`;
 
@@ -349,7 +272,7 @@ class FdHeader extends HTMLElement {
       }
       el.className = "ts";
       el.textContent = tSync("header.ts.last", { time: timeStr, age: ageLabel });
-      el.title = `${dayStr} ${timeStr}`;
+      el.setAttribute("aria-label", `${dayStr} ${timeStr}`);
 
       if (statsEl) {
         const s = this._lastRefreshStats;
