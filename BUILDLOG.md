@@ -1,5 +1,13 @@
 # Build Log
 
+## 0.18.2 — 2026-10-28
+Version: 0.18.2
+Branch: claude/promote-stable-3d9130
+Changes:
+- feat(frontend): the old title bar is gone; the Start tab opens straight into the new home top bar, and the tabs use the HA primary colour of the new design
+- feat(frontend): demo, refresh and "add bank" moved to the Overview tab; the Start tab's freshness note gains a "Refresh now" button (attended refresh, same endpoint)
+- refactor(frontend): the obsolete month label and "Finance Dashboard" heading are removed
+
 ## 0.18.1 — 2026-10-28
 Version: 0.18.1
 Branch: claude/promote-stable-3d9130

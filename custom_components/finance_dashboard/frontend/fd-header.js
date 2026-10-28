@@ -1,5 +1,5 @@
 /**
- * fd-header — Title bar with month selector, refresh button, status chip, toast.
+ * fd-header — Overview action bar (freshness, demo, refresh, add bank) and the toast host.
  *
  * Properties:
  *   lastRefresh       {string} — ISO timestamp of last successful refresh
@@ -125,33 +125,21 @@ class FdHeader extends HTMLElement {
 
   _render() {
     const { SHARED_CSS, tSync } = window._fd;
-    const now = new Date();
-    const lang = (window._fd._hass && window._fd._hass.language)
-      || navigator.language || "en";
-    const monthLabel = now.toLocaleDateString(lang, { month: "short", year: "numeric" });
 
     const LOCAL_CSS = `
 :host {
   --demo: var(--wn, #f39c12);
   margin-bottom: 24px;
 }
+/* The shell shows the action bar only on the Overview tab; elsewhere it is just the toast host. */
+:host([toast-only]) { margin-bottom: 0; }
+:host([toast-only]) .hdr { display: none; }
 .hdr {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-}
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-h1 {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0;
-  font-family: 'Segoe UI', system-ui, sans-serif;
 }
 .demo-badge {
   display: none;
@@ -167,7 +155,7 @@ h1 {
 .right {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: center;
   gap: 10px;
   min-width: 0;
@@ -216,17 +204,6 @@ h1 {
   background: color-mix(in srgb, var(--demo) 85%, black);
   border-color: color-mix(in srgb, var(--demo) 85%, black);
 }
-.month-label {
-  padding: 7px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--bd);
-  background: var(--sf);
-  color: var(--tx2);
-  font-size: 13px;
-  cursor: default;
-  user-select: none;
-  font-family: inherit;
-}
 .ts-stack {
   display: flex;
   flex-direction: column;
@@ -241,7 +218,6 @@ h1 {
 }
 /* Phone: the status text gets its own full line instead of being squeezed off-screen. */
 @media (max-width: 600px) {
-  .right { justify-content: flex-start; }
   .ts-stack { flex-basis: 100%; align-items: flex-start; }
 }
 .ts.loading { color: var(--ac); }
@@ -278,7 +254,6 @@ h1 {
 @media (max-width: 600px) {
   .hdr { flex-wrap: wrap; gap: 10px; }
   .right { width: 100%; justify-content: flex-end; }
-  h1 { font-size: 20px; }
   .btn { padding: 6px 10px; font-size: 12px; }
 }
 `;
@@ -287,17 +262,13 @@ h1 {
 <style>${SHARED_CSS}${LOCAL_CSS}</style>
 <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 <div class="hdr">
-  <div class="title-row">
-    <h1>Finance Dashboard</h1>
-    <span class="demo-badge" id="demoBadge">DEMO</span>
-  </div>
   <div class="right">
+    <span class="demo-badge" id="demoBadge">DEMO</span>
     <div class="ts-stack">
       <span class="ts empty" id="ts">${tSync("header.ts.empty")}</span>
       <span class="ts-stats" id="tsStats"></span>
     </div>
     <button class="btn btn-demo" id="demoBtn" aria-label="${tSync("header.demo_toggle")}" aria-pressed="false">${tSync("header.demo_off")}</button>
-    <span class="month-label" id="monthLabel" aria-label="Aktueller Monat: ${monthLabel}">${monthLabel}</span>
     <button class="btn btn-p" id="refreshBtn">${tSync("header.refresh.button")}</button>
     <a class="btn" id="addAccountBtn" href="${window._fd.INTEGRATION_PATH}" aria-label="${tSync("header.add_account_title")}">${tSync("header.add_account")}</a>
   </div>

@@ -237,5 +237,6 @@
   "home.desk.suggest_none": "Keine Vorschläge",
   "home.desk.cycle": "Aktueller Zyklus",
   "panel.footer.store": "In HACS öffnen",
-  "panel.footer.store_title": "Finance im HACS-Store öffnen – dort Updates prüfen und installieren"
+  "panel.footer.store_title": "Finance im HACS-Store öffnen – dort Updates prüfen und installieren",
+  "home.fresh.refresh": "Jetzt aktualisieren"
 }

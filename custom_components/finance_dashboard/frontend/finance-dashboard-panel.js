@@ -9,7 +9,8 @@
  *                         Only when the integration option `show_household`
  *                         is on (GET finance_dashboard/settings, default on).
  *
- * The Refresh button lives in fd-header; this shell performs the attended
+ * The Refresh button lives in fd-header (Overview tab) and in the Start tab's
+ * freshness note; this shell performs the attended
  * POST finance_dashboard/refresh itself (the backend derives the PSU headers
  * from this very HTTP request) and then reloads whatever is on screen.
  *
@@ -173,6 +174,8 @@ class FinanceDashboardPanel extends HTMLElement {
       b.setAttribute("aria-selected", String(on));
       b.tabIndex = on ? 0 : -1;
     }
+    // Refresh, demo and "add bank" live on the Overview tab (new design: Start has its own top bar).
+    sh.querySelector("fd-header")?.toggleAttribute("toast-only", tab !== "overview");
     sh.getElementById("viewHome").hidden = tab !== "home";
     sh.getElementById("viewOverview").hidden = tab !== "overview";
     sh.getElementById("viewHousehold").hidden = tab !== "household";
@@ -291,8 +294,8 @@ class FinanceDashboardPanel extends HTMLElement {
   cursor: pointer;
 }
 .tabs button:hover { color: var(--tx); }
-.tabs button[aria-selected="true"] { color: var(--ac); border-bottom-color: var(--ac); font-weight: 600; }
-.tabs button:focus-visible { outline: 2px solid var(--ac); outline-offset: 2px; border-radius: 4px; }
+.tabs button[aria-selected="true"] { color: var(--primary-color, var(--ac)); border-bottom-color: var(--primary-color, var(--ac)); font-weight: 600; }
+.tabs button:focus-visible { outline: 2px solid var(--primary-color, var(--ac)); outline-offset: 2px; border-radius: 4px; }
 /* Overlay covers the component tree for transient states */
 #overlay { display: block; }
 #overlay.hidden { display: none; }
@@ -310,12 +313,12 @@ class FinanceDashboardPanel extends HTMLElement {
 <fd-data-provider></fd-data-provider>
 <div class="fd">
   <ha-menu-button id="menu" hidden></ha-menu-button>
-  <fd-header></fd-header>
   <div class="tabs" id="tabs" role="tablist" aria-label="${tSync("tabs.label")}">
     <button role="tab" data-tab="home" aria-selected="true">${tSync("tabs.home")}</button>
     <button role="tab" data-tab="overview" aria-selected="false" tabindex="-1">${tSync("tabs.overview")}</button>
     <button role="tab" data-tab="household" aria-selected="false" tabindex="-1">${tSync("tabs.household")}</button>
   </div>
+  <fd-header toast-only></fd-header>
   <div id="viewHome" role="tabpanel"><fd-home></fd-home></div>
   <div id="viewOverview" role="tabpanel" hidden><fd-overview></fd-overview></div>
   <div id="viewHousehold" role="tabpanel" hidden>
