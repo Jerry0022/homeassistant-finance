@@ -41,6 +41,33 @@ this order, each step usable on its own:
 - [ ] **Phase 5 - Visuals**: presentation of all of the above incl. mobile; input in
   `visual-round-handoff.md`.
 
+## Visual round — home slice done, next slices (decided 2026-10-28)
+
+The home screen (Heute · Woche · Zyklus · Jahr, pots, cycle rule, design system) shipped as the
+first vertical slice. The household wants the remaining surfaces concepted the same way, one slice
+at a time, each element refined in depth:
+
+- [ ] Guided desktop check-up "Einnahmen · Ausgaben · Überschuss" (find the final wording), a rare,
+  on-demand "review / improve my finances" flow; each part with its own statistics and improvement
+  hints in place, visualising where action is needed and where not. Includes a debt view.
+- [ ] Inside Ausgaben: fixed vs. variable costs; fixed costs split Haushalt vs. personal per person.
+  Household fixed costs visible to all; a person's personal fixed and variable costs in detail only to
+  that person (confirm whether others see a per-person total).
+- [ ] Contracts as their own entry (payments chart, notice deadlines, more contract analysis in the
+  year view) — desktop-leaning, reachable on mobile without a classic submenu.
+- [ ] Statistics behind a link/icon; the household home only shows a "Wusstest du schon?" top info.
+- [ ] Complex cycle analysis desktop-only (mobile: a simple summary); year comparison incl. inflation,
+  salary change, population and purchasing power (needs the bundled benchmark dataset, Phase 4e).
+- [ ] Transaction view as one of the last slices, desktop only, across all household accounts: who
+  started with how much since cycle / month / week start, and a flow visualisation (Sankey-like) of
+  where money went and came back.
+- [ ] Questions as flash cards with a thematic counter (7 cards per point) and a celebration.
+- [ ] Decide: "Was das heißt" analysis text AI-generated (opt-in) or rule-based (rule-based today).
+
+Standing principle for every analysis view: never a one-dimensional "here is a statistic". Combine
+dimensions (trend × plan × benchmark × owner × fixed/variable), say what it means, show where action
+is needed and where not, and offer the concrete next step.
+
 ## Open backlog
 
 - [ ] Income recognition with +-5d window; bonus detection; month cycle wiring; logical-month
