@@ -508,6 +508,7 @@ def build_home(  # noqa: PLR0912, PLR0915
     if horizon in ("cycle", "year"):
         out["next"] = [_item(b) for b in future if b["date"] <= end][:NEXT_TOP_N]
         out["next_total"] = len([b for b in future if b["date"] <= end])
+        out["next_all"] = [_item(b) for b in future if b["date"] <= end][:30]
         out["did_you_know"] = _did_you_know(scope if view == "person" else
                                             [b for b in scope if b["owner"] == POT_OWNER_SHARED],
                                             cycle, today)
