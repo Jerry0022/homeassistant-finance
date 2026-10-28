@@ -269,11 +269,14 @@ class EnableBankingClient:
 
         return {"session_id": session_id, "accounts": accounts}
 
-    async def async_get_account_details(self, account_id: str) -> dict[str, Any]:
+    async def async_get_account_details(
+        self, account_id: str, psu_ip: str | None = None
+    ) -> dict[str, Any]:
         """Get account metadata.
 
         Args:
             account_id: Enable Banking account ID.
+            psu_ip: Optional PSU IP address from the originating user request.
 
         Returns:
             Dict normalized to GoCardless format:
@@ -281,7 +284,9 @@ class EnableBankingClient:
         """
         # Enable Banking has no bare /accounts/{id} resource (404); the
         # metadata lives under /details, with the IBAN nested in account_id.
-        result = await self._async_request("GET", f"/accounts/{account_id}/details")
+        result = await self._async_request(
+            "GET", f"/accounts/{account_id}/details", psu_ip=psu_ip, psu_ua=self._PSU_UA
+        )
         acct = result if "iban" in result or "account_id" in result else result.get("account", result)
         account_ref = acct.get("account_id")
         iban = account_ref.get("iban", "") if isinstance(account_ref, dict) else ""

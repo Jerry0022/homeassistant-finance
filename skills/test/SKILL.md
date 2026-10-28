@@ -20,6 +20,12 @@ After every change, verify it works. Pick the method that fits the change:
 | **Events** | SSH logs: watch for `fd_*` events |
 | **Mixed** | Both SSH logs + Edge UI |
 
+## Local access
+
+`P:\Projects\.secrets\homeassistant.env` (outside the repo) holds `HA_URL`, a user-created
+`HA_TOKEN` (long-lived access token) and `HA_SSH_KEY`. Read it when present; without a token use
+the browser pane session (HA login persists there). Never write tokens yourself.
+
 ## SSH Log Inspection
 
 ```bash

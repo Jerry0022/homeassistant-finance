@@ -779,6 +779,14 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
             for p in self.persons
         ]
         mapped = {i for p in persons for i in p["ha_users"]}
+        # Device and service logins (MQTT, a wall tablet) are ordinary active
+        # users to HA.  When the install has person entities, only users
+        # linked to one are people; without any, every active user may be.
+        person_users = {
+            str(s.attributes.get("user_id"))
+            for s in self._hass.states.async_all("person")
+            if s.attributes.get("user_id")
+        }
         ha_users = []
         for u in users:
             uid = str(getattr(u, "id", "") or "")
@@ -788,6 +796,8 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
                 suggested, reason = False, "inactive"
             elif uid in mapped:
                 suggested, reason = True, "person"
+            elif person_users and uid not in person_users:
+                suggested, reason = False, "no_person"
             else:
                 suggested, reason = True, "active_user"
             ha_users.append(

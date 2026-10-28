@@ -76,6 +76,34 @@ class BankMixin:
                 result.append(record)
         return result
 
+    def async_adopt_subentry_accounts(self) -> int:
+        """Store the accounts a bank subentry references but the entry lacks.
+
+        Banks linked by 0.16.0/0.16.1 wrote only the subentry refs.  Fetching
+        still worked through the minimal records of :meth:`_accounts_for`, but
+        everything that reads ``_accounts`` (account keys in the API, person
+        and owner assignment, transfer detection) saw no account at all.
+        Runs on setup, before the update listener exists, so persisting does
+        not reload the entry.  Returns the number of adopted accounts.
+        """
+        from ..account_identity import account_key
+
+        known = {account_key(a) for a in self._accounts}
+        adopted: list[dict[str, Any]] = []
+        for sub in self._bank_subentries():
+            data = dict(sub.data)
+            title = data.get("aspsp_name") or sub.title
+            for record in self._accounts_for(data.get("accounts") or [], title):
+                key = account_key(record)
+                if key not in known:
+                    known.add(key)
+                    adopted.append(record)
+        if not adopted:
+            return 0
+        self.async_set_accounts([*self._accounts, *adopted])
+        _LOGGER.info("Adopted %d bank account(s) from subentries", len(adopted))
+        return len(adopted)
+
     async def _async_bank_targets(self) -> list[dict[str, Any]]:
         """Banks to fetch, each with its accounts and consent expiry."""
         targets: list[dict[str, Any]] = []

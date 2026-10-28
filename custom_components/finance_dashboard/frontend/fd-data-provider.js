@@ -417,7 +417,13 @@ class FdDataProvider extends HTMLElement {
           summaryEntityId = entityId;
           continue;
         }
-        if (uniqueId.startsWith(`${DOMAIN}_`) && uniqueId.endsWith("_balance")) {
+        // The available-balance sensor shares the suffix; counting it too
+        // doubled every account and added available on top of booked.
+        if (
+          uniqueId.startsWith(`${DOMAIN}_`) &&
+          uniqueId.endsWith("_balance") &&
+          !uniqueId.endsWith("_available_balance")
+        ) {
           const val = parseFloat(state.state);
           if (isNaN(val)) continue;
           const attrs = state.attributes || {};
