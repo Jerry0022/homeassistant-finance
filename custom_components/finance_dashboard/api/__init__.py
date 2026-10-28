@@ -38,9 +38,11 @@ from .household import FinanceDashboardHouseholdSummaryView
 from .plan import (
     FinanceDashboardBenchmarkView,
     FinanceDashboardBudgetPlanView,
+    FinanceDashboardPlanImportUrlView,
     FinanceDashboardPlanImportView,
     FinanceDashboardPlanIncomeView,
     FinanceDashboardPlanPositionView,
+    FinanceDashboardPlanUploadView,
     FinanceDashboardPlanVsActualView,
     FinanceDashboardTransferPlanView,
 )
@@ -78,6 +80,8 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
     "FinanceDashboardPlanPositionView",
     "FinanceDashboardPlanIncomeView",
     "FinanceDashboardPlanImportView",
+    "FinanceDashboardPlanImportUrlView",
+    "FinanceDashboardPlanUploadView",
     # Home screen + pots
     "FinanceDashboardHomeView",
     "FinanceDashboardPotsView",
@@ -126,6 +130,8 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardPlanPositionView())
     hass.http.register_view(FinanceDashboardPlanIncomeView())
     hass.http.register_view(FinanceDashboardPlanImportView())
+    hass.http.register_view(FinanceDashboardPlanUploadView())
+    hass.http.register_view(FinanceDashboardPlanImportUrlView())
     hass.http.register_view(FinanceDashboardHomeView())
     hass.http.register_view(FinanceDashboardPotsView())
     hass.http.register_view(FinanceDashboardAssignmentsView())

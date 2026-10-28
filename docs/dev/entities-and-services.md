@@ -31,7 +31,9 @@ updates balances + transactions + recurring in one round.
 
 Cache reads: `/balances`, `/transactions`, `/summary`, `/refresh_status`, bank status, settings.
 Live: `/refresh`. Plan: `/budget_plan`, `/transfer_plan`, `/plan_vs_actual`, `/benchmark`, plan
-position/income/import. Demo: toggle + data. IBANs are truncated to the last 4 digits.
+position/income/import, `/budget_plan/upload` (admin; base64 `.xlsx`, max 5 MB, parsed in memory)
+and `/budget_plan/import_url` (admin; Google Sheets link shared "anyone with the link" — only the
+sheet id is taken, the export URL on `docs.google.com` is built in `sheet_source.py`). Demo: toggle + data. IBANs are truncated to the last 4 digits.
 
 Home screen (`api/home.py`, `home.py`, `pots.py`, `cycle.py`):
 

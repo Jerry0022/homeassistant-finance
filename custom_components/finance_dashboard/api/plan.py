@@ -10,6 +10,8 @@ Provides:
 - PlanPositionView     — create/update/delete a cost position (admin)
 - PlanIncomeView       — set a person's income entry (admin)
 - PlanImportView       — import a household workbook (admin)
+- PlanUploadView       — import an uploaded workbook (admin)
+- PlanImportUrlView    — import a Google Sheets link as xlsx (admin)
 
 PRIVACY: individual cost positions name what a specific person spends money on,
 so the itemised ledger is admin-only — the same rule the transactions endpoint
@@ -18,17 +20,22 @@ is what the household agreed on collectively.
 
 SECURITY: the import endpoint reads a file path supplied by the caller. Paths
 are validated against Home Assistant's allowlist (``allowlist_external_dirs``),
-so the endpoint cannot be used to read arbitrary files from the host.
+so the endpoint cannot be used to read arbitrary files from the host. The
+upload endpoint takes bytes, never a path. The Google Sheets endpoint never
+fetches the pasted URL: it extracts the sheet id and builds the export URL
+against docs.google.com itself (see ``sheet_source``).
 """
 
 from __future__ import annotations
 
 import logging
 
-from aiohttp import web
+from aiohttp import ClientError, web
 from homeassistant.components.http import HomeAssistantView
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from ..const import DOMAIN, OWNER_SHARED
+from ..sheet_source import SheetSourceError, decode_upload, fetch_google_sheet
 from ._helpers import _get_manager, admin_denied
 
 _LOGGER = logging.getLogger(__name__)
@@ -294,3 +301,89 @@ class FinanceDashboardPlanImportView(HomeAssistantView):
             return self.json({"error": "Import failed — see the log"}, status_code=500)
 
         return self.json({"ok": True, "report": report})
+
+
+async def _import_bytes(view: HomeAssistantView, manager, data: bytes) -> web.Response:
+    """Replace the plan with an in-memory workbook; shared by upload and link."""
+    try:
+        report = await manager.async_import_spreadsheet_bytes(data)
+    except ImportError as err:
+        return view.json({"error": str(err)}, status_code=500)
+    except ValueError as err:
+        return view.json({"error": str(err)}, status_code=400)
+    except Exception:
+        _LOGGER.exception("Spreadsheet import failed")
+        return view.json({"error": "Import failed — see the log"}, status_code=500)
+    return view.json({"ok": True, "report": report})
+
+
+class FinanceDashboardPlanUploadView(HomeAssistantView):
+    """Import an uploaded household workbook into the budget plan."""
+
+    url = f"/api/{DOMAIN}/budget_plan/upload"
+    name = f"api:{DOMAIN}:budget_plan:upload"
+    requires_auth = True
+
+    async def post(self, request: web.Request) -> web.Response:
+        """Replace the plan with an uploaded workbook (admin only).
+
+        Body: ``{"content_base64": "..."}`` — the ``.xlsx`` file, at most 5 MB.
+        """
+        hass = request.app["hass"]
+        if not _is_admin(request):
+            return self.json({"error": "Admin required"}, status_code=403)
+        manager = _get_manager(hass)
+        if not manager:
+            return self.json({"error": "Not configured"}, status_code=404)
+
+        try:
+            data = await request.json()
+        except ValueError:
+            return self.json({"error": "Invalid JSON"}, status_code=400)
+
+        try:
+            workbook = decode_upload(str(data.get("content_base64") or ""))
+        except SheetSourceError as err:
+            return self.json({"error": str(err)}, status_code=400)
+
+        return await _import_bytes(self, manager, workbook)
+
+
+class FinanceDashboardPlanImportUrlView(HomeAssistantView):
+    """Import a Google Sheets spreadsheet into the budget plan."""
+
+    url = f"/api/{DOMAIN}/budget_plan/import_url"
+    name = f"api:{DOMAIN}:budget_plan:import_url"
+    requires_auth = True
+
+    async def post(self, request: web.Request) -> web.Response:
+        """Replace the plan with a Google spreadsheet (admin only).
+
+        Body: ``{"url": "https://docs.google.com/spreadsheets/d/<id>/..."}``.
+        The sheet must be shared as "anyone with the link".
+        """
+        hass = request.app["hass"]
+        if not _is_admin(request):
+            return self.json({"error": "Admin required"}, status_code=403)
+        manager = _get_manager(hass)
+        if not manager:
+            return self.json({"error": "Not configured"}, status_code=404)
+
+        try:
+            data = await request.json()
+        except ValueError:
+            return self.json({"error": "Invalid JSON"}, status_code=400)
+
+        try:
+            workbook = await fetch_google_sheet(
+                async_get_clientsession(hass), str(data.get("url") or "")
+            )
+        except SheetSourceError as err:
+            return self.json({"error": str(err)}, status_code=400)
+        except ClientError:
+            _LOGGER.warning("Google Sheets download failed")
+            return self.json(
+                {"error": "Google Sheets could not be reached"}, status_code=502
+            )
+
+        return await _import_bytes(self, manager, workbook)

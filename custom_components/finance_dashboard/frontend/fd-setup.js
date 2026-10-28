@@ -9,6 +9,9 @@
  * notifications, ai, done. Every "Weiter" stores the step on the server, so the wizard
  * resumes at the first unresolved step. Nothing here talks to the bank.
  *
+ *   POST finance_dashboard/budget_plan/upload       {content_base64} → {ok, report}
+ *   POST finance_dashboard/budget_plan/import_url   {url}            → {ok, report}  (Google Sheets)
+ *
  * Properties: hass (required).
  * Events (bubbling, composed):
  *   fd-setup-close   {completed}  — panel removes the overlay and reloads Start
@@ -72,7 +75,16 @@ const FB = {
     "setup.pots.owner_shared": "Haushalt",
     "setup.plan.title": "Budgetplan",
     "setup.plan.body": "Der Plan hält fest, was ihr fest eingeplant habt: Fixkosten und Einkommen pro Person. Er ist ein Extra und für den Start nicht nötig.",
-    "setup.plan.import": "Wenn du eine Haushaltstabelle (.xlsx) hast, kannst du sie importieren. Das geht über den Dienst finance_dashboard.import_spreadsheet in Home Assistant. Die Datei muss im Konfigurationsordner liegen.",
+    "setup.plan.import": "Hast du eure Haushaltstabelle? Lade die .xlsx-Datei hoch oder füge einen Google-Sheets-Link ein. Der Import ersetzt den bisherigen Plan.",
+    "setup.plan.file": "Datei hochladen (.xlsx)",
+    "setup.plan.url_label": "Google-Sheets-Link",
+    "setup.plan.url_import": "Importieren",
+    "setup.plan.url_hint": "Die Tabelle muss auf „Jeder mit dem Link“ freigegeben sein. Solange das gilt, kann sie jeder mit dem Link lesen. Nach dem Import kannst du die Freigabe wieder zurücknehmen.",
+    "setup.plan.url_err": "Bitte einen Link auf docs.google.com/spreadsheets einfügen.",
+    "setup.plan.importing": "Importiere…",
+    "setup.plan.done": "Importiert: $positions Posten, $persons Personen",
+    "setup.plan.warnings": "$n Hinweise beim Import – Details im Budgetplan.",
+    "setup.plan.failed": "Import fehlgeschlagen",
     "setup.plan.later": "Du kannst das jederzeit nachholen. Ohne Plan funktionieren Töpfe und Zyklus trotzdem.",
     "setup.notif.title": "Benachrichtigungen",
     "setup.notif.body": "Ruhig und selten: nur Ausnahmen und eine Wochenübersicht. Alles lässt sich abschalten.",
@@ -148,7 +160,16 @@ const FB = {
     "setup.pots.owner_shared": "Household",
     "setup.plan.title": "Budget plan",
     "setup.plan.body": "The plan records what you set aside: fixed costs and income per person. It is an extra and not needed to start.",
-    "setup.plan.import": "If you have a household spreadsheet (.xlsx) you can import it. This works through the finance_dashboard.import_spreadsheet service in Home Assistant. The file has to be in the config folder.",
+    "setup.plan.import": "Got your household spreadsheet? Upload the .xlsx file or paste a Google Sheets link. The import replaces the current plan.",
+    "setup.plan.file": "Upload file (.xlsx)",
+    "setup.plan.url_label": "Google Sheets link",
+    "setup.plan.url_import": "Import",
+    "setup.plan.url_hint": "The sheet must be shared as “Anyone with the link”. While it is, anyone with the link can read it. You can revoke the sharing after the import.",
+    "setup.plan.url_err": "Please paste a link to docs.google.com/spreadsheets.",
+    "setup.plan.importing": "Importing…",
+    "setup.plan.done": "Imported: $positions positions, $persons people",
+    "setup.plan.warnings": "$n notes from the import – details in the budget plan.",
+    "setup.plan.failed": "Import failed",
     "setup.plan.later": "You can do this any time. Pots and cycle work without a plan.",
     "setup.notif.title": "Notifications",
     "setup.notif.body": "Quiet and rare: only exceptions and a weekly overview. Everything can be turned off.",
@@ -237,6 +258,10 @@ input[type=text] { box-sizing: border-box; width: 110px; min-height: var(--fd-to
 .sum + .sum { border-top: 1px solid var(--fd-line); }
 .sum span:last-child { color: var(--fd-t2); text-align: right; }
 .note { padding: 12px; border-radius: 10px; background: var(--fd-sunk); color: var(--fd-t2); font-size: 13px; margin: 8px 0; }
+.imp { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0 4px; }
+.imp input[type=url] { box-sizing: border-box; flex: 1 1 220px; min-width: 0; min-height: var(--fd-touch); padding: 0 10px; border: 1px solid var(--fd-line); border-radius: 10px; background: var(--fd-page); color: var(--fd-t1); font: inherit; }
+.imp label { width: 100%; color: var(--fd-t2); font-size: 12.5px; }
+.ok { padding: 10px 12px; border-radius: 10px; background: var(--fd-a50); color: var(--fd-a900); font-size: 13px; margin: 8px 0; }
 code { font-size: 12px; background: var(--fd-sunk); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
 .msg { text-align: center; padding: 40px 14px; color: var(--fd-t2); }
 `;
@@ -253,6 +278,7 @@ class FdSetup extends HTMLElement {
     this._loadFailed = false;
     this._paydaySug = null;
     this._potSug = null;
+    this._plan = { busy: false, report: null, url: "" };
     this._draft = {};
     this._wired = false;
   }
@@ -377,8 +403,7 @@ class FdSetup extends HTMLElement {
       case "payday": return this._paydayBody();
       case "region": return this._regionBody();
       case "pots": return this._potsBody();
-      case "plan":
-        return `${this._head("plan")}<div class="note">${escHtml(tr("setup.plan.import"))}</div><p class="muted">${escHtml(tr("setup.plan.later"))}</p>`;
+      case "plan": return this._planBody();
       case "notifications": {
         const n = this._draft.notifications || {};
         const detail = n.enabled === false ? "" : `
@@ -419,6 +444,60 @@ class FdSetup extends HTMLElement {
         ${use}<input type="number" min="1" max="31" step="1" inputmode="numeric" data-day-of="${escHtml(p.name)}" value="${escHtml(val)}" aria-label="${escHtml(tr("setup.payday.day") + ": " + p.name)}"></div>`;
     }).join("");
     return `${this._head("payday")}${rows}`;
+  }
+
+  _planBody() {
+    const { escHtml } = window._fd;
+    const p = this._plan;
+    const dis = p.busy ? " disabled" : "";
+    const rep = p.report;
+    const result = p.busy ? `<p class="muted" role="status">${escHtml(tr("setup.plan.importing"))}</p>`
+      : rep ? `<div class="ok" role="status">${escHtml(tr("setup.plan.done", {
+          positions: rep.positions_imported ?? 0,
+          persons: Array.isArray(rep.persons) ? rep.persons.length : (rep.persons ?? 0) }))}${
+          (rep.warnings || []).length ? `<br>${escHtml(tr("setup.plan.warnings", { n: rep.warnings.length }))}` : ""}</div>` : "";
+    return `${this._head("plan")}<p>${escHtml(tr("setup.plan.import"))}</p>
+      <div class="imp"><input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" data-plan-file hidden>
+        <button type="button" class="btn ghost" data-a="plan_file"${dis}>${escHtml(tr("setup.plan.file"))}</button></div>
+      <div class="imp"><label for="sheet-url">${escHtml(tr("setup.plan.url_label"))}</label>
+        <input type="url" id="sheet-url" inputmode="url" autocomplete="off" placeholder="https://docs.google.com/spreadsheets/d/…" data-sheet-url value="${escHtml(p.url)}"${dis}>
+        <button type="button" class="btn ghost" data-a="plan_url"${dis}>${escHtml(tr("setup.plan.url_import"))}</button></div>
+      <p class="muted">${escHtml(tr("setup.plan.url_hint"))}</p>
+      ${result}<p class="muted">${escHtml(tr("setup.plan.later"))}</p>`;
+  }
+
+  /** Upload or link import: both replace the plan and return the import report. */
+  async _importPlan(path, body) {
+    if (this._plan.busy) return;
+    this._err = "";
+    this._plan.busy = true;
+    this._render();
+    try {
+      const res = await this._hass.callApi("POST", `${DOMAIN}/${path}`, body);
+      this._plan.report = res.report || {};
+      this._toast(tr("setup.plan.done", {
+        positions: this._plan.report.positions_imported ?? 0,
+        persons: Array.isArray(this._plan.report.persons) ? this._plan.report.persons.length : 0 }), "success");
+    } catch (e) {
+      const detail = (e && e.body && (e.body.error || e.body.message)) || (e && e.message) || "";
+      this._err = detail ? `${tr("setup.plan.failed")}: ${detail}` : tr("setup.plan.failed");
+    }
+    this._plan.busy = false;
+    this._render();
+  }
+
+  _uploadPlan(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => this._importPlan("budget_plan/upload", { content_base64: String(reader.result || "") });
+    reader.onerror = () => this._fail(tr("setup.plan.failed"));
+    reader.readAsDataURL(file);
+  }
+
+  _importSheetUrl() {
+    const url = (this._plan.url || "").trim();
+    if (!/^https:\/\/docs\.google\.com\/spreadsheets\/d\//i.test(url)) return this._fail(tr("setup.plan.url_err"));
+    this._importPlan("budget_plan/import_url", { url });
   }
 
   _regionBody() {
@@ -511,9 +590,17 @@ class FdSetup extends HTMLElement {
       if (el.dataset.dayOf !== undefined) this._draft.paydays[el.dataset.dayOf] = el.value;
       else if (el.dataset.potAmt !== undefined) this._potSug[Number(el.dataset.potAmt)].amount = el.value;
       else if (el.dataset.postcode !== undefined) this._draft.region.postcode = el.value.trim();
+      else if (el.dataset.sheetUrl !== undefined) this._plan.url = el.value;
       else if (el.dataset.num) this._draft.notifications[el.dataset.num] = el.value === "" ? "" : Number(el.value);
     });
-    this.onkeydown = (ev) => { if (ev.key === "Escape") this._close(false); };
+    sh.addEventListener("change", (ev) => {
+      const el = ev.target;
+      if (el.dataset.planFile !== undefined) { this._uploadPlan(el.files && el.files[0]); el.value = ""; }
+    });
+    this.onkeydown = (ev) => {
+      if (ev.key === "Escape") this._close(false);
+      else if (ev.key === "Enter" && ev.composedPath()[0]?.dataset?.sheetUrl !== undefined) this._importSheetUrl();
+    };
   }
 
   _toggle(id) {
@@ -536,6 +623,8 @@ class FdSetup extends HTMLElement {
     else if (a === "skip") this._advance("skipped");
     else if (a === "next") this._advance("done");
     else if (a === "finish") this._finish();
+    else if (a === "plan_file") this.shadowRoot.querySelector("[data-plan-file]")?.click();
+    else if (a === "plan_url") this._importSheetUrl();
   }
 
   _go(i) {
@@ -570,7 +659,8 @@ class FdSetup extends HTMLElement {
     buttons.forEach((b) => { b.disabled = true; });
     if (step === "region" && status === "skipped") { this._busy = false; return this._go(this._idx + 1); }
     try {
-      if (step === "plan") status = "skipped"; // nothing is imported here; the page only explains the service
+      // The import itself already stored the plan; the step is done only if one ran.
+      if (step === "plan") status = this._plan.report ? "done" : "skipped";
       let body = { step, status };
       if (status === "done") {
         if (step === "persons" || step === "accounts") {

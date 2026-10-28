@@ -26,15 +26,18 @@ Structure the importer recovers that a plain value read would lose:
   to a third party) and must stay negative rather than becoming income.
 
 SECURITY: the workbook holds real financial data. It is read from a path the
-user supplies, parsed in memory, and written only to HA's ``.storage/``. The
-file itself is never copied into the repository and its contents are never
-logged — only counts and structural warnings.
+user supplies, or from bytes the user uploaded or exported from Google Sheets,
+parsed in memory, and written only to HA's ``.storage/``. The file itself
+is never copied into the repository and its contents are never logged — only
+counts and structural warnings.
 """
 
 from __future__ import annotations
 
+import io
 import logging
 import re
+import zipfile
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -437,11 +440,12 @@ def _extract_buffer_factors(
     return (1.0, round(amount, 2))
 
 
-def parse_workbook(path: str) -> tuple[BudgetPlan, ImportReport]:
+def parse_workbook(source: str | bytes) -> tuple[BudgetPlan, ImportReport]:
     """Parse a household workbook into a budget plan.
 
     Args:
-        path: Absolute path to the ``.xlsx`` file.
+        source: Absolute path to the ``.xlsx`` file, or its raw bytes (an
+            upload or a Google Sheets export).
 
     Returns:
         The parsed plan and a structural report.
@@ -449,7 +453,8 @@ def parse_workbook(path: str) -> tuple[BudgetPlan, ImportReport]:
     Raises:
         ImportError: openpyxl is not installed.
         FileNotFoundError: the path does not exist.
-        ValueError: the workbook has neither expected sheet.
+        ValueError: the workbook has neither expected sheet, or the bytes are
+            not an ``.xlsx`` workbook.
     """
     try:
         import openpyxl
@@ -462,8 +467,17 @@ def parse_workbook(path: str) -> tuple[BudgetPlan, ImportReport]:
     report = ImportReport()
 
     # Formulas are needed to recover buffer factors, cached values for amounts.
-    formulas = openpyxl.load_workbook(path, data_only=False)
-    values = openpyxl.load_workbook(path, data_only=True)
+    def _open(data_only: bool) -> Any:
+        # A stream is consumed by one load, so each view gets a fresh buffer.
+        if not isinstance(source, bytes):
+            return openpyxl.load_workbook(source, data_only=data_only)
+        try:
+            return openpyxl.load_workbook(io.BytesIO(source), data_only=data_only)
+        except (zipfile.BadZipFile, KeyError, OSError) as err:
+            raise ValueError("The file is not a readable .xlsx workbook") from err
+
+    formulas = _open(False)
+    values = _open(True)
 
     income_sheet = _find_sheet(values, SHEET_INCOME)
     costs_values = _find_sheet(values, SHEET_COSTS)
