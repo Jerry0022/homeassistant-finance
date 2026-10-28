@@ -36,7 +36,8 @@ def _region(raw) -> dict | None:
         return None
     state = str(raw.get("state") or "").strip().upper()
     postcode = str(raw.get("postcode") or "").strip()
-    if state and not (state.isalpha() and len(state) == 2):
+    code = state.removeprefix("DE-")
+    if state and not (code.isalpha() and len(code) == 2):
         return None
     if postcode and not (postcode.isdigit() and len(postcode) == 5):
         return None
