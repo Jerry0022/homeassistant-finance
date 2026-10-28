@@ -110,4 +110,4 @@ def fire_recurring_detected(
             "frequency": frequency,
         },
     )
-    _LOGGER.info("Recurring detected: %s (%.2f %s)", creditor, amount, frequency)
+    _LOGGER.debug("Recurring payment detected (%s)", frequency)

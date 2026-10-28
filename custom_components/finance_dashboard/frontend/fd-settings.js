@@ -140,6 +140,7 @@ summary { min-height: var(--fd-touch); display: flex; align-items: center; color
 .bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 16px; }
 .err { margin-right: auto; color: var(--fd-over); font-size: 12px; }
 button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--fd-a500); outline-offset: 2px; }
+[hidden] { display: none !important; }
 .row input[type=text] { order: 3; flex: 1 1 100%; }
 @container (min-width: 700px) {
   .row input[type=text] { order: 0; flex: 1 1 200px; max-width: 280px; }
@@ -167,6 +168,14 @@ class FdSettings extends HTMLElement {
     if (first && !this._data) this.load();
     else if (first) this._render();
   }
+
+  // Wizard embedding: section "persons" | "accounts" shows one half, embedded hides the own Save button.
+  static get observedAttributes() { return ["section", "embedded"]; }
+  attributeChangedCallback() { if (this._draft) this._render(); }
+  get _section() { return this.getAttribute("section") || ""; }
+
+  /** Save the draft; resolves true on success (used by the setup wizard). */
+  save() { return this._save(); }
 
   get data() { return this._data; }
   set data(d) {
@@ -244,21 +253,25 @@ class FdSettings extends HTMLElement {
 
     sh.innerHTML = `<style>${window._fd.SHARED_CSS}${CSS}</style>
 <div class="root" style="container: settings / inline-size"><div class="card">
-  <h3>${escHtml(tr("settings.title"))}</h3>
-  <p class="muted">${escHtml(tr("settings.intro"))}</p>
-  <h4>1 · ${escHtml(tr("settings.step1"))}</h4>
-  <p class="muted">${escHtml(tr("settings.step1_hint"))}</p>
+  ${this._section ? "" : `<h3>${escHtml(tr("settings.title"))}</h3>
+  <p class="muted">${escHtml(tr("settings.intro"))}</p>`}
+  <div ${this._section === "accounts" ? "hidden" : ""}>
+  ${this._section ? "" : `<h4>1 · ${escHtml(tr("settings.step1"))}</h4>
+  <p class="muted">${escHtml(tr("settings.step1_hint"))}</p>`}
   <div id="users">${main.map((u) => this._userRow(u)).join("")}</div>
   ${more.length ? `<details><summary>${escHtml(tr("settings.more_users", { n: more.length }))}</summary>${more.map((u) => this._userRow(u)).join("")}</details>` : ""}
   ${free.length ? `<h4>${escHtml(tr("settings.persons_free"))}</h4>${free.map((p) => this._freeRow(p)).join("")}` : ""}
   ${planChips.length ? `<p class="muted" style="margin-top:12px">${escHtml(tr("settings.plan_persons"))}</p>
     <div class="chips">${planChips.map((n) => `<button type="button" data-plan="${escHtml(n)}">+ ${escHtml(n)}</button>`).join("")}</div>` : ""}
   <div class="chips"><button type="button" id="addp">+ ${escHtml(tr("settings.add_person"))}</button></div>
-  <h4>2 · ${escHtml(tr("settings.step2"))}</h4>
-  <p class="muted">${escHtml(tr("settings.step2_hint"))}</p>
+  </div>
+  <div ${this._section === "persons" ? "hidden" : ""}>
+  ${this._section ? "" : `<h4>2 · ${escHtml(tr("settings.step2"))}</h4>
+  <p class="muted">${escHtml(tr("settings.step2_hint"))}</p>`}
   <div id="accts"></div>
+  </div>
   <div class="bar"><span class="err" id="err" role="alert">${escHtml(this._error)}</span>
-    <button type="button" class="btn" id="save">${escHtml(tr("settings.save"))}</button></div>
+    <button type="button" class="btn" id="save" ${this.hasAttribute("embedded") ? "hidden" : ""}>${escHtml(tr("settings.save"))}</button></div>
 </div></div>`;
     this._renderAccounts();
     if (!this._wired) { this._wired = true; this._wire(); }
@@ -268,7 +281,8 @@ class FdSettings extends HTMLElement {
     const { escHtml } = window._fd;
     const p = this._personOf(u.id);
     const on = !!p;
-    const reason = tr(`settings.reason.${u.reason || "active_user"}`);
+    const rkey = `settings.reason.${u.reason || "active_user"}`;
+    const reason = tr(rkey) === rkey ? "" : tr(rkey);
     return `<div class="row" data-user="${escHtml(u.id)}">
   <div class="who"><b>${escHtml(u.name)}${u.is_admin ? `<span class="chip">${escHtml(tr("settings.admin"))}</span>` : ""}</b>
     <span>${escHtml(u.suggested ? tr("settings.suggested") + " · " : "")}${escHtml(reason)}</span></div>
@@ -367,10 +381,10 @@ class FdSettings extends HTMLElement {
   }
 
   async _save() {
-    if (this._saving) return;
+    if (this._saving) return false;
     const names = this._draft.persons.map((p) => p.name.trim());
-    if (names.some((n) => !n)) return this._fail(tr("settings.err_name"));
-    if (new Set(names.map((n) => n.toLowerCase())).size !== names.length) return this._fail(tr("settings.err_dup"));
+    if (names.some((n) => !n)) return this._fail(tr("settings.err_name")), false;
+    if (new Set(names.map((n) => n.toLowerCase())).size !== names.length) return this._fail(tr("settings.err_dup")), false;
     const body = {
       persons: this._draft.persons.map((p) => ({ name: p.name.trim(), ha_users: p.ha_users })),
       accounts: (this._data.accounts || []).map((a) => ({
@@ -388,11 +402,13 @@ class FdSettings extends HTMLElement {
       this.data = resp;
       this._toast(tr("settings.saved"), "success");
       this.dispatchEvent(new CustomEvent("fd-assignments-saved", { bubbles: true, composed: true, detail: { payload: resp } }));
+      return true;
     } catch (e) {
       this._saving = false;
       const detail = (e && e.body && (e.body.detail || e.body.error)) || (e && e.message) || "";
       if (btn) { btn.disabled = false; btn.textContent = tr("settings.save"); }
       this._fail(detail ? `${tr("settings.error")}: ${detail}` : tr("settings.error"));
+      return false;
     }
   }
 }

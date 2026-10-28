@@ -192,6 +192,8 @@ class FdHome extends HTMLElement {
     this._alertsOpen = false;
     this._freshOpen = false;
     this._sheet = null;
+    this._sub = null;
+    this._subEl = null;
     this._rendered = false;
     this._toastTimer = null;
   }
@@ -214,6 +216,30 @@ class FdHome extends HTMLElement {
   }
 
   reload() { return this._load(); }
+
+  // ---- Jahr sub-views: Verträge (fd-contracts) and Vergleich (fd-benchmark) ----
+  _openSub(kind) {
+    this._sub = kind;
+    this._subEl = null; // a fresh element reloads its data each time it is opened
+    this._paint();
+    const host = this.shadowRoot.getElementById("main");
+    if (host && host.scrollIntoView) host.scrollIntoView({ block: "start" });
+  }
+
+  _subHtml() {
+    const title = this._t(this._sub === "contracts" ? "home.year.contracts" : "home.year.benchmark");
+    return `<button class="more" data-act="subback" aria-label="${this._e(this._t("ct.back"))}">← ${this._e(this._t("ct.back"))} · ${this._e(title)}</button><div id="subhost"></div>`;
+  }
+
+  _mountSub() {
+    const host = this.shadowRoot.getElementById("subhost");
+    if (!host || !this._sub) return;
+    if (!this._subEl) {
+      this._subEl = document.createElement(this._sub === "contracts" ? "fd-contracts" : "fd-benchmark");
+      this._subEl.hass = this._hass;
+    }
+    host.appendChild(this._subEl);
+  }
 
   // ---- data -------------------------------------------------------------
   async _load(dir) {
@@ -239,6 +265,7 @@ class FdHome extends HTMLElement {
     if (!HORIZONS.includes(h) || h === this._horizon) return;
     const from = HORIZONS.indexOf(this._horizon);
     this._horizon = h;
+    this._sub = null;
     this._flipped = false;
     this._moreNext = false;
     this._load(HORIZONS.indexOf(h) > from ? "l" : "r");
@@ -354,6 +381,7 @@ class FdHome extends HTMLElement {
     else if (!d) body = `<div class="msg">${this._t("home.loading")}</div>`;
     else body = this._body(d);
     main.innerHTML = body;
+    this._mountSub();
     sh.getElementById("side").innerHTML = d ? this._sideHtml(d) : "";
     const hasPerson = !!(d && d.person);
     // Only a user mapped to a person has two views; otherwise the pill would offer nothing.
@@ -384,7 +412,7 @@ class FdHome extends HTMLElement {
   <button class="ib fresh ${fr.status || ""}" data-act="fresh" data-tip="${this._e(flabel)}" aria-label="${this._e(flabel)}" aria-expanded="${this._freshOpen}"><i>${icon}</i><span class="t">${this._e(flabel)}</span></button>
   ${center}
   <button class="ib ask" data-act="ask" data-tip="${this._e(q ? this._t("home.star", { n: q }) : this._t("home.star.none"))}" aria-label="${this._e(q ? this._t("home.star", { n: q }) : this._t("home.star.none"))}">
-    <span class="ring" style="--p:${q ? 86 : 100}%"><span>★</span></span>${q ? `<b>${q > 99 ? "99+" : q}</b>` : ""}</button>
+    <span class="ring" style="--p:${q ? 86 : 100}%"><span>★</span></span>${q ? `<b>${Math.min(q, 10)}</b>` : ""}</button>
 </div>`;
   }
 
@@ -399,7 +427,7 @@ class FdHome extends HTMLElement {
     let h = "";
     if (this._freshOpen && d.freshness) {
       const when = d.freshness.as_of ? new Date(d.freshness.as_of).toLocaleString(this._lang(), { dateStyle: "short", timeStyle: "short" }) : "";
-      h += `<div class="fnote">${this._t("home.fresh.as_of", { time: this._e(when) })} <button class="btn" data-act="refresh">${this._t("home.fresh.refresh")}</button></div>`;
+      h += `<div class="fnote">${this._t("home.fresh.as_of", { time: this._e(when) })} ${this._hass && this._hass.user && this._hass.user.is_admin ? `<button class="btn" data-act="refresh">${this._t("home.fresh.refresh")}</button> ` : ""}<button class="btn ghost" data-act="freshpage">${this._t("home.fresh.details")}</button></div>`;
     }
     if (this._alertsOpen && (d.alerts || []).length) {
       h += `<div class="panel" role="region" aria-label="${this._t("home.alert.open")}">${d.alerts.map((a) => `
@@ -414,6 +442,7 @@ class FdHome extends HTMLElement {
   _body(d) {
     // Without a budget the figures are all 0 € and "passt" would be a false reading.
     if (this._horizon !== "year" && this._budgetTotals(d).budget <= 0) return this._setupCard(d);
+    if (this._sub && this._horizon === "year") return this._subHtml();
     switch (this._horizon) {
       case "today": return this._today(d);
       case "week": return this._week(d);
@@ -424,6 +453,8 @@ class FdHome extends HTMLElement {
 
   /** Empty state: name the one step that makes this screen meaningful. */
   _setupCard(d) {
+    const wiz = this._wizardCard(d);
+    if (wiz) return wiz;
     const st = d.setup || {};
     const assign = st.persons === 0 || (st.accounts_total || 0) > (st.accounts_assigned || 0);
     const key = assign ? "assign" : "pots";
@@ -431,6 +462,32 @@ class FdHome extends HTMLElement {
       : `<button class="btn" data-act="addpot">+ ${this._t("home.pot.new")}</button>`;
     return `<section class="card setup"><h3>${this._t("home.setup." + key + "_title")}</h3>
   <p class="muted">${this._t("home.setup." + key + "_body")}</p><div class="acts">${act}</div></section>`;
+  }
+
+  /** Guided setup: resume card while the wizard is not completed (admin: CTA, member: calm note). */
+  _wizardCard(d) {
+    const admin = !!(this._hass && this._hass.user && this._hass.user.is_admin);
+    const w = admin ? this._wizard : { completed: false, steps: {}, current_step: "persons" };
+    if (admin && w === undefined) this._loadWizard();
+    if (!w || w.completed) return "";
+    if (!admin) {
+      // Members cannot read the wizard state: only claim "in progress" while the data shows it.
+      const st = (d && d.setup) || {};
+      if (!(st.persons === 0 || (st.accounts_total || 0) > (st.accounts_assigned || 0))) return "";
+      return `<section class="card setup"><h3>${this._t("home.setup.member_title")}</h3><p class="muted">${this._t("home.setup.member_body")}</p></section>`;
+    }
+    const order = ["persons", "accounts", "payday", "region", "pots", "plan", "notifications", "ai", "done"];
+    const n = Math.max(0, order.indexOf(w.current_step)) + 1;
+    const started = Object.values(w.steps || {}).some((s) => s && s !== "pending");
+    return `<section class="card setup"><h3>${this._t(started ? "home.setup.resume_title" : "home.setup.start_title", { n, total: order.length })}</h3>
+  <p class="muted">${this._t("home.setup.resume_body")}</p><div class="acts"><button class="btn" data-act="wizard">${this._t(started ? "home.setup.resume_cta" : "home.setup.start_cta")}</button></div></section>`;
+  }
+
+  async _loadWizard() {
+    this._wizard = null;
+    try { this._wizard = await this._hass.callApi("GET", `${DOMAIN}/setup`); }
+    catch (e) { this._wizard = { completed: true }; }
+    this._paint?.();
   }
 
   _budgetTotals(d) {
@@ -604,11 +661,10 @@ class FdHome extends HTMLElement {
         <div class="cmp prev"><i style="width:${(v.spent_last_year / mx) * 100}%"></i></div>
         <div class="muted">${this._t(v.delta <= 0 ? "home.year.vs_less" : "home.year.vs_more", { amount: this._m(Math.abs(v.delta), false) })}</div>`;
     } else vs = `<div class="muted">${this._t("home.year.vs_na")}</div>`;
-    const soon = `<span class="tag">${this._t("home.soon")}</span>`;
     return `<section class="card"><div class="h"><span>${this._t("home.year.title")}</span></div><div class="cyc">${cyc}</div></section>
       <section class="card"><div class="h"><span>${this._t("home.year.vs")}</span></div>${vs}</section>
-      <button class="entry" aria-disabled="true"><i>☰</i><span><b>${this._t("home.year.contracts")}${soon}</b><small class="muted">${this._t("home.year.contracts_sub")}</small></span></button>
-      <button class="entry" aria-disabled="true"><i>≈</i><span><b>${this._t("home.year.benchmark")}${soon}</b><small class="muted">${this._t("home.year.benchmark_sub")}</small></span></button>
+      <button class="entry" data-act="sub" data-sub="contracts"><i>☰</i><span><b>${this._t("home.year.contracts")}</b><small class="muted">${this._t("home.year.contracts_sub")}</small></span></button>
+      <button class="entry" data-act="sub" data-sub="benchmark"><i>≈</i><span><b>${this._t("home.year.benchmark")}</b><small class="muted">${this._t("home.year.benchmark_sub")}</small></span></button>
       ${this._dyk(d)}${this._reserves(d)}`;
   }
 
@@ -738,16 +794,20 @@ class FdHome extends HTMLElement {
     switch (t.dataset.act) {
       case "alerts": this._alertsOpen = !this._alertsOpen; this._paint(); break;
       case "fresh": this._freshOpen = !this._freshOpen; this._paint(); break;
+      case "freshpage": this.dispatchEvent(new CustomEvent("fd-navigate", { bubbles: true, composed: true, detail: { target: "freshness" } })); break;
       case "refresh": this.dispatchEvent(new CustomEvent("fd-refresh-requested", { bubbles: true, composed: true })); break;
       case "renew": window._fd.navigate(window._fd.INTEGRATION_PATH, e); break;
       case "ask":
         this.dispatchEvent(new CustomEvent("fd-categorize-requested", { bubbles: true, composed: true }));
         break;
       case "retry": this._load(); break;
+      case "sub": this._openSub(t.dataset.sub); break;
+      case "subback": this._openSub(null); break;
       case "demo": this.dispatchEvent(new CustomEvent("fd-demo-toggle", { bubbles: true, composed: true })); break;
       case "flip": this._flipped = !this._flipped; this._paint(); break;
       case "more": this._moreNext = !this._moreNext; this._paint(); break;
       case "addpot": this._openSheet(null); break;
+      case "wizard": this.dispatchEvent(new CustomEvent("fd-open-setup", { bubbles: true, composed: true })); break;
       case "settings": this.dispatchEvent(new CustomEvent("fd-open-settings", { bubbles: true, composed: true })); break;
       case "editpot": this._openSheet(pot(t.dataset.id)); break;
       case "delpot": this._confirmId = t.dataset.id; this._paint(); break;

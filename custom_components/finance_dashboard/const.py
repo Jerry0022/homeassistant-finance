@@ -4,7 +4,7 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.19.2"
+VERSION = "0.20.0"
 
 # Panel
 PANEL_URL_PATH = "finance-dashboard"
@@ -296,7 +296,13 @@ BENCHMARK_METRIC_SOURCES = {
     "loans": [CATEGORY_LOANS],
     "insurance": [CATEGORY_INSURANCE],
     "transport": [CATEGORY_TRANSPORT],
+    "subscriptions": [CATEGORY_SUBSCRIPTIONS],
 }
+
+# Benchmark location (setup wizard / options). The comparison uses the finest
+# level the bundled dataset carries: postcode -> district -> state -> country.
+OPT_BENCHMARK_STATE = "benchmark_state"
+OPT_BENCHMARK_POSTCODE = "benchmark_postcode"
 
 # Water consumption cannot be derived from banking data — only the utility
 # statement knows it. Kept as a manual option so the spreadsheet's water

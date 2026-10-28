@@ -2,6 +2,25 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.20.0] — 2026-10-28
+
+### Added
+- The Household tab runs on the household cycle instead of the calendar month (cycle starts at the highest income, or another person's highest income within the 7 days before; calendar month only without income), own transfers between household accounts are excluded, and no savings rate is shown without income
+- Merchant names are normalised and a learned merchant memory (merchant → category and owner) applies before the keyword rules; one-off booking corrections win over both. Open questions are picked by euro impact, at most 10 per week
+- Flash-card questions — the star on Start opens the cards; answer, skip or "always like this"; every 10 answers earn a point
+- Guided setup wizard (accounts, persons, payday, region, plan, pots from history, AI opt-in, notifications) with resume on Start; a confirmed payday anchors the cycle; pots are suggested from the median of past cycles
+- The bank section splits "Neu importieren" (fetch raw bank data, then reprocess) from "Aktualisieren" (reprocess the stored raw data only, no bank call); an import log and a monthly validity check feed the new freshness subpage
+- Series of any interval become contracts with notice periods and deadlines; annual and irregular costs get a monthly reserve and pot coverage (Jahr tab: Verträge)
+- A bundled, versioned German household benchmark dataset (state and postcode level where available), never fetched at runtime (Jahr tab: Vergleich)
+- German notifications for large debits, double charges, a missing salary and expiring or expired consent, a weekly digest, and a reminder when a contract's notice deadline is near
+- Household members (non-admins) get their own person view; admin actions (import, demo, add bank, renew consent) are hidden for them, and transactions stay aggregate-only
+
+### Changed
+- Test: 643 tests (household cycle, merchant memory, questions, freshness, contracts, benchmark, setup wizard and member gating)
+
+### Fixed
+- Fix: harden/polish pass — region validated before any write, missing cycle-rule label, postcode escaped, timers cleared on disconnect, recurring log without amount or name, settings and plan texts moved into the locale files
+
 ## [0.19.2] — 2026-10-28
 
 ### Fixed

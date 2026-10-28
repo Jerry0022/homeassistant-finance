@@ -179,6 +179,26 @@ class FinanceDashboardPanel extends HTMLElement {
     sh.getElementById("viewHome").hidden = tab !== "home";
     sh.getElementById("viewOverview").hidden = tab !== "overview";
     sh.getElementById("viewHousehold").hidden = tab !== "household";
+    sh.getElementById("viewFreshness").hidden = true;
+  }
+
+  /**
+   * Freshness subpage ("Aktualität"): shown instead of the tab views, Back returns
+   * to the tab it was opened from. Reached via fd-navigate {target:"freshness"}.
+   */
+  _openFreshness() {
+    const sh = this.shadowRoot;
+    this._freshFrom = this._tab;
+    for (const id of ["viewHome", "viewOverview", "viewHousehold"]) sh.getElementById(id).hidden = true;
+    sh.querySelector("fd-header")?.toggleAttribute("toast-only", true);
+    sh.getElementById("viewFreshness").hidden = false;
+    const fr = sh.querySelector("fd-freshness");
+    if (fr) { if (!fr.hass) fr.hass = this._hass; else fr.reload(); }
+    window.scrollTo?.({ top: 0 });
+  }
+
+  _closeFreshness() {
+    this._selectTab(this._freshFrom || "home");
   }
 
   /**
@@ -321,6 +341,7 @@ class FinanceDashboardPanel extends HTMLElement {
   <fd-header toast-only></fd-header>
   <div id="viewHome" role="tabpanel"><fd-home></fd-home></div>
   <div id="viewOverview" role="tabpanel" hidden><fd-overview></fd-overview></div>
+  <div id="viewFreshness" role="region" hidden><fd-freshness></fd-freshness></div>
   <div id="viewHousehold" role="tabpanel" hidden>
     <div id="overlay" class="loading">${tSync("panel.loading")}</div>
     <div id="components" class="hidden"></div>
@@ -348,9 +369,24 @@ class FinanceDashboardPanel extends HTMLElement {
     sh.getElementById("storeLink").addEventListener("click", (e) => window._fd.navigate(HACS_REPO_PATH, e));
 
     sh.addEventListener("fd-data-updated", (e) => this._onData(e.detail));
-    sh.addEventListener("fd-categorize-requested", () => this._openCategorize());
+    sh.addEventListener("fd-categorize-requested", () => this._openQuestions());
+    sh.addEventListener("fd-questions-all", () => this._openCategorize());
 
     sh.addEventListener("fd-refresh-requested", () => this._refresh());
+    // "Aktualisieren": re-process stored raw data only (fd-overview owns the call + toast).
+    sh.addEventListener("fd-reprocess-requested", () => sh.querySelector("fd-overview")?.reprocess?.());
+    sh.addEventListener("fd-reprocess-done", () => {
+      sh.querySelector("fd-home")?.reload?.();
+      sh.querySelector("fd-freshness")?.reload?.();
+      if (this._dpActive) sh.querySelector("fd-data-provider")?.rebuildAfterRefresh?.();
+    });
+    // Sub-navigation by target: freshness subpage or the setup wizard.
+    sh.addEventListener("fd-navigate", (e) => {
+      const target = e.detail && e.detail.target;
+      if (target === "freshness") this._openFreshness();
+      else if (target === "setup") this._openSetup();
+    });
+    sh.addEventListener("fd-freshness-back", () => this._closeFreshness());
 
     // Person/account settings (fd-settings inside the Overview tab).
     sh.addEventListener("fd-open-settings", () => {
@@ -359,6 +395,8 @@ class FinanceDashboardPanel extends HTMLElement {
       const target = ov && ov.shadowRoot && ov.shadowRoot.querySelector("fd-settings");
       (target || ov)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+    // Guided setup wizard: Start card and Overview entry (fd-navigate handled above).
+    sh.addEventListener("fd-open-setup", () => this._openSetup());
     sh.addEventListener("fd-toast", (e) => {
       const d = e.detail || {};
       sh.querySelector("fd-header")?.showToast?.(d.message || "", d.type || "info");
@@ -391,7 +429,38 @@ class FinanceDashboardPanel extends HTMLElement {
     });
   }
 
-  /** Star on the home screen: the existing categorise card in a dialog. */
+  _openSetup() {
+    const sh = this.shadowRoot;
+    if (sh.querySelector("fd-setup") || !this._hass) return;
+    const wiz = document.createElement("fd-setup");
+    wiz.hass = this._hass;
+    wiz.addEventListener("fd-setup-close", () => {
+      wiz.remove();
+      const home = sh.querySelector("fd-home");
+      if (home) { home._wizard = undefined; home.reload?.(); }
+      sh.querySelector("fd-overview")?.reload?.();
+    });
+    sh.append(wiz);
+    wiz.shadowRoot.querySelector("h2, button")?.focus();
+  }
+
+  /** Star on the home screen: open questions as flash cards (full-screen layer). */
+  _openQuestions() {
+    const sh = this.shadowRoot;
+    if (sh.getElementById("questionsLayer") || !this._hass) return;
+    const wrap = document.createElement("div");
+    wrap.id = "questionsLayer";
+    wrap.style.cssText = "position:fixed;inset:0;z-index:55;overflow:auto;background:var(--primary-background-color,#f4f6f8);";
+    const card = document.createElement("fd-questions");
+    card.hass = this._hass;
+    const done = () => { wrap.remove(); sh.querySelector("fd-home")?.reload?.(); };
+    card.addEventListener("fd-questions-close", done);
+    wrap.addEventListener("keydown", (e) => { if (e.key === "Escape") done(); });
+    wrap.append(card);
+    sh.append(wrap);
+  }
+
+  /** Desktop link inside the questions view: the existing categorise card in a dialog. */
   _openCategorize() {
     const sh = this.shadowRoot;
     if (sh.getElementById("catDialog") || !this._hass) return;
@@ -432,6 +501,8 @@ class FinanceDashboardPanel extends HTMLElement {
     const dp = sh.querySelector("fd-data-provider");
     this._refreshing = true;
     if (header) header.refreshing = true;
+    const ovBtn = sh.querySelector("fd-overview");
+    if (ovBtn) ovBtn.importing = true;
     try {
       if (dp && dp.demoMode) {
         await dp.refresh();
@@ -462,6 +533,8 @@ class FinanceDashboardPanel extends HTMLElement {
     } finally {
       this._refreshing = false;
       if (header) header.refreshing = false;
+      if (ovBtn) ovBtn.importing = false;
+      sh.querySelector("fd-freshness")?.reload?.();
     }
   }
 
@@ -509,7 +582,9 @@ class FinanceDashboardPanel extends HTMLElement {
 
     const container = this.shadowRoot.getElementById("components");
 
-    this._statsRow = document.createElement("fd-stats-row");
+    // Cycle view (household_summary) instead of the calendar-month KPI cards.
+    this._statsRow = document.createElement("fd-household-cycle");
+    if (this._hass) this._statsRow.hass = this._hass;
     container.appendChild(this._statsRow);
 
     this._household = document.createElement("fd-household-section");

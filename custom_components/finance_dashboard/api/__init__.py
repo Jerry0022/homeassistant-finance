@@ -17,6 +17,13 @@ from homeassistant.core import HomeAssistant
 
 from ._helpers import _get_manager, _get_setup_client
 from .assignments import FinanceDashboardAssignmentsView
+from .contracts import (
+    FinanceDashboardAccountSavingsView,
+    FinanceDashboardContractsView,
+    FinanceDashboardContractView,
+    FinanceDashboardReservesView,
+)
+from .questions import FinanceDashboardQuestionAnswerView, FinanceDashboardQuestionsView
 from .data import (
     FinanceDashboardBalanceView,
     FinanceDashboardBankStatusView,
@@ -27,6 +34,7 @@ from .data import (
 )
 from .demo import FinanceDashboardDemoDataView, FinanceDashboardDemoToggleView
 from .home import FinanceDashboardHomeView, FinanceDashboardPotsView
+from .household import FinanceDashboardHouseholdSummaryView
 from .plan import (
     FinanceDashboardBenchmarkView,
     FinanceDashboardBudgetPlanView,
@@ -36,8 +44,15 @@ from .plan import (
     FinanceDashboardPlanVsActualView,
     FinanceDashboardTransferPlanView,
 )
+from .setup import (
+    FinanceDashboardPaydaySuggestionsView,
+    FinanceDashboardPotSuggestionsView,
+    FinanceDashboardSetupView,
+)
 from .refresh import (
+    FinanceDashboardFreshnessView,
     FinanceDashboardRefreshStatusView,
+    FinanceDashboardReprocessView,
     FinanceDashboardRefreshTriggerView,
 )
 
@@ -67,8 +82,20 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
     "FinanceDashboardHomeView",
     "FinanceDashboardPotsView",
     "FinanceDashboardAssignmentsView",
+    "FinanceDashboardHouseholdSummaryView",
+    "FinanceDashboardContractsView",
+    "FinanceDashboardContractView",
+    "FinanceDashboardReservesView",
+    "FinanceDashboardAccountSavingsView",
+    "FinanceDashboardQuestionAnswerView",
+    "FinanceDashboardQuestionsView",
+    "FinanceDashboardSetupView",
+    "FinanceDashboardPaydaySuggestionsView",
+    "FinanceDashboardPotSuggestionsView",
     # Refresh
     "FinanceDashboardRefreshStatusView",
+    "FinanceDashboardReprocessView",
+    "FinanceDashboardFreshnessView",
     "FinanceDashboardRefreshTriggerView",
     # Demo
     "FinanceDashboardDemoToggleView",
@@ -83,6 +110,8 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardSummaryView())
     hass.http.register_view(FinanceDashboardRefreshStatusView())
     hass.http.register_view(FinanceDashboardRefreshTriggerView())
+    hass.http.register_view(FinanceDashboardReprocessView())
+    hass.http.register_view(FinanceDashboardFreshnessView())
     # Bank linking lives in the config subentry flow (Settings -> Devices & services)
     hass.http.register_view(FinanceDashboardBankStatusView())
     hass.http.register_view(FinanceDashboardSettingsView())
@@ -100,4 +129,14 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardHomeView())
     hass.http.register_view(FinanceDashboardPotsView())
     hass.http.register_view(FinanceDashboardAssignmentsView())
+    hass.http.register_view(FinanceDashboardHouseholdSummaryView())
+    hass.http.register_view(FinanceDashboardContractsView())
+    hass.http.register_view(FinanceDashboardContractView())
+    hass.http.register_view(FinanceDashboardReservesView())
+    hass.http.register_view(FinanceDashboardAccountSavingsView())
+    hass.http.register_view(FinanceDashboardQuestionsView())
+    hass.http.register_view(FinanceDashboardQuestionAnswerView())
+    hass.http.register_view(FinanceDashboardSetupView())
+    hass.http.register_view(FinanceDashboardPaydaySuggestionsView())
+    hass.http.register_view(FinanceDashboardPotSuggestionsView())
     _LOGGER.debug("Finance API endpoints registered")

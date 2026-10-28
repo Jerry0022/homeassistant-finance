@@ -70,10 +70,40 @@ class RefreshMixin:
             self._refresh_in_flight = True
             started = dt_util.now()
             t0 = time.monotonic()
+            self._import_banks = []
             try:
-                return await self._do_refresh(days, started, t0, psu_ip=psu_ip, scheduled=scheduled)
+                result = await self._do_refresh(
+                    days, started, t0, psu_ip=psu_ip, scheduled=scheduled
+                )
+                await self._record_import(scheduled, started, t0)
+                return result
             finally:
                 self._refresh_in_flight = False
+
+    async def _record_import(self, scheduled: bool, started: datetime, t0: float) -> None:
+        """Log this import (counts + bank titles only) unless it was debounced."""
+        from ..const import PROCESSING_VERSION
+        from ..freshness import make_entry
+
+        stats = self._last_refresh_stats or {}
+        if self._demo_mode or stats.get("started_at") != started.isoformat():
+            return  # debounced: stats of an earlier run are still in place
+        try:
+            self._log_run(
+                make_entry(
+                    "import_scheduled" if scheduled else "import_attended",
+                    at=dt_util.utcnow().isoformat(),
+                    banks=list(getattr(self, "_import_banks", [])),
+                    new=int(stats.get("new") or 0),
+                    total=int(stats.get("transactions") or 0),
+                    processing_version=PROCESSING_VERSION,
+                    outcome=str(stats.get("outcome") or "error"),
+                    duration_ms=int((time.monotonic() - t0) * 1000),
+                )
+            )
+            await self._persist_transactions()
+        except Exception:
+            _LOGGER.debug("Import log write failed", exc_info=True)
 
     @staticmethod
     def _bank_now() -> datetime:
@@ -341,6 +371,7 @@ class RefreshMixin:
                     )
                     new_ids.update(f"{akey}|{t['_ledger_id']}" for t in new)
                     accounts_hit += 1
+                    self._import_banks.append(title)
                     if backfill:
                         self._ledger.meta.setdefault("history", {})[akey] = {
                             "backfilled": True,

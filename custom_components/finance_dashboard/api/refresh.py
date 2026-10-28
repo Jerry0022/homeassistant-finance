@@ -126,3 +126,60 @@ class FinanceDashboardRefreshTriggerView(HomeAssistantView):
 
         status = manager.get_refresh_status()
         return self.json({"ok": True, "status": status})
+
+
+class FinanceDashboardReprocessView(HomeAssistantView):
+    """"Aktualisieren": rebuild everything from the stored raw data.
+
+    Never calls the bank and never touches the fetch budget.
+    """
+
+    url = f"/api/{DOMAIN}/reprocess"
+    name = f"api:{DOMAIN}:reprocess"
+    requires_auth = True
+
+    async def post(self, request: web.Request) -> web.Response:
+        """Replay the raw archive, re-derive, push the coordinator."""
+        hass = request.app["hass"]
+        user = request.get("hass_user")
+        if not user or not user.is_admin:
+            return self.json({"ok": False, "error": "admin_required"}, status_code=403)
+        manager = _get_manager(hass)
+        if not manager:
+            return self.json({"error": "Not configured"}, status_code=404)
+
+        try:
+            stats = await manager.async_reprocess_and_derive()
+        except Exception as exc:
+            _LOGGER.exception("Reprocess failed")
+            return self.json({"ok": False, "reason": "error", "message": str(exc)[:200]})
+
+        domain_data = hass.data.get(DOMAIN, {})
+        entry = domain_data.get("entry")
+        coordinator = domain_data.get(f"{entry.entry_id}_coordinator") if entry else None
+        if coordinator:
+            try:
+                await coordinator.async_refresh()
+            except Exception:
+                _LOGGER.exception("Coordinator refresh after reprocess failed")
+
+        ok = stats.get("outcome") in ("rebuilt", "empty")
+        return self.json({"ok": ok, "stats": stats})
+
+
+class FinanceDashboardFreshnessView(HomeAssistantView):
+    """Cache-only data freshness, import log and monthly validity."""
+
+    url = f"/api/{DOMAIN}/freshness"
+    name = f"api:{DOMAIN}:freshness"
+    requires_auth = True
+
+    async def get(self, request: web.Request) -> web.Response:
+        """Admins get the full report, everyone else ``as_of`` / ``last_import``."""
+        hass = request.app["hass"]
+        manager = _get_manager(hass)
+        if not manager:
+            return self.json({"error": "Not configured"}, status_code=404)
+        user = request.get("hass_user")
+        admin = bool(user and user.is_admin)
+        return self.json(manager.get_freshness(admin=admin))

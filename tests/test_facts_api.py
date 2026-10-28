@@ -23,10 +23,16 @@ def _json(self, data, status_code=200):
 
 
 class _Manager:
+    def resolve_person(self, user):
+        return None
+
     def __init__(self, options=None):
         self._entry = MagicMock()
         self._entry.options = options or {}
-        self._accounts = [{"id": "uid-1", "key": "k1"}, {"id": "uid-2", "key": "k2"}]
+        self._accounts = [
+            {"id": "uid-1", "key": "k1", "type": "shared"},
+            {"id": "uid-2", "key": "k2"},
+        ]
         self._balances = {
             "uid-1": {
                 "account_name": "Giro",

@@ -185,3 +185,39 @@ def _cache_is_fresh(cached_at: str | None) -> bool:
     except (ValueError, TypeError):
         return False
     return age.total_seconds() < INSTITUTION_CACHE_TTL_HOURS * 3600
+
+
+# ---------------------------------------------------------------------------
+# Access helpers (non-admin household members may open the panel)
+# ---------------------------------------------------------------------------
+
+
+def is_admin(request) -> bool:
+    """True when the authenticated HA user is an administrator."""
+    user = request.get("hass_user")
+    return bool(user and user.is_admin)
+
+
+def admin_denied(view, request):
+    """403 response for non-admins, else ``None``. One-line gate for views."""
+    if is_admin(request):
+        return None
+    return view.json({"error": "admin_required"}, status_code=403)
+
+
+def visible_account_ids(manager, request) -> set[str] | None:
+    """Account uids the caller may see at account level; ``None`` means all.
+
+    Non-admin: the mapped person's own accounts plus shared accounts; an
+    unmapped non-admin sees shared accounts only.
+    """
+    if is_admin(request):
+        return None
+    person = manager.resolve_person(request.get("hass_user"))
+    ids: set[str] = set()
+    for acc in getattr(manager, "_accounts", []) or []:
+        shared = acc.get("type") == "shared"
+        mine = bool(person) and str(acc.get("person") or "") == person
+        if shared or mine:
+            ids.add(str(acc.get("id")))
+    return ids

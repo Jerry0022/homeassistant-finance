@@ -46,6 +46,8 @@ from ..const import (
     DEFAULT_WATER_BENCHMARK,
     DOMAIN,
     ENABLEBANKING_RATE_LIMIT_DAILY,
+    OPT_BENCHMARK_POSTCODE,
+    OPT_BENCHMARK_STATE,
     OPT_WATER_RATIO,
     OWNER_SHARED,
     STORAGE_KEY_LEDGER,
@@ -61,6 +63,7 @@ from ..transfer_detector import (
 )
 from ..transfer_plan import build_transfer_plan
 from ._banks import BankMixin
+from ._questions import QuestionsMixin
 from ._persistence import PersistenceMixin
 from ._refresh import RefreshMixin
 
@@ -82,7 +85,7 @@ class AssignmentError(ValueError):
         self.detail = detail
 
 
-class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
+class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, QuestionsMixin):
     """Central orchestrator for the Finance integration.
 
     Inherits from:
@@ -121,6 +124,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         self._rate_limited_until: datetime | None = None
         self._transfer_override_store = Store(hass, 1, STORAGE_KEY_TRANSFER_OVERRIDES)
         self._transfer_overrides: dict[str, bool] = {}
+        self._memory = None  # MerchantMemory, created in async_initialize
         self._recurring_patterns: list[dict[str, Any]] = []
         self._previous_balances: dict[str, float] = {}
         self._demo_mode: bool = False
@@ -243,7 +247,14 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         self._credential_manager = CredentialManager(self._hass)
         await self._credential_manager.async_initialize()
 
-        self._categorizer = TransactionCategorizer()
+        from ..merchants import MerchantMemory
+
+        self._memory = MerchantMemory(self._hass)
+        try:
+            await self._memory.async_load()
+        except Exception:
+            _LOGGER.exception("Merchant memory unreadable — starting empty")
+        self._categorizer = TransactionCategorizer(memory=self._memory)
 
         # Load the budget plan. A read failure must not block startup — the
         # store falls back to an empty plan and the UI prompts for an import.
@@ -423,6 +434,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
                 acc_data["person"] = account.get("person", "")
                 acc_data["ha_users"] = account.get("ha_users", [])
                 acc_data["custom_name"] = account.get("custom_name", "")
+                acc_data["savings"] = bool(account.get("savings"))
                 acc_data["institution"] = account.get("institution", "")
                 acc_data["logo"] = account.get("logo", "")
                 refreshed.append(acc_data)
@@ -863,7 +875,12 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
                     raise AssignmentError("ha_user_reused", "A user maps to one person only")
                 seen_users.add(uid)
                 clean.append(uid)
-            persons.append({"name": name, "ha_users": clean})
+            record: dict[str, Any] = {"name": name, "ha_users": clean}
+            # The wizard's confirmed payday belongs to the person; keep it.
+            kept = next((p for p in self.persons if p.get("name") == name and p.get("payday")), None)
+            if kept:
+                record["payday"] = kept["payday"]
+            persons.append(record)
         by_name = {p["name"]: p for p in persons}
 
         base = self._entry.data.get("accounts", []) or []
@@ -913,7 +930,13 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         return await self._pot_store.async_delete(pot_id)
 
     def get_home(
-        self, *, person: str | None, view: str, horizon: str, demo: bool = False
+        self,
+        *,
+        person: str | None,
+        view: str,
+        horizon: str,
+        demo: bool = False,
+        include_questions: bool = False,
     ) -> dict[str, Any]:
         """Home-screen payload from cached data. Never contacts a bank."""
         from ..home import build_home
@@ -925,6 +948,8 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
             return generate_demo_home(person=person, view=view, horizon=horizon, now=now)
         banks = self.get_bank_status()
         return build_home(
+            **(self._question_kwargs() if hasattr(self, "_question_kwargs") else {}),
+            include_questions=include_questions,
             accounts=self._accounts,
             persons=self.persons,
             transactions=get_effective_transactions(self._transactions),
@@ -937,6 +962,25 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
             person=person,
             view=view,
             horizon=horizon,
+        )
+
+    def get_household_summary(
+        self, *, cycle: str = "current", person: str | None = None, is_admin: bool = False
+    ) -> dict[str, Any]:
+        """Per-cycle household figures from cached data. Never contacts a bank."""
+        from ..household_summary import build_household_summary
+
+        return build_household_summary(
+            accounts=self._accounts,
+            transactions=self._transactions,
+            plan=self.budget_plan,
+            recurring=self._recurring_patterns,
+            now=dt_util.now(),
+            cycle=cycle,
+            viewer_person=person,
+            is_admin=is_admin,
+            corrections=getattr(self, "_owner_corrections", None),
+            as_of=self._last_refresh,
         )
 
     def get_budget_plan_view(
@@ -1148,13 +1192,15 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
     async def async_get_benchmarks(
         self, month: int | None = None, year: int | None = None
     ) -> dict[str, Any]:
-        """Compare our own ratios against German national averages.
+        """Compare our own plan against the bundled German benchmark dataset.
 
         The spreadsheet compared four hand-maintained figures against values
         copied out of Destatis/Statista once. Here the "ours" side is computed
         from the plan and the reference side comes from
-        :class:`~.benchmark.BenchmarkProvider`, whose baseline is versioned with
-        the integration — so the comparison stays current without retyping.
+        :class:`~.benchmark.BenchmarkProvider`, which reads the versioned dataset
+        shipped with the integration (no runtime fetch). Location (state,
+        postcode) comes from the options, household size from the plan persons -
+        each value falls back to the finest level the dataset carries.
 
         Percentage metrics are expressed as a share of pooled net income, which
         is the basis the spreadsheet used. Absolute metrics (EUR) are compared
@@ -1175,13 +1221,19 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
         plan = self.budget_plan
         income = plan.income_net_total()
         by_category = plan.category_totals(target_month, target_year)
+        options = self._entry.options
+        location = dict(
+            state=options.get(OPT_BENCHMARK_STATE),
+            postcode=options.get(OPT_BENCHMARK_POSTCODE),
+            household_size=len(plan.persons) or None,
+        )
 
         comparisons: list[dict[str, Any]] = []
         for metric_category, source_categories in BENCHMARK_METRIC_SOURCES.items():
             numerator = round(sum(by_category.get(c, 0.0) for c in source_categories), 2)
             if numerator <= 0:
                 continue
-            benchmark = provider.get_benchmark_for_category(metric_category)
+            benchmark = provider.get_benchmark_for_category(metric_category, **location)
             if not benchmark:
                 continue
             if benchmark.get("unit") == "%":
@@ -1190,7 +1242,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
                 our_value = round(numerator / income * 100, 2)
             else:
                 our_value = numerator
-            result = provider.compare(metric_category, our_value)
+            result = provider.compare(metric_category, our_value, **location)
             if result:
                 result["our_amount"] = numerator
                 result["source_categories"] = source_categories
@@ -1216,6 +1268,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
                         "difference": round(value - DEFAULT_WATER_BENCHMARK, 2),
                         "better": value < DEFAULT_WATER_BENCHMARK,
                         "unit": "x Ø",
+                        "statistic": "manual",
                         "source": "Nebenkostenabrechnung (manuell gepflegt)",
                         "survey_year": target_year,
                         "fetch_date": "manual",
@@ -1232,6 +1285,10 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin):
             "year": target_year,
             "income_net_total": income,
             "comparisons": comparisons,
+            "references": provider.references(**location),
+            "unavailable": provider.unavailable(),
+            "dataset": provider.dataset_info(),
+            "location": location,
             "has_plan": not plan.is_empty(),
         }
 

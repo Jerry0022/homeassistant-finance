@@ -42,6 +42,28 @@ class PersistenceMixin:
             _LOGGER.exception("Ledger write failed — data stays in memory only")
 
     async def async_reprocess(self, *, force: bool = False) -> dict:
+        """Rebuild the ledger from the raw archive and log the run (no bank call)."""
+        import time
+
+        from ..const import PROCESSING_VERSION
+        from ..freshness import make_entry
+
+        t0 = time.monotonic()
+        result = await self._reprocess_core(force=force)
+        if result.get("outcome") != "current":
+            self._log_run(
+                make_entry(
+                    "reprocess" if force else "processing_upgrade",
+                    at=self._utc_iso(),
+                    total=int(result.get("transactions") or 0),
+                    processing_version=PROCESSING_VERSION,
+                    outcome=str(result.get("outcome")),
+                    duration_ms=int((time.monotonic() - t0) * 1000),
+                )
+            )
+        return result
+
+    async def _reprocess_core(self, *, force: bool = False) -> dict:
         """Rebuild the ledger from the raw archive when processing changed.
 
         Runs when the ledger's ``processing_version`` differs from
@@ -114,7 +136,69 @@ class PersistenceMixin:
             stats["windows"],
             stats["carried"],
         )
-        return {"outcome": "rebuilt", "version": PROCESSING_VERSION, **stats}
+        total = sum(len(a.get("transactions") or []) for a in accounts.values())
+        return {"outcome": "rebuilt", "version": PROCESSING_VERSION, "transactions": total, **stats}
+
+    @staticmethod
+    def _utc_iso() -> str:
+        from datetime import UTC, datetime
+
+        return datetime.now(UTC).isoformat()
+
+    def _log_run(self, entry: dict) -> None:
+        """Append to the import log in the ledger meta (saved with the next ledger write)."""
+        from ..freshness import append_log
+
+        if self._demo_mode:
+            return
+        append_log(self._ledger.meta, entry)
+
+    async def async_reprocess_and_derive(self) -> dict:
+        """User-triggered "Aktualisieren": forced replay + full re-derivation.
+
+        Never touches the bank or the fetch budget.  Serialised with live
+        refreshes through ``_refresh_lock``.  The caller pushes the coordinator.
+        """
+        async with self._refresh_lock:
+            result = await self.async_reprocess(force=True)
+            overrides = await self._async_load_transfer_overrides()
+            derived = self._derive_from_ledger(overrides)
+            try:
+                from ..recurring import detect_recurring
+
+                self._recurring_patterns = detect_recurring(derived)
+            except Exception:
+                _LOGGER.exception("Recurring detection failed — skipping")
+            await self._persist_transactions()  # also saves the log entry
+        return {**result, "transaction_count": len(derived)}
+
+    def get_freshness(self, *, admin: bool) -> dict:
+        """Freshness payload (cache read only, no bank call)."""
+        from datetime import date
+
+        from ..account_identity import account_key
+        from ..const import PROCESSING_VERSION
+        from ..freshness import LOG_KEY, build_freshness, derivation_check, monthly_validity
+
+        meta = self._ledger.meta
+        log = list(meta.get(LOG_KEY) or [])
+        as_of = self._last_refresh.isoformat() if self._last_refresh else self._utc_iso()
+        validity: list = []
+        check: dict = {}
+        if admin:
+            names = {account_key(a): a.get("custom_name") or a.get("name", "") for a in self._accounts}
+            accounts = self._ledger.data.get("accounts", {})
+            validity = monthly_validity(accounts, names, today=date.today())
+            ledger_txs = [t for a in accounts.values() for t in a.get("transactions") or []]
+            check = derivation_check(ledger_txs, self._transactions)
+        return build_freshness(
+            as_of=as_of,
+            log=log,
+            processing_version=int(meta.get("processing_version") or PROCESSING_VERSION),
+            validity=validity,
+            check=check,
+            admin=admin,
+        )
 
     async def _async_load_transfer_overrides(
         self,

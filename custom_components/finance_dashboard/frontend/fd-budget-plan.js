@@ -84,6 +84,15 @@ class FdBudgetPlan extends HTMLElement {
 
   connectedCallback() {
     window.addEventListener("fd-actual-data", this._onActual);
+    if (!this._ctaBound) {
+      this._ctaBound = true;
+      // Empty-plan CTA: hand over to the setup wizard (fd-navigate {target:"setup"}).
+      this.shadowRoot.addEventListener("click", (ev) => {
+        if (ev.target.closest('[data-act="setup"]')) {
+          this.dispatchEvent(new CustomEvent("fd-navigate", { bubbles: true, composed: true, detail: { target: "setup" } }));
+        }
+      });
+    }
     this._render();
   }
 
@@ -318,10 +327,8 @@ tbody tr + tr td { border-top: 1px solid var(--fd-line); }
     if (plan.is_empty) {
       wrap(`<div class="card"><div class="h">${title}</div>
   <div class="empty">
-    ${T("hh.plan.empty", "Noch kein Plan vorhanden. Die Haushaltskalkulation kann direkt aus der Excel-Datei übernommen werden — Einkommen, alle Kostenpositionen mit Zuordnung, Puffer und Laufzeiten.", "No plan yet. The household calculation can be imported straight from the Excel file — income, every cost position with owner, buffers and terms.")}
-    <code>Entwicklerwerkzeuge → Aktionen → Finance: Import Household Spreadsheet
-path: /config/Kalkulation Haushalt.xlsx</code>
-    ${T("hh.plan.empty_hint", "Die Datei muss im Config-Verzeichnis liegen oder ihr Ordner in allowlist_external_dirs eingetragen sein.", "The file must be in the config directory or its folder listed in allowlist_external_dirs.")}
+    ${T("hh.plan.empty", "Noch kein Plan vorhanden. Der Einrichtungsassistent legt Einkommen und Kostenpositionen mit Zuordnung an – oder übernimmt sie aus deiner Tabelle.", "No plan yet. The setup wizard creates income and cost positions with owners – or takes them over from your spreadsheet.")}
+    <div style="margin-top:12px"><button type="button" data-act="setup" style="min-height:var(--fd-touch);padding:0 16px;border:0;border-radius:var(--fd-r-pill);background:var(--fd-a700);color:#fff;font:inherit;font-weight:500;cursor:pointer">${T("hh.plan.cta", "Plan einrichten", "Set up the plan")}</button></div>
   </div></div>`);
       return;
     }

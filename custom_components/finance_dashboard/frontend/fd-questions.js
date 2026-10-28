@@ -1,0 +1,468 @@
+/**
+ * fd-questions — open questions as flash cards (admin only).
+ *
+ *   GET  finance_dashboard/questions
+ *     {questions:[{id,merchant,count,total,dates:[iso],booking_ids,suggested:[cat]}],
+ *      questions_open, questions_total, answered_total, week_answered,
+ *      points, points_every}
+ *   POST finance_dashboard/questions/answer
+ *     {id, category, reach:"merchant"|"booking", owner?}
+ *     -> {answered_total, week_answered, point_awarded}
+ *   GET  finance_dashboard/assignments  -> persons[].name (optional owner chips)
+ *
+ * One card per merchant, three suggested categories as big buttons, "other
+ * category" opens the full picker. Reach defaults to the whole merchant.
+ * Progress: the API awards one point per `points_every` answers (30), so the
+ * counter shows the distance to the next point from those counters (the
+ * visual-round idea of 7 cards per point is a UI-only number; the backend
+ * rule wins so the animation never contradicts the awarded points).
+ * No undo: the API cannot take an answer back, so none is offered.
+ *
+ * Properties: hass.
+ * Events (bubbling, composed):
+ *   fd-questions-close     back to Start (the shell closes the view)
+ *   fd-questions-all       desktop: open the full drag & drop categoriser
+ */
+
+const DOMAIN = "finance_dashboard";
+const WEEK_CAP = 10;
+const PICKER_EXCLUDE = new Set(["other", "income", "transfers"]);
+const PERSON_COLORS = ["var(--fd-person-a)", "var(--fd-person-b)", "#ef6c00", "#5e35b1", "#6d4c41"];
+
+const FB = {
+  de: {
+    "questions.title": "Fragen",
+    "questions.back": "Zurück zum Start",
+    "questions.card_of": "Karte $n von $m",
+    "questions.bookings": "$n Buchungen",
+    "questions.booking_one": "1 Buchung",
+    "questions.total": "zusammen $sum",
+    "questions.dates": "zuletzt $dates",
+    "questions.prompt": "Wohin gehört das?",
+    "questions.other": "Andere Kategorie",
+    "questions.other_hide": "Weniger",
+    "questions.owner": "Wem gehört es?",
+    "questions.owner_none": "Wie das Konto",
+    "questions.owner_shared": "Haushalt",
+    "questions.reach": "Gilt für",
+    "questions.reach_booking": "Nur diese Buchung",
+    "questions.reach_merchant": "Alle von $merchant",
+    "questions.skip": "Später",
+    "questions.skip_hint": "Zur Seite wischen = später",
+    "questions.progress_point": "Noch $n Antworten bis zum nächsten Punkt",
+    "questions.progress_point_one": "Noch 1 Antwort bis zum nächsten Punkt",
+    "questions.progress_week": "Diese Woche: $n von $m",
+    "questions.points": "Punkte: $n",
+    "questions.err": "Das hat nicht geklappt. Versuch es gleich noch einmal.",
+    "questions.err_unavailable": "Fragen sind im Demo-Modus nicht verfügbar.",
+    "questions.err_admin": "Nur Administratoren können Fragen beantworten.",
+    "questions.load_error": "Die Fragen konnten nicht geladen werden.",
+    "questions.retry": "Nochmal laden",
+    "questions.done_title": "Alles erledigt",
+    "questions.done_body": "Im Moment gibt es nichts mehr zu klären. Neue Fragen kommen, sobald neue Buchungen offen sind.",
+    "questions.done_week": "Diese Woche geschafft",
+    "questions.done_week_body": "$n Antworten, die Kategorien werden mit jeder Antwort treffsicherer.",
+    "questions.point_title": "Punkt verdient!",
+    "questions.point_body": "Danke, dass du Ordnung ins Haushaltsbuch bringst.",
+    "questions.continue": "Weiter",
+    "questions.all": "Alle Buchungen kategorisieren",
+    "questions.denied": "Fragen sind nur für Administratoren sichtbar.",
+  },
+  en: {
+    "questions.title": "Questions",
+    "questions.back": "Back to Start",
+    "questions.card_of": "Card $n of $m",
+    "questions.bookings": "$n bookings",
+    "questions.booking_one": "1 booking",
+    "questions.total": "$sum in total",
+    "questions.dates": "latest $dates",
+    "questions.prompt": "Where does this belong?",
+    "questions.other": "Other category",
+    "questions.other_hide": "Fewer",
+    "questions.owner": "Who owns it?",
+    "questions.owner_none": "Like the account",
+    "questions.owner_shared": "Household",
+    "questions.reach": "Applies to",
+    "questions.reach_booking": "Only this booking",
+    "questions.reach_merchant": "All from $merchant",
+    "questions.skip": "Later",
+    "questions.skip_hint": "Swipe aside = later",
+    "questions.progress_point": "$n more answers until the next point",
+    "questions.progress_point_one": "1 more answer until the next point",
+    "questions.progress_week": "This week: $n of $m",
+    "questions.points": "Points: $n",
+    "questions.err": "That did not work. Please try again in a moment.",
+    "questions.err_unavailable": "Questions are not available in demo mode.",
+    "questions.err_admin": "Only administrators can answer questions.",
+    "questions.load_error": "The questions could not be loaded.",
+    "questions.retry": "Load again",
+    "questions.done_title": "All done",
+    "questions.done_body": "Nothing left to clarify right now. New questions appear when new bookings are open.",
+    "questions.done_week": "Done for this week",
+    "questions.done_week_body": "$n answers, categories get more accurate with every one.",
+    "questions.point_title": "Point earned!",
+    "questions.point_body": "Thanks for keeping the household book in order.",
+    "questions.continue": "Continue",
+    "questions.all": "Categorise all bookings",
+    "questions.denied": "Questions are only visible to administrators.",
+  },
+};
+
+function tr(key, vars = {}) {
+  let s = window._fd.tSync(key, vars);
+  if (s !== key) return s;
+  const raw = ((window._fd._hass && window._fd._hass.language) || navigator.language || "en").toLowerCase();
+  s = (FB[raw.startsWith("de") ? "de" : "en"][key]) || key;
+  for (const [k, v] of Object.entries(vars)) s = s.replace(new RegExp(`\\$${k}`, "g"), String(v));
+  return s;
+}
+
+const CSS = `
+:host { display: block; }
+.root { color: var(--fd-t1); font-size: 14px; line-height: 1.4; max-width: 560px; margin: 0 auto; padding: 8px 12px 24px; box-sizing: border-box; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--fd-a500); outline-offset: 2px; }
+.bar { display: flex; align-items: center; gap: 8px; min-height: var(--fd-touch); }
+.bar h2 { flex: 1; margin: 0; font-size: 18px; font-weight: 500; }
+.ghost { min-height: var(--fd-touch); min-width: var(--fd-touch); padding: 0 14px; border: 0; border-radius: var(--fd-r-pill); background: transparent; color: var(--fd-a700); font-weight: 500; }
+.ghost:hover { background: var(--fd-a50); }
+.prog { margin: 4px 0 12px; padding: 10px 12px; border-radius: var(--fd-r-card); background: var(--fd-card); box-shadow: var(--fd-sh1); }
+.prog .row { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--fd-t2); }
+.prog .row b { color: var(--fd-t1); font-weight: 500; white-space: nowrap; }
+.meter { height: 8px; margin-top: 8px; border-radius: var(--fd-r-pill); background: var(--fd-sunk); overflow: hidden; }
+.meter > i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--fd-a300), var(--fd-gold)); transition: width .5s ease; }
+.pips { display: flex; gap: 4px; margin-top: 6px; }
+.pips i { flex: 1; height: 4px; border-radius: 2px; background: var(--fd-sunk); }
+.pips i.on { background: var(--fd-a500); }
+.stage { position: relative; touch-action: pan-y; }
+.card { padding: 18px 16px 12px; border-radius: 20px; background: var(--fd-card); box-shadow: var(--fd-sh2); transition: transform .25s ease, opacity .25s ease; user-select: none; }
+.card.leave { opacity: 0; transform: translateX(-60px) rotate(-3deg); }
+.card.enter { animation: enter .3s ease; }
+@keyframes enter { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: none; } }
+.cnt { font-size: 12px; color: var(--fd-t2); }
+.merchant { margin: 2px 0 4px; font-size: 22px; font-weight: 500; overflow-wrap: anywhere; }
+.facts { color: var(--fd-t2); font-size: 13px; }
+.facts b { color: var(--fd-t1); font-weight: 500; }
+.prompt { margin: 16px 0 8px; font-weight: 500; }
+.cats { display: grid; gap: 8px; }
+.cat { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 0 16px; border: 1px solid var(--fd-line); border-radius: 14px; background: var(--fd-sunk); text-align: left; font-size: 16px; }
+.cat:hover:not(:disabled) { border-color: var(--fd-a300); background: var(--fd-a50); }
+.cat:active:not(:disabled) { transform: scale(.985); }
+.cat:disabled { opacity: .6; cursor: default; }
+.cat .ic { font-size: 22px; width: 28px; text-align: center; }
+.cat .dot { width: 8px; height: 28px; border-radius: 4px; flex: none; }
+.cat kbd { margin-left: auto; display: none; min-width: 20px; padding: 1px 6px; border: 1px solid var(--fd-line); border-radius: 6px; background: var(--fd-card); color: var(--fd-t2); font: 11px/16px inherit; text-align: center; opacity: 0; transition: opacity .15s .4s; }
+@media (hover: hover) { .cat kbd { display: inline-block; } .cat:hover kbd, .cat:focus-visible kbd { opacity: 1; } }
+.picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin-top: 8px; }
+.picker .cat { min-height: 48px; font-size: 14px; padding: 0 12px; }
+.more { margin-top: 8px; width: 100%; min-height: var(--fd-touch); border: 1px dashed var(--fd-line); border-radius: 14px; background: transparent; color: var(--fd-a700); font-weight: 500; }
+.more:hover { background: var(--fd-a50); }
+.sub { margin: 16px 0 6px; font-size: 12.5px; color: var(--fd-t2); }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg button { min-height: var(--fd-touch); padding: 0 14px; border: 1px solid var(--fd-line); border-radius: var(--fd-r-pill); background: var(--fd-card); }
+.seg button[aria-pressed=true] { background: var(--fd-a100); border-color: var(--fd-a500); font-weight: 500; }
+.seg .pd { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+.foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; gap: 8px; color: var(--fd-t3); font-size: 12px; }
+.msg { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--fd-over-bg); font-size: 13px; }
+.center { text-align: center; padding: 36px 16px; border-radius: 20px; background: var(--fd-card); box-shadow: var(--fd-sh1); }
+.center h3 { margin: 12px 0 6px; font-size: 20px; font-weight: 500; }
+.center p { margin: 0 auto 16px; max-width: 34ch; color: var(--fd-t2); }
+.big { font-size: 56px; line-height: 1; color: var(--fd-ok); }
+.primary { min-height: var(--fd-touch); padding: 0 22px; border: 0; border-radius: var(--fd-r-pill); background: var(--fd-a700); color: #fff; font-weight: 500; }
+.primary:hover { background: var(--fd-a900); }
+.desk { display: none; margin-top: 10px; text-align: center; }
+@media (hover: hover) and (min-width: 900px) { .desk { display: block; } }
+.celebrate { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--fd-t1) 45%, transparent); padding: 16px; overflow: hidden; }
+.celebrate .center { position: relative; width: min(380px, 100%); box-sizing: border-box; animation: pop .5s cubic-bezier(.2,1.4,.4,1); }
+.star { display: inline-block; font-size: 72px; line-height: 1; color: var(--fd-gold); animation: spin 1.1s ease-out; filter: drop-shadow(0 4px 10px rgba(249,168,37,.5)); }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes spin { from { transform: rotate(-200deg) scale(.2); } to { transform: none; } }
+.confetti { position: absolute; top: -16px; width: 9px; height: 14px; border-radius: 2px; opacity: .9; animation: fall linear forwards; }
+@keyframes fall { to { transform: translateY(110vh) rotate(540deg); } }
+.load { padding: 40px; text-align: center; color: var(--fd-t2); }
+@media (prefers-reduced-motion: reduce) {
+  .card, .meter > i { transition: none; }
+  .card.enter, .celebrate .center, .star { animation: none; }
+  .confetti { display: none; }
+}
+`;
+
+const CONFETTI = ["#f9a825", "#00897b", "#c2185b", "#0277bd", "#7e57c2", "#ef6c00"];
+
+class FdQuestions extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._q = [];
+    this._meta = { answered_total: 0, week_answered: 0, points: 0, points_every: 30 };
+    this._state = "loading"; // loading | ready | error | denied
+    this._i = 0;
+    this._reach = "merchant";
+    this._owner = "";
+    this._more = false;
+    this._busy = false;
+    this._msg = "";
+    this._persons = [];
+    this._session = 0;
+    this._celebrate = null; // null | "point" | "week"
+    this._onKey = (e) => this._key(e);
+  }
+
+  set hass(h) {
+    const first = !this._hass;
+    this._hass = h;
+    if (first) this.load();
+  }
+
+  connectedCallback() { this.addEventListener("keydown", this._onKey); }
+  disconnectedCallback() {
+    this.removeEventListener("keydown", this._onKey);
+    clearTimeout(this._skipTimer);
+  }
+
+  get _isAdmin() { return !!(this._hass && this._hass.user && this._hass.user.is_admin); }
+
+  async load() {
+    if (!this._hass) return;
+    this._state = "loading";
+    this._render();
+    if (!this._isAdmin) { this._state = "denied"; this._render(); return; }
+    await window._fd.t("questions.title");
+    try {
+      const d = await this._hass.callApi("GET", `${DOMAIN}/questions`);
+      this._q = d.questions || [];
+      this._meta = {
+        answered_total: d.answered_total || 0,
+        week_answered: d.week_answered || 0,
+        points: d.points || 0,
+        points_every: d.points_every || 30,
+      };
+      this._i = 0;
+      this._session = 0;
+      this._state = "ready";
+      this._resetCard();
+      this._hass.callApi("GET", `${DOMAIN}/assignments`)
+        .then((a) => { this._persons = (a.persons || []).map((p) => p.name); this._keepRender(); })
+        .catch(() => {});
+    } catch (e) {
+      console.warn("fd-questions: load failed:", e);
+      this._state = "error";
+    }
+    this._render();
+  }
+
+  _resetCard() { this._reach = "merchant"; this._owner = ""; this._more = false; this._msg = ""; }
+
+  get _card() { return this._q[this._i]; }
+
+  _cats(card) {
+    const { CAT_LABELS } = window._fd;
+    return (card.suggested || []).filter((c) => CAT_LABELS[c] && c !== "other").slice(0, 3);
+  }
+
+  _catBtn(c, key) {
+    const { CAT_LABELS, CAT_ICONS, CAT_COLORS, escHtml } = window._fd;
+    const ic = CAT_ICONS && CAT_ICONS[c];
+    return `<button class="cat" data-cat="${escHtml(c)}" ${this._busy ? "disabled" : ""}>${ic ? `<span class="ic" aria-hidden="true">${ic}</span>` : `<span class="dot" style="background:${CAT_COLORS[c] || "#6b7280"}"></span>`}<span>${escHtml(CAT_LABELS[c] || c)}</span>${key ? `<kbd aria-hidden="true">${key}</kbd>` : ""}</button>`;
+  }
+
+  _fmtDates(dates) {
+    const f = new Intl.DateTimeFormat((this._hass && this._hass.language) || "de", { day: "numeric", month: "short" });
+    return (dates || []).slice(0, 3).map((d) => { const x = new Date(d); return isNaN(x) ? d : f.format(x); }).join(", ");
+  }
+
+  _progressHtml() {
+    const m = this._meta;
+    const every = m.points_every || 30;
+    const into = m.answered_total % every;
+    const left = every - into;
+    const week = Math.min(m.week_answered, WEEK_CAP);
+    return `<div class="prog" aria-live="polite">
+  <div class="row"><span>${left === 1 ? tr("questions.progress_point_one") : tr("questions.progress_point", { n: left })}</span><b>★ ${tr("questions.points", { n: m.points })}</b></div>
+  <div class="meter" role="progressbar" aria-valuemin="0" aria-valuemax="${every}" aria-valuenow="${into}"><i style="width:${(into / every) * 100}%"></i></div>
+  <div class="row" style="margin-top:8px"><span>${tr("questions.progress_week", { n: week, m: WEEK_CAP })}</span></div>
+  <div class="pips" aria-hidden="true">${Array.from({ length: WEEK_CAP }, (_, k) => `<i class="${k < week ? "on" : ""}"></i>`).join("")}</div>
+</div>`;
+  }
+
+  _cardHtml() {
+    const { eur, escHtml, CAT_LABELS } = window._fd;
+    const c = this._card;
+    const cats = this._cats(c);
+    const people = this._persons;
+    const rest = Object.keys(CAT_LABELS).filter((k) => !PICKER_EXCLUDE.has(k));
+    return `<div class="card enter" id="card">
+  <div class="cnt">${tr("questions.card_of", { n: this._i + 1, m: this._q.length })}</div>
+  <h3 class="merchant">${escHtml(c.merchant)}</h3>
+  <div class="facts"><b>${c.count === 1 ? tr("questions.booking_one") : tr("questions.bookings", { n: c.count })}</b> · ${tr("questions.total", { sum: eur(c.total) })}${c.dates && c.dates.length ? ` · ${tr("questions.dates", { dates: escHtml(this._fmtDates(c.dates)) })}` : ""}</div>
+  <div class="prompt">${tr("questions.prompt")}</div>
+  <div class="cats">${cats.map((k, n) => this._catBtn(k, String(n + 1))).join("")}</div>
+  <button class="more" data-act="more" aria-expanded="${this._more}">${this._more ? tr("questions.other_hide") : tr("questions.other")}</button>
+  ${this._more ? `<div class="picker">${rest.map((k) => this._catBtn(k)).join("")}</div>` : ""}
+  <div class="sub">${tr("questions.reach")}</div>
+  <div class="seg" role="group" aria-label="${tr("questions.reach")}">
+    <button data-reach="merchant" aria-pressed="${this._reach === "merchant"}">${tr("questions.reach_merchant", { merchant: escHtml(c.merchant) })}</button>
+    <button data-reach="booking" aria-pressed="${this._reach === "booking"}">${tr("questions.reach_booking")}</button>
+  </div>
+  ${people.length ? `<div class="sub">${tr("questions.owner")}</div>
+  <div class="seg" role="group" aria-label="${tr("questions.owner")}">
+    <button data-owner="" aria-pressed="${this._owner === ""}">${tr("questions.owner_none")}</button>
+    ${people.map((p, n) => `<button data-owner="${escHtml(p)}" aria-pressed="${this._owner === p}"><span class="pd" style="background:${PERSON_COLORS[n % 5]}"></span>${escHtml(p)}</button>`).join("")}
+    <button data-owner="shared" aria-pressed="${this._owner === "shared"}"><span class="pd" style="background:var(--fd-household)"></span>${tr("questions.owner_shared")}</button>
+  </div>` : ""}
+  ${this._msg ? `<div class="msg" role="alert">${escHtml(this._msg)}</div>` : ""}
+  <div class="foot"><span>${tr("questions.skip_hint")}</span><button class="ghost" data-act="skip" ${this._q.length < 2 ? "hidden" : ""}>${tr("questions.skip")}</button></div>
+</div>`;
+  }
+
+  _doneHtml() {
+    return `<div class="center"><div class="big" aria-hidden="true">✓</div><h3>${tr("questions.done_title")}</h3><p>${tr("questions.done_body")}</p>
+<button class="primary" data-act="close">${tr("questions.back")}</button></div>`;
+  }
+
+  _celebrateHtml() {
+    const week = this._celebrate === "week";
+    const pieces = Array.from({ length: 36 }, (_, k) =>
+      `<span class="confetti" style="left:${(k * 37) % 100}%;background:${CONFETTI[k % CONFETTI.length]};animation-duration:${2.2 + (k % 5) * 0.4}s;animation-delay:${(k % 7) * 0.12}s"></span>`).join("");
+    const more = this._i < this._q.length && !week;
+    return `<div class="celebrate" role="dialog" aria-modal="true" aria-label="${tr(week ? "questions.done_week" : "questions.point_title")}">${pieces}
+<div class="center"><span class="star" aria-hidden="true">${week ? "🎉" : "★"}</span>
+<h3>${tr(week ? "questions.done_week" : "questions.point_title")}</h3>
+<p>${week ? tr("questions.done_week_body", { n: this._session }) : tr("questions.point_body")}</p>
+<button class="primary" data-act="${more ? "continue" : "close"}" id="celebrateBtn">${more ? tr("questions.continue") : tr("questions.back")}</button></div></div>`;
+  }
+
+  _render() {
+    let body;
+    if (this._state === "loading") body = `<div class="load">…</div>`;
+    else if (this._state === "denied") body = `<div class="center"><p>${tr("questions.denied")}</p><button class="primary" data-act="close">${tr("questions.back")}</button></div>`;
+    else if (this._state === "error") body = `<div class="center"><p>${tr("questions.load_error")}</p><button class="primary" data-act="retry">${tr("questions.retry")}</button></div>`;
+    else if (!this._card) body = this._doneHtml();
+    else body = this._progressHtml() + `<div class="stage">${this._cardHtml()}</div>`;
+    const desk = this._state === "ready" ? `<div class="desk"><button class="ghost" data-act="all">${tr("questions.all")}</button></div>` : "";
+    this.shadowRoot.innerHTML = `<style>${window._fd.SHARED_CSS}${CSS}</style>
+<div class="root">
+  <div class="bar"><button class="ghost" data-act="close" aria-label="${tr("questions.back")}">←</button><h2>${tr("questions.title")}</h2></div>
+  ${body}${desk}
+</div>${this._celebrate ? this._celebrateHtml() : ""}`;
+    this._wire();
+    if (this._celebrate) this.shadowRoot.getElementById("celebrateBtn")?.focus();
+  }
+
+  _wire() {
+    const sh = this.shadowRoot;
+    if (this._wired) { this._wireCard(); return; }
+    this._wired = true;
+    sh.addEventListener("click", (e) => {
+      const t = e.target.closest("button");
+      if (!t || t.disabled) return;
+      if (t.dataset.cat) return this._answer(t.dataset.cat);
+      if (t.dataset.reach) { this._reach = t.dataset.reach; return this._keepRender(); }
+      if (t.dataset.owner !== undefined) { this._owner = t.dataset.owner; return this._keepRender(); }
+      switch (t.dataset.act) {
+        case "more": this._more = !this._more; return this._keepRender();
+        case "skip": return this._skip();
+        case "close": return this._close();
+        case "retry": return this.load();
+        case "all": return this.dispatchEvent(new CustomEvent("fd-questions-all", { bubbles: true, composed: true }));
+        case "continue": this._celebrate = null; return this._render();
+      }
+    });
+    this._wireCard();
+  }
+
+  _wireCard() {
+    const card = this.shadowRoot.getElementById("card");
+    if (!card) return;
+    let x0 = null, dx = 0;
+    card.onpointerdown = (e) => { if (e.target.closest("button")) return; x0 = e.clientX; dx = 0; };
+    card.onpointermove = (e) => {
+      if (x0 === null) return;
+      dx = e.clientX - x0;
+      if (Math.abs(dx) > 8) { card.style.transition = "none"; card.style.transform = `translateX(${dx}px) rotate(${dx / 40}deg)`; }
+    };
+    const end = () => {
+      if (x0 === null) return;
+      x0 = null;
+      card.style.transition = "";
+      if (Math.abs(dx) > 90 && this._q.length > 1) this._skip();
+      else card.style.transform = "";
+    };
+    card.onpointerup = end;
+    card.onpointercancel = end;
+  }
+
+  /** Re-render without replaying the entrance animation. */
+  _keepRender() {
+    this._render();
+    this.shadowRoot.getElementById("card")?.classList.remove("enter");
+  }
+
+  _key(e) {
+    if (this._state !== "ready" || !this._card || this._celebrate || this._busy) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const n = parseInt(e.key, 10);
+    const cats = this._cats(this._card);
+    if (n >= 1 && n <= cats.length) { e.preventDefault(); this._answer(cats[n - 1]); }
+  }
+
+  _close() {
+    this._celebrate = null;
+    this.dispatchEvent(new CustomEvent("fd-questions-close", { bubbles: true, composed: true }));
+  }
+
+  _skip() {
+    const card = this.shadowRoot.getElementById("card");
+    const go = () => {
+      const [c] = this._q.splice(this._i, 1);
+      this._q.push(c);
+      this._resetCard();
+      this._render();
+    };
+    if (card) { card.classList.add("leave"); this._skipTimer = setTimeout(go, 220); } else go();
+  }
+
+  _errText(e) {
+    const code = e && ((e.body && e.body.error) || e.error);
+    const map = { unavailable: "questions.err_unavailable", admin_required: "questions.err_admin" };
+    return tr(map[code] || "questions.err");
+  }
+
+  async _answer(category) {
+    const c = this._card;
+    if (!c || this._busy) return;
+    this._busy = true;
+    this._msg = "";
+    this._keepRender();
+    const body = { id: c.id, category, reach: this._reach };
+    if (this._owner) body.owner = this._owner;
+    try {
+      const r = await this._hass.callApi("POST", `${DOMAIN}/questions/answer`, body);
+      this._meta.answered_total = r.answered_total ?? this._meta.answered_total + 1;
+      this._meta.week_answered = r.week_answered ?? this._meta.week_answered + 1;
+      if (r.point_awarded) this._meta.points += 1;
+      this._session += 1;
+      this._q.splice(this._i, 1);
+      if (this._i >= this._q.length) this._i = 0;
+      this._resetCard();
+      this._busy = false;
+      if (r.point_awarded) this._celebrate = "point";
+      if (!this._q.length) this._celebrate = "week";
+      this._render();
+    } catch (e) {
+      this._busy = false;
+      const code = e && ((e.body && e.body.error) || e.error);
+      if (code === "unknown_question") {
+        // Already settled elsewhere: drop the card silently, no dead end.
+        this._q.splice(this._i, 1);
+        if (this._i >= this._q.length) this._i = 0;
+        this._resetCard();
+      } else {
+        this._msg = this._errText(e);
+      }
+      this._keepRender();
+    }
+  }
+}
+
+window._fd.defineOnce("fd-questions", FdQuestions);

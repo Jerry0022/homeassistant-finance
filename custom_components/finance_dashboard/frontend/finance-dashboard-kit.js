@@ -32,14 +32,20 @@ const COMPONENTS = [
   "fd-header.js",
   "fd-stats-row.js",
   "fd-household-section.js",
+  "fd-household-cycle.js",
+  "fd-freshness.js",
   "fd-budget-plan.js",
   "fd-category-section.js",
   "fd-cost-distribution.js",
   "fd-recurring-list.js",
   "fd-transactions-log.js",
   "fd-settings.js",
+  "fd-setup.js",
   "fd-overview.js",
   "fd-home.js",
+  "fd-questions.js",
+  "fd-contracts.js",
+  "fd-benchmark.js",
 ];
 
 const CARDS = [
