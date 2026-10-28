@@ -1,8 +1,11 @@
 """Frontend delivery for Finance: one component kit, two shells.
 
 * Static mount  - the whole ``frontend/`` directory under ``FRONTEND_URL_BASE``.
-* Sidebar panel - ``panel_custom`` (admin-only; individual transactions are
-  admin data, so the full-page shell is too).
+* Sidebar panel - ``panel_custom``, open to every household member. The shell
+  carries no data; every endpoint gates itself (individual transactions, plan,
+  bank-level and setup endpoints are admin-only, see
+  ``docs/dev/contracts/setup-wizard.md``). Non-admins get only their own
+  person view, shared items and other persons as totals.
 * Lovelace cards - the kit module is added to every dashboard with
   ``frontend.add_extra_js_url`` so the cards appear in the card picker without
   a hand-added Lovelace resource.
@@ -61,7 +64,7 @@ async def async_register_panel(hass: HomeAssistant) -> None:
             sidebar_title=PANEL_TITLE,
             sidebar_icon=PANEL_ICON,
             module_url=PANEL_MODULE_PATH,
-            require_admin=True,
+            require_admin=False,
             config_panel_domain=DOMAIN,
         )
     _LOGGER.debug("Finance frontend registered (panel /%s, cards via %s)", PANEL_URL_PATH, CARDS_MODULE_PATH)

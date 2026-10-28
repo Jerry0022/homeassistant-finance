@@ -358,5 +358,7 @@ async def test_link_views_removed_and_registration_works():
     hass = MagicMock()
     await api.async_register_api(hass)
     urls = {c.args[0].url for c in hass.http.register_view.call_args_list}
-    assert not any("oauth/callback" in u or "/setup/" in u for u in urls)
+    # The wizard-state endpoints (/setup, /setup/payday_suggestions, ...) are
+    # config reads, not the removed bank-link views.
+    assert not any("oauth/callback" in u or "/setup/bank" in u or "/setup/link" in u for u in urls)
     assert "/api/finance_dashboard/bank_status" in urls

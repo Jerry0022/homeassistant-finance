@@ -225,6 +225,9 @@ def _register_daily_refresh(
             stats = manager.last_refresh_stats
             await coordinator.async_refresh()
             await manager.async_update_consent_issues()
+            from .notify import async_after_refresh
+
+            await async_after_refresh(hass, manager)  # exceptions + weekly digest
             _LOGGER.info(
                 "Daily refresh done: outcome=%s accounts=%s transactions=%s new=%s",
                 stats.get("outcome"),

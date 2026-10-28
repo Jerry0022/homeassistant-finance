@@ -29,7 +29,7 @@ from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 
 from ..const import DOMAIN, OWNER_SHARED
-from ._helpers import _get_manager
+from ._helpers import _get_manager, admin_denied
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -99,7 +99,9 @@ class FinanceDashboardTransferPlanView(HomeAssistantView):
     requires_auth = True
 
     async def get(self, request: web.Request) -> web.Response:
-        """Return the transfer plan for the requested month (cache read)."""
+        """Return the transfer plan for the requested month (cache read, admin)."""
+        if (denied := admin_denied(self, request)) is not None:
+            return denied
         hass = request.app["hass"]
         manager = _get_manager(hass)
         if not manager:
@@ -142,7 +144,9 @@ class FinanceDashboardBenchmarkView(HomeAssistantView):
     requires_auth = True
 
     async def get(self, request: web.Request) -> web.Response:
-        """Return benchmark comparisons (cache read, no external fetch)."""
+        """Return benchmark comparisons (cache read, no external fetch, admin)."""
+        if (denied := admin_denied(self, request)) is not None:
+            return denied
         hass = request.app["hass"]
         manager = _get_manager(hass)
         if not manager:
