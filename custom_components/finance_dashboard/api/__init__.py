@@ -37,7 +37,9 @@ from .plan import (
     FinanceDashboardTransferPlanView,
 )
 from .refresh import (
+    FinanceDashboardFreshnessView,
     FinanceDashboardRefreshStatusView,
+    FinanceDashboardReprocessView,
     FinanceDashboardRefreshTriggerView,
 )
 
@@ -69,6 +71,8 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
     "FinanceDashboardAssignmentsView",
     # Refresh
     "FinanceDashboardRefreshStatusView",
+    "FinanceDashboardReprocessView",
+    "FinanceDashboardFreshnessView",
     "FinanceDashboardRefreshTriggerView",
     # Demo
     "FinanceDashboardDemoToggleView",
@@ -83,6 +87,8 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardSummaryView())
     hass.http.register_view(FinanceDashboardRefreshStatusView())
     hass.http.register_view(FinanceDashboardRefreshTriggerView())
+    hass.http.register_view(FinanceDashboardReprocessView())
+    hass.http.register_view(FinanceDashboardFreshnessView())
     # Bank linking lives in the config subentry flow (Settings -> Devices & services)
     hass.http.register_view(FinanceDashboardBankStatusView())
     hass.http.register_view(FinanceDashboardSettingsView())
