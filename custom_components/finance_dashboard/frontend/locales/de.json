@@ -348,7 +348,7 @@
   "rs.virtual": "Töpfe $amount",
   "rs.real": "Kontostand $amount",
   "rs.topup": "Zum Auffüllen: $amount",
-  "rs.unassigned": "$n Töpfe sind noch keinem Konto zugeordnet.",
+  "rs.unassigned": "Töpfe ohne Konto: $n",
   "rs.accounts": "Sparkonten",
   "rs.accounts_hint": "Markiere Konten, auf denen Rücklagen liegen.",
   "rs.savings": "Ist ein Sparkonto",

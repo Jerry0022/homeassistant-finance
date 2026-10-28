@@ -131,7 +131,7 @@ h3 { margin: 0 0 4px; font-size: 15px; font-weight: 500; }
 .btn { min-height: var(--fd-touch); margin-top: 12px; padding: 0 16px; border: 1px solid transparent; border-radius: var(--fd-r-pill); background: var(--fd-a700); color: #fff; font-weight: 500; cursor: pointer; }
 .cmp + .cmp, .ref + .ref { border-top: 1px solid var(--fd-line); }
 .cmp, .ref { padding: 12px 0; }
-.l1 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.l1 { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
 .l1 b { font-weight: 500; }
 .bars { margin: 8px 0 4px; display: grid; gap: 4px; }
 .bar { display: grid; grid-template-columns: 84px 1fr auto; align-items: center; gap: 8px; font-size: 12px; }

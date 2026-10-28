@@ -348,7 +348,7 @@
   "rs.virtual": "Pots $amount",
   "rs.real": "Balance $amount",
   "rs.topup": "To top up: $amount",
-  "rs.unassigned": "$n pots are not assigned to an account yet.",
+  "rs.unassigned": "Pots without an account: $n",
   "rs.accounts": "Savings accounts",
   "rs.accounts_hint": "Mark the accounts that hold reserves.",
   "rs.savings": "Is a savings account",
