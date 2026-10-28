@@ -257,6 +257,9 @@ DEFAULT_SPLIT_MODEL = SPLIT_MODEL_POOLED_EQUAL
 # Amounts live in HA .storage/ only; never in git.
 STORAGE_KEY_BUDGET_PLAN = f"{DOMAIN}_budget_plan"
 
+# Pots (household budget envelopes) - plan data, stored like the budget plan.
+STORAGE_KEY_POTS = f"{DOMAIN}_pots"
+
 # Cost position ownership: a position belongs to a person by NAME, or is shared.
 # Ownership is a property of the position, not of the account it is debited from.
 OWNER_SHARED = "__shared__"

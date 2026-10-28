@@ -1,0 +1,354 @@
+"""Pots ("Töpfe") — household budget envelopes with cycle-aggregated balances.
+
+A pot is part of the PLAN side: a cycle budget for a set of categories with an
+explicit owner (a person, or ``"shared"``). The ACTUAL side (bank bookings)
+only feeds the balance. Personal pots are fed from the owner's personal
+accounts only; shared pots from shared accounts only.
+
+Sign convention: everything here is in the PLAN sign (expense positive). The
+caller converts bank amounts with ``actual_amount_to_plan_sign``.
+
+Pending (vorgemerkte) bookings are not spent yet: they show up as upcoming only.
+
+A *booking* in this module is a dict::
+
+    {"date": date, "amount": float, "category": str, "pending": bool, "label": str}
+
+Balance model: a pot earns ``cycle_budget / days_in_cycle`` every day of the
+cycle. Money not spent on a day stays in the pot (carry-over), overspending
+makes the balance negative. A new cycle starts from zero again - nothing is
+carried across the cycle boundary.
+
+Status (±10 % rule): spent up to the linear amount to date -> ``good``; up to
+10 % above it -> ``knapp`` (still fine); above -> ``over``.
+
+SECURITY: pots contain budget amounts. They live only in HA's ``.storage/`` and
+must never be committed.
+"""
+
+from __future__ import annotations
+
+import logging
+import re
+from dataclasses import dataclass, field
+from datetime import date, timedelta
+from typing import Any
+
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
+
+from .const import STORAGE_KEY_POTS, STORAGE_VERSION
+
+_LOGGER = logging.getLogger(__name__)
+
+POT_OWNER_SHARED = "shared"
+POT_KIND_SPEND = "spend"
+POT_KIND_RESERVE = "reserve"
+POT_KINDS = (POT_KIND_SPEND, POT_KIND_RESERVE)
+
+STATUS_GOOD = "good"
+STATUS_KNAPP = "knapp"
+STATUS_OVER = "over"
+KNAPP_TOLERANCE = 0.10
+
+UPCOMING_TOP_N = 3
+
+_SLUG_RE = re.compile(r"[^a-z0-9]+")
+
+
+@dataclass
+class Pot:
+    """One budget envelope."""
+
+    id: str
+    name: str
+    owner: str = POT_OWNER_SHARED
+    cycle_budget: float = 0.0  # plan sign: positive
+    category_keys: list[str] = field(default_factory=list)
+    kind: str = POT_KIND_SPEND
+
+    @property
+    def is_shared(self) -> bool:
+        return self.owner == POT_OWNER_SHARED
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "owner": self.owner,
+            "cycle_budget": round(self.cycle_budget, 2),
+            "category_keys": list(self.category_keys),
+            "kind": self.kind,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Pot:
+        """Validate and build a pot. Raises ``ValueError`` on bad input."""
+        name = str(data.get("name") or "").strip()
+        if not name:
+            raise ValueError("A pot needs a name")
+        if len(name) > 60:
+            raise ValueError("Pot name too long")
+        owner = str(data.get("owner") or POT_OWNER_SHARED).strip()
+        kind = str(data.get("kind") or POT_KIND_SPEND)
+        if kind not in POT_KINDS:
+            raise ValueError("Unknown pot kind")
+        try:
+            budget = float(data.get("cycle_budget", 0) or 0)
+        except (TypeError, ValueError) as err:
+            raise ValueError("cycle_budget must be a number") from err
+        if budget != budget or budget < 0 or budget > 1_000_000:  # NaN, negative, absurd
+            raise ValueError("cycle_budget out of range")
+        raw_keys = data.get("category_keys") or []
+        if not isinstance(raw_keys, list):
+            raise ValueError("category_keys must be a list")
+        keys = list(dict.fromkeys(str(k).strip() for k in raw_keys if str(k).strip()))
+        pot_id = str(data.get("id") or "").strip() or slugify_pot(name, owner)
+        return cls(
+            id=pot_id,
+            name=name,
+            owner=owner,
+            cycle_budget=budget,
+            category_keys=keys,
+            kind=kind,
+        )
+
+
+def slugify_pot(name: str, owner: str) -> str:
+    base = _SLUG_RE.sub("_", name.strip().lower()).strip("_") or "pot"
+    owner_part = _SLUG_RE.sub("_", owner.strip().lower()).strip("_") or "shared"
+    return f"{base}__{owner_part}"
+
+
+class PotStore:
+    """Persists the pots in HA's ``.storage/`` (plan data, never in git)."""
+
+    def __init__(self, hass: HomeAssistant) -> None:
+        self._store = Store(hass, STORAGE_VERSION, STORAGE_KEY_POTS)
+        self._pots: list[Pot] = []
+
+    async def async_load(self) -> list[Pot]:
+        try:
+            raw = await self._store.async_load()
+        except Exception:
+            _LOGGER.exception("Pot load failed - starting without pots")
+            raw = None
+        pots: list[Pot] = []
+        for item in (raw or {}).get("pots", []) if isinstance(raw, dict) else []:
+            try:
+                pots.append(Pot.from_dict(item))
+            except (ValueError, AttributeError):
+                _LOGGER.warning("Skipping an unreadable pot entry")
+        self._pots = pots
+        return self._pots
+
+    async def async_save(self) -> None:
+        await self._store.async_save({"pots": [p.to_dict() for p in self._pots]})
+
+    @property
+    def pots(self) -> list[Pot]:
+        return self._pots
+
+    def get(self, pot_id: str) -> Pot | None:
+        return next((p for p in self._pots if p.id == pot_id), None)
+
+    async def async_upsert(self, pot: Pot, *, replace_existing: bool) -> Pot:
+        """Insert (``replace_existing=False``: unique id enforced) or replace."""
+        existing = self.get(pot.id)
+        if replace_existing:
+            if existing is None:
+                raise KeyError(pot.id)
+            self._pots[self._pots.index(existing)] = pot
+        else:
+            base, n = pot.id, 2
+            while self.get(pot.id) is not None:
+                pot.id = f"{base}_{n}"
+                n += 1
+            self._pots.append(pot)
+        await self.async_save()
+        return pot
+
+    async def async_delete(self, pot_id: str) -> bool:
+        existing = self.get(pot_id)
+        if existing is None:
+            return False
+        self._pots.remove(existing)
+        await self.async_save()
+        return True
+
+
+# ---------------------------------------------------------------------------
+# Pure status arithmetic
+# ---------------------------------------------------------------------------
+
+
+def cycle_days(cycle: tuple[date, date]) -> int:
+    return max(1, (cycle[1] - cycle[0]).days + 1)
+
+
+def status_for(spent: float, linear_to_date: float) -> str:
+    """±10 % rule: good up to the linear amount, knapp up to +10 %, else over."""
+    if spent <= linear_to_date + 1e-9:
+        return STATUS_GOOD
+    if spent <= linear_to_date * (1 + KNAPP_TOLERANCE) + 1e-9:
+        return STATUS_KNAPP
+    return STATUS_OVER
+
+
+def _matching(pot: Pot, bookings: list[dict[str, Any]], cycle: tuple[date, date], upto: date):
+    keys = set(pot.category_keys)
+    for b in bookings:
+        if (
+            b["category"] in keys
+            and not b.get("pending")
+            and not b.get("upcoming")
+            and cycle[0] <= b["date"] <= min(upto, cycle[1])
+        ):
+            yield b
+
+
+def week_bounds(today: date) -> tuple[date, date]:
+    """Monday to Sunday of the week containing ``today``."""
+    monday = today - timedelta(days=today.weekday())
+    return monday, monday + timedelta(days=6)
+
+
+def pot_status(
+    pot: Pot,
+    bookings_in_cycle: list[dict[str, Any]],
+    cycle: tuple[date, date],
+    today: date,
+) -> dict[str, Any]:
+    """Cycle-aggregated state of one pot.
+
+    Returns ``balance`` (available now, unspent days carried forward inside the
+    cycle), ``per_day_typical`` (the pot's daily allowance), ``spent``,
+    ``linear_to_date``, ``status`` and ``carry_in_week`` (balance carried into
+    the current week from earlier weeks of the same cycle - 0 in the first week).
+    """
+    total_days = cycle_days(cycle)
+    daily = pot.cycle_budget / total_days
+    today_c = min(max(today, cycle[0] - timedelta(days=1)), cycle[1])
+    elapsed = (today_c - cycle[0]).days + 1
+    linear = daily * elapsed
+    spent = sum(b["amount"] for b in _matching(pot, bookings_in_cycle, cycle, today))
+    week_start, _ = week_bounds(today)
+    before_week = week_start - timedelta(days=1)
+    if before_week < cycle[0]:
+        carry = 0.0
+    else:
+        days_before = (before_week - cycle[0]).days + 1
+        carry = daily * days_before - sum(
+            b["amount"] for b in _matching(pot, bookings_in_cycle, cycle, before_week)
+        )
+    return {
+        "balance": round(linear - spent, 2),
+        "per_day_typical": round(daily, 2),
+        "spent": round(spent, 2),
+        "linear_to_date": round(linear, 2),
+        "status": status_for(spent, linear),
+        "carry_in_week": round(carry, 2),
+        "cycle_budget": round(pot.cycle_budget, 2),
+    }
+
+
+def _upcoming_items(
+    bookings: list[dict[str, Any]], pots: list[Pot], start: date, end: date
+) -> list[dict[str, Any]]:
+    """Pending bookings (and known upcoming ones) between ``start`` and ``end``."""
+    keys = {k for p in pots for k in p.category_keys}
+    items = [
+        {
+            "date": b["date"].isoformat(),
+            "label": b.get("label", ""),
+            "amount": round(b["amount"], 2),
+            "pending": bool(b.get("pending")),
+            "category": b["category"],
+        }
+        for b in bookings
+        if (b.get("pending") or b.get("upcoming"))
+        and start <= b["date"] <= end
+        and (not keys or b["category"] in keys)
+    ]
+    items.sort(key=lambda i: (i["date"], i["label"]))
+    return items
+
+
+def week_status(
+    pots: list[Pot],
+    bookings: list[dict[str, Any]],
+    cycle: tuple[date, date],
+    today: date,
+) -> dict[str, Any]:
+    """Daily budget vs. actual for the current week (Mon-Sun).
+
+    - ``daily_budget``: sum of the spend pots' daily allowance.
+    - ``carry_over``: what earlier weeks *of this cycle* left (+) or overspent
+      (-). Never reaches back before the cycle start.
+    - ``week_budget``: ``max(0, carry_over + daily_budget * days_in_week)``.
+    - ``linear_line``: cumulative allowance per day with the carry-over spread
+      evenly over the week's days.
+    - ``zero_carry_line``: the same without carry-over; flat 0 when the carry
+      is so negative that nothing is left this week.
+    """
+    spend = [p for p in pots if p.kind == POT_KIND_SPEND]
+    total_days = cycle_days(cycle)
+    daily = sum(p.cycle_budget for p in spend) / total_days
+    keys = {k for p in spend for k in p.category_keys}
+    week_start, week_end = week_bounds(today)
+    real = [b for b in bookings if not b.get("upcoming") and not b.get("pending")]
+
+    def _spent_on(day: date) -> float:
+        return sum(b["amount"] for b in real if b["category"] in keys and b["date"] == day)
+
+    days: list[dict[str, Any]] = []
+    in_cycle_days = 0
+    for i in range(7):
+        day = week_start + timedelta(days=i)
+        inside = cycle[0] <= day <= cycle[1]
+        in_cycle_days += inside
+        days.append(
+            {
+                "date": day.isoformat(),
+                "budget": round(daily, 2) if inside else 0.0,
+                "actual": round(_spent_on(day), 2) if inside and day <= today else 0.0,
+                "future": day > today,
+                "today": day == today,
+                "in_cycle": inside,
+            }
+        )
+
+    carry = 0.0
+    if week_start > cycle[0]:
+        d = cycle[0]
+        while d < week_start:
+            carry += daily - _spent_on(d)
+            d += timedelta(days=1)
+
+    week_budget = max(0.0, carry + daily * in_cycle_days)
+    n = max(1, in_cycle_days)
+    linear, zero_carry, running = [], [], 0
+    for i, day in enumerate(days):
+        running += 1 if day["in_cycle"] else 0
+        linear.append(round(week_budget * running / n, 2))
+        zero_carry.append(round(daily * running, 2) if week_budget > 0 else 0.0)
+
+    spent = sum(d["actual"] for d in days)
+    pending = _upcoming_items(bookings, spend, today, week_end)
+    return {
+        "start": week_start.isoformat(),
+        "end": week_end.isoformat(),
+        "daily_budget": round(daily, 2),
+        "carry_over": round(carry, 2),
+        "week_budget": round(week_budget, 2),
+        "spent": round(spent, 2),
+        "remaining": round(week_budget - spent, 2),
+        "days": days,
+        "linear_line": linear,
+        "zero_carry_line": zero_carry,
+        "upcoming": {
+            "sum": round(sum(i["amount"] for i in pending), 2),
+            "items": pending[:UPCOMING_TOP_N],
+            "count": len(pending),
+        },
+    }
