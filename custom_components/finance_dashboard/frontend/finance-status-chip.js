@@ -132,8 +132,8 @@ class FinanceStatusChip extends HTMLElement {
   --chip-tx: var(--primary-text-color, #e0e0e0);
   --chip-tx2: var(--secondary-text-color, #9898a8);
   --chip-ac: var(--accent-color, #4ecca3);
-  --chip-dg: #e74c3c;
-  --chip-wn: #f39c12;
+  --chip-dg: var(--fd-over);
+  --chip-wn: var(--fd-near);
 }
 
 .chip {
@@ -157,8 +157,8 @@ class FinanceStatusChip extends HTMLElement {
 
 .chip.warn {
   cursor: pointer;
-  border-color: rgba(243, 156, 18, 0.5);
-  background: rgba(243, 156, 18, 0.08);
+  border-color: color-mix(in srgb, var(--fd-near) calc(0.5*100%), transparent);
+  background: color-mix(in srgb, var(--fd-near) calc(0.08*100%), transparent);
 }
 .chip.warn .label { color: var(--chip-wn); }
 .chip.warn .alert svg { color: var(--chip-wn); }
@@ -166,12 +166,12 @@ class FinanceStatusChip extends HTMLElement {
 /* Clickable in error state */
 .chip.error {
   cursor: pointer;
-  border-color: rgba(231, 76, 60, 0.3);
-  background: rgba(231, 76, 60, 0.06);
+  border-color: color-mix(in srgb, var(--fd-over) calc(0.3*100%), transparent);
+  background: color-mix(in srgb, var(--fd-over) calc(0.06*100%), transparent);
 }
 .chip.error:hover {
-  border-color: rgba(231, 76, 60, 0.5);
-  background: rgba(231, 76, 60, 0.1);
+  border-color: color-mix(in srgb, var(--fd-over) calc(0.5*100%), transparent);
+  background: color-mix(in srgb, var(--fd-over) calc(0.1*100%), transparent);
 }
 
 .chip.loading {

@@ -1,10 +1,31 @@
 /**
- * fd-person-card — Single person Spielgeld breakdown card.
+ * fd-person-card — one person's share of the household money (Spielgeld).
+ *
+ * New design: person colour stripe, a stacked bar showing where the net
+ * income goes (household share · own costs · what is left), and a status
+ * chip (passt / knapp / drüber) on the remainder. Never red, no guilt tone.
  *
  * Properties:
  *   member     {object}  — Household member data
  *   splitModel {string}  — Current split model name
+ *   index      {number}  — optional position, picks the person colour
  */
+
+const PERSON_COLORS = [
+  "var(--fd-person-a)", "var(--fd-person-b)", "#5d4037", "#455a64", "#9e9d24",
+];
+
+// New texts resolve through the locale files; until a key exists the inline
+// default is used (de / en) so the UI never shows a raw key.
+function T(key, de, en, vars = {}) {
+  const f = window._fd;
+  const s = f.tSync(key, vars);
+  if (s !== key) return s;
+  const raw = ((f._hass && f._hass.language) || navigator.language || "en").toLowerCase();
+  let text = raw.startsWith("de") ? de : en;
+  for (const [k, v] of Object.entries(vars)) text = text.replace(new RegExp(`\\$${k}`, "g"), String(v));
+  return text;
+}
 
 class FdPersonCard extends HTMLElement {
   constructor() {
@@ -12,14 +33,12 @@ class FdPersonCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._member = null;
     this._splitModel = "proportional";
+    this._index = 0;
   }
 
   set member(v) { this._member = v; this._render(); }
   set splitModel(v) { this._splitModel = v; this._render(); }
-
-  disconnectedCallback() {
-    // No timers or observers to clean up in this component.
-  }
+  set index(v) { this._index = Number(v) || 0; this._render(); }
 
   _render() {
     const m = this._member;
@@ -27,67 +46,79 @@ class FdPersonCard extends HTMLElement {
       this.shadowRoot.innerHTML = "";
       return;
     }
+    const { SHARED_CSS, escHtml, eur } = window._fd;
+    const color = PERSON_COLORS[this._index % PERSON_COLORS.length];
 
-    const { SHARED_CSS, escHtml } = window._fd;
+    const splitLabel = this._splitModel === "proportional" ? T("hh.split.proportional", "Nach Einkommen", "By income")
+      : this._splitModel === "equal" ? T("hh.split.equal", "Zu gleichen Teilen", "Equal parts")
+        : T("hh.split.custom", "Eigene Verteilung", "Custom split");
 
-    const eur = (v) => new Intl.NumberFormat("de-DE", {
-      style: "currency", currency: "EUR",
-    }).format(v || 0);
+    const net = Math.max(m.net_income || 0, 0);
+    const left = m.spielgeld || 0;
+    // Status on what is left of the net income: relaxed >= 15 %, tight >= 5 %.
+    const frac = net > 0 ? left / net : (left >= 0 ? 1 : -1);
+    const st = frac >= 0.15 ? "ok" : frac >= 0.05 ? "near" : "over";
+    const stLabel = st === "ok" ? T("hh.status.ok", "passt", "fine")
+      : st === "near" ? T("hh.status.near", "knapp", "tight") : T("hh.status.over", "drüber", "over");
 
-    const splitLabel = this._splitModel === "proportional" ? "Proportional"
-      : this._splitModel === "equal" ? "Gleich" : "Benutzerdefiniert";
+    const seg = (v) => (net > 0 ? Math.max(0, Math.min(100, (v / net) * 100)) : 0);
+    const wShared = seg(m.shared_costs_share);
+    const wOwn = seg(m.individual_costs);
+    const wLeft = Math.max(0, 100 - wShared - wOwn);
 
-    const spielgeldClass = m.spielgeld >= 0 ? "pos" : "neg";
-    const bonusRow = m.bonus_amount > 0
-      ? `<li class="row"><span class="l">Bonus (erkannt)</span><span class="pos">${eur(m.bonus_amount)}</span></li>`
-      : "";
+    const bonus = m.bonus_amount > 0
+      ? `<li><span>${T("hh.person.bonus", "Bonus (erkannt)", "Bonus (detected)")}</span><b>${eur(m.bonus_amount)}</b></li>` : "";
 
     const LOCAL_CSS = `
-.person {
-  background: var(--sf);
-  border: 1px solid var(--bd);
-  border-radius: var(--r);
-  padding: 20px;
-}
-.name { font-size: 16px; font-weight: 600; margin-bottom: 2px; }
-.ratio { font-size: 12px; color: var(--tx2); margin-bottom: 14px; }
-.rows { list-style: none; padding: 0; margin: 0; }
-.row {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 0;
-  font-size: 13px;
-  border-bottom: 1px solid var(--bd);
-}
-.row:last-child { border-bottom: none; }
-.row .l { color: var(--tx2); }
-.saldo {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 2px solid var(--bd);
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-.saldo .l { font-size: 14px; font-weight: 600; }
-.saldo .v { font-size: 22px; font-weight: 700; }
+:host { display: block; }
+.person { position: relative; padding: 14px 16px 14px 20px; border-radius: var(--fd-r-card); background: var(--fd-card); box-shadow: var(--fd-sh1); overflow: hidden; }
+.person::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: ${color}; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.name { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 500; min-width: 0; }
+.name i { flex: none; width: 10px; height: 10px; border-radius: 50%; background: ${color}; }
+.name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; padding: 1px 10px; border-radius: var(--fd-r-pill); font-size: 11.5px; font-weight: 500; white-space: nowrap; background: var(--cbg); color: var(--cfg); }
+.st-ok { --c: var(--fd-ok); --cbg: var(--fd-ok-bg); --cfg: color-mix(in srgb, var(--fd-ok) 72%, var(--fd-t1)); }
+.st-near { --c: var(--fd-near); --cbg: var(--fd-near-bg); --cfg: color-mix(in srgb, var(--fd-near) 72%, var(--fd-t1)); }
+.st-over { --c: var(--fd-over); --cbg: var(--fd-over-bg); --cfg: color-mix(in srgb, var(--fd-over) 72%, var(--fd-t1)); }
+.left { margin: 10px 0 2px; font-size: 30px; font-weight: 500; line-height: 1.05; color: var(--cfg); }
+.cap { font-size: 12px; color: var(--fd-t2); }
+.bar { display: flex; height: 12px; margin: 12px 0 6px; border-radius: 6px; overflow: hidden; background: var(--fd-sunk); }
+.bar i { display: block; height: 100%; }
+.legend { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 11px; color: var(--fd-t2); }
+.legend i { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; }
+.rows { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
+.rows li { display: flex; justify-content: space-between; gap: 8px; padding: 7px 0; }
+.rows li + li { border-top: 1px solid var(--fd-line); }
+.rows li span { color: var(--fd-t2); }
+.rows li b { font-weight: 500; white-space: nowrap; }
 `;
 
     this.shadowRoot.innerHTML = `
 <style>${SHARED_CSS}${LOCAL_CSS}</style>
-<div class="person">
-  <div class="name">${escHtml(m.person)}</div>
-  <div class="ratio">Einkommensanteil: ${(m.income_ratio || 0).toFixed(1)}% &middot; ${escHtml(splitLabel)}</div>
-  <ul class="rows">
-    <li class="row"><span class="l">Einkommen (netto)</span><span>${eur(m.net_income)}</span></li>
-    <li class="row"><span class="l">Anteil Fixkosten</span><span class="neg">${eur(m.shared_costs_share)}</span></li>
-    <li class="row"><span class="l">Eigene Ausgaben</span><span class="neg">${eur(m.individual_costs)}</span></li>
-    ${bonusRow}
-  </ul>
-  <div class="saldo">
-    <span class="l">Spielgeld</span>
-    <span class="v ${spielgeldClass}">${eur(m.spielgeld)}</span>
+<div class="person st-${st}">
+  <div class="head">
+    <div class="name"><i></i><span>${escHtml(m.person)}</span></div>
+    <span class="chip">${escHtml(stLabel)}</span>
   </div>
+  <div class="left">${eur(left)}</div>
+  <div class="cap">${T("hh.person.left", "bleibt zur freien Verfügung", "left to spend freely")} · ${escHtml(splitLabel)} · ${(m.income_ratio || 0).toFixed(0)} %</div>
+  <div class="bar" role="img" aria-label="${T("hh.person.bar", "Verteilung des Nettoeinkommens", "How the net income is used")}">
+    <i style="width:${wShared}%;background:var(--fd-household)"></i>
+    <i style="width:${wOwn}%;background:${color}"></i>
+    <i style="width:${wLeft}%;background:var(--c)"></i>
+  </div>
+  <div class="legend">
+    <span><i style="background:var(--fd-household)"></i>${T("hh.person.share", "Haushalt", "Household")}</span>
+    <span><i style="background:${color}"></i>${T("hh.person.own", "Eigene", "Own")}</span>
+    <span><i style="background:var(--c)"></i>${T("hh.person.free", "Frei", "Free")}</span>
+  </div>
+  <ul class="rows">
+    <li><span>${T("hh.person.income", "Einkommen (netto)", "Income (net)")}</span><b>${eur(m.net_income)}</b></li>
+    <li><span>${T("hh.person.shared", "Anteil gemeinsame Fixkosten", "Share of shared fixed costs")}</span><b>${eur(m.shared_costs_share)}</b></li>
+    <li><span>${T("hh.person.individual", "Eigene Ausgaben", "Own expenses")}</span><b>${eur(m.individual_costs)}</b></li>
+    ${bonus}
+  </ul>
 </div>`;
   }
 }
