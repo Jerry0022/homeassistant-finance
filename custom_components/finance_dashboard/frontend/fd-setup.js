@@ -302,7 +302,7 @@ class FdSetup extends HTMLElement {
           .map((s) => ({ ...s, on: true, amount: s.cycle_budget }));
       } catch (e) { this._potSug = []; }
     } else if (step === "done") {
-      try { this._st = await this._hass.callApi("GET", `${DOMAIN}/setup`); } catch (e) { /* keep last */ }
+      try { this._st = await this._hass.callApi("GET", `${DOMAIN}/setup`); } catch (e) { this._toast(tr("setup.reload_error")); }
     }
     if (step === this._step) this._render();
     this.shadowRoot.querySelector("h2")?.focus();

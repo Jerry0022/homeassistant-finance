@@ -380,9 +380,11 @@ class FinanceDashboardPanel extends HTMLElement {
       sh.querySelector("fd-freshness")?.reload?.();
       if (this._dpActive) sh.querySelector("fd-data-provider")?.rebuildAfterRefresh?.();
     });
-    // Sub-navigation by target; "setup" is handled by the setup wizard's own listener.
+    // Sub-navigation by target: freshness subpage or the setup wizard.
     sh.addEventListener("fd-navigate", (e) => {
-      if (e.detail && e.detail.target === "freshness") this._openFreshness();
+      const target = e.detail && e.detail.target;
+      if (target === "freshness") this._openFreshness();
+      else if (target === "setup") this._openSetup();
     });
     sh.addEventListener("fd-freshness-back", () => this._closeFreshness());
 
@@ -393,11 +395,8 @@ class FinanceDashboardPanel extends HTMLElement {
       const target = ov && ov.shadowRoot && ov.shadowRoot.querySelector("fd-settings");
       (target || ov)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
-    // Guided setup wizard: Start card, Overview entry and fd-navigate {target:"setup"}.
+    // Guided setup wizard: Start card and Overview entry (fd-navigate handled above).
     sh.addEventListener("fd-open-setup", () => this._openSetup());
-    sh.addEventListener("fd-navigate", (e) => {
-      if (e.detail && e.detail.target === "setup") this._openSetup();
-    });
     sh.addEventListener("fd-toast", (e) => {
       const d = e.detail || {};
       sh.querySelector("fd-header")?.showToast?.(d.message || "", d.type || "info");
