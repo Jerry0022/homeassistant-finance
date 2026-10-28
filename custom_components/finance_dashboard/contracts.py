@@ -308,17 +308,22 @@ def build_contracts(
     store: ContractStore,
     *,
     today: date | None = None,
+    own_names: set[str] | frozenset[str] = frozenset(),
 ) -> list[dict[str, Any]]:
     """Expense series with contract fields and derived deadlines.
 
     Sorted by next notice deadline (soonest first); contracts without a
-    deadline come last.
+    deadline come last. ``own_names`` are the household's account holder
+    names (normalised): a payment to one of them is an own transfer the
+    chain detector missed, never a contract.
     """
     today = today or date.today()
     series_list = detect_series(transactions, today=today, overrides=store.overrides())
     out: list[dict[str, Any]] = []
     for s in series_list:
         if s["direction"] != "out":
+            continue
+        if any(n and n in s["creditor"] for n in own_names):
             continue
         out.append(_contract_view(s, store.get(s["id"]), today))
     out.sort(key=lambda c: (c["next_deadline"] is None, c["next_deadline"] or ""))
@@ -377,6 +382,7 @@ def aggregate_view(item: dict[str, Any]) -> dict[str, Any]:
     keep = (
         "id",
         "creditor",
+        "display_name",
         "interval",
         "status",
         "category",
@@ -414,6 +420,7 @@ def build_reserves(contracts: list[dict[str, Any]]) -> dict[str, Any]:
             {
                 "series_id": c["id"],
                 "creditor": c["creditor"],
+                "display_name": c.get("display_name", c["creditor"]),
                 "category": c["category"],
                 "owner": c["owner"],
                 "interval": c["interval"],
@@ -438,7 +445,11 @@ def build_reserves(contracts: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 async def async_fire_notice_due(
-    hass: HomeAssistant, transactions: list[dict[str, Any]], *, today: date | None = None
+    hass: HomeAssistant,
+    transactions: list[dict[str, Any]],
+    *,
+    today: date | None = None,
+    own_names: set[str] | frozenset[str] = frozenset(),
 ) -> int:
     """Fire ``finance_dashboard_notice_due`` for deadlines within 30 days.
 
@@ -448,7 +459,7 @@ async def async_fire_notice_due(
     """
     store = await async_get_store(hass)
     fired = 0
-    for c in build_contracts(transactions, store, today=today):
+    for c in build_contracts(transactions, store, today=today, own_names=own_names):
         if not c["notice_due_soon"] or c["status"] == "ended":
             continue
         marker = f"{c['id']}|{c['next_deadline']}"
@@ -459,6 +470,7 @@ async def async_fire_notice_due(
             {
                 "series_id": c["id"],
                 "creditor": c["creditor"],
+                "display_name": c.get("display_name", c["creditor"]),
                 "deadline": c["next_deadline"],
                 "effective_end": c["effective_end"],
                 "days_left": c["days_until_deadline"],
@@ -478,6 +490,18 @@ async def async_fire_notice_due(
 # ---------------------------------------------------------------------------
 # Savings accounts
 # ---------------------------------------------------------------------------
+
+
+def own_account_names(accounts: list[dict[str, Any]]) -> frozenset[str]:
+    """Normalised account holder names ("Jeremy Treder und X" -> both parts)."""
+    names: set[str] = set()
+    for acc in accounts or []:
+        raw = " ".join(str(acc.get("name") or acc.get("account_name") or "").lower().split())
+        for part in raw.replace(" und ", ",").replace(" & ", ",").split(","):
+            part = part.strip()
+            if len(part.split()) >= 2:  # a full name, never a bare bank or product word
+                names.add(part)
+    return frozenset(names)
 
 
 def set_account_savings(manager: Any, key: str, savings: bool) -> bool:

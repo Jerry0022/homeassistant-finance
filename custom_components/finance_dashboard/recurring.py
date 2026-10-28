@@ -357,9 +357,12 @@ def _build_series(
         }
 
     txns = [r[2] for r in rows]
+    latest = txns[-1] if txns else {}
+    raw_name = latest.get("creditorName", "") or latest.get("debtorName", "")
     return {
         "id": sid,
         "creditor": name,
+        "display_name": " ".join(str(raw_name).split()) or name,
         "direction": "out" if negative else "in",
         "interval": interval,
         "period_days": nominal,

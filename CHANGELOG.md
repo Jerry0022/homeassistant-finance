@@ -2,12 +2,24 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.20.1] — 2026-10-28
+
+### Changed
+- Test: 647 tests (own-transfer and own-name filters, owner kinds, freshness fallback, display name)
+
+### Fixed
+- Own transfers between household accounts are no longer listed as contracts (the whole chain counts as one transfer, also its source leg), and payments to an account holder's own name are skipped too; on the live install a transfer to the own account showed as a 46.567 €/year contract with a notice deadline, and the notice reminder used the same list
+- The owner split names the household share "shared" as the contract says; before, "Der Haushalt trägt" always read 0,00 €
+- Before the first logged import, "Stand" and "Letzter Import" use the newest successful bank fetch instead of claiming nothing was imported
+- Contracts show the creditor as the bank writes it ("Vodafone GmbH", not "vodafone gmbh"); savings-account toggles show account name and masked IBAN instead of three identical "DKB" rows
+- Source notes are shown in German in the German UI (`note_de` in the bundled dataset)
+
 ## [0.20.0] — 2026-10-28
 
 ### Added
 - The Household tab runs on the household cycle instead of the calendar month (cycle starts at the highest income, or another person's highest income within the 7 days before; calendar month only without income), own transfers between household accounts are excluded, and no savings rate is shown without income
 - Merchant names are normalised and a learned merchant memory (merchant → category and owner) applies before the keyword rules; one-off booking corrections win over both. Open questions are picked by euro impact, at most 10 per week
-- Flash-card questions — the star on Start opens the cards; answer, skip or "always like this"; every 10 answers earn a point
+- Flash-card questions — the star on Start opens the cards; answer, skip or "always like this"; every 30 answers earn a point
 - Guided setup wizard (accounts, persons, payday, region, plan, pots from history, AI opt-in, notifications) with resume on Start; a confirmed payday anchors the cycle; pots are suggested from the median of past cycles
 - The bank section splits "Neu importieren" (fetch raw bank data, then reprocess) from "Aktualisieren" (reprocess the stored raw data only, no bank call); an import log and a monthly validity check feed the new freshness subpage
 - Series of any interval become contracts with notice periods and deadlines; annual and irregular costs get a monthly reserve and pot coverage (Jahr tab: Verträge)

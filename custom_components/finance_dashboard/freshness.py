@@ -203,10 +203,15 @@ def build_freshness(
     validity: list[dict[str, Any]],
     check: dict[str, Any],
     admin: bool,
+    last_bank_success: str | None = None,
 ) -> dict[str, Any]:
-    """Assemble the endpoint payload; non-admins get only ``as_of`` / ``last_import``."""
+    """Assemble the endpoint payload; non-admins get only ``as_of`` / ``last_import``.
+
+    ``last_bank_success`` covers imports from before the import log existed:
+    without a logged import, the newest successful bank fetch is the last import.
+    """
     last_import = last_of(log, IMPORT_KINDS)
-    li = last_import["at"] if last_import else None
+    li = last_import["at"] if last_import else last_bank_success
     if not admin:
         return {"as_of": as_of, "last_import": li}
     last_rp = last_of(log, REPROCESS_KINDS)

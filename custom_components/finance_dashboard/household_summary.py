@@ -366,7 +366,7 @@ def build_household_summary(  # noqa: PLR0914
         inc, exp = c.get("income", 0.0), c.get("expenses", 0.0)
         row: dict[str, Any] = {
             "owner": owner,
-            "kind": "person" if is_person else owner,
+            "kind": "person" if is_person else ("shared" if owner == OWNER_SHARED else "open"),
             "restricted": not visible,
             "income": _r(inc),
             "expenses": _r(exp),

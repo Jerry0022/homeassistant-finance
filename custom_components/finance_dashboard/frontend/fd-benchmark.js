@@ -228,6 +228,12 @@ class FdBenchmark extends HTMLElement {
     if (r) r.addEventListener("click", () => this.load());
   }
 
+  /** Source note in the UI language (dataset notes are English, `note_de` German). */
+  _note(x) {
+    const de = this._lang().toLowerCase().startsWith("de");
+    return (de ? x.note_de : x.note) || (de ? "" : x.note_de) || "";
+  }
+
   _source(x) {
     const e = window._fd.escHtml;
     const bits = [`<span class="pill">${e(this._stat(x.statistic))}</span>`];
@@ -268,7 +274,7 @@ class FdBenchmark extends HTMLElement {
     const e = window._fd.escHtml;
     const floor = r.id === "regelbedarf";
     return `<div class="ref${floor ? " floor" : ""}"><div class="l1"><b>${e(this._label(r))}${floor ? ` · ${e(tr("bm.floor"))}` : ""}</b><span>${e(this._val(r.value, r.unit))}</span></div>
-  ${floor ? `<div class="muted">${e(tr("bm.floor_note"))}</div>` : (r.note ? `<div class="muted">${e(r.note)}</div>` : "")}${this._source(r)}</div>`;
+  ${floor ? `<div class="muted">${e(tr("bm.floor_note"))}</div>` : (this._note(r) ? `<div class="muted">${e(this._note(r))}</div>` : "")}${this._source(r)}</div>`;
   }
 
   _body() {
@@ -288,7 +294,7 @@ class FdBenchmark extends HTMLElement {
         : `<p class="muted">${e(d.has_plan === false ? tr("bm.no_plan") : tr("bm.empty"))}</p>`}</section></div>`;
     const right = `<div>${refs.length ? `<section class="card"><h3>${e(tr("bm.context"))}</h3>${refs.map((r) => this._ref(r)).join("")}</section>` : ""}
       ${un.length ? `<section class="card"><h3>${e(tr("bm.unavailable"))}</h3><p class="muted" style="margin:0 0 4px">${e(tr("bm.unavailable_note"))}</p>
-        ${un.map((u) => `<div class="un"><b>${e(u.label || u.id)}</b>${u.note ? `<div class="muted">${e(u.note)}</div>` : ""}</div>`).join("")}</section>` : ""}
+        ${un.map((u) => `<div class="un"><b>${e(u.label || u.id)}</b>${this._note(u) ? `<div class="muted">${e(this._note(u))}</div>` : ""}</div>`).join("")}</section>` : ""}
       ${ds.dataset_version ? `<p class="muted">${e(tr("bm.dataset", { version: ds.dataset_version, date: ds.generated || "" }))}</p>` : ""}</div>`;
     return `<div class="cols">${left}${right}</div>`;
   }
