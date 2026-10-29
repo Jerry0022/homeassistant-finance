@@ -23,7 +23,7 @@ from .const import DOMAIN
 
 STORAGE_KEY_MERCHANTS = f"{DOMAIN}_merchants"
 STORAGE_VERSION = 1
-POINT_EVERY = 30  # answered questions per point (product-concept § Points)
+POINT_EVERY = 7  # answered questions per point (product-concept § Points)
 MAX_BOOKING_RULES = 5000
 
 # Payment-processor prefixes that hide the real merchant.
@@ -155,6 +155,8 @@ class MerchantMemory:
             rule["owner"] = owner
         if source:
             rule["source"] = source
+        # Re-insert so the merchant moves to the end: insertion order is the history order.
+        self._data["merchants"].pop(key, None)
         self._data["merchants"][key] = rule
 
     def learn_ai_merchant(self, key: str, category: str) -> bool:
@@ -201,3 +203,24 @@ class MerchantMemory:
 
     def known_merchants(self) -> dict[str, dict[str, Any]]:
         return dict(self._data["merchants"])
+
+    def history(self, limit: int = 500) -> dict[str, Any]:
+        """Learned merchant categories, newest first, plus per-source counts."""
+        merchants = self._data["merchants"]
+        items = [
+            {
+                "merchant": key,
+                "category": rule.get("category"),
+                "owner": rule.get("owner"),
+                "source": "ai" if rule.get("source") == "ai" else "user",
+            }
+            for key, rule in reversed(merchants.items())
+        ]
+        ai = sum(1 for i in items if i["source"] == "ai")
+        return {
+            "items": items[:limit],
+            "total": len(items),
+            "by_user": len(items) - ai,
+            "by_ai": ai,
+            "bookings": len(self._data["bookings"]),
+        }

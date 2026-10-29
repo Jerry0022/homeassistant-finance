@@ -197,7 +197,7 @@ def test_budget_caps_at_hard_limit_and_resets_monthly() -> None:
 
 def test_update_validation_and_key_is_encrypted_never_public() -> None:
     with pytest.raises(ai.AiError):
-        ai.validate_update({"budget_cap": 101})
+        ai.validate_update({"budget_cap": ai.HARD_CAP + 1})
     with pytest.raises(ai.AiError):
         ai.validate_update({"provider": "skynet"})
     with pytest.raises(ai.AiError):

@@ -2,6 +2,20 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.24.0] — 2026-10-29
+
+### Added
+- The monthly AI budget is a number field (0-1000, default 100) instead of a 0-100 slider; free providers such as Gemini via Home Assistant no longer run dry after 100 calls
+- The star page has an "Offen | Verlauf" switch; "Verlauf" lists every learned merchant newest first with its category, owner and whether you or the AI assigned it (`GET /questions/history`)
+- One point per 7 answered questions (was 30), matching the visual-round concept
+
+### Changed
+- Docs(security): the AI call budget is user-set, default 100, hard cap 1000
+- Test: history order and sources, 7-answer points, cached answers under a used-up budget
+
+### Fixed
+- Merchants already answered by the AI are learned from the cache without a new call, also when the budget is used up; before, a cached answer whose memory save was lost never reached the bookings
+
 ## [0.23.0] — 2026-10-29
 
 ### Added

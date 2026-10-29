@@ -34,6 +34,21 @@ class FinanceDashboardQuestionsView(_AdminView):
         return self.json(manager.get_questions())
 
 
+class FinanceDashboardQuestionHistoryView(_AdminView):
+    """``GET /api/finance_dashboard/questions/history`` -- past categorisations."""
+
+    url = f"/api/{DOMAIN}/questions/history"
+    name = f"api:{DOMAIN}:questions:history"
+
+    async def get(self, request: web.Request) -> web.Response:
+        if not self._is_admin(request):
+            return self.json({"error": "admin_required"}, status_code=403)
+        manager = _get_manager(request.app["hass"])
+        if not manager:
+            return self.json({"error": "Not configured"}, status_code=404)
+        return self.json(manager.get_question_history())
+
+
 class FinanceDashboardQuestionAnswerView(_AdminView):
     """``POST /api/finance_dashboard/questions/answer``."""
 

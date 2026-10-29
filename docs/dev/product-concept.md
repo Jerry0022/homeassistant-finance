@@ -67,15 +67,14 @@ Pipeline: ingest (raw archive) → normalise (merchant key, remittance tokens) �
 
 Opt-in. Order: rules → learned merchant memory → AI for unknown merchants only. Payload: merchant +
 remittance text, never amount, IBAN or date. Results cached per merchant permanently. Hard cap
-100 calls per month. Provider: Home Assistant's own AI functions first (AI Task / conversation
+a monthly budget of calls the user sets (default 100, at most 1000). Provider: Home Assistant's own AI functions first (AI Task / conversation
 agents the user already configured); otherwise an own API key for a fixed set (Grok, Claude,
 ChatGPT).
 
 ## Points
 
 Finance does not keep points. It fires an HA event / increments a counter helper; the household's
-existing points system books it. Rule: 30 answered review-inbox questions = 1 point (≈ 15 fully
-classified bookings) for the person who answered, regardless of whose booking it was. Fully
+existing points system books it. Rule: 7 answered review-inbox questions = 1 point for the person who answered, regardless of whose booking it was. Fully
 automatic, deletable only by the recipient, never grantable via a button; a merchant-wide rule
 counts once. The household's points budget stays separate; Finance only recognises its bookings as
 a booking class by remittance text.

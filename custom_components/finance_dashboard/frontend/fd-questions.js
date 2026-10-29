@@ -11,13 +11,14 @@
  *     {id, category, reach:"merchant"|"booking", owner?}
  *     -> {answered_total, week_answered, point_awarded}
  *   GET  finance_dashboard/assignments  -> persons[].name (optional owner chips)
+ *   GET  finance_dashboard/questions/history
+ *     {items:[{merchant,category,owner,source:"user"|"ai"}] newest first,
+ *      total, by_user, by_ai, bookings}  ("Verlauf" tab, loaded on first open)
  *
  * One card per merchant, three suggested categories as big buttons, "other
  * category" opens the full picker. Reach defaults to the whole merchant.
- * Progress: the API awards one point per `points_every` answers (30), so the
- * counter shows the distance to the next point from those counters (the
- * visual-round idea of 7 cards per point is a UI-only number; the backend
- * rule wins so the animation never contradicts the awarded points).
+ * Progress: the API awards one point per `points_every` answers (7), so the
+ * counter shows the distance to the next point from those counters.
  * No undo: the API cannot take an answer back, so none is offered.
  *
  * Properties: hass.
@@ -75,6 +76,16 @@ const FB = {
     "questions.continue": "Weiter",
     "questions.all": "Alle Buchungen kategorisieren",
     "questions.denied": "Fragen sind nur für Administratoren sichtbar.",
+    "questions.tab_open": "Offen",
+    "questions.tab_history": "Verlauf",
+    "questions.hist_say": "$n Händler zugeordnet: $user von dir, $ai von der KI. Dazu $b einzelne Buchungen.",
+    "questions.hist_all": "Alle",
+    "questions.hist_user": "Von dir",
+    "questions.hist_ai": "Von der KI",
+    "questions.hist_src_user": "du",
+    "questions.hist_src_ai": "KI",
+    "questions.hist_empty": "Noch keine Kategorisierungen. Jede Antwort und jeder KI-Vorschlag landet hier.",
+    "questions.hist_more": "Ältere ($n)",
   },
   en: {
     "questions.title": "Questions",
@@ -119,6 +130,16 @@ const FB = {
     "questions.continue": "Continue",
     "questions.all": "Categorise all bookings",
     "questions.denied": "Questions are only visible to administrators.",
+    "questions.tab_open": "Open",
+    "questions.tab_history": "History",
+    "questions.hist_say": "$n merchants assigned: $user by you, $ai by the AI. Plus $b single bookings.",
+    "questions.hist_all": "All",
+    "questions.hist_user": "By you",
+    "questions.hist_ai": "By the AI",
+    "questions.hist_src_user": "you",
+    "questions.hist_src_ai": "AI",
+    "questions.hist_empty": "No categorisations yet. Every answer and every AI suggestion shows up here.",
+    "questions.hist_more": "Older ($n)",
   },
 };
 
@@ -202,6 +223,17 @@ button:focus-visible { outline: 2px solid var(--fd-a500); outline-offset: 2px; }
 @keyframes spin { from { transform: rotate(-200deg) scale(.2); } to { transform: none; } }
 .confetti { position: absolute; top: -16px; width: 9px; height: 14px; border-radius: 2px; opacity: .9; animation: fall linear forwards; }
 @keyframes fall { to { transform: translateY(110vh) rotate(540deg); } }
+.tabs { margin: 0 0 10px; }
+.hlist { padding: 4px 14px; border-radius: var(--fd-r-card); background: var(--fd-card); box-shadow: var(--fd-sh1); }
+.hrow { display: flex; align-items: center; gap: 8px; padding: 9px 0; border-bottom: 1px solid var(--fd-line); font-size: 13.5px; }
+.hrow:last-child { border-bottom: 0; }
+.hrow .m { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.hrow .m small { display: block; color: var(--fd-t2); font-size: 11.5px; }
+.hrow .ch { flex: none; padding: 1px 10px; border-radius: var(--fd-r-pill); background: var(--fd-sunk); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.hrow .src { flex: none; min-width: 26px; padding: 1px 6px; border-radius: 6px; font-size: 11px; text-align: center; color: var(--fd-t2); border: 1px solid var(--fd-line); }
+.hrow .src.ai { color: var(--fd-a700); border-color: var(--fd-a300); }
+.hsay { margin: 0 0 8px; color: var(--fd-t2); font-size: 12.5px; }
+.hlist details summary { min-height: var(--fd-touch); display: flex; align-items: center; color: var(--fd-a700); font-weight: 500; cursor: pointer; }
 .load { padding: 40px; text-align: center; color: var(--fd-t2); }
 @media (prefers-reduced-motion: reduce) {
   .card, .meter > i { transition: none; }
@@ -217,7 +249,7 @@ class FdQuestions extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._q = [];
-    this._meta = { answered_total: 0, week_answered: 0, points: 0, points_every: 30 };
+    this._meta = { answered_total: 0, week_answered: 0, points: 0, points_every: 7 };
     this._state = "loading"; // loading | ready | error | denied
     this._i = 0;
     this._reach = "merchant";
@@ -229,6 +261,9 @@ class FdQuestions extends HTMLElement {
     this._persons = [];
     this._session = 0;
     this._celebrate = null; // null | "point" | "week"
+    this._tab = "open"; // open | history
+    this._hist = null;  // history payload, loaded on first open of the tab
+    this._hfilter = "all";
     this._onKey = (e) => this._key(e);
     this._onNav = (e) => {
       if (e.detail && e.detail.target === "back" && e.composedPath()[0] !== this) this._close();
@@ -268,7 +303,7 @@ class FdQuestions extends HTMLElement {
         answered_total: d.answered_total || 0,
         week_answered: d.week_answered || 0,
         points: d.points || 0,
-        points_every: d.points_every || 30,
+        points_every: d.points_every || 7,
       };
       this._i = 0;
       this._session = 0;
@@ -332,7 +367,7 @@ class FdQuestions extends HTMLElement {
 
   _progressHtml() {
     const m = this._meta;
-    const every = m.points_every || 30;
+    const every = m.points_every || 7;
     const into = m.answered_total % every;
     const left = every - into;
     const week = Math.min(m.week_answered, WEEK_CAP);
@@ -392,14 +427,53 @@ class FdQuestions extends HTMLElement {
 <button class="primary" data-act="${more ? "continue" : "close"}" id="celebrateBtn">${more ? tr("questions.continue") : tr("questions.back")}</button></div></div>`;
   }
 
+  _tabsHtml() {
+    const b = (id, key) => `<button data-tab="${id}" aria-pressed="${this._tab === id}">${tr(key)}</button>`;
+    return `<div class="seg tabs" role="group">${b("open", "questions.tab_open")}${b("history", "questions.tab_history")}</div>`;
+  }
+
+  async _openHistory() {
+    this._tab = "history";
+    this._render();
+    try {
+      this._hist = await this._hass.callApi("GET", `${DOMAIN}/questions/history`);
+    } catch (e) {
+      console.warn("fd-questions: history failed:", e);
+      this._hist = { error: true };
+    }
+    if (this._tab === "history") this._render();
+  }
+
+  /** "Verlauf": every learned merchant, newest first, filterable by who assigned it. */
+  _historyHtml() {
+    const { escHtml, CAT_LABELS } = window._fd;
+    const h = this._hist;
+    if (!h) return `<div class="load">…</div>`;
+    if (h.error) return `<div class="center"><p>${tr("questions.load_error")}</p><button class="primary" data-act="history">${tr("questions.retry")}</button></div>`;
+    if (!h.total && !h.bookings) return `<div class="center"><p>${tr("questions.hist_empty")}</p></div>`;
+    const f = this._hfilter;
+    const items = (h.items || []).filter((i) => f === "all" || i.source === f);
+    const fb = (id, key) => `<button data-hfilter="${id}" aria-pressed="${f === id}">${tr(key)}</button>`;
+    const row = (i) => `<div class="hrow"><span class="src ${i.source}">${tr(i.source === "ai" ? "questions.hist_src_ai" : "questions.hist_src_user")}</span>
+  <span class="m">${escHtml(i.merchant)}${i.owner ? `<small>${escHtml(i.owner === "shared" ? tr("questions.owner_shared") : i.owner)}</small>` : ""}</span>
+  <span class="ch">${escHtml(CAT_LABELS[i.category] || i.category || "")}</span></div>`;
+    const head = items.slice(0, 40).map(row).join("");
+    const rest = items.length > 40 ? `<details><summary>${tr("questions.hist_more", { n: items.length - 40 })}</summary>${items.slice(40).map(row).join("")}</details>` : "";
+    return `<p class="hsay">${escHtml(tr("questions.hist_say", { n: h.total, user: h.by_user, ai: h.by_ai, b: h.bookings }))}</p>
+<div class="seg tabs" role="group">${fb("all", "questions.hist_all")}${fb("user", "questions.hist_user")}${fb("ai", "questions.hist_ai")}</div>
+<div class="hlist">${head || `<p class="hsay">${tr("questions.hist_empty")}</p>`}${rest}</div>`;
+  }
+
   _render() {
     let body;
     if (this._state === "loading") body = `<div class="load">…</div>`;
     else if (this._state === "denied") body = `<div class="center"><p>${tr("questions.denied")}</p><button class="primary" data-act="close">${tr("questions.back")}</button></div>`;
     else if (this._state === "error") body = `<div class="center"><p>${tr("questions.load_error")}</p><button class="primary" data-act="retry">${tr("questions.retry")}</button></div>`;
+    else if (this._tab === "history") body = this._historyHtml();
     else if (!this._card) body = this._doneHtml();
     else body = this._progressHtml() + `<div class="stage">${this._cardHtml()}</div>`;
-    const desk = this._state === "ready" ? `<div class="desk"><button class="ghost" data-act="all">${tr("questions.all")}</button></div>` : "";
+    if (this._state === "ready") body = this._tabsHtml() + body;
+    const desk = this._state === "ready" && this._tab === "open" ? `<div class="desk"><button class="ghost" data-act="all">${tr("questions.all")}</button></div>` : "";
     this.shadowRoot.innerHTML = `<style>${window._fd.SHARED_CSS}${CSS}</style>
 <div class="root">
   <fd-subpage-header title="${window._fd.escHtml(tr("questions.title"))}"></fd-subpage-header>
@@ -419,12 +493,19 @@ class FdQuestions extends HTMLElement {
       if (t.dataset.cat) return this._answer(t.dataset.cat);
       if (t.dataset.reach) { this._reach = t.dataset.reach; return this._keepRender(); }
       if (t.dataset.owner !== undefined) { this._owner = t.dataset.owner; return this._keepRender(); }
+      if (t.dataset.tab) {
+        if (t.dataset.tab === "history") return this._openHistory();
+        this._tab = "open";
+        return this._keepRender();
+      }
+      if (t.dataset.hfilter) { this._hfilter = t.dataset.hfilter; return this._render(); }
       switch (t.dataset.act) {
         case "more": this._more = !this._more; return this._keepRender();
         case "details": this._details = !this._details; return this._keepRender();
         case "skip": return this._skip();
         case "close": return this._close();
         case "retry": return this.load();
+        case "history": return this._openHistory();
         case "all": return this.dispatchEvent(new CustomEvent("fd-questions-all", { bubbles: true, composed: true }));
         case "continue": this._celebrate = null; return this._render();
       }
@@ -460,7 +541,7 @@ class FdQuestions extends HTMLElement {
   }
 
   _key(e) {
-    if (this._state !== "ready" || !this._card || this._celebrate || this._busy) return;
+    if (this._state !== "ready" || this._tab !== "open" || !this._card || this._celebrate || this._busy) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const n = parseInt(e.key, 10);
     const cats = this._cats(this._card);

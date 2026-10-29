@@ -426,7 +426,7 @@ class FinanceDashboardAiView(HomeAssistantView):
         return self.json(await self._view(hass))
 
     async def put(self, request: web.Request) -> web.Response:
-        """All optional: provider, model, ha_agent, budget_cap (0-100), api_key
+        """All optional: provider, model, ha_agent, budget_cap (0-1000), api_key
         (write-only, "" removes), ai_opt_in. The key is never returned."""
         if (denied := admin_denied(self, request)) is not None:
             return denied
