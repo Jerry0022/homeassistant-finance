@@ -560,7 +560,8 @@ class FdHome extends HTMLElement {
     if (!d || this._horizon !== "cycle" || this._err) return;
     const slot = sh.querySelector(this._wide ? "#side #cdslot" : "#main #cdslot");
     if (!slot) return;
-    const person = d.view === "person" && this._me ? String(this._me.id || this._me.name || "") : "";
+    // fd-cycle-detail takes the person's display name; layout: strip in the main column, analysis in the side column.
+    const person = d.view === "person" && this._me ? this._shortName(this._me) : "";
     const key = `${d.view}|${person}|${this._demo}`;
     if (!this._cd || this._cdKey !== key) {
       this._cd = document.createElement("fd-cycle-detail");
@@ -569,6 +570,7 @@ class FdHome extends HTMLElement {
       this._cd.hass = this._hass;
       this._cdKey = key;
     }
+    this._cd.setAttribute("layout", this._wide ? "full" : "strip");
     if (this._cd.parentNode !== slot) slot.appendChild(this._cd);
   }
 

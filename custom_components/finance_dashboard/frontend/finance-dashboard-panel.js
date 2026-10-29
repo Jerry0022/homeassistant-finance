@@ -17,8 +17,9 @@
  *   setup         the guided setup wizard (fd-setup, its own full-screen layer)
  *   back          closes the open subpage (fd-subpage-header's back button)
  *
- * Subpages the shell frames itself get <fd-subpage-header title=…>; the
- * others draw that header inside their own component. Browser back closes a
+ * Subpages the shell frames itself (freshness, settings) get
+ * <fd-subpage-header title=…>; transactions, questions, contracts, benchmark
+ * and the budget plan draw that header inside their own component. Browser back closes a
  * subpage (history entry with #sub=<target>).
  *
  * Bank calls: opening the panel never fetches from the bank. The only live
@@ -48,7 +49,7 @@ const HACS_REPO_PATH = "/hacs/repository/1190753760";
 const SUBPAGES = {
   freshness: { tag: "fd-freshness", title: "sub.freshness", header: true },
   settings: { tag: "fd-settings", title: "sub.settings", header: true },
-  transactions: { tag: "fd-transactions", title: "sub.transactions", header: true },
+  transactions: { tag: "fd-transactions", title: "sub.transactions", header: false },
   questions: { tag: "fd-questions", title: "sub.questions", header: false },
   contracts: { tag: "fd-contracts", title: "sub.contracts", header: false },
   benchmark: { tag: "fd-benchmark", title: "sub.benchmark", header: false },
@@ -238,6 +239,7 @@ ${SHARED_CSS}
       el.hass = this._hass;
       host.append(el);
       this._subEl = el;
+      if (target === "plan") this._feedPlanActuals(el);
     } else if (target === "settings" && detail && detail.section) {
       this._subEl.setAttribute("section", detail.section);
     } else {
@@ -268,6 +270,37 @@ ${SHARED_CSS}
     host.hidden = true;
     sh.getElementById("viewHome").hidden = false;
     sh.querySelector("fd-home")?.reload?.();
+  }
+
+  /**
+   * fd-budget-plan compares the plan with what was booked. Its actuals used to
+   * come from the retired sensor tree (window._fd._actual); now they come from
+   * GET /household_summary (cache read), mapped onto the shape it reads:
+   * {summary:{totalExpenses, fixedCosts, variableCosts, categories{cat: bank sign}},
+   *  household:{total_shared_costs, members[{person, individual_costs}]}}.
+   */
+  async _feedPlanActuals(el) {
+    let s = null;
+    try { s = await this._hass.callApi("GET", `${DOMAIN}/household_summary?cycle=current`); } catch (_) { return; }
+    if (!s || this._subEl !== el) return;
+    const categories = {};
+    for (const o of s.owners || []) {
+      for (const c of o.categories || []) categories[c.category] = (categories[c.category] || 0) - (c.amount || 0);
+    }
+    const owners = s.owners || [];
+    const shared = owners.find((o) => o.kind === "shared");
+    el.data = {
+      summary: {
+        totalExpenses: s.expenses || 0,
+        fixedCosts: s.fixed || 0,
+        variableCosts: s.variable || 0,
+        categories,
+      },
+      household: {
+        total_shared_costs: shared ? shared.expenses || 0 : 0,
+        members: owners.filter((o) => o.kind === "person").map((o) => ({ person: o.owner, individual_costs: o.expenses || 0 })),
+      },
+    };
   }
 
   /** In-page back: pop our own history entry when we pushed one, else just close. */
