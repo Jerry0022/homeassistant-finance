@@ -47,7 +47,12 @@ from .plan import (
     FinanceDashboardTransferPlanView,
 )
 from .setup import (
+    FinanceDashboardAiView,
+    FinanceDashboardGoalsView,
+    FinanceDashboardGoalView,
     FinanceDashboardPaydaySuggestionsView,
+    FinanceDashboardPlanPrefillView,
+    FinanceDashboardPointsView,
     FinanceDashboardPotSuggestionsView,
     FinanceDashboardSetupView,
 )
@@ -145,4 +150,9 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardSetupView())
     hass.http.register_view(FinanceDashboardPaydaySuggestionsView())
     hass.http.register_view(FinanceDashboardPotSuggestionsView())
+    hass.http.register_view(FinanceDashboardPlanPrefillView())
+    hass.http.register_view(FinanceDashboardGoalsView())
+    hass.http.register_view(FinanceDashboardGoalView())
+    hass.http.register_view(FinanceDashboardPointsView())
+    hass.http.register_view(FinanceDashboardAiView())
     _LOGGER.debug("Finance API endpoints registered")

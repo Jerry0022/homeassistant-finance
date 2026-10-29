@@ -798,6 +798,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
         persons = [
             {
                 "name": str(p.get("name") or ""),
+                "display_name": str(p.get("display_name") or "") or str(p.get("name") or ""),
                 "ha_users": [str(i) for i in p.get("ha_users") or []],
             }
             for p in self.persons
@@ -888,6 +889,14 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
                 seen_users.add(uid)
                 clean.append(uid)
             record: dict[str, Any] = {"name": name, "ha_users": clean}
+            # ``name`` is the stable key everywhere; the nickname is display only.
+            kept_nick = next((p for p in self.persons if p.get("name") == name), {})
+            nick = item.get("display_name", kept_nick.get("display_name"))
+            nick = str(nick or "").strip()
+            if len(nick) > 40:
+                raise AssignmentError("invalid_display_name", "Nickname must be at most 40 characters")
+            if nick and nick != name:
+                record["display_name"] = nick
             # The wizard's confirmed payday belongs to the person; keep it.
             kept = next((p for p in self.persons if p.get("name") == name and p.get("payday")), None)
             if kept:

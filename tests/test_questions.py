@@ -250,7 +250,8 @@ async def test_answer_booking_reach_is_one_off_and_30th_fires_point() -> None:
             question_id="unknown kiosk", category="leisure", reach="booking", user_id="u1")
     assert out["point_awarded"] is True
     m._hass.bus.async_fire.assert_called_once_with(
-        "finance_dashboard_points", {"user_id": "u1", "points": 1})
+        "finance_dashboard_points_awarded",
+        {"user_id": "u1", "person": None, "points": 1, "answered_total": 30})
     assert m._memory.known_merchants() == {}  # no merchant rule
     assert m._transactions[2]["category"] == "leisure"
 

@@ -108,3 +108,29 @@ Household level only. Text is English.
 two-letter code with optional `DE-` prefix, postcode optional and 5 digits;
 anything else returns `400 invalid_region`. The frontend shows Region as its own
 screen between Zahltag and Töpfe; it has no backend step status.
+
+## Backend additions (plan prefill, goals, points, AI, nicknames)
+
+All admin only, cache/config only. Errors are 400 `{error, detail}` unless noted.
+
+- `GET /setup` and `PUT /setup` now also carry `points_target` and `persons[].display_name`
+  (falls back to `name`). `PUT /setup {nicknames: [{person, display_name}]}`; empty clears.
+  `name` stays the stable key (accounts, pots, plan, rules); only the display text changes.
+  `/assignments` GET returns `persons[].display_name`; PUT accepts `display_name` per person and keeps
+  the stored one when omitted. Errors: `unknown_person`, `invalid_display_name`, `invalid_nicknames`.
+- `GET /setup/plan_prefill` -> `{proposals: [{series_id, name, owner, category, interval, amount,
+  plan_mode, already_in_plan}]}` (amount = monthly equivalent, plan sign, owner `shared` or a person).
+  `POST` `{accept: [{series_id, name?, owner?, amount?, category?}]}` -> 201 `{ok, created, skipped}`;
+  existing plan positions are never overwritten (`skipped` ids). Errors: `invalid_body, unknown_series,
+  unknown_owner, invalid_amount, invalid_name, duplicate, too_many`, `demo_mode`.
+- `GET /setup/goals` -> `{goals}`; `POST` goal -> 201 `{ok, goal}`; `DELETE /setup/goals/{id}` -> `{ok}` / 404.
+  Goal kinds: `target_by_date {target_amount, target_date}`, `category_cap {category, cap_amount}`,
+  `savings_rate {rate_percent}`, `reserve_topup {reserve_id, monthly_amount}`; all take `name`, `owner`.
+  Readers: `savings_goals.async_get_goals(hass)`.
+- `GET/PUT /setup/points` `{entity_id}` (`counter.*` / `input_number.*`, "" clears) -> `{entity_id, event,
+  every, answered_total}`. Errors `invalid_entity, unknown_entity`. Finance keeps no points ledger.
+- `GET/PUT /setup/ai`: PUT any of `provider (ha|xai|anthropic|openai), model, ha_agent, budget_cap (0-100),
+  api_key (write-only, "" removes), ai_opt_in`. Response: `{opt_in, provider, model, effective_model, ha_agent,
+  has_key, budget {month, calls, cap, hard_cap, remaining}, cached_merchants, providers[]}`. The key is
+  Fernet-encrypted (credential manager) in the `finance_dashboard.ai_provider` store and never returned.
+  `ai_provider.async_categorize(...)` is the entry point for the categoriser (not wired into the pipeline yet).

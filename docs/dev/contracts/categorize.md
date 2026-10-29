@@ -60,7 +60,7 @@ Body: `{"id": "the studio", "category": "leisure", "reach": "merchant"|"booking"
 
 200: `{"answered_total": 31, "week_answered": 5, "point_awarded": false}`.
 Every 30th answered question sets `point_awarded: true` and fires the HA event
-`finance_dashboard_points` with `{"user_id": "<answering HA user>", "points": 1}`
+`finance_dashboard_points_awarded` with `{"user_id", "person", "points": 1, "answered_total"}` and, if a helper is configured (`/setup/points`), increments it (see setup-wizard.md)
 (a merchant-wide rule counts once).
 
 400 `{"error": code, "detail"}`: `invalid_body`, `invalid_id`, `invalid_category`,
