@@ -362,9 +362,11 @@ input[type=range] { width: 100%; min-height: var(--fd-touch); accent-color: var(
 }
 button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--fd-a500); outline-offset: 2px; }
 [hidden] { display: none !important; }
-.row input[type=text].nn { flex: 1 1 100%; }
+.flds { flex: 1 1 100%; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 10px; min-width: 0; }
+.f > label { display: flex; flex-direction: column; gap: 4px; }
+.f input[type=text], .f input[type=password], .f input[type=number], .flds input { flex: none; }
+@container (min-width: 520px) { .flds { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @container (min-width: 700px) {
-  .row input[type=text].nn { flex: 1 1 160px; max-width: 220px; }
   .acc { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
   .acc .seg { margin-top: 0; justify-content: flex-end; }
 }
@@ -630,7 +632,7 @@ class FdSettings extends HTMLElement {
 
   _nick(p, attr) {
     const { escHtml } = window._fd;
-    return `<input type="text" class="nn" ${attr} value="${escHtml(p.display_name || "")}" placeholder="${escHtml(tr("settings.nickname_ph"))}" maxlength="40" aria-label="${escHtml(tr("settings.nickname") + ": " + p.name)}">`;
+    return `<div class="f"><label>${escHtml(tr("settings.nickname"))}<input type="text" ${attr} value="${escHtml(p.display_name || "")}" placeholder="${escHtml(tr("settings.nickname_ph"))}" maxlength="40"></label></div>`;
   }
 
   _userRow(u) {
@@ -643,8 +645,8 @@ class FdSettings extends HTMLElement {
   <div class="who"><b>${escHtml(u.name)}${u.is_admin ? `<span class="chip">${escHtml(tr("settings.admin"))}</span>` : ""}</b>
     <span>${escHtml(u.suggested ? tr("settings.suggested") + " · " : "")}${escHtml(reason)}</span></div>
   <span class="hit"><button type="button" class="sw" role="switch" aria-checked="${on}" data-sw="${escHtml(u.id)}"
-    aria-label="${escHtml(tr("settings.user_toggle") + ": " + u.name)}" data-tip="${escHtml(tr("settings.user_toggle"))}"></button></span>
-  ${on ? `<input type="text" data-name="${escHtml(u.id)}" value="${escHtml(p.name)}" aria-label="${escHtml(tr("settings.person_name"))}" style="flex-basis:100%">${this._nick(p, `data-nick-user="${escHtml(u.id)}"`)}` : ""}
+    aria-label="${escHtml(tr("settings.user_toggle") + ": " + u.name)}"></button></span>
+  ${on ? `<div class="flds"><div class="f"><label>${escHtml(tr("settings.person_name"))}<input type="text" data-name="${escHtml(u.id)}" value="${escHtml(p.name)}"></label></div>${this._nick(p, `data-nick-user="${escHtml(u.id)}"`)}</div>` : ""}
 </div>`;
   }
 
@@ -652,8 +654,8 @@ class FdSettings extends HTMLElement {
     const { escHtml } = window._fd;
     const i = this._draft.persons.indexOf(p);
     return `<div class="row">
-  <input type="text" data-free="${i}" value="${escHtml(p.name)}" aria-label="${escHtml(tr("settings.person_name"))}">
-  ${this._nick(p, `data-nick-free="${i}"`)}
+  <div class="flds"><div class="f"><label>${escHtml(tr("settings.person_name"))}<input type="text" data-free="${i}" value="${escHtml(p.name)}"></label></div>
+  ${this._nick(p, `data-nick-free="${i}"`)}</div>
   <button type="button" class="btn ghost sm" data-rm="${i}">${escHtml(tr("settings.person_remove"))}</button>
 </div>`;
   }
