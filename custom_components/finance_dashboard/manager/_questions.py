@@ -14,7 +14,7 @@ from typing import Any
 from homeassistant.util import dt as dt_util
 
 from ..const import CATEGORY_OTHER, DEFAULT_CATEGORIES
-from ..merchants import POINT_EVERY, merchant_key
+from ..merchants import POINT_EVERY, _counterparty, merchant_key
 from ..points_target import EVENT_POINTS_AWARDED, async_award, person_of_user
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,6 +77,110 @@ class QuestionsMixin:
             "points": mem.points if mem else 0,
             "points_every": POINT_EVERY,
         }
+
+    # --- opt-in AI categorisation (background, derive/import paths only) ----
+    def schedule_ai_categorization(self) -> None:
+        """Start the AI pass in the background; never blocks, never raises.
+
+        Called after a derive that follows a reprocess or an import -- never
+        from a GET or a page view.  One pass at a time.
+        """
+        if getattr(self, "_demo_mode", False) or getattr(self, "_memory", None) is None:
+            return
+        running = getattr(self, "_ai_task", None)
+        if running is not None and not running.done():
+            return
+        coro = self._async_ai_categorize()
+        try:
+            self._ai_task = self._hass.async_create_background_task(
+                coro, "finance_dashboard_ai_categorize"
+            )
+        except Exception:  # noqa: BLE001 - AI is optional, never break a derive
+            coro.close()
+            _LOGGER.debug("AI categorisation could not be scheduled", exc_info=True)
+
+    async def _async_ai_categorize(self) -> int:
+        """Categorise leftover merchants via AI; returns how many were learned."""
+        try:
+            return await self._ai_pass()
+        except Exception:  # noqa: BLE001
+            _LOGGER.warning("AI categorisation pass failed", exc_info=True)
+            return 0
+
+    async def _ai_pass(self) -> int:
+        from .. import ai_provider as ai
+        from ..contracts import is_own_name, own_account_names
+        from ..setup_wizard import async_load_state
+
+        mem = self._memory
+        state = await async_load_state(self._hass)
+        if not state.get("ai_opt_in"):
+            return 0
+        cfg = await ai.async_load_config(self._hass)
+        creds = getattr(self, "_credential_manager", None)
+        services = self._hass.services
+        if not ai.provider_usable(
+            cfg,
+            has_key=bool(ai.read_key(cfg, creds)),
+            has_ai_task=services.has_service("ai_task", "generate_data"),
+            has_conversation=services.has_service("conversation", "process"),
+        ):
+            return 0
+        tried: set[str] = self.__dict__.setdefault("_ai_tried", set())
+        candidates = ai.select_candidates(
+            self._transactions,
+            key_of=merchant_key,
+            counterparty_of=_counterparty,
+            own_names=own_account_names(self._accounts),
+            is_own=is_own_name,
+            skip=set(cfg["cache"]) | tried,
+            has_rule=lambda k: k in mem.known_merchants(),
+        )
+        known = [
+            *DEFAULT_CATEGORIES,
+            *(self._categorizer.get_rules() if getattr(self, "_categorizer", None) else {}),
+            *(r.get("category") for r in mem.known_merchants().values()),
+        ]
+        categories = list(dict.fromkeys(c for c in known if c and c not in ai.NEVER_AI))
+        learned = 0
+        for cand in candidates:
+            today = dt_util.now().date()
+            if ai.usage_view(await ai.async_load_config(self._hass), today)["remaining"] <= 0:
+                break  # monthly cap reached
+            tried.add(cand["id"])
+            category = await ai.async_categorize(
+                self._hass,
+                credentials=creds,
+                opt_in=True,
+                merchant_id=cand["id"],
+                merchant=cand["merchant"],
+                remittance=cand["remittance"],
+                categories=categories,
+                today=today,
+            )
+            if (
+                category
+                and category not in ai.NEVER_AI
+                and mem.learn_ai_merchant(cand["id"], category)
+            ):
+                learned += 1
+        if learned:
+            await mem.async_save()
+            self._derive_from_ledger(self._transfer_overrides)
+            await self._push_coordinator()
+        return learned
+
+    async def _push_coordinator(self) -> None:
+        from ..const import DOMAIN
+
+        data = self._hass.data.get(DOMAIN, {})
+        entry = data.get("entry")
+        coordinator = data.get(f"{entry.entry_id}_coordinator") if entry else None
+        if coordinator is not None:
+            try:
+                await coordinator.async_refresh()
+            except Exception:  # noqa: BLE001
+                _LOGGER.debug("Coordinator push after AI pass failed", exc_info=True)
 
     def _valid_owners(self) -> set[str]:
         owners = {"shared"}

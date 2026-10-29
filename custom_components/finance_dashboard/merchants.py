@@ -141,11 +141,28 @@ class MerchantMemory:
         return self.booking_rule(tx) or self.merchant_rule(tx)
 
     # --- learning ---------------------------------------------------------
-    def learn_merchant(self, key: str, category: str, owner: str | None = None) -> None:
+    def learn_merchant(
+        self, key: str, category: str, owner: str | None = None, *, source: str | None = None
+    ) -> None:
+        """Store a merchant rule; ``source="ai"`` marks an AI suggestion.
+
+        A user answer calls this without ``source`` and so always replaces an
+        AI entry; the AI never replaces an existing entry (see
+        :meth:`learn_ai_merchant`).
+        """
         rule: dict[str, Any] = {"category": category}
         if owner:
             rule["owner"] = owner
+        if source:
+            rule["source"] = source
         self._data["merchants"][key] = rule
+
+    def learn_ai_merchant(self, key: str, category: str) -> bool:
+        """Learn an AI-sourced merchant category unless a rule already exists."""
+        if key in self._data["merchants"]:
+            return False
+        self.learn_merchant(key, category, source="ai")
+        return True
 
     def learn_booking(self, ledger_id: str, category: str, owner: str | None = None) -> None:
         bookings = self._data["bookings"]

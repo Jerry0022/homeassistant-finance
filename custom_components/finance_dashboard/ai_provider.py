@@ -263,6 +263,66 @@ def public_view(cfg: dict[str, Any], today: date, opt_in: bool) -> dict[str, Any
 
 
 # ---------------------------------------------------------------------------
+# Candidate selection + usability (pure)
+# ---------------------------------------------------------------------------
+
+NEVER_AI = ("other", "income", "transfers")
+
+
+def provider_usable(
+    cfg: dict[str, Any], *, has_key: bool, has_ai_task: bool, has_conversation: bool
+) -> bool:
+    """A provider is usable when HA has a configured agent, or an own key is stored."""
+    if cfg["provider"] in KEYED:
+        return has_key
+    if has_ai_task:  # AI Task falls back to the agent chosen in HA's AI settings
+        return True
+    return has_conversation and bool(cfg["ha_agent"])
+
+
+def select_candidates(
+    transactions: list[dict[str, Any]],
+    *,
+    key_of: Any,
+    counterparty_of: Any,
+    own_names: Any,
+    is_own: Any,
+    skip: set[str] | frozenset[str],
+    has_rule: Any = None,
+) -> list[dict[str, Any]]:
+    """Merchants worth asking the AI about, highest euro impact first.
+
+    Only booked expenses still in ``other`` outside transfer chains and not
+    paid to the household itself; ``skip`` = AI cache + merchants already tried.
+    Each result carries ``id``, ``merchant`` and ``remittance`` (what the
+    payload may contain) plus the internal ``total`` used for the ordering.
+    """
+    groups: dict[str, dict[str, Any]] = {}
+    for tx in transactions:
+        if tx.get("category") != "other" or tx.get("_transfer_chain_id"):
+            continue
+        try:
+            amount = float((tx.get("transactionAmount") or {}).get("amount", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        if amount >= 0:
+            continue
+        key = key_of(tx)
+        if not key or key in skip or (has_rule and has_rule(key)):
+            continue
+        name = counterparty_of(tx)
+        if is_own(name.lower(), own_names):
+            continue
+        g = groups.setdefault(
+            key, {"id": key, "merchant": name or key, "remittance": "", "total": 0.0}
+        )
+        g["total"] += abs(amount)
+        if not g["remittance"]:
+            g["remittance"] = str(tx.get("remittanceInformationUnstructured") or "")
+    return sorted(groups.values(), key=lambda g: (-g["total"], g["id"]))
+
+
+# ---------------------------------------------------------------------------
 # Provider calls
 # ---------------------------------------------------------------------------
 

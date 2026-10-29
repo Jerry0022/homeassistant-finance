@@ -67,3 +67,7 @@ Every 30th answered question sets `point_awarded: true` and fires the HA event
 `invalid_reach`, `invalid_owner` (not `shared` / a known person),
 `unknown_question` (booking reach with no open booking), `unavailable`
 (demo mode / memory not loaded).
+
+## AI pass (opt-in)
+
+After a reprocess/derive or a successful import, `QuestionsMixin.schedule_ai_categorization()` starts one background task (never from a GET). If `ai_opt_in` is set and a provider is usable (HA AI Task / configured conversation agent, or an own key), booked expenses still in `other` (outside transfer chains, not own-name) whose merchant is neither in the AI cache nor in merchant memory are sent highest euro impact first as merchant + remittance only (sanitised, never amount/IBAN/date), until the monthly cap (`ai_provider.spend_call`) is reached. A valid category is learned as a merchant-memory entry with `source: "ai"`; a user answer replaces it, the AI never replaces a user rule. A failed or unparseable answer is not retried in the same session. One re-derive follows.
