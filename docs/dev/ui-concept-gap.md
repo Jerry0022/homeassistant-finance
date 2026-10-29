@@ -280,7 +280,7 @@ Owns: `frontend/fd-setup.js`, `frontend/fd-settings.js`. Nothing else.
   `ov.*`). Bundle B does **not** edit `locales/*.json`; A or a later pass moves them.
 - Uses tokens from `fd-shared-styles.js` read-only.
 - Endpoints: `/setup` (incl. `nicknames`, `region`, `notifications`), `/setup/plan_prefill`,
-  `/setup/goals`, `/setup/points`, `/setup/ai`, `/setup/payday_suggestions`, `/setup/pot_suggestions`,
+  `/setup/goals`, `/setup/points`, `/setup/ai`, `/setup/ai/test`, `/setup/payday_suggestions`, `/setup/pot_suggestions`,
   `/assignments`, `/demo/toggle`.
 
 ### Interface contract between A and B (fixed now)

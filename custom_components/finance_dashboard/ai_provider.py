@@ -24,6 +24,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 
@@ -70,6 +71,8 @@ def default_config() -> dict[str, Any]:
         "key_enc": "",
         "usage": {"month": "", "calls": 0},
         "cache": {},
+        "last_run": None,
+        "last_test": None,
     }
 
 
@@ -137,7 +140,37 @@ def merge_config(raw: Any) -> dict[str, Any]:
     cfg["cache"] = (
         {str(k): str(v) for k, v in cache.items()} if isinstance(cache, dict) else {}
     )
+    for key in ("last_run", "last_test"):
+        cfg[key] = _merge_outcome(raw.get(key))
     return cfg
+
+
+def _merge_outcome(raw: Any) -> dict[str, Any] | None:
+    """A stored call outcome: when, whether it worked, the category or an error code."""
+    if not isinstance(raw, dict) or not raw.get("at"):
+        return None
+    return {
+        "at": str(raw["at"]),
+        "ok": bool(raw.get("ok")),
+        "category": str(raw.get("category") or "") or None,
+        "error": str(raw.get("error") or "") or None,
+    }
+
+
+def outcome(at: str, category: str | None, error: str | None) -> dict[str, Any]:
+    return {"at": at, "ok": bool(category), "category": category, "error": error}
+
+
+def results_view(cfg: dict[str, Any], recent: int = 8) -> dict[str, Any]:
+    """What the AI has learned so far: merchants per category and the latest ones."""
+    by_category: dict[str, int] = {}
+    for category in cfg["cache"].values():
+        by_category[category] = by_category.get(category, 0) + 1
+    latest = list(cfg["cache"].items())[-recent:][::-1]
+    return {
+        "by_category": dict(sorted(by_category.items(), key=lambda kv: (-kv[1], kv[0]))),
+        "recent": [{"merchant": m, "category": c} for m, c in latest],
+    }
 
 
 def usage_view(cfg: dict[str, Any], today: date) -> dict[str, Any]:
@@ -250,6 +283,9 @@ def public_view(cfg: dict[str, Any], today: date, opt_in: bool) -> dict[str, Any
         "has_key": bool(cfg["key_enc"]),
         "budget": usage_view(cfg, today),
         "cached_merchants": len(cfg["cache"]),
+        "last_run": cfg["last_run"],
+        "last_test": cfg["last_test"],
+        "results": results_view(cfg),
         "providers": [
             {
                 "id": p,
@@ -403,17 +439,69 @@ async def async_categorize(
         return None
     await async_save_config(hass, cfg)  # persist the spend before the call
     prompt = build_prompt(build_payload(merchant, remittance), categories)
+    category, error = await _ask(hass, cfg, key, prompt, categories)
+    cfg["last_run"] = outcome(dt_util.utcnow().isoformat(), category, error)
+    if category and len(cfg["cache"]) < MAX_CACHE:
+        cfg["cache"][merchant_id] = category
+    await async_save_config(hass, cfg)
+    return category
+
+
+async def _ask(
+    hass: HomeAssistant, cfg: dict[str, Any], key: str | None, prompt: str, categories: list[str]
+) -> tuple[str | None, str | None]:
+    """One provider call: (category, None) or (None, error code). Never raises."""
+    provider = cfg["provider"]
     try:
         if provider == PROVIDER_HA:
             answer = await _call_ha(hass, cfg["ha_agent"], prompt)
         else:
             model = cfg["model"] or PROVIDERS[provider][1]
             answer = await _call_http(hass, provider, model, key or "", prompt)
+    except TimeoutError:
+        return None, "timeout"
     except Exception as err:  # noqa: BLE001 - never leak provider text or the key
         _LOGGER.warning("AI categorisation failed (%s)", type(err).__name__)
-        return None
-    category = parse_category(answer or "", categories)
-    if category and len(cfg["cache"]) < MAX_CACHE:
-        cfg["cache"][merchant_id] = category
+        return None, "request_failed"
+    if not answer:
+        return None, "no_answer"
+    category = parse_category(answer, categories)
+    return (category, None) if category else (None, "unparsable")
+
+
+# A made-up merchant: the connection test never sends real bank data.
+TEST_MERCHANT = ("REWE Markt", "Einkauf Lebensmittel")
+
+
+async def async_test(  # noqa: PLR0913 - keyword-only call context
+    hass: HomeAssistant,
+    *,
+    credentials: Any,
+    opt_in: bool,
+    categories: list[str],
+    today: date,
+    usable: bool,
+) -> dict[str, Any]:
+    """Classify :data:`TEST_MERCHANT` once and store the outcome as ``last_test``.
+
+    Counts against the monthly cap like any call; the answer is not cached.
+    """
+    cfg = await async_load_config(hass)
+    key = read_key(cfg, credentials) if cfg["provider"] in KEYED else None
+    if not opt_in:
+        category, error = None, "not_opted_in"
+    elif cfg["provider"] in KEYED and not key:
+        category, error = None, "no_key"
+    elif not usable:
+        category, error = None, "no_provider"
+    elif not spend_call(cfg, today):
+        category, error = None, "budget_exhausted"
+    else:
         await async_save_config(hass, cfg)
-    return category
+        prompt = build_prompt(build_payload(*TEST_MERCHANT), categories)
+        category, error = await _ask(hass, cfg, key, prompt, categories)
+        # A categorisation pass may have saved while we waited - do not overwrite it.
+        cfg = await async_load_config(hass)
+    cfg["last_test"] = outcome(dt_util.utcnow().isoformat(), category, error)
+    await async_save_config(hass, cfg)
+    return cfg["last_test"]

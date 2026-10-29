@@ -38,6 +38,15 @@ const STATES = [
   ["DE-SN", "Sachsen"], ["DE-ST", "Sachsen-Anhalt"], ["DE-SH", "Schleswig-Holstein"], ["DE-TH", "Thüringen"],
 ];
 const AI_LABELS = { ha: "Home Assistant", xai: "Grok (xAI)", anthropic: "Claude", openai: "ChatGPT" };
+
+/** One line for a stored AI test outcome ({at, ok, category, error} or null). */
+function aiTestText(t) {
+  if (!t) return tr("settings.ai.test_none");
+  const time = window._fd.fmtDate(t.at, true);
+  if (t.ok) return tr("settings.ai.test_ok", { time, cat: window._fd.CAT_LABELS[t.category] || t.category });
+  const why = tr("ai.err." + t.error);
+  return tr("settings.ai.test_fail", { time, why: why === "ai.err." + t.error ? (t.error || "?") : why });
+}
 const GOAL_KINDS = ["target_by_date", "category_cap", "savings_rate", "reserve_topup"];
 const NOTIF = ["large_debit", "double_charge", "missing_salary", "consent_expiring", "digest_enabled"];
 
@@ -118,6 +127,20 @@ const FB = {
     "settings.ai.budget": "Monatsbudget (Aufrufe)",
     "settings.ai.budget_hint": "Maximal $cap Aufrufe pro Monat – danach pausiert die KI bis zum nächsten Monat.",
     "settings.ai.usage": "Diesen Monat: $calls von $cap Aufrufen, $left übrig",
+    "settings.ai.test": "Verbindung testen",
+    "settings.ai.test_busy": "Teste …",
+    "settings.ai.test_hint": "Fragt die KI mit einem erfundenen Händler – keine Bankdaten, zählt als ein Aufruf. Gespeicherte Änderungen gelten erst nach „Speichern“.",
+    "settings.ai.test_none": "Noch nicht getestet",
+    "settings.ai.test_ok": "Test erfolgreich ($time): Antwort „$cat“",
+    "settings.ai.test_fail": "Test fehlgeschlagen ($time): $why",
+    "ai.err.not_opted_in": "KI-Kategorisierung ist nicht erlaubt",
+    "ai.err.no_key": "kein API-Schlüssel gespeichert",
+    "ai.err.no_provider": "keine KI in Home Assistant eingerichtet",
+    "ai.err.budget_exhausted": "Monatsbudget aufgebraucht",
+    "ai.err.timeout": "keine Antwort in 20 s",
+    "ai.err.request_failed": "Anfrage fehlgeschlagen",
+    "ai.err.no_answer": "leere Antwort oder Fehler beim Anbieter",
+    "ai.err.unparsable": "Antwort war keine bekannte Kategorie",
     "settings.points.intro": "Alle 30 beantworteten Fragen löst Finance das Home-Assistant-Ereignis $event aus (mit der Person). Eure Automatisierung vergibt damit die Punkte im eigenen System.",
     "settings.points.entity": "Hilfs-Entität (optional)",
     "settings.points.entity_hint": "Ein Zähler oder Eingabezahl-Helfer, den deine Automatisierung hochzählt. Finance führt selbst kein Punktekonto.",
@@ -232,6 +255,20 @@ const FB = {
     "settings.ai.budget": "Monthly budget (calls)",
     "settings.ai.budget_hint": "At most $cap calls per month – after that the AI pauses until next month.",
     "settings.ai.usage": "This month: $calls of $cap calls used, $left left",
+    "settings.ai.test": "Test connection",
+    "settings.ai.test_busy": "Testing …",
+    "settings.ai.test_hint": "Asks the AI about a made-up merchant – no bank data, counts as one call. Unsaved changes apply only after \"Save\".",
+    "settings.ai.test_none": "Not tested yet",
+    "settings.ai.test_ok": "Test succeeded ($time): answer \"$cat\"",
+    "settings.ai.test_fail": "Test failed ($time): $why",
+    "ai.err.not_opted_in": "AI categorisation is not allowed",
+    "ai.err.no_key": "no API key stored",
+    "ai.err.no_provider": "no AI set up in Home Assistant",
+    "ai.err.budget_exhausted": "monthly budget used up",
+    "ai.err.timeout": "no answer within 20 s",
+    "ai.err.request_failed": "request failed",
+    "ai.err.no_answer": "empty answer or provider error",
+    "ai.err.unparsable": "answer was not a known category",
     "settings.points.intro": "Every 30 answered questions Finance fires the Home Assistant event $event (with the person). Your own automation turns it into points in your household's system.",
     "settings.points.entity": "Helper entity (optional)",
     "settings.points.entity_hint": "A counter or number helper your automation increments. Finance keeps no points ledger itself.",
@@ -298,6 +335,8 @@ h4 { margin: 18px 0 2px; font-size: 14px; font-weight: 500; }
 .row .who { flex: 1 1 140px; min-width: 0; display: flex; flex-direction: column; }
 .row .who b { font-weight: 500; overflow-wrap: anywhere; }
 .row .who span { color: var(--fd-t2); font-size: 11.5px; }
+.row .who span.ok { color: var(--fd-ok); font-weight: 500; }
+.row .who span.warn { color: var(--fd-over); font-weight: 500; }
 .chip { display: inline-flex; align-items: center; padding: 1px 9px; border-radius: var(--fd-r-pill); font-size: 11.5px; font-weight: 500; background: var(--fd-a50); color: var(--fd-a900); margin-left: 6px; }
 .hit { flex: none; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 52px; min-width: 52px; min-height: var(--fd-touch); }
 .sw { box-sizing: border-box; flex: none; position: relative; width: 52px; min-width: 52px; max-width: 52px; height: 32px; border-radius: 16px; border: 1px solid var(--fd-line); background: var(--fd-sunk); padding: 0; margin: 0; }
@@ -752,7 +791,24 @@ class FdSettings extends HTMLElement {
         <div class="rng"><input type="range" id="ai-bud" min="0" max="${hard}" step="5" data-b="ai.budget_cap" value="${escHtml(a.budget_cap)}"><output data-out="ai.budget_cap" for="ai-bud">${escHtml(a.budget_cap)}</output></div>
         <span class="muted">${escHtml(tr("settings.ai.budget_hint", { cap: hard }))}</span>
         <span class="muted" role="status">${escHtml(tr("settings.ai.usage", { calls: b.calls ?? 0, cap: b.cap ?? a.budget_cap, left: b.remaining ?? 0 }))}</span></div>
+      <div class="row" style="border:0;padding:0"><div class="who"><span class="${v.last_test ? (v.last_test.ok ? "ok" : "warn") : ""}" role="status">${escHtml(aiTestText(v.last_test))}</span>
+        <span>${escHtml(tr("settings.ai.test_hint"))}</span></div>
+        <button type="button" class="btn ghost sm" data-ai-test ${this._aiTesting ? "disabled aria-busy=\"true\"" : ""}>${escHtml(tr(this._aiTesting ? "settings.ai.test_busy" : "settings.ai.test"))}</button></div>
       ${this._bar("ai")}`;
+  }
+
+  async _testAi() {
+    if (this._aiTesting) return;
+    this._aiTesting = true;
+    this._renderSec("ai");
+    try {
+      const r = await this._hass.callApi("POST", `${DOMAIN}/setup/ai/test`, {});
+      this._d.ai = r.ai;
+      const t = r.test || {};
+      this._toast(aiTestText(t), t.ok ? "success" : "error");
+    } catch (e) { this._fail(this._errText(e), "ai"); }
+    this._aiTesting = false;
+    this._renderSec("ai");
   }
 
   _s_points() {
@@ -906,6 +962,8 @@ class FdSettings extends HTMLElement {
         this._renderSec("points");
       } else if (d.aiRmkey !== undefined) {
         this._removeKey();
+      } else if (d.aiTest !== undefined) {
+        this._testAi();
       } else if (d.goalAdd !== undefined) {
         this._addGoal();
       } else if (d.goalRm) {

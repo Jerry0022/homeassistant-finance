@@ -2,6 +2,16 @@
 
 All notable changes to the Finance will be documented in this file.
 
+## [0.23.0] — 2026-10-29
+
+### Added
+- "Verbindung testen" in the AI settings asks the configured provider about a made-up merchant (no bank data, counts as one call, never cached) and shows the outcome with its reason (`POST /setup/ai/test`)
+- The Datenstand page shows an AI card for admins — state (active / off / not set up), calls this month, merchants learned, last assignment, last test, assignments per category and the latest learned merchants
+- `GET /setup/ai` also returns `usable`, `last_run`, `last_test` and `results`; the last categorisation and test outcome are stored as error codes only
+
+### Changed
+- Test: connection test outcomes (success, not opted in, no key, budget, unparsable, timeout), results summary, outcome merge
+
 ## [0.22.0] — 2026-10-29
 
 ### Added

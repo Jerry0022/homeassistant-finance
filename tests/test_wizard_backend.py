@@ -249,6 +249,90 @@ async def test_categorize_requires_opt_in_caches_and_counts(monkeypatch) -> None
     assert len(calls) == 1
     assert ai.usage_view(saved["d"], TODAY)["calls"] == 1
     assert calls[0][2] == "k-1"
+    assert saved["d"]["last_run"]["ok"] is True
+    assert saved["d"]["last_run"]["category"] == "shopping"
+
+
+def _ai_hass(saved: dict) -> MagicMock:
+    store = MagicMock()
+    store.async_load = AsyncMock(side_effect=lambda: saved.get("d"))
+    store.async_save = AsyncMock(side_effect=lambda d: saved.__setitem__("d", d))
+    hass = MagicMock()
+    hass.data = {"finance_dashboard": {"_ai_provider_store": store}}
+    return hass
+
+
+@pytest.mark.asyncio
+async def test_connection_test_uses_made_up_merchant_and_records_outcome(monkeypatch) -> None:
+    saved: dict = {}
+    hass = _ai_hass(saved)
+    prompts = []
+
+    async def fake_http(_h, provider, model, key, prompt):
+        prompts.append(prompt)
+        return "food"
+
+    monkeypatch.setattr(ai, "_call_http", fake_http)
+    creds = _Creds()
+    saved["d"] = ai.apply_update(ai.default_config(), {"provider": "xai", "api_key": "k-1"}, creds)
+    kw = dict(credentials=creds, categories=["food", "shopping"], today=TODAY, usable=True)
+    result = await ai.async_test(hass, opt_in=True, **kw)
+    assert result["ok"] is True and result["category"] == "food"
+    assert "REWE Markt" in prompts[0]
+    cfg = ai.merge_config(saved["d"])
+    assert cfg["last_test"]["ok"] is True
+    assert cfg["cache"] == {}  # the test answer is never learned
+    assert ai.usage_view(cfg, TODAY)["calls"] == 1
+
+    assert (await ai.async_test(hass, opt_in=False, **kw))["error"] == "not_opted_in"
+    saved["d"]["budget_cap"] = 1
+    assert (await ai.async_test(hass, opt_in=True, **kw))["error"] == "budget_exhausted"
+    assert len(prompts) == 1
+
+
+@pytest.mark.asyncio
+async def test_connection_test_reports_missing_key_and_bad_answers(monkeypatch) -> None:
+    saved: dict = {"d": ai.apply_update(ai.default_config(), {"provider": "openai"}, _Creds())}
+    hass = _ai_hass(saved)
+    kw = dict(credentials=_Creds(), opt_in=True, categories=["food"], today=TODAY, usable=False)
+    assert (await ai.async_test(hass, **kw))["error"] == "no_key"
+
+    async def chatty(_h, provider, model, key, prompt):
+        return "I am not sure"
+
+    monkeypatch.setattr(ai, "_call_http", chatty)
+    saved["d"] = ai.apply_update(
+        ai.default_config(), {"provider": "openai", "api_key": "k"}, _Creds()
+    )
+    kw["usable"] = True
+    assert (await ai.async_test(hass, **kw))["error"] == "unparsable"
+
+    async def boom(_h, provider, model, key, prompt):
+        raise TimeoutError
+
+    monkeypatch.setattr(ai, "_call_http", boom)
+    assert (await ai.async_test(hass, **kw))["error"] == "timeout"
+
+
+def test_results_view_counts_categories_and_lists_latest_first() -> None:
+    cfg = ai.default_config()
+    cfg["cache"] = {"a": "food", "b": "shopping", "c": "food"}
+    view = ai.results_view(cfg, recent=2)
+    assert view["by_category"] == {"food": 2, "shopping": 1}
+    assert view["recent"] == [
+        {"merchant": "c", "category": "food"},
+        {"merchant": "b", "category": "shopping"},
+    ]
+    public = ai.public_view(cfg, TODAY, True)
+    assert public["last_test"] is None and public["results"]["by_category"]["food"] == 2
+    assert "key_enc" not in public
+
+
+def test_merge_config_drops_malformed_outcomes() -> None:
+    at = "2026-10-29T10:00:00"
+    cfg = ai.merge_config({"last_run": "x", "last_test": {"at": at, "ok": 1, "error": ""}})
+    assert cfg["last_run"] is None
+    assert cfg["last_test"] == {"at": at, "ok": True, "category": None, "error": None}
 
 
 # --- nicknames ----------------------------------------------------------------

@@ -7,7 +7,8 @@
 * ``GET/POST /api/finance_dashboard/setup/goals``              savings goals (list / add)
 * ``DELETE /api/finance_dashboard/setup/goals/{goal_id}``      remove a goal
 * ``GET/PUT /api/finance_dashboard/setup/points``              points hand-off helper
-* ``GET/PUT /api/finance_dashboard/setup/ai``                  AI provider, key, budget
+* ``GET/PUT /api/finance_dashboard/setup/ai``                  AI provider, key, budget, results
+* ``POST /api/finance_dashboard/setup/ai/test``                one test call (made-up merchant)
 """
 
 from __future__ import annotations
@@ -21,7 +22,7 @@ from .. import plan_prefill as prefill
 from .. import points_target as pts
 from .. import savings_goals as goals_mod
 from .. import setup_wizard as wiz
-from ..const import DOMAIN, OPT_BENCHMARK_POSTCODE, OPT_BENCHMARK_STATE
+from ..const import DEFAULT_CATEGORIES, DOMAIN, OPT_BENCHMARK_POSTCODE, OPT_BENCHMARK_STATE
 from ..contracts import async_get_store as async_get_contract_store
 from ..contracts import build_contracts, own_account_names
 from ..household_summary import counted_transactions
@@ -364,6 +365,43 @@ class FinanceDashboardPointsView(HomeAssistantView):
         return self.json(await self._view(hass, manager))
 
 
+def _ai_usable(hass, cfg: dict, manager) -> bool:
+    creds = getattr(manager, "_credential_manager", None)
+    return ai.provider_usable(
+        cfg,
+        has_key=bool(ai.read_key(cfg, creds)),
+        has_ai_task=hass.services.has_service("ai_task", "generate_data"),
+        has_conversation=hass.services.has_service("conversation", "process"),
+    )
+
+
+class FinanceDashboardAiTestView(HomeAssistantView):
+    """One test call with a made-up merchant - no bank data, counts as one AI call."""
+
+    url = f"/api/{DOMAIN}/setup/ai/test"
+    name = f"api:{DOMAIN}:setup_ai_test"
+    requires_auth = True
+
+    async def post(self, request: web.Request) -> web.Response:
+        if (denied := admin_denied(self, request)) is not None:
+            return denied
+        hass = request.app["hass"]
+        manager = _get_manager(hass)
+        if not manager:
+            return self.json({"error": "Not configured"}, status_code=404)
+        state = await wiz.async_load_state(hass)
+        cfg = await ai.async_load_config(hass)
+        result = await ai.async_test(
+            hass,
+            credentials=getattr(manager, "_credential_manager", None),
+            opt_in=bool(state["ai_opt_in"]),
+            categories=[c for c in DEFAULT_CATEGORIES if c not in ai.NEVER_AI],
+            today=dt_util.now().date(),
+            usable=_ai_usable(hass, cfg, manager),
+        )
+        return self.json({"test": result, "ai": await FinanceDashboardAiView._view(hass)})
+
+
 class FinanceDashboardAiView(HomeAssistantView):
     """Opt-in AI categorisation: provider, model, key (write-only), monthly budget."""
 
@@ -375,7 +413,9 @@ class FinanceDashboardAiView(HomeAssistantView):
     async def _view(hass) -> dict:
         state = await wiz.async_load_state(hass)
         cfg = await ai.async_load_config(hass)
-        return ai.public_view(cfg, dt_util.now().date(), state["ai_opt_in"])
+        view = ai.public_view(cfg, dt_util.now().date(), state["ai_opt_in"])
+        view["usable"] = _ai_usable(hass, cfg, _get_manager(hass))
+        return view
 
     async def get(self, request: web.Request) -> web.Response:
         if (denied := admin_denied(self, request)) is not None:
