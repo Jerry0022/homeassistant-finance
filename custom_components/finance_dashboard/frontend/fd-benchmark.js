@@ -122,7 +122,8 @@ const STATES = {
 
 const CSS = `
 :host { display: block; }
-.root { container: bench / inline-size; color: var(--fd-t1); font-size: 13px; line-height: 1.4; }
+.cols > div { min-width: 0; }
+.root { overflow-wrap: anywhere; container: bench / inline-size; color: var(--fd-t1); font-size: 13px; line-height: 1.4; }
 button, a { font: inherit; }
 h3 { margin: 0 0 4px; font-size: 15px; font-weight: 500; }
 .card { margin: 0 0 12px; padding: 12px 14px; border-radius: var(--fd-r-card); background: var(--fd-card); box-shadow: var(--fd-sh1); }
@@ -134,7 +135,7 @@ h3 { margin: 0 0 4px; font-size: 15px; font-weight: 500; }
 .l1 { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
 .l1 b { font-weight: 500; }
 .bars { margin: 8px 0 4px; display: grid; gap: 4px; }
-.bar { display: grid; grid-template-columns: 84px 1fr auto; align-items: center; gap: 8px; font-size: 12px; }
+.bar { display: grid; grid-template-columns: 84px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 12px; }
 .bar .tr { height: 10px; border-radius: 5px; background: var(--fd-sunk); overflow: hidden; }
 .bar .tr i { display: block; height: 100%; border-radius: 5px; background: var(--fd-a500); }
 .bar.ref .tr i { background: var(--fd-t3); }
@@ -223,7 +224,8 @@ class FdBenchmark extends HTMLElement {
     else if (this._state === "denied") body = `<div class="msg">${e(tr("bm.denied"))}</div>`;
     else if (this._state === "error") body = `<div class="msg">${e(tr("bm.error"))}<br><button class="btn" id="retry">${e(tr("bm.retry"))}</button></div>`;
     else body = this._body();
-    this.shadowRoot.innerHTML = `<style>${window._fd.SHARED_CSS}${CSS}</style><div class="root">${body}</div>`;
+    const head = this.hasAttribute("embedded") ? "" : `<fd-subpage-header title="${e(tr("bm.title"))}"></fd-subpage-header>`;
+    this.shadowRoot.innerHTML = `<style>${window._fd.SHARED_CSS}${CSS}</style><div class="root">${head}${body}</div>`;
     const r = this.shadowRoot.getElementById("retry");
     if (r) r.addEventListener("click", () => this.load());
   }
@@ -288,7 +290,7 @@ class FdBenchmark extends HTMLElement {
     const size = loc.household_size ? tr("bm.location_size", { size: loc.household_size }) : "";
     const locLine = place && size ? tr("bm.location", { place, size }) : place || size ? tr("bm.location", { place: place || "DE", size: size || "–" }) : "";
     const ds = d.dataset || {};
-    const left = `<div><section class="card"><h3>${e(tr("bm.title"))}</h3><p class="muted" style="margin:0">${e(tr("bm.intro"))}</p>
+    const left = `<div><section class="card"><p class="muted" style="margin:0">${e(tr("bm.intro"))}</p>
       ${locLine ? `<p class="muted" style="margin:6px 0 0">${e(locLine)}</p>` : ""}</section>
       <section class="card">${cmps.length ? cmps.map((c) => this._cmp(c)).join("")
         : `<p class="muted">${e(d.has_plan === false ? tr("bm.no_plan") : tr("bm.empty"))}</p>`}</section></div>`;

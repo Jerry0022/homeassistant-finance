@@ -230,6 +230,9 @@ class FdQuestions extends HTMLElement {
     this._session = 0;
     this._celebrate = null; // null | "point" | "week"
     this._onKey = (e) => this._key(e);
+    this._onNav = (e) => {
+      if (e.detail && e.detail.target === "back" && e.composedPath()[0] !== this) this._close();
+    };
   }
 
   set hass(h) {
@@ -238,9 +241,15 @@ class FdQuestions extends HTMLElement {
     if (first) this.load();
   }
 
-  connectedCallback() { this.addEventListener("keydown", this._onKey); }
+  connectedCallback() {
+    this.addEventListener("keydown", this._onKey);
+    // The shared header's back arrow (and Esc) bubbles as fd-navigate {target:"back"};
+    // keep the long-standing fd-questions-close event alongside it for the shell.
+    this.addEventListener("fd-navigate", this._onNav);
+  }
   disconnectedCallback() {
     this.removeEventListener("keydown", this._onKey);
+    this.removeEventListener("fd-navigate", this._onNav);
     clearTimeout(this._skipTimer);
   }
 
@@ -393,7 +402,7 @@ class FdQuestions extends HTMLElement {
     const desk = this._state === "ready" ? `<div class="desk"><button class="ghost" data-act="all">${tr("questions.all")}</button></div>` : "";
     this.shadowRoot.innerHTML = `<style>${window._fd.SHARED_CSS}${CSS}</style>
 <div class="root">
-  <div class="bar"><button class="ghost" data-act="close" aria-label="${tr("questions.back")}">←</button><h2>${tr("questions.title")}</h2></div>
+  <fd-subpage-header title="${window._fd.escHtml(tr("questions.title"))}"></fd-subpage-header>
   ${body}${desk}
 </div>${this._celebrate ? this._celebrateHtml() : ""}`;
     this._wire();
