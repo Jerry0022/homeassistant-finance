@@ -48,7 +48,7 @@ from .pots import (
     week_status,
 )
 
-from .questions import select_questions  # noqa: E402
+from .questions import merchant_history, select_questions  # noqa: E402
 
 HORIZONS = ("today", "week", "cycle", "year")
 VIEWS = ("person", "household")
@@ -168,7 +168,31 @@ def _booking(tx: dict[str, Any], today: date) -> dict[str, Any] | None:
         "label": str(tx.get("creditorName") or tx.get("debtorName") or "")
         or str(tx.get("remittanceInformationUnstructured") or "")[:40],
         "owner": owner,
+        "account": str(tx.get("_account_name") or ""),
+        "counterparty": _counterparty_name(tx, amount),
+        "counter_iban": _counter_iban_last4(tx, amount),
+        "text": _remittance(tx),
     }
+
+
+def _counterparty_name(tx: dict[str, Any], amount: float) -> str:
+    """The other side of the booking: the creditor of a debit, the debtor of a credit."""
+    first, second = ("creditorName", "debtorName") if amount < 0 else ("debtorName", "creditorName")
+    return str(tx.get(first) or tx.get(second) or "")
+
+
+def _counter_iban_last4(tx: dict[str, Any], amount: float) -> str:
+    """Last four IBAN digits of the counterparty, never more (IBAN masking rule)."""
+    key = "creditorAccount" if amount < 0 else "debtorAccount"
+    iban = str((tx.get(key) or {}).get("iban") or "").replace(" ", "")
+    return iban[-4:] if len(iban) >= 4 else ""
+
+
+def _remittance(tx: dict[str, Any]) -> str:
+    text = str(tx.get("remittanceInformationUnstructured") or "")
+    if not text:
+        text = " ".join(str(x) for x in tx.get("remittanceInformationUnstructuredArray") or [])
+    return " ".join(text.split())[:140]
 
 
 def _incomes(bookings: list[dict[str, Any]], owner: str | None) -> list[tuple[date, float]]:
@@ -482,13 +506,15 @@ def build_home(  # noqa: PLR0912, PLR0915
 
     candidates = [
         {"merchant": b["merchant"], "display": b["display"], "amount": b["bank_amount"],
-         "date": b["date"], "lid": b["lid"]}
+         "date": b["date"], "lid": b["lid"], "account": b["account"],
+         "counterparty": b["counterparty"], "counter_iban": b["counter_iban"], "text": b["text"]}
         for b in scope
         if _expense(b) and not b["pending"] and b["category"] == "other"
         and not b["in_chain"] and cycle[0] <= b["date"] <= cycle[1]
     ]
     questions, questions_total = select_questions(
-        candidates, week_answered=week_answered, suggest=suggest
+        candidates, week_answered=week_answered, suggest=suggest,
+        history=merchant_history([b for b in scope if _expense(b) and not b["pending"]]),
     )
 
     out: dict[str, Any] = {

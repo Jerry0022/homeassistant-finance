@@ -521,6 +521,14 @@ class FdDataProvider extends HTMLElement {
       }
       data.transactions = this._cachedTransactions;
 
+      // No balance sensor is not the same as no bank: when the sensor
+      // platform fails, the manager still holds the accounts. Ask the cache
+      // so the panel does not tell a linked household to connect a bank.
+      if (!this._demoMode && data.accountCount === 0) {
+        const status = await this.fetchRefreshStatus();
+        data.linkedAccounts = status ? status.account_count || 0 : null;
+      }
+
       this._data = data;
       data.demoMode = this._demoMode;
       this.dispatchEvent(new CustomEvent("fd-data-updated", {

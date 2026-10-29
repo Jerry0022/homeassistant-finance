@@ -2,7 +2,9 @@
  * fd-questions — open questions as flash cards (admin only).
  *
  *   GET  finance_dashboard/questions
- *     {questions:[{id,merchant,count,total,dates:[iso],booking_ids,suggested:[cat]}],
+ *     {questions:[{id,merchant,count,total,dates:[iso],booking_ids,suggested:[cat],
+ *        bookings:[{date,amount,account,counterparty,iban_last4,text}],
+ *        history:{count,first,last,months}|null}],
  *      questions_open, questions_total, answered_total, week_answered,
  *      points, points_every}
  *   POST finance_dashboard/questions/answer
@@ -47,6 +49,12 @@ const FB = {
     "questions.reach": "Gilt für",
     "questions.reach_booking": "Nur diese Buchung",
     "questions.reach_merchant": "Alle von $merchant",
+    "questions.reach_booking_n": "Nur diese $n Buchungen",
+    "questions.history": "Insgesamt $n× seit $first, in $m Monaten",
+    "questions.history_one": "Bisher nur dieses eine Mal",
+    "questions.details": "Buchungen anzeigen",
+    "questions.details_hide": "Buchungen ausblenden",
+    "questions.no_text": "kein Verwendungszweck",
     "questions.skip": "Später",
     "questions.skip_hint": "Zur Seite wischen = später",
     "questions.progress_point": "Noch $n Antworten bis zum nächsten Punkt",
@@ -85,6 +93,12 @@ const FB = {
     "questions.reach": "Applies to",
     "questions.reach_booking": "Only this booking",
     "questions.reach_merchant": "All from $merchant",
+    "questions.reach_booking_n": "Only these $n bookings",
+    "questions.history": "$n× in total since $first, in $m months",
+    "questions.history_one": "Only this once so far",
+    "questions.details": "Show bookings",
+    "questions.details_hide": "Hide bookings",
+    "questions.no_text": "no remittance text",
     "questions.skip": "Later",
     "questions.skip_hint": "Swipe aside = later",
     "questions.progress_point": "$n more answers until the next point",
@@ -143,6 +157,15 @@ button:focus-visible { outline: 2px solid var(--fd-a500); outline-offset: 2px; }
 .merchant { margin: 2px 0 4px; font-size: 22px; font-weight: 500; overflow-wrap: anywhere; }
 .facts { color: var(--fd-t2); font-size: 13px; }
 .facts b { color: var(--fd-t1); font-weight: 500; }
+.hist { margin-top: 4px; color: var(--fd-t2); font-size: 12.5px; }
+.bk { margin: 10px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--fd-line); }
+.bk li { padding: 8px 0; border-bottom: 1px solid var(--fd-line); font-size: 13px; }
+.bk .l1 { display: flex; justify-content: space-between; gap: 8px; }
+.bk .l1 b { font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bk .flow { color: var(--fd-t1); overflow-wrap: anywhere; }
+.bk .l2 { color: var(--fd-t2); font-size: 12px; overflow-wrap: anywhere; margin-top: 2px; }
+.bk .l2.none { color: var(--fd-t3); font-style: italic; }
+.toggle { margin-top: 6px; min-height: var(--fd-touch); padding: 0; border: 0; background: transparent; color: var(--fd-a700); font-weight: 500; font-size: 13px; }
 .prompt { margin: 16px 0 8px; font-weight: 500; }
 .cats { display: grid; gap: 8px; }
 .cat { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 0 16px; border: 1px solid var(--fd-line); border-radius: 14px; background: var(--fd-sunk); text-align: left; font-size: 16px; }
@@ -200,6 +223,7 @@ class FdQuestions extends HTMLElement {
     this._reach = "merchant";
     this._owner = "";
     this._more = false;
+    this._details = true;
     this._busy = false;
     this._msg = "";
     this._persons = [];
@@ -271,6 +295,32 @@ class FdQuestions extends HTMLElement {
     return (dates || []).slice(0, 3).map((d) => { const x = new Date(d); return isNaN(x) ? d : f.format(x); }).join(", ");
   }
 
+  _fmtDay(d, withYear) {
+    const x = new Date(d);
+    if (isNaN(x)) return d;
+    const opt = withYear ? { month: "short", year: "numeric" } : { day: "numeric", month: "short" };
+    return new Intl.DateTimeFormat((this._hass && this._hass.language) || "de", opt).format(x);
+  }
+
+  /** History line + the card's bookings: own account → counterparty, amount, remittance text. */
+  _detailsHtml(c) {
+    const { eur, escHtml } = window._fd;
+    const h = c.history;
+    let hist = "";
+    if (h && h.count > c.count) hist = tr("questions.history", { n: h.count, first: this._fmtDay(h.first, true), m: h.months });
+    else if (h && h.count === 1) hist = tr("questions.history_one");
+    const rows = c.bookings || [];
+    if (!rows.length) return hist ? `<div class="hist">${escHtml(hist)}</div>` : "";
+    const list = this._details ? `<ul class="bk">${rows.map((b) => {
+      const to = b.counterparty || c.merchant;
+      const flow = `${b.account ? `${escHtml(b.account)} → ` : ""}${escHtml(to)}${b.iban_last4 ? ` (…${escHtml(b.iban_last4)})` : ""}`;
+      return `<li><div class="l1"><span class="flow">${flow}</span><b>${escHtml(eur(b.amount))}</b></div>
+        <div class="l2${b.text ? "" : " none"}">${escHtml(this._fmtDay(b.date))} · ${escHtml(b.text || tr("questions.no_text"))}</div></li>`;
+    }).join("")}</ul>` : "";
+    return `${hist ? `<div class="hist">${escHtml(hist)}</div>` : ""}${list}
+  <button class="toggle" data-act="details" aria-expanded="${this._details}">${tr(this._details ? "questions.details_hide" : "questions.details")}</button>`;
+  }
+
   _progressHtml() {
     const m = this._meta;
     const every = m.points_every || 30;
@@ -295,6 +345,7 @@ class FdQuestions extends HTMLElement {
   <div class="cnt">${tr("questions.card_of", { n: this._i + 1, m: this._q.length })}</div>
   <h3 class="merchant">${escHtml(c.merchant)}</h3>
   <div class="facts"><b>${c.count === 1 ? tr("questions.booking_one") : tr("questions.bookings", { n: c.count })}</b> · ${tr("questions.total", { sum: eur(c.total) })}${c.dates && c.dates.length ? ` · ${tr("questions.dates", { dates: escHtml(this._fmtDates(c.dates)) })}` : ""}</div>
+  ${this._detailsHtml(c)}
   <div class="prompt">${tr("questions.prompt")}</div>
   <div class="cats">${cats.map((k, n) => this._catBtn(k, String(n + 1))).join("")}</div>
   <button class="more" data-act="more" aria-expanded="${this._more}">${this._more ? tr("questions.other_hide") : tr("questions.other")}</button>
@@ -302,7 +353,7 @@ class FdQuestions extends HTMLElement {
   <div class="sub">${tr("questions.reach")}</div>
   <div class="seg" role="group" aria-label="${tr("questions.reach")}">
     <button data-reach="merchant" aria-pressed="${this._reach === "merchant"}">${tr("questions.reach_merchant", { merchant: escHtml(c.merchant) })}</button>
-    <button data-reach="booking" aria-pressed="${this._reach === "booking"}">${tr("questions.reach_booking")}</button>
+    <button data-reach="booking" aria-pressed="${this._reach === "booking"}">${c.count > 1 ? tr("questions.reach_booking_n", { n: c.count }) : tr("questions.reach_booking")}</button>
   </div>
   ${people.length ? `<div class="sub">${tr("questions.owner")}</div>
   <div class="seg" role="group" aria-label="${tr("questions.owner")}">
@@ -361,6 +412,7 @@ class FdQuestions extends HTMLElement {
       if (t.dataset.owner !== undefined) { this._owner = t.dataset.owner; return this._keepRender(); }
       switch (t.dataset.act) {
         case "more": this._more = !this._more; return this._keepRender();
+        case "details": this._details = !this._details; return this._keepRender();
         case "skip": return this._skip();
         case "close": return this._close();
         case "retry": return this.load();

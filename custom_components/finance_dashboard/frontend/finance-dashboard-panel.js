@@ -668,6 +668,15 @@ class FinanceDashboardPanel extends HTMLElement {
       return;
     }
 
+    // Accounts are linked but their sensors are missing (platform setup
+    // failed): say so instead of offering to connect a bank.
+    if (data.accountCount === 0 && !data.demoMode && data.linkedAccounts > 0) {
+      this._showOverlay("error",
+        `<div>${tSync("panel.sensors_missing")} <a id="errorNavBtn" href="${window._fd.INTEGRATION_PATH}" style="color:var(--ac);text-decoration:underline;">${tSync("panel.error.connect")}</a></div>`);
+      this._bindNav(this._overlay, "#errorNavBtn");
+      return;
+    }
+
     // Onboarding: no accounts and no demo -> link to the integration page
     if (data.accountCount === 0 && !data.demoMode) {
       const needsRebind = this._overlayState !== "onboarding";

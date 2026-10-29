@@ -3,6 +3,7 @@
   "panel.loading.refresh": "Loading data…",
   "panel.error": "Connection unavailable.",
   "panel.error.connect": "Open integration",
+  "panel.sensors_missing": "Your accounts are linked, but their sensors are missing. Restarting Home Assistant usually helps, otherwise the log has the reason.",
   "panel.onboarding.title": "Welcome to Finance Dashboard",
   "panel.onboarding.body": "No bank connected yet. Add your bank in the integration settings or start demo mode.",
   "panel.onboarding.cta_link": "Add bank",
@@ -630,5 +631,11 @@
   "settings.load_error": "Could not load the assignment.",
   "hh.plan.empty": "No plan yet. The setup wizard creates income and cost positions with owners – or takes them over from your spreadsheet.",
   "hh.plan.cta": "Set up the plan",
-  "setup.reload_error": "Could not reload the status – showing the last known one."
+  "setup.reload_error": "Could not reload the status – showing the last known one.",
+  "questions.reach_booking_n": "Only these $n bookings",
+  "questions.history": "$n× in total since $first, in $m months",
+  "questions.history_one": "Only this once so far",
+  "questions.details": "Show bookings",
+  "questions.details_hide": "Hide bookings",
+  "questions.no_text": "no remittance text"
 }

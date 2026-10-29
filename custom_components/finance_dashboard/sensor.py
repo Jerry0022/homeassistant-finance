@@ -212,7 +212,12 @@ class AccountBalanceSensor(_AccountEntity):
             "institution": account.get("institution", ""),
             "account_type": account.get("type", "personal"),
             "person": account.get("person", ""),
-            "ha_users": [u.get("name", "") for u in account.get("ha_users", [])],
+            # Entries are user ids since 0.19 and {id, name} dicts before;
+            # a crash here takes the whole sensor platform down.
+            "ha_users": [
+                str(u.get("name", "")) if isinstance(u, dict) else str(u)
+                for u in account.get("ha_users") or []
+            ],
             "custom_name": account.get("custom_name", ""),
             "currency": self._currency,
         }

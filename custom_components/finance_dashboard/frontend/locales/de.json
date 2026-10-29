@@ -3,6 +3,7 @@
   "panel.loading.refresh": "Daten werden geladen…",
   "panel.error": "Keine Verbindung möglich.",
   "panel.error.connect": "Integration öffnen",
+  "panel.sensors_missing": "Deine Konten sind verbunden, aber ihre Sensoren fehlen. Ein Neustart von Home Assistant hilft meist, sonst steht der Grund im Log.",
   "panel.onboarding.title": "Willkommen beim Finance Dashboard",
   "panel.onboarding.body": "Noch keine Bank verbunden. Füge deine Bank in den Integrationseinstellungen hinzu oder starte den Demo-Modus.",
   "panel.onboarding.cta_link": "Bank hinzufügen",
@@ -630,5 +631,11 @@
   "settings.load_error": "Zuordnung konnte nicht geladen werden.",
   "hh.plan.empty": "Noch kein Plan vorhanden. Der Einrichtungsassistent legt Einkommen und Kostenpositionen mit Zuordnung an – oder übernimmt sie aus deiner Tabelle.",
   "hh.plan.cta": "Plan einrichten",
-  "setup.reload_error": "Stand konnte nicht neu geladen werden – angezeigt wird der letzte bekannte."
+  "setup.reload_error": "Stand konnte nicht neu geladen werden – angezeigt wird der letzte bekannte.",
+  "questions.reach_booking_n": "Nur diese $n Buchungen",
+  "questions.history": "Insgesamt $n× seit $first, in $m Monaten",
+  "questions.history_one": "Bisher nur dieses eine Mal",
+  "questions.details": "Buchungen anzeigen",
+  "questions.details_hide": "Buchungen ausblenden",
+  "questions.no_text": "kein Verwendungszweck"
 }
