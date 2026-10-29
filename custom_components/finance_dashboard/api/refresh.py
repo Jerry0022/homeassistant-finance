@@ -12,7 +12,7 @@ import logging
 from aiohttp import web
 from homeassistant.components.http import HomeAssistantView
 
-from ..const import DOMAIN
+from ..const import DOMAIN, EXPLICIT_IMPORT_TRIGGER
 from ._helpers import _get_manager
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,6 +77,21 @@ class FinanceDashboardRefreshTriggerView(HomeAssistantView):
         if not manager:
             return self.json({"error": "Not configured"}, status_code=404)
 
+        # Server-side fetch-trigger gate.  Imports are rate limited and must
+        # not be a side effect of page views, so the bank is only called when
+        # the request states it is the explicit "Neu importieren" action.  A
+        # bare POST (e.g. an automatic call on panel open) is refused before
+        # any client is touched.
+        if not await _is_explicit_import(request):
+            return self.json(
+                {
+                    "ok": False,
+                    "reason": "explicit_trigger_required",
+                    "status": manager.get_refresh_status(),
+                },
+                status_code=400,
+            )
+
         # Forward PSU IP from the originating request so Enable Banking can
         # include it in audit trails as required by PSD2 RTS.  ``request.remote``
         # is the direct-connection IP; when behind a proxy the real IP may be
@@ -126,6 +141,15 @@ class FinanceDashboardRefreshTriggerView(HomeAssistantView):
 
         status = manager.get_refresh_status()
         return self.json({"ok": True, "status": status})
+
+
+async def _is_explicit_import(request: web.Request) -> bool:
+    """True only when the JSON body carries ``{"trigger": "user_import"}``."""
+    try:
+        body = await request.json()
+    except Exception:
+        return False
+    return isinstance(body, dict) and body.get("trigger") == EXPLICIT_IMPORT_TRIGGER
 
 
 class FinanceDashboardReprocessView(HomeAssistantView):

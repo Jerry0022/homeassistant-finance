@@ -60,15 +60,11 @@ from .const import (
     CONF_ASPSP_NAME,
     CONF_SUBENTRY_ACCOUNTS,
     CONF_VALID_UNTIL,
-    DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES,
-    DEFAULT_AUTO_REFRESH_ON_OPEN,
     DEFAULT_RAW_RETENTION_DAYS,
     DEFAULT_SHOW_HOUSEHOLD,
     DOMAIN,
     MAX_RAW_RETENTION_DAYS,
     MIN_RAW_RETENTION_DAYS,
-    OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
-    OPT_AUTO_REFRESH_ON_OPEN,
     OPT_RAW_RETENTION_DAYS,
     OPT_SHOW_HOUSEHOLD,
     SUBENTRY_TYPE_BANK,
@@ -508,19 +504,6 @@ class FinanceDashboardOptionsFlow(OptionsFlow):
                         "demo_mode",
                         default=self._entry.options.get("demo_mode", False),
                     ): bool,
-                    vol.Optional(
-                        OPT_AUTO_REFRESH_ON_OPEN,
-                        default=self._entry.options.get(
-                            OPT_AUTO_REFRESH_ON_OPEN, DEFAULT_AUTO_REFRESH_ON_OPEN
-                        ),
-                    ): bool,
-                    vol.Optional(
-                        OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
-                        default=self._entry.options.get(
-                            OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
-                            DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES,
-                        ),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=5, max=1440)),
                     vol.Optional(
                         OPT_RAW_RETENTION_DAYS,
                         default=self._entry.options.get(

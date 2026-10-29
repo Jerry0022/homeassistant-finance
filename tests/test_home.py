@@ -94,6 +94,26 @@ def test_personal_pot_is_fed_only_from_personal_accounts() -> None:
     assert out["pots"][0]["spent"] == 60.0
 
 
+def _question_merchants(creditor: str, holder: str) -> list[str]:
+    accounts = [{**ACCOUNTS[2], "name": holder}]
+    txs = [_tx("a3", -250.0, "other", 10, creditor)]
+    out = build_home(accounts=accounts, transactions=txs, plan=None, pots=[], recurring=[],
+                     banks=[], as_of=NOW, now=NOW, person=None, view="household",
+                     horizon="cycle", include_questions=True)
+    return [q["merchant"] for q in out["questions"]]
+
+
+def test_payment_to_own_name_is_never_a_question() -> None:
+    # Middle name tolerated, same rule as contracts since 0.20.2.
+    assert _question_merchants("Jeremy Tim Treder", "Jeremy Treder") == []
+    assert _question_merchants("Treder, Jeremy", "Jeremy Treder und Anna Muster") == []
+
+
+def test_look_alike_business_name_stays_a_question() -> None:
+    assert _question_merchants("Treder Gartenbau GmbH", "Jeremy Treder") != []
+    assert _question_merchants("Jeremy Handels GmbH", "Jeremy Treder") != []
+
+
 def test_person_without_mapping_degrades_to_household() -> None:
     out = _home("person", None)
     assert out["view"] == "household" and out["person"] is None

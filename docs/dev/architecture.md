@@ -44,11 +44,31 @@ custom_components/finance_dashboard/
 - A 429 blocks that bank's background access for `RATE_LIMIT_BACKOFF_HOURS` (6h); other banks are
   unaffected. State is persisted across restarts.
 
-Flow: refresh button / panel open / service -> `POST /api/finance_dashboard/refresh` ->
+Flow: "Neu importieren" button / service -> `POST /api/finance_dashboard/refresh` ->
 `manager.async_refresh_transactions()` (lock-guarded) -> balances + transactions per bank in one
 round -> stats written to cache -> coordinator pushes to entities -> endpoint returns
 `{ok, status}`. Cache-read endpoints (`/balances`, `/transactions`, `/summary`, `/refresh_status`)
 never hit the bank.
+
+### Fetch triggers
+
+Imports are rate limited, so page views and re-processing must never cost a call. The server
+enforces this; the frontend is not trusted to behave.
+
+| Trigger | Calls the bank? | Notes |
+|---|---|---|
+| "Neu importieren" (`POST /refresh` with body `{"trigger": "user_import"}`, admin) | yes, attended | A POST without that body is rejected with HTTP 400 `explicit_trigger_required` before any client is built |
+| `refresh_transactions` / `refresh_accounts` service, refresh button entity | yes | Explicit user/automation action; no PSU IP -> background, capped |
+| Setup bootstrap (config flow, setup wizard) | yes, attended | Part of connecting a bank |
+| Scheduled daily refresh (`daily_refresh_*`) | yes, background | Exactly one per day |
+| Panel open, page views, every HTTP GET | never | Cache reads only |
+| "Aktualisieren" (`POST /reprocess`, `reprocess_data` service) | never | Replays stored raw data |
+| Coordinator refresh / entity updates | never | Cache reads only |
+
+`refresh_status` still carries `auto_refresh_on_open` (always `false`) and
+`auto_refresh_max_age_seconds` (always `0`) for older frontends; the options were removed.
+`tests/test_fetch_triggers.py` pins this, including an AST check that only the known trigger
+modules reference the live-fetch methods.
 
 ## Storage
 

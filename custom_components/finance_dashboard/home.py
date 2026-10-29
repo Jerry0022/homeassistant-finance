@@ -27,6 +27,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from .budget_plan import BudgetPlan, actual_amount_to_plan_sign
+from .contracts import is_own_name, own_account_names
 from .cycle import (
     calendar_cycle,
     cycle_windows,
@@ -504,6 +505,9 @@ def build_home(  # noqa: PLR0912, PLR0915
     scope_spend = [p for p in scope_pots if p.kind == POT_KIND_SPEND]
     head = _agg([status_by_id[p.id] for p in scope_spend])
 
+    # A payment to an account holder's own name is an own transfer, never a
+    # question (same middle-name tolerant rule contracts use since 0.20.2).
+    own_names = own_account_names(accounts)
     candidates = [
         {"merchant": b["merchant"], "display": b["display"], "amount": b["bank_amount"],
          "date": b["date"], "lid": b["lid"], "account": b["account"],
@@ -511,6 +515,7 @@ def build_home(  # noqa: PLR0912, PLR0915
         for b in scope
         if _expense(b) and not b["pending"] and b["category"] == "other"
         and not b["in_chain"] and cycle[0] <= b["date"] <= cycle[1]
+        and not is_own_name(str(b["counterparty"]).lower(), own_names)
     ]
     questions, questions_total = select_questions(
         candidates, week_answered=week_answered, suggest=suggest,
