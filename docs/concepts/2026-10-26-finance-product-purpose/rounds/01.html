@@ -1,0 +1,862 @@
+<section data-iteration="1" data-iteration-template="decision" data-analysis="full" data-baked>
+  <script type="application/json" data-frozen-feedback>{"general":{"text":"","attachments":[]}}</script>
+
+  <section id="briefing" data-analysis-briefing data-nav-label="Briefing">
+    <p data-briefing-what>Fünf unvoreingenommene Agenten sind sich einig: Finance beantwortet „Liegen wir im Plan – und was ist zu tun?“</p>
+    <p data-briefing-why>Der Plan ist die Eingangstür, die Bankdaten bestätigen ihn – klärt das, bevor Bildschirme entworfen werden.</p>
+    <div data-briefing-potential data-viz="kpi" data-viz-spec='{"value":"11 / 16","unit":"Wünsche","label":"deiner Wünsche decken die Agenten voll ab; 5 teilweise, 18 Ideen hast du nicht genannt"}'>11 / 16 Wünsche abgedeckt</div>
+    <a data-briefing-topic="t-purpose" data-share="35">Zweck &amp; Rhythmus</a>
+    <a data-briefing-topic="t-truth" data-share="40">Datenwahrheit</a>
+    <a data-briefing-topic="t-orient" data-share="25">Orientierung &amp; Ziele</a>
+    <p data-briefing-duration>≈ 12 Min.</p>
+
+    <div data-alevel="1" data-title="Briefing">
+      <div data-slot="short">
+        <div data-viz="kpi" data-viz-spec='{"value":"11 / 16","unit":"Wünsche abgedeckt","label":"plus 18 Agenten-Ideen, die du nicht genannt hast"}'></div>
+        <p>Deine Wünsche und die Agenten überschneiden sich stark; die Lücken liegen beim Vertrauen (Aktualität, Zustimmung) und bei deinen regionalen Vergleichswerten.</p>
+      </div>
+      <div data-slot="long">
+        <div data-viz="bars" data-viz-spec='{"items":[{"label":"Deine Wünsche, voll von Agenten abgedeckt","value":11},{"label":"Deine Wünsche, teilweise abgedeckt","value":5},{"label":"Agenten-Ideen, die du nicht genannt hast","value":18}],"unit":""}'></div>
+        <p>Alle fünf Agenten stellen unabhängig voneinander <strong>Plan vs. Ist pro Person</strong> in die Mitte und warnen davor, das Produkt um die Buchungsliste herum zu bauen. Deine Liste bringt, woran kein Agent gedacht hat: regionale und soziale Vergleichswerte (RLP, Koblenz, Bürgergeld, Mediane). Die Agenten bringen, was deine Liste auslässt: Vertrauen in die Zahlen (Aktualität, vorgemerkt, Zustimmungs-Erneuerung) und den Ausgleich zwischen euch beiden.</p>
+        <div data-evidence hidden>
+          <h4>Abgleich mit deinen Wünschen (erst nach Abschluss der Agenten gemacht)</h4>
+          <p><strong>Überschneidung – du und die Agenten seid einig (11):</strong> Haushaltsplan · Lebensmittel-/Kategorienbudgets · automatische Kategorisierung (Agenten: erst Regeln, LLM nur für unbekannte Händler) · manuelle Korrekturen, die das System lernen lassen · Auswertung des Verwendungszwecks · Umbuchungen zwischen eigenen Konten · doppelte Buchungen (PayPal-Spiegel) · wöchentlicher Stand · monatliche Steuerung · Abo-Erkennung in jedem Intervall · persönliche vs. gemeinsame Ausgaben.</p>
+          <p><strong>Teilweise abgedeckt (5):</strong> geteilte Buchungen zu einer zusammenführen (Agenten sprechen meist davon, eine Buchung in mehrere aufzuteilen; Tech-Sicht: Zusammenführen als Verknüpfungsgruppe) · Konten einer Person/beiden zuordnen (Agenten: nur als <em>Vorschlag</em> – Eigentümerschaft gehört zur Position, die harte Projektregel sagt dasselbe) · Wochenbudgets (Agenten: lieber eine wöchentliche Ansicht „frei verfügbar“ als eigene Budgets) · Spar-Empfehlungen (Agenten: nur belegbare Hinweise – Preiserhöhungen, doppelte Abos – ohne Schuldton) · Benchmarks (Agenten: Deutschland nach Haushaltstyp ja, statische Daten; geringer Wochennutzen).</p>
+          <p><strong>Von den Agenten gefunden, von dir nicht genannt (18):</strong> eine Kennzahl „frei verfügbar“ als Schlagzeile · Aktualitätsstempel + vorgemerkt vs. gebucht · PSD2-Erinnerung zur Zustimmungs-Erneuerung (sonst stiller Ausfall) · Ausgleich „wer schuldet wem“ · Benachrichtigungen nur bei Ausnahmen + ein wöchentlicher Digest, je Person geroutet · eine begrenzte Prüf-Inbox · Rücklagen für Jahreskosten · Monatsende-/Kontostand-Prognose · Erinnerungen bei Vertragspreisänderung und Kündigungsfrist · Privatsphäre zwischen Partnern · HA-Recorder speichert Sensor-Attribute unverschlüsselt · Historie, die sich nach einem Neuaufbau unbemerkt verschiebt · Plan aus der Historie entwerfen · Was-wäre-wenn-Planung · Steuerexport · Sprache / Wandtablet / Anwesenheits-Trigger · der weniger technikaffine Partner als Hauptnutzer · Erfolgskennzahlen (Anteil nicht zugeordnet, Minuten bis zum Monatsabschluss).</p>
+          <p><strong>Du willst es, Agenten haben es übersehen:</strong> Referenzen für Rheinland-Pfalz und Koblenz · Bürgergeld-/Grundsicherungs-Regelbedarf als soziale Untergrenze · Mediane statt Mittelwerte · Einkommensseite inkl. einer Person ohne Einkommen · Stromkostenvergleich · Grok / Claude als LLM benennen.</p>
+          <h4>Was im Code schon existiert</h4>
+          <p>Planseite (Kostenpositionen mit Eigentümer, Einkommen je Person), 4 Aufteilungsmodelle inkl. pooled_equal, Ausgleich / Überweisungsplan, Keyword-Kategorisierer, nur monatliche Erkennung wiederkehrender Zahlungen (±10 %, ≥ 2 Treffer), kaskadierender Umbuchungs- und Erstattungs-Detektor, Benchmark-Provider (Crawl zur Laufzeit), month_cycle.py (nicht eingebunden), Kontozuordnung persönlich/gemeinsam im Bank-Flow, Tabs Übersicht + Haushalt.</p>
+          <h4>Gefundene Konflikte</h4>
+          <p>benchmark.py ruft Destatis u. a. zur Laufzeit ab – CLAUDE.md-Sicherheitsregel 6 erlaubt nur Enable Banking. Ein LLM-Kategorisierer würde dieselbe Regel brechen. Beides braucht deine ausdrückliche Entscheidung (Entscheidungen unten).</p>
+          <h4>Was die folgende Visual-/Mobile-Runde aus dieser Runde braucht</h4>
+          <p>Die gewählte Eingangsfrage und Schlagzeilen-Zahl · die Rhythmen (Blick / Woche / Monat / Jahr / Ereignis) als Bildschirm-Kandidaten · die Form der Prüf-Inbox · welche Benchmark-Gruppen es gibt · die Benachrichtigungen · die Privatsphäre-Regel zwischen Partnern · Formfaktoren: Smartphone, Wandtablet, HA-Dashboard-Karte, Desktop-Panel.</p>
+          <p>Quellen: Agenten-Notizen im gemeinsamen Session-Notes-Ordner (finance-product-concept-agent-findings.md); die Recherche zitiert Tiller, Google Workspace Updates, Monarch, Copilot, Actual, Lunch Money, Finanzguru, Destatis LWR 2024.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== Topic 1: Purpose & rhythm ===================== -->
+  <section id="t-purpose" data-topic data-nav-label="Zweck &amp; Rhythmus">
+    <div data-alevel="2" data-title="Zweck &amp; Rhythmus">
+      <div data-slot="short">
+        <div data-viz="text" data-viz-spec='{"text":"Ein ruhiges Haushalts-Cockpit: ein Status, eine Zahl „frei verfügbar“ und nur das, was eine Entscheidung braucht."}'></div>
+        <p>Ein ruhiges Haushalts-Cockpit, keine Finanz-App: erst der Status, Details auf Abruf.</p>
+      </div>
+      <div data-slot="long">
+        <div data-viz="flow" data-viz-spec='{"steps":[{"label":"Blick","value":"täglich · Status + frei verfügbar"},{"label":"Woche","value":"Digest + ≤ 10 Prüf-Punkte"},{"label":"Monat","value":"Plan vs. Ist, Ausgleich"},{"label":"Jahr","value":"Verträge, Jahreskosten, Vergleichswerte"},{"label":"Ereignis","value":"nur Ausnahmen"}]}'></div>
+        <p>Fünf Rhythmen tragen jede Interaktion, die die Agenten aufgelistet haben. Die Bankdaten sollen den Plan bestätigen oder widerlegen; der Haushalt soll das Panel nicht öffnen müssen, um zu wissen, dass alles in Ordnung ist.</p>
+        <div data-evidence hidden>
+          <h4>Jobs to be done (zusammengeführt)</h4>
+          <ol>
+            <li>Wenn einer von uns etwas ausgeben will, möchte ich eine verlässliche Zahl „frei verfügbar“ für uns, damit ich entscheiden kann, ohne zu fragen oder drei Apps zu öffnen.</li>
+            <li>Wenn Geld unerwartet fließt (große Abbuchung, Doppelbelastung, Preiserhöhung, fehlendes Gehalt), möchte ich einmal und knapp informiert werden, damit ich vor Monatsende reagieren kann.</li>
+            <li>Wenn ein Monat endet, möchte ich Plan vs. Ist je Position und Person sowie wer wem was schuldet, damit wir uns ohne Streit ausgleichen.</li>
+            <li>Wenn ein Vertrag, Abo oder eine Jahresrechnung ansteht, möchte ich es vorher wissen und ob das Konto es deckt.</li>
+            <li>Als der weniger finanzaffine Partner möchte ich eine Antwort auf einen Blick in einfachen Worten.</li>
+            <li>Wenn wir planen (jährlich oder nach einer Änderung), möchte ich wissen, wie wir im Vergleich zu ähnlichen Haushalten stehen und was eine Was-wäre-wenn-Änderung bewirkt.</li>
+          </ol>
+          <h4>Interaktionen nach Rhythmus</h4>
+          <p><strong>Blick:</strong> Status-Chip, frei verfügbar, die nächsten 3 großen Abbuchungen, Aktualität „Stand 06:30“; Sensoren für Automationen; Sprache „Wie viel können wir diese Woche ausgeben?“.</p>
+          <p><strong>Woche:</strong> Digest an beide; Prüf-Inbox (unbekannte Händler, PayPal, Eigentümer-Fragen) mit je einem Tipp; wöchentlich frei verfügbar.</p>
+          <p><strong>Monat:</strong> Monatsabschluss am Zahltag oder am 1.; Plan vs. Ist je Position und Person; Ausgleichsbetrag + Überweisungstext; „Strom ist um 18 € gestiegen, Plan anpassen?“; Bonus-Abfrage.</p>
+          <p><strong>Jahr:</strong> Jahreskosten aller Verträge, sortiert nach Preiserhöhung; Kündigungsfrist-Erinnerungen; Benchmark-Review; Steuerexport; Plan-Überarbeitung.</p>
+          <p><strong>Ereignis:</strong> Zustimmung läuft ab (an die Person, die die Bank verknüpft hat), ungewöhnlich große Abbuchung, prognostizierte Unterdeckung vor einer bekannten Abbuchung, Gehalt eingegangen, manueller Refresh vor einem großen Kauf.</p>
+          <h4>Ausdrücklich NICHT</h4>
+          <p>Keine Zahlungen oder Überweisungen, keine Geldanlagen / Krypto / Vermögensübersicht, kein Zero-Based-Umschlag-Dogma, keine Buchungsliste als Hauptbildschirm, keine Gamification, kein Vortäuschen von Echtzeit, kein Schuldton, keine stille Neu-Kategorisierung der Historie.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- d-wishes: verify the comparison -->
+    <section id="d-wishes" data-nav-label="Deine Wünsche, richtig verstanden?" data-decision="d-wishes" data-decision-mode="verify"
+             data-label="Wunsch-Zusammenfassung" data-rec="ok"
+             data-rec-why="Die 16 Wünsche stammen aus deinem Briefing; nur die Gruppierung ist von mir."
+             data-applies-to="das gesamte Konzept" data-finding="f-wishes" data-finding-quant="true">
+      <p data-applies>Gilt für: das gesamte Konzept</p>
+      <h3 data-question>Entspricht diese Zusammenfassung deiner eigenen Wünsche dem, was du gemeint hast?</h3>
+      <p data-context>16 Wünsche: Plan · Lebensmittelbudgets · Auto-Kategorisierung per LLM (sparsam) · Korrekturen + Lernen · Verwendungszweck · Umbuchungen zwischen eigenen Konten · Duplikate · geteilte Buchungen zusammenführen · Konten je Person/beide · Benchmarks (DE/RLP/Koblenz, Bürgergeld, Mediane, Einkommen, Strom) · wöchentlicher Stand · monatliche Steuerung · Wochenbudgets · Abos · Kategorie-Flüsse + Spartipps · persönlich vs. gemeinsam.</p>
+      <div data-options>
+        <label data-opt="ok" data-recommended>
+          <input type="radio" name="dm-d-wishes" value="ok" checked>
+          <span data-opt-label>Stimmt</span>
+          <span data-opt-consequence>Der Abgleich im Briefing bleibt so bestehen.</span>
+        </label>
+        <label data-opt="partial">
+          <input type="radio" name="dm-d-wishes" value="partial">
+          <span data-opt-label>Teilweise</span>
+          <span data-opt-consequence>Ich korrigiere die Liste und prüfe Überschneidungen und Lücken neu.</span>
+        </label>
+        <label data-opt="wrong">
+          <input type="radio" name="dm-d-wishes" value="wrong">
+          <span data-opt-label>Stimmt nicht</span>
+          <span data-opt-consequence>Ich baue den Abgleich aus deiner Korrektur neu auf.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-d-wishes-fix" placeholder="Was stimmt nicht?" value="">
+      <textarea data-comment="d-wishes-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-wishes-touched" value="1">
+      <input type="hidden" name="dm-d-wishes-issue" value="">
+      <input type="hidden" name="dm-d-wishes-epic" value="">
+      <div data-alevel="3" data-title="Wunsch-Zusammenfassung">
+        <div data-slot="short"><div data-viz="bar" data-viz-spec='{"value":11,"max":16,"label":"voll abgedeckt","unit":""}'></div><p>11 von 16 voll abgedeckt, 5 teilweise.</p></div>
+        <div data-slot="long">
+          <div data-viz="donut" data-viz-spec='{"parts":[{"label":"voll abgedeckt","value":11},{"label":"teilweise","value":5}]}'></div>
+          <p>Teilweise abgedeckt: geteilte Buchungen zusammenführen, Konten je Person, Wochenbudgets, Spartipps, regionale/soziale Benchmarks. Jeder davon bekommt unten eine eigene Entscheidung.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-front -->
+    <section id="d-front" data-nav-label="Eingangsfrage" data-decision="d-front" data-decision-mode="single"
+             data-label="Eingangsfrage" data-rec="onplan"
+             data-rec-why="Alle drei PO-Sichten warnten unabhängig voneinander, dass ein buchungszentriertes Produkt gegen die Bank-App verliert; der Plan ist das Einzigartige."
+             data-applies-to="Produktzweck · das Erste, was jeder sieht" data-finding="f-front">
+      <p data-applies>Gilt für: Produktzweck · das Erste, was jeder sieht</p>
+      <h3 data-question>Welche Frage beantwortet Finance zuerst, vor allem anderen?</h3>
+      <p data-context>Was zuerst beantwortet wird, prägt jeden Bildschirm, Sensor und jede Benachrichtigung der Visual-Runde.</p>
+      <div data-options>
+        <label data-opt="onplan" data-recommended>
+          <input type="radio" name="dm-d-front" value="onplan" checked>
+          <span data-opt-label>Beantworte „Liegen wir im Plan, und was ist zu tun?“</span>
+          <span data-opt-consequence>Status + frei verfügbar + offene Entscheidungen stehen vorne; Kategorien und Buchungen sind Drill-downs.</span>
+        </label>
+        <label data-opt="flows">
+          <input type="radio" name="dm-d-front" value="flows">
+          <span data-opt-label>Beantworte „Wohin fließt unser Geld?“</span>
+          <span data-opt-consequence>Die Kategorie-Analyse steht vorne; Plan vs. Ist wird ein zweiter Tab.</span>
+        </label>
+        <label data-opt="ledger">
+          <input type="radio" name="dm-d-front" value="ledger">
+          <span data-opt-label>Beantworte „Ist jede Buchung richtig?“</span>
+          <span data-opt-consequence>Die Buchungsliste steht vorne; höchste Kontrolle, höchster Pflegeaufwand.</span>
+        </label>
+        <label data-opt="other">
+          <input type="radio" name="dm-d-front" value="other">
+          <span data-opt-label>Keine davon / anders …</span>
+          <span data-opt-consequence>Notiz ist dann Pflicht.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-front-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-front-touched" value="1">
+      <input type="hidden" name="dm-d-front-issue" value="">
+      <input type="hidden" name="dm-d-front-epic" value="">
+      <div data-alevel="3" data-title="Eingangsfrage">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"3 / 3","unit":"PO-Sichten","label":"stellen Plan vs. Ist an die erste Stelle"}'></div><p>Alle drei Produkt-Sichten stellen Plan vs. Ist an die erste Stelle.</p></div>
+        <div data-slot="long">
+          <div data-viz="kpi" data-viz-spec='{"value":"3 / 3","unit":"PO-Sichten","label":"empfehlen Plan vs. Ist als Eingangstür"}'></div>
+          <p>Kunden-Sicht: „Die Eingangstür um den Plan-vs-Ist-Status bauen – und gibt es etwas für mich zu tun?“ Business-Sicht: Eine hübschere Buchungsliste schlägt weder Finanzguru noch YNAB. Der heutige Tab Übersicht ist faktenorientiert (Kontostände, KPIs, Donut), diese Wahl ändert also seine Rolle.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-rhythm -->
+    <section id="d-rhythm" data-nav-label="Steuerungszeitraum" data-decision="d-rhythm" data-decision-mode="single"
+             data-label="Steuerungszeitraum" data-rec="monthweek"
+             data-rec-why="Fixkosten und Einkommen sind monatlich; Lebensmittel und der Alltag brauchen eine kürzere Schleife. Der Monat plant, die Woche steuert."
+             data-applies-to="Plan, Budgets, Digest" data-finding="f-rhythm">
+      <p data-applies>Gilt für: Plan, Budgets, Digest</p>
+      <h3 data-question>In welchem Zeitraum planen wir, und in welchem steuern wir?</h3>
+      <p data-context>Du wolltest wöchentliche und monatliche Steuerung und Wochenbudgets; month_cycle.py (Gehaltszyklus) existiert, ist aber nicht eingebunden.</p>
+      <div data-options>
+        <label data-opt="monthweek" data-recommended>
+          <input type="radio" name="dm-d-rhythm" value="monthweek">
+          <span data-opt-label>Pro Monat planen, pro Woche steuern</span>
+          <span data-opt-consequence>Variable Budgets (Lebensmittel usw.) werden auf die verbleibenden Wochen verteilt; Mehrausgaben diese Woche senken den Betrag der nächsten.</span>
+        </label>
+        <label data-opt="salary">
+          <input type="radio" name="dm-d-rhythm" value="salary" checked>
+          <span data-opt-label>Pro Gehaltszyklus planen, pro Woche steuern</span>
+          <span data-opt-consequence>Der Monat läuft von Zahltag zu Zahltag; die Gehaltserkennung muss zuerst eingebunden werden.</span>
+        </label>
+        <label data-opt="fixedweek">
+          <input type="radio" name="dm-d-rhythm" value="fixedweek">
+          <span data-opt-label>Eigene feste Wochenbudgets</span>
+          <span data-opt-consequence>Jede Woche startet mit demselben Betrag; einfach, ignoriert aber 4- vs. 5-Wochen-Monate.</span>
+        </label>
+        <label data-opt="monthonly">
+          <input type="radio" name="dm-d-rhythm" value="monthonly">
+          <span data-opt-label>Nur Monat</span>
+          <span data-opt-consequence>Keine Wochenansicht; Abweichungen fallen spät auf.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-rhythm-note" placeholder="Notiz (optional)">genau wobei woche widerum die kalenderowche ist </textarea>
+      <input type="hidden" name="dm-d-rhythm-touched" value="1">
+      <input type="hidden" name="dm-d-rhythm-issue" value="">
+      <input type="hidden" name="dm-d-rhythm-epic" value="">
+      <div data-alevel="3" data-title="Steuerungszeitraum">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Monat = Planungseinheit überall (Tabellen, Apps); Woche = Steuerungsschleife für variable Kosten."}'></div><p>Der Monat plant, die Woche steuert – das Muster in Tabellen und Apps gleichermaßen.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Google-Sheets-Vorlagen, Haushaltsbuch-Ratgeber und jede untersuchte App planen pro Monat. Die Wochenkontrolle hält Lebensmittel und Alltagsausgaben im Griff; ein rollierender Wochenbetrag vermeidet die 4/5-Wochen-Falle."}'></div>
+          <p>Sheets-Vorlagen, deutsche Haushaltsbuch-Ratgeber und alle untersuchten Apps planen monatlich. Ein rollierender Wochenbetrag (verbleibendes variables Budget ÷ verbleibende Wochen) liefert dir Wochenbudgets, ohne dass ein zweiter Plan gepflegt werden muss.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-headline -->
+    <section id="d-headline" data-nav-label="Zahl „frei verfügbar“" data-decision="d-headline" data-decision-mode="single"
+             data-label="Zahl „frei verfügbar“" data-rec="planrest"
+             data-rec-why="Sie bleibt zwischen den Abrufen korrekt und springt nicht, wenn eine Fixkost einen Tag früher abgebucht wird."
+             data-applies-to="Schlagzeilen-Zahl, Sensor, Sprachantwort" data-finding="f-headline">
+      <p data-applies>Gilt für: Schlagzeilen-Zahl, Sensor, Sprachantwort</p>
+      <h3 data-question>Wie wird die Schlagzeilen-Zahl „frei verfügbar“ berechnet?</h3>
+      <p data-context>Jeder Agent wollte eine verlässliche Zahl; sie muss einmal definiert und per Tipp erklärbar sein.</p>
+      <div data-options>
+        <label data-opt="planrest" data-recommended>
+          <input type="radio" name="dm-d-headline" value="planrest" checked>
+          <span data-opt-label>Verbleibendes variables Plan-Budget nutzen</span>
+          <span data-opt-consequence>Geplantes variables Budget des Zeitraums minus das bisher Ausgegebene; unabhängig davon, wann Fixkosten abgebucht werden.</span>
+        </label>
+        <label data-opt="balance">
+          <input type="radio" name="dm-d-headline" value="balance">
+          <span data-opt-label>Kontostand minus noch fällige Fixkosten nutzen</span>
+          <span data-opt-consequence>Näher an der Bank-App; braucht verlässliche „noch fällig“-Erkennung und springt mit den Buchungsdaten.</span>
+        </label>
+        <label data-opt="both">
+          <input type="radio" name="dm-d-headline" value="both">
+          <span data-opt-label>Beide nebeneinander zeigen</span>
+          <span data-opt-consequence>Die meisten Informationen, aber zwei Zahlen konkurrieren um „die“ Antwort.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-headline-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-headline-touched" value="1">
+      <input type="hidden" name="dm-d-headline-issue" value="">
+      <input type="hidden" name="dm-d-headline-epic" value="">
+      <div data-alevel="3" data-title="Zahl „frei verfügbar“">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Monarch Flex und das frei verfügbare Einkommen bei Finanzguru trennen beide Fixes von Flexiblem."}'></div><p>Die besten Apps trennen Fixkosten und zeigen nur den flexiblen Rest.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Safe-to-spend ist ein wiederkehrendes Muster (Monarch Flex, Finanzguru, kostenpflichtige Sheets-Vorlagen). Vertrauen braucht einen Aktualitätsstempel und getrennt gezeigte vorgemerkte Posten."}'></div>
+          <p>Ein wiederkehrendes Muster bei Monarch, Finanzguru und kostenpflichtigen Sheets-Vorlagen. Bei nur ~4 Hintergrund-Abrufen pro Tag ist die Zahl immer leicht veraltet: Sie braucht „Stand 06:30“ und getrennt gezeigte vorgemerkte Buchungen, sonst zerstört die erste falsche Entscheidung das Vertrauen.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-rhythms-scope -->
+    <section id="d-scope" data-nav-label="Rhythmen im Umfang" data-decision="d-scope" data-decision-mode="multi"
+             data-label="Rhythmen im Umfang" data-rec="glance week month year event"
+             data-rec-why="Diese fünf tragen alle Jobs; Sprache ist billig, sobald Sensoren existieren, wird aber selten wöchentlich genutzt."
+             data-applies-to="Interaktionsumfang für die Visual-Runde" data-finding="f-scope">
+      <p data-applies>Gilt für: Interaktionsumfang für die Visual-Runde</p>
+      <h3 data-question>Welche Interaktionsrhythmen soll Finance unterstützen?</h3>
+      <p data-context>Jeder angehakte Rhythmus wird in der Visual-Runde zu einem Bildschirm- oder Oberflächen-Kandidaten.</p>
+      <div data-options>
+        <label data-opt="glance" data-recommended><input type="checkbox" name="dm-d-scope.glance" checked><span data-opt-label>Täglicher Blick (Status, frei verfügbar, nächste Abbuchungen)</span><span data-opt-consequence>Smartphone-Widget, Wandtablet-Karte, Sensoren.</span></label>
+        <label data-opt="week" data-recommended><input type="checkbox" name="dm-d-scope.week" checked><span data-opt-label>Wöchentlicher Check (Digest + Prüf-Inbox)</span><span data-opt-consequence>Die Gewohnheitsschleife; ≈ 5 Minuten pro Woche.</span></label>
+        <label data-opt="month" data-recommended><input type="checkbox" name="dm-d-scope.month" checked><span data-opt-label>Monatsabschluss (Plan vs. Ist, Ausgleich)</span><span data-opt-consequence>Beide sehen dasselbe Ergebnis; Hinweise zur Plananpassung.</span></label>
+        <label data-opt="year" data-recommended><input type="checkbox" name="dm-d-scope.year" checked><span data-opt-label>Jahresrückblick (Verträge, Jahreskosten, Vergleichswerte)</span><span data-opt-consequence>Hier wird der Plan überarbeitet und werden Haushalte verglichen.</span></label>
+        <label data-opt="event" data-recommended><input type="checkbox" name="dm-d-scope.event" checked><span data-opt-label>Ereignis-Hinweise (nur Ausnahmen)</span><span data-opt-consequence>Ablauf der Zustimmung, ungewöhnliche Abbuchung, prognostizierte Unterdeckung.</span></label>
+        <label data-opt="voice"><input type="checkbox" name="dm-d-scope.voice"><span data-opt-label>Sprachantworten über Assist</span><span data-opt-consequence>„Wie viel können wir diese Woche ausgeben?“ – braucht einen zusätzlichen Intent.</span></label>
+        <label data-opt="tax"><input type="checkbox" name="dm-d-scope.tax"><span data-opt-label>Steuerexport (markierte Buchungen als CSV)</span><span data-opt-consequence>Macht die lebenslange Historie einmal im Jahr nutzbar.</span></label>
+      </div>
+      <textarea data-comment="d-scope-note" placeholder="Notiz (optional)">wöchentlicher check ist für mich auch das thema unseres punkte budgets... </textarea>
+      <input type="hidden" name="dm-d-scope-touched" value="1">
+      <input type="hidden" name="dm-d-scope-issue" value="">
+      <input type="hidden" name="dm-d-scope-epic" value="">
+      <div data-alevel="3" data-title="Rhythmen im Umfang">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"5","unit":"Rhythmen","label":"tragen alle sechs Jobs"}'></div><p>Fünf Rhythmen tragen alle sechs Jobs to be done.</p></div>
+        <div data-slot="long">
+          <div data-viz="bars" data-viz-spec='{"items":[{"label":"Blick","value":2},{"label":"Woche","value":3},{"label":"Monat","value":3},{"label":"Jahr","value":2},{"label":"Ereignis","value":2}],"unit":"bediente Jobs"}'></div>
+          <p>Woche und Monat bedienen die meisten Jobs; Blick und Ereignis halten den Haushalt informiert, ohne dass etwas geöffnet werden muss. Sprache und Steuerexport sind billige Zusätze, keine Treiber.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-notify -->
+    <section id="d-notify" data-nav-label="Benachrichtigungen" data-decision="d-notify" data-decision-mode="single"
+             data-label="Benachrichtigungs-Regel" data-rec="exceptions"
+             data-rec-why="Bei mehr als etwa 2 Pings pro Woche schalten beide Partner die Integration stumm – jeder Agent nannte Alarm-Müdigkeit."
+             data-applies-to="HA-Benachrichtigungen, Events" data-finding="f-notify">
+      <p data-applies>Gilt für: HA-Benachrichtigungen, Events</p>
+      <h3 data-question>Wann benachrichtigt dich Finance aktiv?</h3>
+      <p data-context>Heute gibt es 4 Automations-Events (neue Transaktion, Kontostand geändert, Budget überschritten, Wiederkehrendes erkannt).</p>
+      <div data-options>
+        <label data-opt="exceptions" data-recommended>
+          <input type="radio" name="dm-d-notify" value="exceptions" checked>
+          <span data-opt-label>Nur bei Ausnahmen benachrichtigen, plus ein wöchentlicher Digest</span>
+          <span data-opt-consequence>Ablaufende Zustimmung, ungewöhnliche Abbuchung, prognostizierte Unterdeckung; an die betroffene Person geroutet; Stille heißt: alles gut.</span>
+        </label>
+        <label data-opt="digest">
+          <input type="radio" name="dm-d-notify" value="digest">
+          <span data-opt-label>Nur der wöchentliche Digest, kein Push</span>
+          <span data-opt-consequence>Am ruhigsten; eine ablaufende Zustimmung kann übersehen werden.</span>
+        </label>
+        <label data-opt="rich">
+          <input type="radio" name="dm-d-notify" value="rich">
+          <span data-opt-label>Bei jeder neuen Buchung benachrichtigen</span>
+          <span data-opt-consequence>Fühlt sich live an, aber ~4 Abrufe pro Tag machen daraus Bündel von Rauschen.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-notify-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-notify-touched" value="1">
+      <input type="hidden" name="dm-d-notify-issue" value="">
+      <input type="hidden" name="dm-d-notify-epic" value="">
+      <div data-alevel="3" data-title="Benachrichtigungs-Regel">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"≤ 2","unit":"pro Woche","label":"Pings, bevor Leute stummschalten"}'></div><p>Ab ~2 Pings pro Woche schalten Haushalte die Integration stumm.</p></div>
+        <div data-slot="long">
+          <div data-viz="kpi" data-viz-spec='{"value":"≤ 2","unit":"Pings / Woche","label":"Schwelle der Kunden-Sicht vor dem Stummschalten"}'></div>
+          <p>Kunden- und Business-Sicht begrenzen Pushes auf die drei Ausnahme-Typen; auch die Sheets-Recherche dokumentiert Alarm-Müdigkeit. Rohe Events bleiben so oder so für deine eigenen Automationen verfügbar.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-privacy -->
+    <section id="d-privacy" data-nav-label="Privatsphäre zwischen euch" data-decision="d-privacy" data-decision-mode="single"
+             data-label="Privatsphäre zwischen Partnern" data-rec="sharedfull"
+             data-rec-why="Gemeinsames Geld muss für beide eine Wahrheit sein; persönliche Details sind eine Vertrauens-, keine Technikfrage."
+             data-applies-to="was jeder von euch sieht" data-finding="f-privacy">
+      <p data-applies>Gilt für: was jeder von euch sieht</p>
+      <h3 data-question>Was darf jeder von euch vom Geld des anderen sehen?</h3>
+      <p data-context>Heute sind einzelne Buchungen nur für HA-Admins sichtbar, und das Panel ist nur für Admins.</p>
+      <div data-options>
+        <label data-opt="sharedfull" data-recommended>
+          <input type="radio" name="dm-d-privacy" value="sharedfull" checked>
+          <span data-opt-label>Gemeinschaftskonten und Plan voll teilen, persönliche Konten nur als Summen</span>
+          <span data-opt-consequence>Beide bekommen eine Nicht-Admin-Ansicht; persönliche Buchungen bleiben bei ihrem Eigentümer, sofern nicht freigegeben.</span>
+        </label>
+        <label data-opt="all">
+          <input type="radio" name="dm-d-privacy" value="all">
+          <span data-opt-label>Alles für beide sichtbar</span>
+          <span data-opt-consequence>Am einfachsten; passt, wenn ihr ohnehin alles teilt.</span>
+        </label>
+        <label data-opt="admin">
+          <input type="radio" name="dm-d-privacy" value="admin">
+          <span data-opt-label>Nur für Admins, wie heute</span>
+          <span data-opt-consequence>Der Partner ohne Admin-Rechte bleibt außen vor.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-privacy-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-privacy-touched" value="1">
+      <input type="hidden" name="dm-d-privacy-issue" value="">
+      <input type="hidden" name="dm-d-privacy-epic" value="">
+      <div data-alevel="3" data-title="Privatsphäre zwischen Partnern">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Monarch Shared Views: Labels persönlich / Partner / gemeinsam mit Perspektiv-Filter."}'></div><p>Monarch hat das mit Perspektiven je Eigentümer gelöst (Okt. 2025).</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Monarch kennzeichnet Konten als persönlich / Partner / gemeinsam und filtert nach Perspektive. Die Tech-Sicht ergänzt: Der HA-Recorder speichert Sensor-Attribute unverschlüsselt, Sensoren dürfen also nur Aggregate zeigen."}'></div>
+          <p>Monarchs Shared Views (Okt. 2025) kennzeichnen jedes Konto als persönlich / Partner / gemeinsam und filtern nach Perspektive. Die Tech-Sicht ergänzt ein verstecktes Leck: Der HA-Recorder speichert Sensor-Attribute unverschlüsselt, außerhalb der Fernet-Grenze – Sensoren sollten also nur Aggregate tragen, egal was du hier wählst.</p>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===================== Topic 2: Data truth ===================== -->
+  <section id="t-truth" data-topic data-nav-label="Datenwahrheit">
+    <div data-alevel="2" data-title="Datenwahrheit">
+      <div data-slot="short">
+        <div data-viz="text" data-viz-spec='{"text":"Deterministisches, erklärbares, korrigierbares Hauptbuch; LLM nur am Ende."}'></div>
+        <p>Vertrauen entsteht durch ein erklärbares, korrigierbares Hauptbuch; ein LLM ist nur ein kleiner Fallback.</p>
+      </div>
+      <div data-slot="long">
+        <div data-viz="flow" data-viz-spec='{"steps":[{"label":"Einlesen","value":"Rohdaten-Archiv (vorhanden)"},{"label":"Normalisieren","value":"Händler-Schlüssel, Verwendungszweck-Tokens"},{"label":"Verknüpfen","value":"Umbuchung, PayPal, Erstattung, Zusammenführen"},{"label":"Anreichern","value":"Kategorie, Eigentümer, Serie"},{"label":"Aggregieren","value":"Zeitraum, Planposition"},{"label":"Ausspielen","value":"Sensoren, Inbox, Digest"}]}'></div>
+        <p>Einlesen und das Rohdaten-Archiv existieren. Die fehlende Mitte – normalisieren, verknüpfen, mit gelernten Regeln anreichern – entscheidet, ob den Zahlen vertraut wird. Nutzerkorrekturen liegen in einem eigenen Speicher, ein Neuaufbau aus den Rohdaten zerstört sie also nie.</p>
+        <div data-evidence hidden>
+          <h4>Daten, die die Interaktionen brauchen (Tech-Sicht)</h4>
+          <ul>
+            <li><strong>Konto</strong>: IBAN-Identität, Art (Giro, Karte, PayPal, Sparen), Haushalts-Flag, vorgeschlagener Eigentümer.</li>
+            <li><strong>Transaktion</strong>: Fingerprint + Vorkommensindex, Buchungs-/Wertstellungsdatum, Betrag, vorgemerkt/gebucht, Händler-Schlüssel, Verwendungszweck-Tokens, Bankcode.</li>
+            <li><strong>Override</strong>: Kategorie, Eigentümer, Ausschluss-Flag, Notiz – am Fingerprint verankert, übersteht Neuaufbauten.</li>
+            <li><strong>TxLink</strong>: Umbuchung, PayPal-Finanzierung, Erstattung, Zusammenführung (mehrere Buchungen = ein Kauf), Aufteilung – mit Herkunft auto/Nutzer.</li>
+            <li><strong>Händler</strong>: Schlüssel, Aliase, IBANs, Standardkategorie, Standard-Eigentümer.</li>
+            <li><strong>CategoryRule</strong>: Matcher, Geltungsbereich, Priorität, Quelle (mitgeliefert, gelernt, Nutzer).</li>
+            <li><strong>Serie</strong>: Händler, Periode (beliebiges Intervall), Betragsband, nächstes erwartetes Datum, Status, Planposition.</li>
+            <li><strong>ReviewItem</strong>, <strong>LlmCache</strong> (je Händler-Schlüssel), <strong>ReferenceStat</strong> (Taxonomie, Haushaltsklasse, Wert, Jahrgang).</li>
+          </ul>
+          <h4>Machbarkeit</h4>
+          <p>Einfach: Normalisierung, Umbuchungen mit eigener IBAN, deterministische Regeln, Overrides. Mittel: gelernte Kategorisierung, Abgleich vorgemerkter Buchungen, Gehaltszyklus, PayPal-Zuordnung per ID, Prüf-Inbox. Schwer: 1:n-PayPal-Zuordnung, unregelmäßig Wiederkehrendes, Eigentümer ungeplanter Ausgaben. Forschung: LLM-Qualität innerhalb eines Gratis-Kontingents, Benchmark-Taxonomie-Mapping.</p>
+          <h4>Zuerst zu prüfen</h4>
+          <p>Welche Felder DKB und PayPal über Enable Banking wirklich liefern (Gläubiger-ID, Mandatsreferenz, Vormerk-Flag, Entry-Reference) – am Rohdaten-Archiv prüfen, bevor man sich auf die Entwürfe für Wiederkehrendes und Zusammenführen festlegt.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- d-categorize -->
+    <section id="d-categorize" data-nav-label="Kategorisierungs-Engine" data-decision="d-categorize" data-decision-mode="single"
+             data-label="Kategorisierungs-Engine" data-rec="tail"
+             data-rec-why="Ein Haushalt hat ein paar hundert Händler; Regeln plus gelerntes Händler-Gedächtnis decken das meiste ab, und Caching je Händler hält die LLM-Aufrufe bei einer Handvoll pro Monat."
+             data-applies-to="Kategorisierer, Sicherheitsregel 6" data-finding="f-categorize">
+      <p data-applies>Gilt für: Kategorisierer, Sicherheitsregel 6</p>
+      <h3 data-question>Wie sollen Buchungen ihre Kategorie bekommen?</h3>
+      <p data-context>Heute: nur Keyword-Regeln. Du willst ein LLM (Grok oder Claude) im Gratis-Kontingent – das hebt auch Sicherheitsregel 6 („keine externen Aufrufe außer Enable Banking“) auf.</p>
+      <div data-options>
+        <label data-opt="tail" data-recommended>
+          <input type="radio" name="dm-d-categorize" value="tail" checked>
+          <span data-opt-label>Lokal lernen, ein LLM nur zu unbekannten Händlern fragen</span>
+          <span data-opt-consequence>Regeln → gelerntes Händler-Gedächtnis → Opt-in-LLM-Batch für den Rest, je Händler dauerhaft gecacht; sendet nur Händler + Verwendungszweck, nie Betrag, IBAN oder Datum.</span>
+        </label>
+        <label data-opt="llmall">
+          <input type="radio" name="dm-d-categorize" value="llmall">
+          <span data-opt-label>Ein LLM zu jeder Buchung fragen</span>
+          <span data-opt-consequence>Beste erste Schätzung, verbraucht aber das Gratis-Kontingent und schickt jeden Buchungstext nach außen.</span>
+        </label>
+        <label data-opt="local">
+          <input type="radio" name="dm-d-categorize" value="local">
+          <span data-opt-label>Komplett lokal bleiben, kein LLM</span>
+          <span data-opt-consequence>Regel 6 bleibt intakt; unbekannte Händler landen stattdessen in der Prüf-Inbox.</span>
+        </label>
+        <label data-opt="other">
+          <input type="radio" name="dm-d-categorize" value="other">
+          <span data-opt-label>Keine davon / anders …</span>
+          <span data-opt-consequence>Notiz ist dann Pflicht.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-categorize-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-categorize-touched" value="1">
+      <input type="hidden" name="dm-d-categorize-issue" value="">
+      <input type="hidden" name="dm-d-categorize-epic" value="">
+      <div data-alevel="3" data-title="Kategorisierungs-Engine">
+        <div data-slot="short"><div data-viz="bar" data-viz-spec='{"value":85,"max":100,"unit":"%","label":"nach 2–3 Wochen per Regeln automatisch kategorisiert (Tiller-Angabe 80–90 %)"}'></div><p>Allein mit Regeln sind nach 2–3 Wochen 80–90 % erreichbar (Herstellerangabe).</p></div>
+        <div data-slot="long">
+          <div data-viz="bar" data-viz-spec='{"value":85,"max":100,"unit":"%","label":"abgedeckt durch Regeln + gelerntes Gedächtnis (Tiller 80–90 %, Tech-Sicht 85–90 %)"}'></div>
+          <p>Tiller berichtet 80–90 % Automatisierung durch Regeln auf Beschreibung, Betrag und Konto; die Tech-Sicht schätzt dasselbe für Lernen auf Händlerebene. Copilot macht erst nach ~30 geprüften Buchungen Vorschläge. Die verbleibenden 10–15 % sind ein paar Dutzend Händler pro Monat – eine Handvoll LLM-Batches.</p>
+          <div data-evidence hidden><p>Tiller AutoCat (Herstellerangabe); Copilot Intelligence (Schwelle von 30 Transaktionen); Actual-Budget-Regeln (lernen automatisch die häufigste Kategorie je Zahlungsempfänger, abschaltbar). Alle fünf Agenten: erst Regeln, LLM nur am Ende. Welcher Anbieter (Grok / Claude Haiku) offen ist – als Einstellung anlegen; das echte Gratis-Kontingent vor dem Bauen prüfen.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-llmbudget -->
+    <section id="d-llmbudget" data-nav-label="LLM-Aufruf-Budget" data-decision="d-llmbudget" data-decision-mode="slider" data-unit="Aufrufe / Monat"
+             data-label="LLM-Aufruf-Budget" data-rec="20"
+             data-rec-why="Bei ~50 Händlern pro Batch decken 20 Aufrufe ~1000 neue Händler im Monat – weit mehr als ein Haushalt braucht, für jedes Gratis-Kontingent trotzdem winzig."
+             data-applies-to="LLM-Kategorisierung (falls gewählt)" data-finding="f-llmbudget" data-finding-quant="true">
+      <p data-applies>Gilt für: LLM-Kategorisierung (falls gewählt)</p>
+      <h3 data-question>Wie viele LLM-Aufrufe darf Finance pro Monat höchstens verbrauchen?</h3>
+      <p data-context>Eine harte Obergrenze; ist sie erreicht, warten unbekannte Händler einfach in der Prüf-Inbox.</p>
+      <div data-options>
+        <input type="range" name="dm-d-llmbudget" min="0" max="100" step="5" value="100">
+        <span data-opt="low" data-opt-label>5 · erster Monat langsam</span>
+        <span data-opt="rec" data-recommended data-opt-label>20 · komfortabel</span>
+        <span data-opt="high" data-opt-label>100 · Kontingent in Gefahr</span>
+      </div>
+      <textarea data-comment="d-llmbudget-note" placeholder="Notiz (optional)">bitte aber auch auswerten ob die infos z. B. in paypal stehen aber in der kontoabbuchung nicht bevor es an llms z. B. zur Kategorisierung geht</textarea>
+      <input type="hidden" name="dm-d-llmbudget-touched" value="1">
+      <input type="hidden" name="dm-d-llmbudget-issue" value="">
+      <input type="hidden" name="dm-d-llmbudget-epic" value="">
+      <div data-alevel="3" data-title="LLM-Aufruf-Budget">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"≈ 50","unit":"Händler / Aufruf","label":"gebündelt, dauerhaft gecacht"}'></div><p>Ein Aufruf kann ~50 Händler einordnen; jeder Händler wird nur einmal gefragt.</p></div>
+        <div data-slot="long">
+          <div data-viz="compare" data-viz-spec='{"before":{"label":"pro Buchung","value":300},"after":{"label":"pro Händler, gebündelt","value":3},"unit":"Aufrufe / Monat"}'></div>
+          <p>Eine Klassifizierung pro Buchung bräuchte bei ~300 Buchungen im Monat ~300 Aufrufe; Bündelung pro Händler mit dauerhaftem Cache braucht nach dem ersten Monat nur wenige Aufrufe. Die Zahlen sind Schätzungen – zuerst die verschiedenen Händler im Rohdaten-Archiv zählen.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-correct -->
+    <section id="d-correct" data-nav-label="Aus Korrekturen lernen" data-decision="d-correct" data-decision-mode="single"
+             data-label="Korrektur-Reichweite" data-rec="ask"
+             data-rec-why="Die Wahl der Reichweite verhindert, dass das Lernen übergeneralisiert (Amazon, PayPal, REWE führen mehrere Kategorien)."
+             data-applies-to="manuelle Korrekturen, gelernte Regeln" data-finding="f-correct">
+      <p data-applies>Gilt für: manuelle Korrekturen, gelernte Regeln</p>
+      <h3 data-question>Wie weit reicht deine Korrektur, wenn du eine Kategorie änderst?</h3>
+      <p data-context>Jede untersuchte App macht aus einer Korrektur eine Regel; sie unterscheiden sich darin, wie viel sie nachfragen.</p>
+      <div data-options>
+        <label data-opt="ask" data-recommended>
+          <input type="radio" name="dm-d-correct" value="ask" checked>
+          <span data-opt-label>Reichweite anbieten, Händler vorausgewählt</span>
+          <span data-opt-consequence>Ein Tipp: nur diese Buchung · alle dieses Händlers · ein Muster im Verwendungszweck. Die Regel ist sichtbar und lässt sich rückgängig machen.</span>
+        </label>
+        <label data-opt="merchant">
+          <input type="radio" name="dm-d-correct" value="merchant">
+          <span data-opt-label>Immer für den ganzen Händler lernen</span>
+          <span data-opt-consequence>Am schnellsten; falsch bei Amazon, PayPal und Supermärkten, die alles verkaufen.</span>
+        </label>
+        <label data-opt="single">
+          <input type="radio" name="dm-d-correct" value="single">
+          <span data-opt-label>Nur diese Buchung korrigieren</span>
+          <span data-opt-consequence>Nichts wird gelernt; dieselbe Korrektur kommt jeden Monat wieder.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-correct-note" placeholder="Notiz (optional)">Genau und gern auch mit +- abweichungen beim betrag einstellbar, weil z. B. mein vairabler stromtarif immer unterschiedlich hoch ist, auch wenn du es ggf. dann von den anderen daten lernst, mag es in einzelfällen durch betrag und datum (beides mit toleranz) vor allem erkennbar sein. </textarea>
+      <input type="hidden" name="dm-d-correct-touched" value="1">
+      <input type="hidden" name="dm-d-correct-issue" value="">
+      <input type="hidden" name="dm-d-correct-epic" value="">
+      <div data-alevel="3" data-title="Korrektur-Reichweite">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Regel-aus-Korrektur gibt es bei Copilot, Finanzguru, Actual; Actual zeigt die Regel an."}'></div><p>Regel-aus-Korrektur ist Standard; „warum diese Kategorie“ zu zeigen ist selten.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Copilot befördert bei einer falschen Zuordnung den zweitbesten Tipp; Actual lernt automatisch je Zahlungsempfänger und lässt sich abschalten; Lunch-Money-Nutzer beklagen, dass Regeln Aufteilungen überschreiben."}'></div>
+          <p>Copilot, Finanzguru und Actual lernen alle aus Korrekturen; Actual macht die Regel sichtbar und abschaltbar. Nutzer beklagen sich, wenn Regeln Aufteilungen stillschweigend überschreiben (Lunch Money) – daher müssen Nutzerregeln automatische immer schlagen, und eine Korrektur darf verknüpfte Buchungen nie anfassen.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-links -->
+    <section id="d-links" data-nav-label="Buchungs-Verknüpfungen" data-decision="d-links" data-decision-mode="multi"
+             data-label="Erkannte Buchungs-Verknüpfungen" data-rec="transfer paypal duplicate refund merge card"
+             data-rec-why="Jede davon zählt sonst dasselbe Geld doppelt oder zerlegt einen Kauf; alle bleiben sichtbar und lassen sich lösen."
+             data-applies-to="Hauptbuch: Umbuchungs-Detektor, Deduplizierung" data-finding="f-links">
+      <p data-applies>Gilt für: Hauptbuch: Umbuchungs-Detektor, Deduplizierung</p>
+      <h3 data-question>Welche Buchungsbeziehungen soll Finance selbst erkennen?</h3>
+      <p data-context>Verknüpfte Teile bleiben sichtbar, zählen aber nicht als Ausgabe; jede Verknüpfung lässt sich rückgängig machen. Der kaskadierende Umbuchungs- und Erstattungs-Detektor existiert bereits.</p>
+      <div data-options>
+        <label data-opt="transfer" data-recommended><input type="checkbox" name="dm-d-links.transfer" checked><span data-opt-label>Umbuchungen zwischen eigenen Konten</span><span data-opt-consequence>Sicher, wenn die Gegen-IBAN eine von deinen ist.</span></label>
+        <label data-opt="paypal" data-recommended><input type="checkbox" name="dm-d-links.paypal" checked><span data-opt-label>PayPal-Spiegel: Die PayPal-Zeile ist die Ausgabe, die Bankabbuchung die Finanzierung</span><span data-opt-consequence>Der Händler kommt von PayPal; die DKB-Abbuchung zählt nicht mehr doppelt.</span></label>
+        <label data-opt="duplicate" data-recommended><input type="checkbox" name="dm-d-links.duplicate" checked><span data-opt-label>Echte Duplikate (dieselbe Buchung zweimal geliefert)</span><span data-opt-consequence>Wird einmal gezeigt; braucht einen stabilen Buchungs-Fingerprint.</span></label>
+        <label data-opt="refund" data-recommended><input type="checkbox" name="dm-d-links.refund" checked><span data-opt-label>Erstattungen und Stornos gegen das Original verrechnet</span><span data-opt-consequence>Eine zurückgeschickte Bestellung bläht keine Kategorie mehr auf.</span></label>
+        <label data-opt="merge" data-recommended><input type="checkbox" name="dm-d-links.merge" checked><span data-opt-label>Mehrere Buchungen, die ein Kauf sind, als Vorschlag zusammengeführt</span><span data-opt-consequence>Teillieferungen und Teilbelastungen werden zu einer Zeile, die du bestätigst.</span></label>
+        <label data-opt="card" data-recommended><input type="checkbox" name="dm-d-links.card" checked><span data-opt-label>Kreditkarten-Abrechnung vs. ihre Kartenbuchungen</span><span data-opt-consequence>Nur relevant, sobald ein Kartenkonto verknüpft ist.</span></label>
+      </div>
+      <textarea data-comment="d-links-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-links-touched" value="1">
+      <input type="hidden" name="dm-d-links-issue" value="">
+      <input type="hidden" name="dm-d-links-epic" value="">
+      <div data-alevel="3" data-title="Erkannte Buchungs-Verknüpfungen">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"3×","unit":"gezählt","label":"ein Kauf über 39,90 € via PayPal + DKB + Sparkonto, ohne Verknüpfungen"}'></div><p>Ohne Verknüpfungen kann ein PayPal-Kauf dreimal zählen.</p></div>
+        <div data-slot="long">
+          <div data-viz="compare" data-viz-spec='{"before":{"label":"ohne Verknüpfungen","value":3},"after":{"label":"mit Verknüpfungen","value":1},"unit":"× gezählt"}'></div>
+          <p>Das eigene Beispiel des bestehenden Umbuchungs-Detektors: 39,90 € via PayPal, von DKB finanziert, vom Sparkonto aufgefüllt, zählt ohne Verknüpfungen dreimal. Finanzguru-Nutzer beklagen genau übersehene „Übertrag“-Buchungen. Umbuchung muss ein Verknüpfungstyp sein, nie eine Kategorie.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-owner -->
+    <section id="d-owner" data-nav-label="Wem eine Buchung gehört" data-decision="d-owner" data-decision-mode="single"
+             data-label="Eigentümer-Auflösung" data-rec="suggest"
+             data-rec-why="Dein Wunsch (Konten je Person) und die harte Regel (Eigentümerschaft nie vom Abbuchungskonto) passen nur zusammen, wenn das Konto lediglich vorschlägt."
+             data-applies-to="persönlich vs. gemeinsam, harte Regel Plan vs. Ist" data-finding="f-owner">
+      <p data-applies>Gilt für: persönlich vs. gemeinsam, harte Regel Plan vs. Ist</p>
+      <h3 data-question>Wie wird eine Buchung „meine“, „deine“ oder „unsere“?</h3>
+      <p data-context>Du willst Konten einer Person oder beiden zuordnen; CLAUDE.md verbietet, die Eigentümerschaft aus dem belasteten Konto abzuleiten, weil gemeinsame Kosten von persönlichen Konten gezahlt werden und umgekehrt.</p>
+      <div data-options>
+        <label data-opt="suggest" data-recommended>
+          <input type="radio" name="dm-d-owner" value="suggest" checked>
+          <span data-opt-label>Über Planposition, dann Händler auflösen; das Konto nur als Vorschlag</span>
+          <span data-opt-consequence>Eigentümer der Planposition → Händler-/Kategorie-Standard → Prüf-Inbox, wo der Kontoinhaber die vorausgewählte Antwort ist.</span>
+        </label>
+        <label data-opt="account">
+          <input type="radio" name="dm-d-owner" value="account">
+          <span data-opt-label>Standardmäßig das Konto entscheiden lassen</span>
+          <span data-opt-consequence>Keine Rückfragen, bricht aber die harte Regel: Das gemeinsame Netflix von deinem Konto zählt als deins.</span>
+        </label>
+        <label data-opt="manual">
+          <input type="radio" name="dm-d-owner" value="manual">
+          <span data-opt-label>Bei jeder ungeplanten Buchung nachfragen</span>
+          <span data-opt-consequence>Immer richtig, aber viel zu viel Pflegeaufwand.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-owner-note" placeholder="Notiz (optional)">konto ist auf jeden fall person a, b oder gemeinsam zugeordnet! also je konto! achso klar, gemeinsames konto ist der vorschlag und dann die planposition die erkannte kann geändert werden. aber default ist kalar</textarea>
+      <input type="hidden" name="dm-d-owner-touched" value="1">
+      <input type="hidden" name="dm-d-owner-issue" value="">
+      <input type="hidden" name="dm-d-owner-epic" value="">
+      <div data-alevel="3" data-title="Eigentümer-Auflösung">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Monarch: Budgets lassen sich nicht nach Eigentümer aufteilen – die Lücke, die dieses Produkt füllt."}'></div><p>Selbst Monarch kann Budgets nicht nach Eigentümer aufteilen – das ist die Nische dieses Produkts.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Monarch kennzeichnet die Eigentümerschaft je Konto und vererbt sie; Budgets nach Eigentümer sind nicht möglich. Copilot hat geteilte wiederkehrende Rechnungen nur als Feature-Wunsch."}'></div>
+          <p>Monarch vererbt die Eigentümerschaft vom Konto und kann Budgets nicht nach Eigentümer aufteilen; Copilot hat „mein Anteil an einer gemeinsamen Rechnung“ nur als Feature-Wunsch. Eigentümerschaft je Planposition ist genau diese Lücke – das Konto kann dir als Vorschlag trotzdem Klicks sparen.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-inbox -->
+    <section id="d-inbox" data-nav-label="Prüf-Inbox" data-decision="d-inbox" data-decision-mode="single"
+             data-label="Prüf-Inbox" data-rec="capped"
+             data-rec-why="Unsortierte Buchungen dürfen nie eine Zahl blockieren, sonst wird der Wochencheck zur Hausaufgabe und aufgegeben."
+             data-applies-to="Wochencheck, Korrekturen" data-finding="f-inbox">
+      <p data-applies>Gilt für: Wochencheck, Korrekturen</p>
+      <h3 data-question>Wie viel Bestätigungsarbeit verlangt Finance von dir?</h3>
+      <p data-context>Abbruch-Forschung: Tabellen scheitern bei etwa 60–80 Buchungen im Monat an manueller Arbeit oder nach drei Wochen ohne Prüfung.</p>
+      <div data-options>
+        <label data-opt="capped" data-recommended>
+          <input type="radio" name="dm-d-inbox" value="capped" checked>
+          <span data-opt-label>Pro Woche nach den wertvollsten 10 offenen Punkten fragen</span>
+          <span data-opt-consequence>Nach betroffenen Euro gereiht; der Rest bleibt „unsortiert“, und jede Zahl funktioniert weiterhin.</span>
+        </label>
+        <label data-opt="approve">
+          <input type="radio" name="dm-d-inbox" value="approve">
+          <span data-opt-label>Jede neue Buchung bestätigen (YNAB-Stil)</span>
+          <span data-opt-consequence>Volle Kontrolle; der Partner, der aufhört zu bestätigen, bricht es.</span>
+        </label>
+        <label data-opt="none">
+          <input type="radio" name="dm-d-inbox" value="none">
+          <span data-opt-label>Nie fragen, nur auf Wunsch korrigieren</span>
+          <span data-opt-consequence>Null Aufwand; Fehler bleiben unsichtbar.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-inbox-note" placeholder="Notiz (optional)">Ja das ist gut, dabei immer zuerst die klassifizierung mein dein unser (bzw. solltest du auch mehr personen als 2 im haushalt unterstützen) und dann gern klassifizieren machen lassen. Dabei sollten 10 klassifikationeen egal wann durch geführt 1 Punkt geben bei unserem punktesystem für denjenigen der es klassifiziert hat unabhängig davon zu wem und wofür etc. er dies getan hat. diese punkte sollen rein vollautomatisch vergeben werden, aber löschbar durch den der sie bekommen hat, aber nicht auswählbar über buttons</textarea>
+      <input type="hidden" name="dm-d-inbox-touched" value="1">
+      <input type="hidden" name="dm-d-inbox-issue" value="">
+      <input type="hidden" name="dm-d-inbox-epic" value="">
+      <div data-alevel="3" data-title="Prüf-Inbox">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"< 5 %","unit":"nicht zugeordnete €","label":"Ziel nach 2 Monaten"}'></div><p>Ziel: nach zwei Monaten unter 5 % der Monats-Euro nicht zugeordnet.</p></div>
+        <div data-slot="long">
+          <div data-viz="bar" data-viz-spec='{"value":5,"max":100,"unit":"%","label":"nicht zugeordneter Anteil am Monatsvolumen – Ziel der Business-Sicht"}'></div>
+          <p>Die Prüf-Inbox ist das häufigste Muster in den besten Apps (YNAB, Copilot, Monarch). Die Business-Sicht misst Erfolg am noch nicht zugeordneten Euro-Anteil – nicht an der Zahl unbestätigter Buchungen –, daher reiht die Inbox nach Euro.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-restate -->
+    <section id="d-restate" data-nav-label="Vergangene Monate nach Neuaufbau" data-decision="d-restate" data-decision-mode="single"
+             data-label="Rückwirkende Änderung vergangener Monate" data-rec="flag"
+             data-rec-why="Ein Neuaufbau aus den Rohdaten ist ein Feature; ein vergangener Monat, der sich stillschweigend ändert, zerstört Vertrauen."
+             data-applies-to="Neuverarbeitung / PROCESSING_VERSION" data-finding="f-restate">
+      <p data-applies>Gilt für: Neuverarbeitung / PROCESSING_VERSION</p>
+      <h3 data-question>Was passiert mit abgeschlossenen Monaten, wenn bessere Regeln sie neu berechnen?</h3>
+      <p data-context>Das Hauptbuch wird aus den Rohdaten neu aufgebaut, wann immer sich die Verarbeitung ändert; deine Korrekturen bleiben in jedem Fall erhalten.</p>
+      <div data-options>
+        <label data-opt="flag" data-recommended>
+          <input type="radio" name="dm-d-restate" value="flag" checked>
+          <span data-opt-label>Neu berechnen und geänderte Monate mit einem Diff markieren</span>
+          <span data-opt-consequence>„März angepasst: Lebensmittel −12 €“ erscheint in der Prüf-Inbox; du siehst, warum sich Zahlen bewegt haben.</span>
+        </label>
+        <label data-opt="freeze">
+          <input type="radio" name="dm-d-restate" value="freeze">
+          <span data-opt-label>Monate nach Abschluss einfrieren</span>
+          <span data-opt-consequence>Die Vergangenheit ist stabil, aber alte Fehler bleiben für immer.</span>
+        </label>
+        <label data-opt="silent">
+          <input type="radio" name="dm-d-restate" value="silent">
+          <span data-opt-label>Stillschweigend neu berechnen</span>
+          <span data-opt-consequence>Immer die besten Zahlen; die Historie verschiebt sich ohne Hinweis.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-restate-note" placeholder="Notiz (optional)">ja abe rder diff nur als hinweis und eher im log des berichts ;) </textarea>
+      <input type="hidden" name="dm-d-restate-touched" value="1">
+      <input type="hidden" name="dm-d-restate-issue" value="">
+      <input type="hidden" name="dm-d-restate-epic" value="">
+      <div data-alevel="3" data-title="Rückwirkende Änderung vergangener Monate">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"YNAB sperrt abgeglichene Zeiträume; die Tech-Sicht bevorzugt einen sichtbaren Diff."}'></div><p>YNAB sperrt abgeglichene Zeiträume; die Tech-Sicht bevorzugt einen sichtbaren Diff.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Risiko Nr. 2 der Tech-Sicht: sich nach einem Neuaufbau stillschweigend verschiebende Historie. Der YNAB-Abgleich sperrt einen geprüften Zeitraum. Kunden-Sicht: keine stille Neu-Kategorisierung der Historie."}'></div>
+          <p>Die Tech-Sicht führt stillschweigend verschobene Historie als einen von drei Vertrauenskillern; die Kunden-Sicht verbietet stille Neu-Kategorisierung. YNAB antwortet mit einer Sperre, die auch Fehler einfriert. Ein markierter Diff vereint beides: bessere Zahlen und eine Erklärung.</p>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===================== Topic 3: Orientation & goals ===================== -->
+  <section id="t-orient" data-topic data-nav-label="Orientierung &amp; Ziele">
+    <div data-alevel="2" data-title="Orientierung &amp; Ziele">
+      <div data-slot="short">
+        <div data-viz="kpi" data-viz-spec='{"value":"3 257 €","unit":"/ Monat","label":"durchschnittlicher Konsum je deutschem Haushalt (LWR 2024)"}'></div>
+        <p>Benchmarks sind ein Jahreskompass, kein Wochentreiber; Abos und Spar-Hinweise sind das gefundene Geld.</p>
+      </div>
+      <div data-slot="long">
+        <div data-viz="kpi" data-viz-spec='{"value":"3 257 €","unit":"/ Monat","label":"durchschnittlicher Konsum je Haushalt, Destatis LWR 2024 – ein Mittelwert über alle Haushaltstypen"}'></div>
+        <p>Amtliche Daten gibt es nach Haushaltstyp (EVS alle 5 Jahre, zuletzt 2023; LWR dazwischen). Das meiste wird als Mittelwert veröffentlicht; Mediane gibt es vor allem auf der Einkommensseite. Keine untersuchte App vergleicht Haushalte mit amtlicher Statistik – dein Benchmark-Wunsch ist ein echtes Alleinstellungsmerkmal, gehört aber in den Jahresrückblick.</p>
+        <div data-evidence hidden>
+          <h4>Referenzquellen (vor dem Bauen prüfen)</h4>
+          <ul>
+            <li><strong>Deutschland</strong>: Destatis EVS 2023 / LWR 2024, GENESIS-Tabellengruppe 63, nach Haushaltstyp (z. B. Paar ohne Kinder); COICOP-Kategorien; überwiegend Mittelwerte.</li>
+            <li><strong>Rheinland-Pfalz</strong>: Statistisches Landesamt RLP veröffentlicht regionale EVS-Ergebnisse – Detailgrad je Kategorie zu prüfen.</li>
+            <li><strong>Koblenz</strong>: keine Verbrauchsstatistik auf Stadtebene zu erwarten; brauchbare Proxys: Koblenzer Mietspiegel (Miete pro m²), lokaler Grundversorgungs-Stromtarif.</li>
+            <li><strong>Soziale Untergrenze</strong>: Bürgergeld-Regelbedarf 2026 – Stufe 1 563 €, Stufe 2 (Partner) je 506 € (seit 2024 unverändert; prüfen); der Regelbedarf selbst wird aus den EVS-Ausgaben einkommensschwacher Haushalte abgeleitet und ist aufgeschlüsselt (Ernährung, Energie, Freizeit …), was einen Vergleich je Kategorie möglich macht. Miete und Heizung werden separat gezahlt.</li>
+            <li><strong>Einkommensseite</strong>: das mediane äquivalenzgewichtete Nettoeinkommen (Mikrozensus / EU-SILC) ermöglicht über die Äquivalenzskala (1,0 + 0,5) einen fairen Vergleich für einen Zwei-Personen-Haushalt mit einem Einkommen.</li>
+            <li><strong>Strom</strong>: Verbrauch je Haushaltsgröße (z. B. Stromspiegel) und Durchschnittspreis pro kWh – kWh vergleichen, nicht nur Euro.</li>
+          </ul>
+          <p>Business-Sicht: als kleinen statischen, versionierten Datensatz mit Jahrgang ausliefern, nie zur Laufzeit abrufen. Das heutige benchmark.py crawlt zur Laufzeit, was Sicherheitsregel 6 widerspricht.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- d-bench-groups -->
+    <section id="d-bench-groups" data-nav-label="Benchmark-Gruppen" data-decision="d-bench-groups" data-decision-mode="multi"
+             data-label="Benchmark-Gruppen" data-rec="de rlp koblenz social income power"
+             data-rec-why="Für alle sechs gibt es öffentliche Daten; Koblenz nur über Proxys (Miete, lokaler Tarif), was die Fragen, die dich interessieren, trotzdem beantwortet."
+             data-applies-to="Jahresrückblick, Planentwurf" data-finding="f-bench-groups">
+      <p data-applies>Gilt für: Jahresrückblick, Planentwurf</p>
+      <h3 data-question>Mit welchen Referenzhaushalten soll Finance dich vergleichen?</h3>
+      <p data-context>Kein Agent hat regionale oder soziale Referenzen vorgeschlagen – diese stammen aus deiner Liste.</p>
+      <div data-options>
+        <label data-opt="de" data-recommended><input type="checkbox" name="dm-d-bench-groups.de" checked><span data-opt-label>Deutschland, gleicher Haushaltstyp (Paar ohne Kinder)</span><span data-opt-consequence>EVS/LWR je Kategorie; die breiteste, verlässlichste Basis.</span></label>
+        <label data-opt="rlp" data-recommended><input type="checkbox" name="dm-d-bench-groups.rlp" checked><span data-opt-label>Rheinland-Pfalz</span><span data-opt-consequence>Regionale EVS-Ergebnisse; gröbere Kategorien.</span></label>
+        <label data-opt="koblenz" data-recommended><input type="checkbox" name="dm-d-bench-groups.koblenz" checked><span data-opt-label>Koblenz über Proxys (Miete pro m², lokaler Stromtarif)</span><span data-opt-consequence>Keine vollständigen Verbrauchsdaten auf Stadtebene – nur dort, wo es eine lokale Quelle gibt.</span></label>
+        <label data-opt="social" data-recommended><input type="checkbox" name="dm-d-bench-groups.social" checked><span data-opt-label>Bürgergeld-/Grundsicherungs-Regelbedarf als Untergrenze</span><span data-opt-consequence>Je Kategorie: was der Staat für Ernährung, Energie, Freizeit ansetzt vs. was du ausgibst.</span></label>
+        <label data-opt="income" data-recommended><input type="checkbox" name="dm-d-bench-groups.income" checked><span data-opt-label>Einkommensseite, äquivalenzgewichtet (zwei Personen, ein Einkommen)</span><span data-opt-consequence>Das mediane äquivalenzgewichtete Nettoeinkommen macht auch dein Einkommen vergleichbar, nicht nur deine Ausgaben.</span></label>
+        <label data-opt="power" data-recommended><input type="checkbox" name="dm-d-bench-groups.power" checked><span data-opt-label>Strom in kWh und €</span><span data-opt-consequence>Passt zu den HA-Energiedaten – etwas, das keine Finanz-App kann.</span></label>
+      </div>
+      <textarea data-comment="d-bench-groups-note" placeholder="Notiz (optional)">sei mal kreativ, auch fernwämre etc. aber wir wollen in diesem öffentlichen repo das nicht festlegen. Mach lieber deutschland fest, bundesland wählbar. Außerdem beziehe werte wie für energiekosten wie fernwärme etc. auch ein... und auch schulden quote etc.... einfach allles soll vergleichbar sein wenn möglich, miete... frage dazu ind er integration ab (vorausgefüllt durch nutzerstandort) welche plz in deutschland =&gt; daran kannst du die vergleiche ranführen, falls es keine granularen gibt, nehmen wir das höchte. Aber wichtig nur vertrauenswürdige einmal hier im repo festgelegte quellen!</textarea>
+      <input type="hidden" name="dm-d-bench-groups-touched" value="1">
+      <input type="hidden" name="dm-d-bench-groups-issue" value="">
+      <input type="hidden" name="dm-d-bench-groups-epic" value="">
+      <div data-alevel="3" data-title="Benchmark-Gruppen">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"2 × 506 €","unit":"Regelbedarf","label":"Stufe 2, Partner im selben Haushalt (2026, prüfen)"}'></div><p>Die soziale Untergrenze für zwei Partner: 2 × 506 € plus Miete und Heizung.</p></div>
+        <div data-slot="long">
+          <div data-viz="bars" data-viz-spec='{"items":[{"label":"Deutschland (EVS/LWR)","value":3},{"label":"RLP","value":2},{"label":"Einkommen (Mikrozensus)","value":3},{"label":"Bürgergeld","value":3},{"label":"Strom","value":2},{"label":"Koblenz (Proxys)","value":1}],"unit":"Datenqualität (1–3)"}'></div>
+          <p>Deutschland, Einkommen und Bürgergeld haben solide, aufgeschlüsselte Quellen; RLP und Strom sind gröber; Koblenz gibt es nur über Proxys. HA kennt deine kWh bereits – der Stromvergleich ist der eine Benchmark, den nur ein Smart-Home-Produkt liefern kann.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-bench-stat -->
+    <section id="d-bench-stat" data-nav-label="Median oder Mittelwert" data-decision="d-bench-stat" data-decision-mode="single"
+             data-label="Median vs. Mittelwert" data-rec="medianfirst"
+             data-rec-why="Du wolltest Mediane; die meisten Konsumdaten gibt es nur als Mittelwerte, das Label muss also sagen, welcher gezeigt wird."
+             data-applies-to="jede Benchmark-Zahl" data-finding="f-bench-stat">
+      <p data-applies>Gilt für: jede Benchmark-Zahl</p>
+      <h3 data-question>Welche Statistik zeigt ein Benchmark?</h3>
+      <p data-context>Mittelwerte werden von reichen Haushalten nach oben gezogen; amtliche Konsumtabellen sind überwiegend Mittelwerte.</p>
+      <div data-options>
+        <label data-opt="medianfirst" data-recommended>
+          <input type="radio" name="dm-d-bench-stat" value="medianfirst" checked>
+          <span data-opt-label>Den Median zeigen, wo er existiert, sonst den Mittelwert, gekennzeichnet</span>
+          <span data-opt-consequence>Jede Zahl nennt „Median“ oder „Mittelwert“ und ihr Erhebungsjahr.</span>
+        </label>
+        <label data-opt="both">
+          <input type="radio" name="dm-d-bench-stat" value="both">
+          <span data-opt-label>Immer beide zeigen</span>
+          <span data-opt-consequence>Vollständig, aber die meisten Kategorien haben nur einen von beiden.</span>
+        </label>
+        <label data-opt="medianonly">
+          <input type="radio" name="dm-d-bench-stat" value="medianonly">
+          <span data-opt-label>Nur Mediane zeigen, den Rest weglassen</span>
+          <span data-opt-consequence>Statistisch sauber; die meisten Ausgabenkategorien verschwinden.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-bench-stat-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-bench-stat-touched" value="1">
+      <input type="hidden" name="dm-d-bench-stat-issue" value="">
+      <input type="hidden" name="dm-d-bench-stat-epic" value="">
+      <div data-alevel="3" data-title="Median vs. Mittelwert">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Mediane: Einkommensseite (Mikrozensus, EU-SILC). Ausgaben: überwiegend Mittelwerte (EVS/LWR)."}'></div><p>Mediane gibt es für Einkommen; Ausgabentabellen sind überwiegend Mittelwerte.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"EVS/LWR-Konsumtabellen veröffentlichen Durchschnitte je Haushaltstyp; Einkommensstatistiken (Mikrozensus, EU-SILC) veröffentlichen Mediane und Quantile."}'></div>
+          <p>EVS/LWR-Konsumtabellen sind Durchschnitte je Haushaltstyp; Einkommensstatistiken veröffentlichen Mediane und Quantile. Eine gekennzeichnete Mischung ist ehrlich; nur Mediane würden den Großteil der Ausgabenseite verstecken.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-bench-source -->
+    <section id="d-bench-source" data-nav-label="Woher die Benchmark-Daten kommen" data-decision="d-bench-source" data-decision-mode="single"
+             data-label="Benchmark-Datenquelle" data-rec="bundled"
+             data-rec-why="Statistiken ändern sich höchstens jährlich; ein mitgelieferter Datensatz wahrt Sicherheitsregel 6 und funktioniert offline."
+             data-applies-to="benchmark.py, Sicherheitsregel 6" data-finding="f-bench-source">
+      <p data-applies>Gilt für: benchmark.py, Sicherheitsregel 6</p>
+      <h3 data-question>Wie kommen Benchmark-Daten in Finance?</h3>
+      <p data-context>benchmark.py crawlt heute Destatis u. a. zur Laufzeit – entgegen der Regel „keine externen Aufrufe außer Enable Banking“.</p>
+      <div data-options>
+        <label data-opt="bundled" data-recommended>
+          <input type="radio" name="dm-d-bench-source" value="bundled" checked>
+          <span data-opt-label>Mit jedem Release einen versionierten Datensatz ausliefern</span>
+          <span data-opt-consequence>Kein Aufruf zur Laufzeit; aktualisiert, wenn neue Erhebungen erscheinen; jede Zahl zeigt ihren Jahrgang.</span>
+        </label>
+        <label data-opt="crawl">
+          <input type="radio" name="dm-d-bench-source" value="crawl">
+          <span data-opt-label>Weiter zur Laufzeit crawlen und Regel 6 lockern</span>
+          <span data-opt-consequence>Immer aktuell; nur öffentliche Quellen, aber ein zweiter ausgehender Weg, der zu pflegen ist.</span>
+        </label>
+        <label data-opt="import">
+          <input type="radio" name="dm-d-bench-source" value="import">
+          <span data-opt-label>Dich eine Benchmark-Datei manuell importieren lassen</span>
+          <span data-opt-consequence>Volle Kontrolle; in der Praxis selten genutzt.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-bench-source-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-bench-source-touched" value="1">
+      <input type="hidden" name="dm-d-bench-source-issue" value="">
+      <input type="hidden" name="dm-d-bench-source-epic" value="">
+      <div data-alevel="3" data-title="Benchmark-Datenquelle">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"benchmark.py ruft zur Laufzeit per aiohttp ab – steht im Konflikt mit Sicherheitsregel 6."}'></div><p>Der heutige Laufzeit-Crawl steht im Konflikt mit Sicherheitsregel 6.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Business- und Tech-Sicht unabhängig: statischer, versionierter Datensatz; nie zur Laufzeit abrufen. Die EVS erscheint alle 5 Jahre, die LWR jährlich."}'></div>
+          <p>Business- und Tech-Sicht empfehlen unabhängig voneinander einen statischen Datensatz. Die EVS erscheint alle 5 Jahre und die LWR jährlich, ein Laufzeit-Crawl bringt also fast nichts außer einem zweiten ausgehenden Weg in einer Integration auf Bankenniveau.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-subs -->
+    <section id="d-subs" data-nav-label="Abos" data-decision="d-subs" data-decision-mode="multi"
+             data-label="Abo-Funktionen" data-rec="interval missing price plan notice annual"
+             data-rec-why="Wiederkehrendes als Objekt erster Klasse, verknüpft mit einer Planposition, ist die Brücke zwischen Plan und Ist."
+             data-applies-to="recurring.py, Planpositionen" data-finding="f-subs">
+      <p data-applies>Gilt für: recurring.py, Planpositionen</p>
+      <h3 data-question>Was soll ein erkanntes Abo oder ein Vertrag mitbringen?</h3>
+      <p data-context>Heute findet recurring.py nur monatliche Zahlungen (±10 %, ≥ 2 Vorkommen).</p>
+      <div data-options>
+        <label data-opt="interval" data-recommended><input type="checkbox" name="dm-d-subs.interval" checked><span data-opt-label>Jedes Intervall: wöchentlich, monatlich, vierteljährlich, jährlich, alle N Tage</span><span data-opt-consequence>Jahresverträge brauchen ≥ 2 Jahre Historie – das lebenslange Archiv liefert sie.</span></label>
+        <label data-opt="missing" data-recommended><input type="checkbox" name="dm-d-subs.missing" checked><span data-opt-label>Erwartetes Datum und Betrag, mit Status „fehlt“</span><span data-opt-consequence>Ein Gehalt oder eine Miete, die nicht eintrifft, wird sichtbar.</span></label>
+        <label data-opt="price" data-recommended><input type="checkbox" name="dm-d-subs.price" checked><span data-opt-label>Erkennung von Preisänderungen</span><span data-opt-consequence>„Strom +18 €, Plan anpassen?“ – echtes gefundenes Geld.</span></label>
+        <label data-opt="plan" data-recommended><input type="checkbox" name="dm-d-subs.plan" checked><span data-opt-label>Verknüpfung mit einer Planposition (und ihrem Eigentümer)</span><span data-opt-consequence>Plan vs. Ist gleicht sich von selbst ab; neue Serien schlagen einen Planentwurf vor.</span></label>
+        <label data-opt="notice" data-recommended><input type="checkbox" name="dm-d-subs.notice" checked><span data-opt-label>Kündigungsfrist-Erinnerung (von dir eingetragen)</span><span data-opt-consequence>Erinnerung vor Ablauf der Kündigungsfrist, inkl. Sonderkündigungsrecht nach einer Preiserhöhung.</span></label>
+        <label data-opt="annual" data-recommended><input type="checkbox" name="dm-d-subs.annual" checked><span data-opt-label>Jahreskosten-Hochrechnung</span><span data-opt-consequence>„Deine 14 Verträge kosten X € im Jahr“ – der Anker des Jahresrückblicks.</span></label>
+      </div>
+      <textarea data-comment="d-subs-note" placeholder="Notiz (optional)">bei preisänderungen gern einen mechanismus, dass man immer das höchste nimmt, oder den durchschnitt... einstellbar, standard wäre das höchste. Wir brauchen das nicht manuell anpassen macht keinen sinn! Und für die berechnugnen will man pro planposition einen mechanismus bestimmen / ändern können. kündigungsfrist ausgiebig eintragbar und mit standardwerten für kategorien. Dabei gern auch datum start erfassen alles vorausgefüllt wie immer und weil vertragsstart + 1 Jahr minus 30 Tage kündigungsfirst etc... also einheiten auch einstellbar, bitte stark mehrer modelle konfigurierbar. Auch immer relativ zu x y z im Jahr anzeigbar  / als visualisuerngen / diagramme</textarea>
+      <input type="hidden" name="dm-d-subs-touched" value="1">
+      <input type="hidden" name="dm-d-subs-issue" value="">
+      <input type="hidden" name="dm-d-subs-epic" value="">
+      <div data-alevel="3" data-title="Abo-Funktionen">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"1","unit":"Intervall heute","label":"nur monatlich"}'></div><p>Heute werden nur monatliche Serien gefunden.</p></div>
+        <div data-slot="long">
+          <div data-viz="compare" data-viz-spec='{"before":{"label":"Intervalle heute","value":1},"after":{"label":"Intervalle vorgeschlagen","value":5},"unit":""}'></div>
+          <p>Lunch Money markiert einen wiederkehrenden Posten als „fehlt“, wenn sein Datum verstreicht; Finanzguru hat mit dem Vertragsordner samt Fristen-Erinnerungen sein stärkstes Feature. SEPA-Gläubiger-ID und Mandatsreferenz – falls DKB sie liefert – machen die Serienerkennung deutlich verlässlicher; keine untersuchte App nutzt sie.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-savings -->
+    <section id="d-savings" data-nav-label="Spar-Hinweise" data-decision="d-savings" data-decision-mode="single"
+             data-label="Spar-Empfehlungen" data-rec="evidence"
+             data-rec-why="Hinweise, die durch deine eigenen Daten oder einen Benchmark belegt sind, führen zum Handeln; generische Tipps und Schuldgefühle führen zum Stummschalten."
+             data-applies-to="Kategorien, Jahresrückblick, Digest" data-finding="f-savings">
+      <p data-applies>Gilt für: Kategorien, Jahresrückblick, Digest</p>
+      <h3 data-question>Welche Art Spar-Empfehlungen soll Finance geben?</h3>
+      <p data-context>Du wolltest Kategorien, die zeigen, wohin das Geld fließt, mit Spar-Empfehlungen.</p>
+      <div data-options>
+        <label data-opt="evidence" data-recommended>
+          <input type="radio" name="dm-d-savings" value="evidence" checked>
+          <span data-opt-label>Nur belegbare Hinweise geben</span>
+          <span data-opt-consequence>Preiserhöhung, doppeltes Abo, Kategorie über dem Benchmark-Median, ungenutzter Vertrag – jeweils mit Euro-Betrag und Quelle.</span>
+        </label>
+        <label data-opt="coach">
+          <input type="radio" name="dm-d-savings" value="coach">
+          <span data-opt-label>Aktiv mit Sparzielen coachen</span>
+          <span data-opt-consequence>Schlägt Kategorie-Kürzungen und Ziele vor; riskiert einen belehrenden Ton zwischen den Partnern.</span>
+        </label>
+        <label data-opt="none">
+          <input type="radio" name="dm-d-savings" value="none">
+          <span data-opt-label>Nur die Flüsse zeigen, keine Empfehlungen</span>
+          <span data-opt-consequence>Neutral; die Schlüsse zieht ihr selbst.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-savings-note" placeholder="Notiz (optional)">aktive sparziele selbst festgelegt oder dynamisch einstellbar gern durch den user. Generell sollte es ein tutgorial am anfang gbenen wo man die einstellungen anpassen kann durchgeführt, wie ein wizard - wenn dieser noch kkein mal durchgefüphrt wurde vollständig! 
+Aktiv mit sparzielen gern auch möglich aber dann neutral für das was der jenige gerade sieht, nicht auf personen gemünzt
+</textarea>
+      <input type="hidden" name="dm-d-savings-touched" value="1">
+      <input type="hidden" name="dm-d-savings-issue" value="">
+      <input type="hidden" name="dm-d-savings-epic" value="">
+      <div data-alevel="3" data-title="Spar-Empfehlungen">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Nur gefundenes Geld zählen, auf das jemand reagiert hat (Kennzahl der Business-Sicht)."}'></div><p>Erfolg = Euro, die eingespart wurden, weil jemand gehandelt hat.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Finanzguru-Spartipps sind provisionsgetrieben (Bewertungen). Kunden-Sicht: kein Schuldton gegenüber dem Partner. Business-Sicht: gefundenes Geld nur zählen, wenn gehandelt wurde."}'></div>
+          <p>Die Tipps von Finanzguru werden als provisionsgetrieben kritisiert; die Kunden-Sicht verbietet einen Schuldton gegenüber den Ausgaben des Partners. Die Business-Sicht misst „gefundenes Geld“ nur, wenn jemand gehandelt hat – belegbare Hinweise sind die Variante, die diesen Test übersteht.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- d-reserves -->
+    <section id="d-reserves" data-nav-label="Rücklagen für Jahreskosten" data-decision="d-reserves" data-decision-mode="yesnoalt"
+             data-label="Rücklagen" data-rec="yes"
+             data-rec-why="Jeder deutsche Haushaltsbuch-Ratgeber verlangt die Zeile für unregelmäßige Zahlungen; ohne sie lügt die Zahl „frei verfügbar“ in den Monaten vor einer Jahresrechnung."
+             data-applies-to="Planpositionen, frei verfügbar" data-finding="f-reserves">
+      <p data-applies>Gilt für: Planpositionen, frei verfügbar</p>
+      <h3 data-question>Sollen jährliche und unregelmäßige Kosten als monatliche Rücklage im Plan erscheinen?</h3>
+      <p data-context>Der Plan kennt bereits eine Positionsart „Puffer“; erkannte Jahresserien könnten sie füllen.</p>
+      <div data-options>
+        <label data-opt="yes" data-recommended>
+          <input type="radio" name="dm-d-reserves" value="yes" checked>
+          <span data-opt-label>Ja, als Monatsrücklage einplanen</span>
+          <span data-opt-consequence>Kfz-Versicherung 600 €/Jahr wird zu 50 €/Monat; die Jahresabbuchung sprengt keinen Monat mehr.</span>
+        </label>
+        <label data-opt="no">
+          <input type="radio" name="dm-d-reserves" value="no">
+          <span data-opt-label>Nein, im Fälligkeitsmonat zählen</span>
+          <span data-opt-consequence>Einfacherer Plan; Monate mit Jahresrechnungen sehen wie eine Katastrophe aus.</span>
+        </label>
+        <label data-opt="alt">
+          <input type="radio" name="dm-d-reserves" value="alt">
+          <span data-opt-label>Anders …</span>
+          <span data-opt-consequence>Beschreibe deinen eigenen Ansatz.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-d-reserves-alt" placeholder="Was stattdessen?" value="">
+      <textarea data-comment="d-reserves-note" placeholder="Notiz (optional)">Ja genau,, aber auch tracken wenn dann doch zu wenig rücklage auf dem konto ist (mehrere rücklagen können auch ad-hoc monatsausgaben finanzieren) und manuell aufgefüllt werdne muss </textarea>
+      <input type="hidden" name="dm-d-reserves-touched" value="1">
+      <input type="hidden" name="dm-d-reserves-issue" value="">
+      <input type="hidden" name="dm-d-reserves-epic" value="">
+      <div data-alevel="3" data-title="Rücklagen">
+        <div data-slot="short"><div data-viz="compare" data-viz-spec='{"before":{"label":"einmal im Jahr","value":600},"after":{"label":"pro Monat","value":50},"unit":"€"}'></div><p>Eine Jahresrechnung von 600 € wird zu gleichmäßigen 50 € im Monat.</p></div>
+        <div data-slot="long">
+          <div data-viz="compare" data-viz-spec='{"before":{"label":"einmal im Jahr abgebucht","value":600},"after":{"label":"pro Monat zurückgelegt","value":50},"unit":"€"}'></div>
+          <p>Haushaltsbuch-Ratgeber und kostenpflichtige Sheets-Vorlagen führen beide eine Rücklagen-Zeile; YNAB und Monarch (nicht-monatlich flexibel) machen dasselbe. Die Beispielbeträge sind illustrativ, nicht deine Daten.</p>
+        </div>
+      </div>
+    </section>
+  </section>
+</section>

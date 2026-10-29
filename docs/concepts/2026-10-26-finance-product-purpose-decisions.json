@@ -1,0 +1,540 @@
+[
+ {
+  "iteration": 1,
+  "action": "iterate",
+  "decisions": [
+   {
+    "id": "d-wishes",
+    "label": "Wunsch-Zusammenfassung",
+    "mode": "verify",
+    "value": "ok",
+    "rec": "ok",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": ""
+   },
+   {
+    "id": "d-front",
+    "label": "Eingangsfrage",
+    "mode": "single",
+    "value": "onplan",
+    "rec": "onplan",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "d-rhythm",
+    "label": "Steuerungszeitraum",
+    "mode": "single",
+    "value": "salary",
+    "rec": "monthweek",
+    "deviates": true,
+    "untouched": false,
+    "note": "genau wobei woche widerum die kalenderowche ist",
+    "fix": null
+   },
+   {
+    "id": "d-headline",
+    "label": "Zahl „frei verfügbar“",
+    "mode": "single",
+    "value": "planrest",
+    "rec": "planrest",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "d-scope",
+    "label": "Rhythmen im Umfang",
+    "mode": "multi",
+    "value": [
+     "glance",
+     "week",
+     "month",
+     "year",
+     "event"
+    ],
+    "rec": "glance week month year event",
+    "deviates": false,
+    "untouched": false,
+    "note": "wöchentlicher check ist für mich auch das thema unseres punkte budgets...",
+    "fix": null
+   },
+   {
+    "id": "d-notify",
+    "label": "Benachrichtigungs-Regel",
+    "mode": "single",
+    "value": "exceptions",
+    "rec": "exceptions",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "d-privacy",
+    "label": "Privatsphäre zwischen Partnern",
+    "mode": "single",
+    "value": "sharedfull",
+    "rec": "sharedfull",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "d-categorize",
+    "label": "Kategorisierungs-Engine",
+    "mode": "single",
+    "value": "tail",
+    "rec": "tail",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "d-llmbudget",
+    "label": "LLM-Aufruf-Budget",
+    "mode": "slider",
+    "value": 100,
+    "rec": "20",
+    "deviates": true,
+    "untouched": false,
+    "note": "bitte aber auch auswerten ob die infos z. B. in paypal stehen aber in der kontoabbuchung nicht bevor es an llms z. B. zur Kategorisierung geht",
+    "fix": null
+   },
+   {
+    "id": "d-correct",
+    "label": "Korrektur-Reichweite",
+    "mode": "single",
+    "value": "ask",
+    "rec": "ask",
+    "deviates": false,
+    "untouched": false,
+    "note": "Genau und gern auch mit +- abweichungen beim betrag einstellbar, weil z. B. mein vairabler stromtarif immer unterschiedlich hoch ist, auch wenn du es ggf. dann von den anderen daten lernst, mag es in einzelfällen durch betrag und datum (beides mit toleranz) vor allem erkennbar sein.",
+    "fix": null
+   },
+   {
+    "id": "d-links",
+    "label": "Erkannte Buchungs-Verknüpfungen",
+    "mode": "multi",
+    "value": [
+     "transfer",
+     "paypal",
+     "duplicate",
+     "refund",
+     "merge",
+     "card"
+    ],
+    "rec": "transfer paypal duplicate refund merge card",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "d-owner",
+    "label": "Eigentümer-Auflösung",
+    "mode": "single",
+    "value": "suggest",
+    "rec": "suggest",
+    "deviates": false,
+    "untouched": false,
+    "note": "konto ist auf jeden fall person a, b oder gemeinsam zugeordnet! also je konto! achso klar, gemeinsames konto ist der vorschlag und dann die planposition die erkannte kann geändert werden. aber default ist kalar",
+    "fix": null
+   },
+   {
+    "id": "d-inbox",
+    "label": "Prüf-Inbox",
+    "mode": "single",
+    "value": "capped",
+    "rec": "capped",
+    "deviates": false,
+    "untouched": false,
+    "note": "Ja das ist gut, dabei immer zuerst die klassifizierung mein dein unser (bzw. solltest du auch mehr personen als 2 im haushalt unterstützen) und dann gern klassifizieren machen lassen. Dabei sollten 10 klassifikationeen egal wann durch geführt 1 Punkt geben bei unserem punktesystem für denjenigen der es klassifiziert hat unabhängig davon zu wem und wofür etc. er dies getan hat. diese punkte sollen rein vollautomatisch vergeben werden, aber löschbar durch den der sie bekommen hat, aber nicht auswählbar über buttons",
+    "fix": null
+   },
+   {
+    "id": "d-restate",
+    "label": "Rückwirkende Änderung vergangener Monate",
+    "mode": "single",
+    "value": "flag",
+    "rec": "flag",
+    "deviates": false,
+    "untouched": false,
+    "note": "ja abe rder diff nur als hinweis und eher im log des berichts ;)",
+    "fix": null
+   },
+   {
+    "id": "d-bench-groups",
+    "label": "Benchmark-Gruppen",
+    "mode": "multi",
+    "value": [
+     "de",
+     "rlp",
+     "koblenz",
+     "social",
+     "income",
+     "power"
+    ],
+    "rec": "de rlp koblenz social income power",
+    "deviates": false,
+    "untouched": false,
+    "note": "sei mal kreativ, auch fernwämre etc. aber wir wollen in diesem öffentlichen repo das nicht festlegen. Mach lieber deutschland fest, bundesland wählbar. Außerdem beziehe werte wie für energiekosten wie fernwärme etc. auch ein... und auch schulden quote etc.... einfach allles soll vergleichbar sein wenn möglich, miete... frage dazu ind er integration ab (vorausgefüllt durch nutzerstandort) welche plz in deutschland => daran kannst du die vergleiche ranführen, falls es keine granularen gibt, nehmen wir das höchte. Aber wichtig nur vertrauenswürdige einmal hier im repo festgelegte quellen!",
+    "fix": null
+   },
+   {
+    "id": "d-bench-stat",
+    "label": "Median vs. Mittelwert",
+    "mode": "single",
+    "value": "medianfirst",
+    "rec": "medianfirst",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "d-bench-source",
+    "label": "Benchmark-Datenquelle",
+    "mode": "single",
+    "value": "bundled",
+    "rec": "bundled",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "d-subs",
+    "label": "Abo-Funktionen",
+    "mode": "multi",
+    "value": [
+     "interval",
+     "missing",
+     "price",
+     "plan",
+     "notice",
+     "annual"
+    ],
+    "rec": "interval missing price plan notice annual",
+    "deviates": false,
+    "untouched": false,
+    "note": "bei preisänderungen gern einen mechanismus, dass man immer das höchste nimmt, oder den durchschnitt... einstellbar, standard wäre das höchste. Wir brauchen das nicht manuell anpassen macht keinen sinn! Und für die berechnugnen will man pro planposition einen mechanismus bestimmen / ändern können. kündigungsfrist ausgiebig eintragbar und mit standardwerten für kategorien. Dabei gern auch datum start erfassen alles vorausgefüllt wie immer und weil vertragsstart + 1 Jahr minus 30 Tage kündigungsfirst etc... also einheiten auch einstellbar, bitte stark mehrer modelle konfigurierbar. Auch immer relativ zu x y z im Jahr anzeigbar  / als visualisuerngen / diagramme",
+    "fix": null
+   },
+   {
+    "id": "d-savings",
+    "label": "Spar-Empfehlungen",
+    "mode": "single",
+    "value": "evidence",
+    "rec": "evidence",
+    "deviates": false,
+    "untouched": false,
+    "note": "aktive sparziele selbst festgelegt oder dynamisch einstellbar gern durch den user. Generell sollte es ein tutgorial am anfang gbenen wo man die einstellungen anpassen kann durchgeführt, wie ein wizard - wenn dieser noch kkein mal durchgefüphrt wurde vollständig! \nAktiv mit sparzielen gern auch möglich aber dann neutral für das was der jenige gerade sieht, nicht auf personen gemünzt",
+    "fix": null
+   },
+   {
+    "id": "d-reserves",
+    "label": "Rücklagen",
+    "mode": "yesnoalt",
+    "value": {
+     "answer": "yes",
+     "alt": ""
+    },
+    "rec": "yes",
+    "deviates": false,
+    "untouched": false,
+    "note": "Ja genau,, aber auch tracken wenn dann doch zu wenig rücklage auf dem konto ist (mehrere rücklagen können auch ad-hoc monatsausgaben finanzieren) und manuell aufgefüllt werdne muss",
+    "fix": null
+   }
+  ]
+ },
+ {
+  "iteration": 2,
+  "action": "iterate",
+  "decisions": [
+   {
+    "id": "r2-points",
+    "label": "Anbindung Punktesystem",
+    "mode": "single",
+    "value": "event",
+    "rec": "event",
+    "deviates": false,
+    "untouched": false,
+    "note": "gut dcie readme ebschreiben und ein web handbuch zu dem ganzen!",
+    "fix": null
+   },
+   {
+    "id": "r2-points-count",
+    "label": "Zählweise für Punkte",
+    "mode": "single",
+    "value": "answer",
+    "rec": "answer",
+    "deviates": false,
+    "untouched": false,
+    "note": "ok, dann aber lieber 30 stück machen, das heißt ja 15 buchungen am ende zählen ein punkt - nicht jede von den 30 beantworteten fragen!",
+    "fix": null
+   },
+   {
+    "id": "r2-points-budget",
+    "label": "Punkte-Budget",
+    "mode": "verify",
+    "value": "partial",
+    "rec": "ok",
+    "deviates": true,
+    "untouched": false,
+    "note": "",
+    "fix": "wir halten den separat und du merkst ja wenn es buchungen gibt mit bestimmten verwendungszweck... das ist ja auch nru eine buchungsklasse ;)"
+   },
+   {
+    "id": "r2-persons",
+    "label": "Personen im Haushalt",
+    "mode": "yesnoalt",
+    "value": {
+     "answer": "yes",
+     "alt": ""
+    },
+    "rec": "yes",
+    "deviates": false,
+    "untouched": false,
+    "note": "ja, wobei für 2 personen optimal angezeigt, mehr aber möglich",
+    "fix": null
+   },
+   {
+    "id": "r2-weeks",
+    "label": "Kalenderwoche über den Gehaltstag",
+    "mode": "single",
+    "value": "split",
+    "rec": "split",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "r2-wizard",
+    "label": "Schritte des Einrichtungs-Assistenten",
+    "mode": "multi",
+    "value": [
+     "personen",
+     "konten",
+     "ort",
+     "zyklus",
+     "plan",
+     "benachrichtigung",
+     "llm",
+     "ziele",
+     "punkte"
+    ],
+    "rec": "personen konten ort zyklus plan benachrichtigung llm ziele punkte",
+    "deviates": false,
+    "untouched": false,
+    "note": "ki nur bestimte unterstützen. wenns geht über home assistant funktionen, wenn nicht dann extra eintragbar z. B. grohk oder claudeoder chatgpt api key!",
+    "fix": null
+   },
+   {
+    "id": "r2-owner-rule",
+    "label": "Eigentümer-Regel",
+    "mode": "verify",
+    "value": "ok",
+    "rec": "ok",
+    "deviates": false,
+    "untouched": false,
+    "note": "genau wobei ich es überschreiben kann als regel für diese buchungen dike gggf. regelmäßig kommen!",
+    "fix": ""
+   },
+   {
+    "id": "r2-paypal-first",
+    "label": "PayPal-Details vor der KI",
+    "mode": "yesnoalt",
+    "value": {
+     "answer": "yes",
+     "alt": ""
+    },
+    "rec": "yes",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "r2-tolerance-amount",
+    "label": "Betrags-Toleranz",
+    "mode": "slider",
+    "value": 20,
+    "rec": "20",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "r2-tolerance-date",
+    "label": "Datums-Toleranz",
+    "mode": "slider",
+    "value": 5,
+    "rec": "3",
+    "deviates": true,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "r2-bench-dims",
+    "label": "Vergleichsdimensionen",
+    "mode": "multi",
+    "value": [
+     "miete",
+     "strom",
+     "waerme",
+     "lebensmittel",
+     "mobil",
+     "versicherung",
+     "kommunikation",
+     "schulden",
+     "sparen",
+     "einkommen",
+     "sozial"
+    ],
+    "rec": "miete strom waerme lebensmittel mobil versicherung kommunikation schulden sparen einkommen sozial",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "r2-bench-region",
+    "label": "Regionsmodell",
+    "mode": "verify",
+    "value": "ok",
+    "rec": "ok",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": ""
+   },
+   {
+    "id": "r2-bench-sources",
+    "label": "Quellen-Regel",
+    "mode": "single",
+    "value": "allowlist",
+    "rec": "allowlist",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "r2-price-mech",
+    "label": "Betrags-Mechanismus",
+    "mode": "single",
+    "value": "max",
+    "rec": "max",
+    "deviates": false,
+    "untouched": false,
+    "note": "aber durch den nutzer zu den jeweiligen anpassbar oder einen fixen wert! je nach planposition mag es auch anders sein, aber über die intervalle hinweg immer gleich!",
+    "fix": null
+   },
+   {
+    "id": "r2-contract-model",
+    "label": "Vertragsmodell",
+    "mode": "multi",
+    "value": [
+     "start",
+     "laufzeit",
+     "verlaengerung",
+     "frist",
+     "standard",
+     "sonder",
+     "erinnerung"
+    ],
+    "rec": "start laufzeit verlaengerung frist standard sonder erinnerung",
+    "deviates": false,
+    "untouched": false,
+    "note": "ja aber nur preiserhöhungen sonderkündigung wenn das nicht vertragsimplizit ist, dafür ggf. eine checkboxl,die vorausgefüllt ist je nachdem was für ein patten erkannt wurde (gleichmäßige zahlungen vs immer unterschiedlich in 2 von drei fällen mindestens!",
+    "fix": null
+   },
+   {
+    "id": "r2-goals",
+    "label": "Arten von Sparzielen",
+    "mode": "multi",
+    "value": [
+     "betrag",
+     "deckel",
+     "quote",
+     "ruecklage",
+     "dynamisch"
+    ],
+    "rec": "betrag deckel quote ruecklage dynamisch",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "r2-reserve-home",
+    "label": "Ort der Rücklagen",
+    "mode": "single",
+    "value": "virtual",
+    "rec": "virtual",
+    "deviates": false,
+    "untouched": false,
+    "note": "gern kann man konten als sparkonten markieren, aber ansonsten kann man virtuelle töpfe erstellen die sich so anfühlen wie separate konten aber eigentlich nur ein konto sind, die sollen das volle funktionsset haben und ausweichsweise kann man auch weider auf das ursprungskonto gehen aber man kann es für die normale ansicht sozusagen virutell aufsplitten, dabei muss natürlich alle töpfe zusammen immer die reale positon im konto abdecken auf der soll und haben seite",
+    "fix": null
+   }
+  ]
+ },
+ {
+  "iteration": 3,
+  "action": "implement",
+  "decisions": [
+   {
+    "id": "r3-c-concept",
+    "label": "Konzept stimmt?",
+    "mode": "verify",
+    "value": "ok",
+    "rec": "ok",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": ""
+   },
+   {
+    "id": "r3-c-rules",
+    "label": "Projektregeln umformulieren?",
+    "mode": "yesnoalt",
+    "value": {
+     "answer": "yes",
+     "alt": ""
+    },
+    "rec": "yes",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   },
+   {
+    "id": "r3-c-docs",
+    "label": "Was ins Repo?",
+    "mode": "multi",
+    "value": [
+     "konzept",
+     "roadmap",
+     "visual",
+     "handbuch"
+    ],
+    "rec": "konzept roadmap visual handbuch",
+    "deviates": false,
+    "untouched": false,
+    "note": "",
+    "fix": null
+   }
+  ]
+ }
+]

@@ -1,0 +1,732 @@
+<section data-iteration="2" data-iteration-template="decision" data-analysis="full" data-baked>
+  <script type="application/json" data-frozen-feedback>{"general":{"text":"","attachments":[]}}</script>
+
+  <section id="r2-briefing" data-analysis-briefing data-nav-label="Briefing">
+    <p data-briefing-what>Runde 1 steht: Finance beantwortet zuerst „Liegen wir im Plan – und was ist zu tun?“ – jetzt kommen die Details aus deinen Notizen.</p>
+    <p data-briefing-why>Deine Notizen haben neue Fragen geöffnet (Punkte, Toleranzen, Verträge, Rücklagen); ohne Antwort darauf kann die Visual-Runde nichts Belastbares zeichnen.</p>
+    <div data-briefing-potential data-viz="kpi" data-viz-spec='{"value":"20 / 20","unit":"entschieden","label":"11 Notizen → 17 Folgefragen"}'>20 / 20 entschieden</div>
+    <a data-briefing-topic="r2-t-household" data-share="35">Haushalt &amp; Rhythmus</a>
+    <a data-briefing-topic="r2-t-data" data-share="24">Daten &amp; Erkennung</a>
+    <a data-briefing-topic="r2-t-compare" data-share="41">Vergleich, Verträge, Ziele</a>
+    <p data-briefing-duration>≈ 10 Min.</p>
+
+    <div data-alevel="1" data-title="Briefing">
+      <div data-slot="short">
+        <div data-viz="kpi" data-viz-spec='{"value":"20 / 20","unit":"entschieden","label":"Runde 1 komplett; nur Folgefragen aus deinen Notizen"}'></div>
+        <p>Runde 1 ist komplett entschieden; hier wird nichts davon neu gefragt, nur was deine Notizen geöffnet haben.</p>
+      </div>
+      <div data-slot="long">
+        <div data-viz="bars" data-viz-spec='{"items":[{"label":"Haushalt &amp; Rhythmus","value":6},{"label":"Daten &amp; Erkennung","value":4},{"label":"Vergleich, Verträge, Ziele","value":7}],"unit":"Folgefragen"}'></div>
+        <p>Alle 20 Entscheidungen aus Runde 1 gelten (Liste unter „Belege“). Deine 11 Notizen öffnen 17 Folgefragen in drei Themenfeldern. Die meisten betreffen Vergleich, Verträge und Ziele – dort hast du am meisten ergänzt (Fernwärme, Schuldenquote, PLZ, Kündigungsmodelle).</p>
+        <div data-evidence hidden>
+          <h4>Entschieden in Runde 1 (gilt, wird nicht neu gefragt)</h4>
+          <ul>
+            <li>Wunsch-Zusammenfassung: stimmt.</li>
+            <li>Eingangsfrage: „Liegen wir im Plan – und was ist zu tun?“</li>
+            <li>Planung im <strong>Gehaltszyklus</strong>, Steuerung pro <strong>Kalenderwoche</strong> (deine Notiz: „genau wobei woche wiederum die kalenderwoche ist“).</li>
+            <li>Frei verfügbar = verbleibendes variables Plan-Budget.</li>
+            <li>Rhythmen: Kurzblick, Woche, Monat, Jahr, Ereignis (keine Sprache, kein Steuerexport).</li>
+            <li>Benachrichtigung: nur Ausnahmen + Wochen-Digest.</li>
+            <li>Privatsphäre: Gemeinsames + Plan voll, persönliche Konten als Summen.</li>
+            <li>Kategorisierung: lokal lernen, KI nur für unbekannte Händler; <strong>KI-Budget 100 Aufrufe/Monat</strong> (du hast den Regler aufs Maximum gestellt).</li>
+            <li>Korrektur-Reichweite: anbieten, Händler vorausgewählt.</li>
+            <li>Verknüpfungen: alle 6 (Umbuchung, PayPal-Spiegel, Duplikat, Erstattung, Teilbuchungen zusammenführen, Kreditkarte).</li>
+            <li>Prüf-Inbox: max. 10 wertvollste Punkte pro Woche.</li>
+            <li>Neuberechnung: ja, der Diff aber nur als Hinweis im Log des Berichts.</li>
+            <li>Vergleichsgruppen: alle 6; Median wo vorhanden; Datensatz gebündelt im Release (kein Abruf zur Laufzeit).</li>
+            <li>Abos: alle 6 Merkmale. Spar-Hinweise: belegt. Rücklagen: ja.</li>
+          </ul>
+          <h4>Deine Notizen und wo sie beantwortet werden</h4>
+          <ul>
+            <li>Steuerungszeitraum („woche … ist die kalenderwoche“) → Kalenderwoche über den Gehaltstag (r2-weeks).</li>
+            <li>Rhythmen („wöchentlicher check … punkte budgets“) → Punkte-Budget prüfen (r2-points-budget).</li>
+            <li>KI-Budget („zuerst auswerten, ob die infos in paypal stehen“) → PayPal zuerst (r2-paypal-first).</li>
+            <li>Korrekturen („+- abweichungen beim betrag … betrag und datum mit toleranz“) → Betrags- und Datumstoleranz (r2-tolerance-amount, r2-tolerance-date).</li>
+            <li>Eigentümer („konto ist person a, b oder gemeinsam zugeordnet“) → Eigentümer-Regel (r2-owner-rule).</li>
+            <li>Prüf-Inbox („zuerst mein dein unser … mehr als 2 personen … 10 klassifikationen = 1 punkt“) → Personen, Punktesystem, Zählweise (r2-persons, r2-points, r2-points-count).</li>
+            <li>Neuberechnung („diff nur als hinweis im log des berichts“) → entschieden, umgesetzt wie notiert (Themenfeld Daten &amp; Erkennung).</li>
+            <li>Vergleichsgruppen („fernwärme, schuldenquote, miete … plz … nur vertrauenswürdige quellen“) → Dimensionen, Regionsmodell, Quellen (r2-bench-dims, r2-bench-region, r2-bench-sources).</li>
+            <li>Abos („immer das höchste oder durchschnitt … pro planposition … kündigungsfrist mit standardwerten und einheiten“) → Preismechanismus, Vertragsmodell (r2-price-mech, r2-contract-model).</li>
+            <li>Spar-Hinweise („sparziele selbst oder dynamisch … wizard … neutral, nicht auf personen gemünzt“) → Sparziele, Einrichtungs-Assistent (r2-goals, r2-wizard).</li>
+            <li>Rücklagen („tracken, wenn zu wenig rücklage auf dem konto … manuell auffüllen“) → Wo die Rücklagen liegen (r2-reserve-home).</li>
+          </ul>
+          <h4>Für die Visual-/Mobile-Runde</h4>
+          <ul>
+            <li>Verträge/Abos „relativ zu x y z im Jahr“ anzeigbar, als Diagramme (deine Abo-Notiz).</li>
+            <li>Einrichtungs-Assistent als geführter Flow.</li>
+            <li>Punkte im Wochen-Check sichtbar.</li>
+            <li>Formfaktoren: Handy, Wand-Tablet, HA-Dashboard-Karte, Desktop-Panel.</li>
+          </ul>
+          <h4>Rahmen</h4>
+          <p>Es gelten die harten Projektregeln: keine Finanzdaten im Git, Plan und Ist getrennt, max. 4 Hintergrund-Abrufe pro Tag, IBAN als Konto-Identität. Sicherheitsregel 6 (keine externen Aufrufe außer Enable Banking) wird für die in Runde 1 entschiedene Opt-in-KI umformuliert; Vergleichsdaten kommen gebündelt mit dem Release. Das Repo ist öffentlich: nichts Ortsspezifisches wird festgeschrieben. Alle Beispielzahlen auf dieser Seite sind illustrativ, keine Haushaltsdaten.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== Topic 1: Haushalt & Rhythmus ===================== -->
+  <section id="r2-t-household" data-topic data-nav-label="Haushalt &amp; Rhythmus">
+    <div data-alevel="2" data-title="Haushalt &amp; Rhythmus">
+      <div data-slot="short">
+        <div data-viz="kpi" data-viz-spec='{"value":"1 Woche","unit":"= 1 Kalenderwoche","label":"Wochen-Check mit Besitzer, Kategorie und Punkten"}'></div>
+        <p>Finance läuft im Kalenderwochen-Takt eures Haushalts mit – inklusive eures Punktesystems.</p>
+      </div>
+      <div data-slot="long">
+        <div data-viz="flow" data-viz-spec='{"steps":[{"label":"Besitzer","value":"mein / dein / unser – zuerst"},{"label":"Kategorie","value":"danach einordnen"},{"label":"Punkte","value":"10 Einordnungen = 1 Punkt"},{"label":"Digest","value":"Kalenderwoche, Plan im Gehaltszyklus"}]}'></div>
+        <p>Die Prüf-Inbox fragt immer zuerst, wem eine Buchung gehört, und erst danach die Kategorie – so wie du es notiert hast. Wer einordnet, sammelt automatisch Punkte für euer bestehendes Punktesystem. Offen ist, wie Finance daran andockt, wie eine Kalenderwoche über den Gehaltstag gezählt wird und was der Einrichtungs-Assistent abfragt.</p>
+      </div>
+    </div>
+
+    <!-- r2-points -->
+    <section id="r2-points" data-nav-label="Anbindung Punktesystem" data-decision="r2-points" data-decision-mode="single"
+             data-label="Anbindung Punktesystem" data-rec="event"
+             data-rec-why="Lose Kopplung funktioniert mit jedem Punktesystem, auch wenn sich eures ändert; Finance muss nichts über dessen Innenleben wissen."
+             data-applies-to="Prüf-Inbox, Punkte, HA-Events" data-finding="r2-f-points">
+      <p data-applies>Gilt für: Prüf-Inbox, Punkte, HA-Events</p>
+      <h3 data-question>Wie hängt Finance an euer Punktesystem an?</h3>
+      <p data-context>Euer Punktesystem liegt weder in diesem Repo noch in den benachbarten HA-Repos – Finance muss also mit ihm sprechen, statt es zu kennen.</p>
+      <div data-options>
+        <label data-opt="event" data-recommended>
+          <input type="radio" name="dm-r2-points" value="event" checked>
+          <span data-opt-label>Ein HA-Event feuern / einen Zähler-Helper erhöhen, euer System verbucht</span>
+          <span data-opt-consequence>Lose Kopplung: Finance meldet „Person X hat 10 Einordnungen erreicht“, eine Automation eures Systems vergibt den Punkt.</span>
+        </label>
+        <label data-opt="own">
+          <input type="radio" name="dm-r2-points" value="own">
+          <span data-opt-label>Punkte selbst in Finance führen (eigener Sensor je Person)</span>
+          <span data-opt-consequence>Kein Fremdsystem nötig, aber zwei Punktestände im Haus, die ihr zusammenrechnen müsst.</span>
+        </label>
+        <label data-opt="service">
+          <input type="radio" name="dm-r2-points" value="service">
+          <span data-opt-label>Einen Dienst eures Punktesystems aufrufen (Name eintragbar)</span>
+          <span data-opt-consequence>Direkt verbucht, aber Finance bricht, sobald sich der Dienstname oder seine Parameter ändern.</span>
+        </label>
+        <label data-opt="other">
+          <input type="radio" name="dm-r2-points" value="other">
+          <span data-opt-label>Keine davon / anders …</span>
+          <span data-opt-consequence>Notiz ist dann Pflicht.</span>
+        </label>
+      </div>
+      <textarea data-comment="r2-points-note" placeholder="Notiz (optional)">gut dcie readme ebschreiben und ein web handbuch zu dem ganzen!</textarea>
+      <input type="hidden" name="dm-r2-points-touched" value="1">
+      <input type="hidden" name="dm-r2-points-issue" value="">
+      <input type="hidden" name="dm-r2-points-epic" value="">
+      <div data-alevel="3" data-title="Anbindung Punktesystem">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Punktesystem in keinem Repo gefunden – Finance muss sich anbinden, nicht einbauen."}'></div><p>Das Punktesystem liegt außerhalb von Finance; die Anbindung entscheidet, wie fest beide verkoppelt sind.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Punktesystem in keinem Repo gefunden; Regel aus deiner Notiz: 10 Klassifizierungen = 1 Punkt, automatisch, nur vom Empfänger löschbar, nie per Button vergebbar."}'></div>
+          <p>Gesucht wurde im Finance-Repo und in den benachbarten HA-Repos – ohne Treffer. Deine Regel gilt unabhängig von der Anbindung: Punkte entstehen nur automatisch, der Empfänger kann sie löschen, aber niemand kann sie per Button vergeben. Ein Event ist die einzige Variante, bei der Finance nichts über euer System annehmen muss.</p>
+          <div data-evidence hidden><p>Deine Notiz zur Prüf-Inbox: „10 klassifikationen egal wann durchgeführt 1 Punkt … für denjenigen der es klassifiziert hat unabhängig davon zu wem und wofür … rein vollautomatisch vergeben, aber löschbar durch den der sie bekommen hat, aber nicht auswählbar über buttons“.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-points-count -->
+    <section id="r2-points-count" data-nav-label="Was als Einordnung zählt" data-decision="r2-points-count" data-decision-mode="single"
+             data-label="Zählweise für Punkte" data-rec="answer"
+             data-rec-why="Die Inbox fragt Besitzer und Kategorie als zwei Schritte; jeder beantwortete Schritt ist echte Arbeit und soll zählen."
+             data-applies-to="Punkte, Prüf-Inbox" data-finding="r2-f-points-count" data-finding-quant="true">
+      <p data-applies>Gilt für: Punkte, Prüf-Inbox</p>
+      <h3 data-question>Was zählt als eine Klassifizierung für die Punkte?</h3>
+      <p data-context>Deine Regel: 10 Klassifizierungen ergeben 1 Punkt für den, der sie gemacht hat – egal für wen und wofür.</p>
+      <div data-options>
+        <label data-opt="answer" data-recommended>
+          <input type="radio" name="dm-r2-points-count" value="answer" checked>
+          <span data-opt-label>Jede beantwortete Frage in der Prüf-Inbox zählen (Besitzer und Kategorie je einzeln)</span>
+          <span data-opt-consequence>Eine Buchung, bei der du Besitzer und Kategorie setzt, zählt 2; Punkte kommen schneller.</span>
+        </label>
+        <label data-opt="booking">
+          <input type="radio" name="dm-r2-points-count" value="booking">
+          <span data-opt-label>Eine vollständig eingeordnete Buchung zählen (Besitzer + Kategorie zusammen = 1)</span>
+          <span data-opt-consequence>Halb so schnell; nur Buchungen, die ganz fertig sind, bringen etwas.</span>
+        </label>
+        <label data-opt="category">
+          <input type="radio" name="dm-r2-points-count" value="category">
+          <span data-opt-label>Nur Kategorie-Zuordnungen zählen</span>
+          <span data-opt-consequence>Die Besitzer-Frage bringt keine Punkte, obwohl sie zuerst gestellt wird.</span>
+        </label>
+      </div>
+      <textarea data-comment="r2-points-count-note" placeholder="Notiz (optional)">ok, dann aber lieber 30 stück machen, das heißt ja 15 buchungen am ende zählen ein punkt - nicht jede von den 30 beantworteten fragen!</textarea>
+      <input type="hidden" name="dm-r2-points-count-touched" value="1">
+      <input type="hidden" name="dm-r2-points-count-issue" value="">
+      <input type="hidden" name="dm-r2-points-count-epic" value="">
+      <div data-alevel="3" data-title="Zählweise für Punkte">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"10 → 1","unit":"Punkt","label":"Klassifizierungen je Punkt, automatisch vergeben"}'></div><p>10 Klassifizierungen ergeben 1 Punkt, automatisch vergeben.</p></div>
+        <div data-slot="long">
+          <div data-viz="compare" data-viz-spec='{"before":{"label":"Buchungen je Punkt, wenn ganze Buchung zählt","value":10},"after":{"label":"Buchungen je Punkt, wenn jede Antwort zählt","value":5},"unit":"Buchungen"}'></div>
+          <p>Bei maximal 10 Inbox-Punkten pro Woche (Runde 1) ist das der Unterschied zwischen etwa einem und etwa zwei Punkten pro Woche für den Haushalt. Eigene Regeln, die eine Korrektur auf alle Buchungen eines Händlers ausweiten, zählen nur einmal – sonst würde ein Klick Dutzende Punkte bringen.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-points-budget -->
+    <section id="r2-points-budget" data-nav-label="Punkte-Budget richtig verstanden?" data-decision="r2-points-budget" data-decision-mode="verify"
+             data-label="Punkte-Budget" data-rec="ok"
+             data-rec-why="Deine Notiz lässt zwei Lesarten zu; die naheliegende ist euer bestehendes Wochen-Punktesystem."
+             data-applies-to="Wochen-Check" data-finding="r2-f-points-budget">
+      <p data-applies>Gilt für: Wochen-Check</p>
+      <h3 data-question>Stimmt das: Das „Punkte-Budget“ ist euer bestehendes Wochen-Punktesystem, und Finance soll im Wochen-Check nur zeigen und Punkte beitragen – nicht selbst Punkte als Geld-Budget führen?</h3>
+      <p data-context>Deine Notiz zu den Rhythmen: „wöchentlicher check ist für mich auch das thema unseres punkte budgets...“</p>
+      <div data-options>
+        <label data-opt="ok" data-recommended>
+          <input type="radio" name="dm-r2-points-budget" value="ok">
+          <span data-opt-label>Stimmt</span>
+          <span data-opt-consequence>Der Wochen-Check zeigt euren Punktestand und die neu verdienten Punkte; Geld und Punkte bleiben getrennt.</span>
+        </label>
+        <label data-opt="partial">
+          <input type="radio" name="dm-r2-points-budget" value="partial" checked>
+          <span data-opt-label>Teilweise</span>
+          <span data-opt-consequence>Ich passe die Rolle der Punkte im Wochen-Check an deine Korrektur an.</span>
+        </label>
+        <label data-opt="wrong">
+          <input type="radio" name="dm-r2-points-budget" value="wrong">
+          <span data-opt-label>Stimmt nicht</span>
+          <span data-opt-consequence>Ich baue das Punkte-Budget aus deiner Beschreibung neu auf.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-r2-points-budget-fix" placeholder="Was stimmt nicht?" value="wir halten den separat und du merkst ja wenn es buchungen gibt mit bestimmten verwendungszweck... das ist ja auch nru eine buchungsklasse ;) ">
+      <textarea data-comment="r2-points-budget-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-r2-points-budget-touched" value="1">
+      <input type="hidden" name="dm-r2-points-budget-issue" value="">
+      <input type="hidden" name="dm-r2-points-budget-epic" value="">
+      <div data-alevel="3" data-title="Punkte-Budget">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Zwei Lesarten: euer Punktesystem im Wochen-Check – oder ein Budget, das in Punkten statt Euro geführt wird."}'></div><p>Deine Notiz lässt zwei Lesarten zu; diese Frage klärt, welche gemeint ist.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Lesart A: Der Wochen-Check ist auch der Moment, in dem ihr auf euer Punktesystem schaut – Finance zeigt und trägt bei. Lesart B: Finance führt selbst ein Budget in Punkten. B wäre ein zweites Budget-Modell neben dem Plan."}'></div>
+          <p>Lesart A passt zu deiner Inbox-Notiz (Punkte für Einordnungen) und hält Geld und Punkte sauber getrennt. Lesart B würde neben dem Plan ein zweites Budget-Modell einführen, das im Konzept bisher nirgends vorkommt.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-persons -->
+    <section id="r2-persons" data-nav-label="Personen im Haushalt" data-decision="r2-persons" data-decision-mode="yesnoalt"
+             data-label="Personen im Haushalt" data-rec="yes"
+             data-rec-why="Die Aufteilungslogik rechnet bereits mit N Personen; eine Grenze bei zwei wäre nachträglich eingebaut."
+             data-applies-to="Konten, Planpositionen, Prüf-Inbox, Ausgleich" data-finding="r2-f-persons">
+      <p data-applies>Gilt für: Konten, Planpositionen, Prüf-Inbox, Ausgleich</p>
+      <h3 data-question>Unterstützt Finance beliebig viele Personen im Haushalt (mein / dein / unser → je Person + gemeinsam)?</h3>
+      <p data-context>Deine Inbox-Notiz: „mein dein unser (bzw. solltest du auch mehr personen als 2 im haushalt unterstützen)“.</p>
+      <div data-options>
+        <label data-opt="yes" data-recommended>
+          <input type="radio" name="dm-r2-persons" value="yes" checked>
+          <span data-opt-label>Ja, N Personen unterstützen</span>
+          <span data-opt-consequence>Die Besitzer-Frage zeigt je Person einen Knopf plus „gemeinsam“; Ausgleich und Plan rechnen für jede Person.</span>
+        </label>
+        <label data-opt="no">
+          <input type="radio" name="dm-r2-persons" value="no">
+          <span data-opt-label>Nein, auf genau zwei Personen festlegen</span>
+          <span data-opt-consequence>Einfachere Oberfläche; eine WG oder ein Kind mit eigenem Konto passt später nicht hinein.</span>
+        </label>
+        <label data-opt="alt">
+          <input type="radio" name="dm-r2-persons" value="alt">
+          <span data-opt-label>Anders …</span>
+          <span data-opt-consequence>Beschreibe deinen eigenen Ansatz.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-r2-persons-alt" placeholder="Was stattdessen?" value="">
+      <textarea data-comment="r2-persons-note" placeholder="Notiz (optional)">ja, wobei für 2 personen optimal angezeigt, mehr aber möglich</textarea>
+      <input type="hidden" name="dm-r2-persons-touched" value="1">
+      <input type="hidden" name="dm-r2-persons-issue" value="">
+      <input type="hidden" name="dm-r2-persons-epic" value="">
+      <div data-alevel="3" data-title="Personen im Haushalt">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Die Aufteilungsmodelle rechnen schon mit N Personen."}'></div><p>Der Code rechnet schon mit N Personen; die Frage ist, ob die Oberfläche das auch tut.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Aufteilung, Einkommen je Person und Ausgleich sind im Code bereits für N Personen gebaut. Zwei-Personen-Annahmen stecken nur in Texten (mein / dein / unser)."}'></div>
+          <p>Die vier Aufteilungsmodelle und der Ausgleich sind schon für N Personen gebaut. „Mein / dein / unser“ wird damit zu „je Person + gemeinsam“ – für zwei Personen sieht das genauso aus wie heute.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-weeks -->
+    <section id="r2-weeks" data-nav-label="Kalenderwoche über den Gehaltstag" data-decision="r2-weeks" data-decision-mode="single"
+             data-label="Kalenderwoche über den Gehaltstag" data-rec="split"
+             data-rec-why="Nur die anteilige Zählung hält beide Zyklen ehrlich; sonst bekommt ein Zyklus Tage geschenkt, die ihm nicht gehören."
+             data-applies-to="Wochenbetrag, Gehaltszyklus, Digest" data-finding="r2-f-weeks" data-finding-quant="true">
+      <p data-applies>Gilt für: Wochenbetrag, Gehaltszyklus, Digest</p>
+      <h3 data-question>Wie zählt eine Kalenderwoche, die über den Gehaltstag hinweg läuft?</h3>
+      <p data-context>Runde 1: Planung im Gehaltszyklus, Steuerung pro Kalenderwoche – fast jeder Zyklus beginnt mitten in einer Woche.</p>
+      <div data-options>
+        <label data-opt="split" data-recommended>
+          <input type="radio" name="dm-r2-weeks" value="split" checked>
+          <span data-opt-label>Anteilig nach Tagen auf beide Zyklen verteilen</span>
+          <span data-opt-consequence>Die Kalenderwoche bleibt eine Woche; ihr Budget kommt tageweise aus dem alten und dem neuen Zyklus.</span>
+        </label>
+        <label data-opt="start">
+          <input type="radio" name="dm-r2-weeks" value="start">
+          <span data-opt-label>Ganz dem Zyklus zuordnen, in dem sie beginnt</span>
+          <span data-opt-consequence>Einfach; der alte Zyklus trägt Tage, an denen schon neues Gehalt da ist.</span>
+        </label>
+        <label data-opt="end">
+          <input type="radio" name="dm-r2-weeks" value="end">
+          <span data-opt-label>Ganz dem Zyklus zuordnen, in dem sie endet</span>
+          <span data-opt-consequence>Einfach; der neue Zyklus startet mit Ausgaben, die noch vor dem Gehalt lagen.</span>
+        </label>
+      </div>
+      <textarea data-comment="r2-weeks-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-r2-weeks-touched" value="1">
+      <input type="hidden" name="dm-r2-weeks-issue" value="">
+      <input type="hidden" name="dm-r2-weeks-epic" value="">
+      <div data-alevel="3" data-title="Kalenderwoche über den Gehaltstag">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"4 + 3","unit":"Tage","label":"Beispiel KW 44: 4 Tage alter, 3 Tage neuer Zyklus"}'></div><p>Beispiel: Gehalt am Freitag teilt die Woche in 4 + 3 Tage.</p></div>
+        <div data-slot="long">
+          <div data-viz="flow" data-viz-spec='{"steps":[{"label":"KW 44","value":"Mo 26.10. – So 01.11. (Beispiel)"},{"label":"Mo–Do","value":"4 Tage, alter Zyklus"},{"label":"Fr 30.10.","value":"Gehaltstag (Beispiel)"},{"label":"Fr–So","value":"3 Tage, neuer Zyklus"}]}'></div>
+          <p>Beispiel mit erfundenem Gehaltstag: Fällt er auf Freitag, gehören 4/7 der Woche zum alten und 3/7 zum neuen Zyklus. Anteilig gezählt springt der Wochenbetrag nicht, wenn der Gehaltstag wegen eines Wochenendes um einen Tag wandert.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-wizard -->
+    <section id="r2-wizard" data-nav-label="Einrichtungs-Assistent" data-decision="r2-wizard" data-decision-mode="multi"
+             data-label="Schritte des Einrichtungs-Assistenten" data-rec="personen konten ort zyklus plan benachrichtigung llm ziele punkte"
+             data-rec-why="Jeder Schritt setzt eine Voreinstellung, ohne die eine spätere Zahl falsch oder leer wäre; alles ist vorausgefüllt, ein Durchlauf bleibt kurz."
+             data-applies-to="Ersteinrichtung, Einstellungen" data-finding="r2-f-wizard" data-finding-quant="true">
+      <p data-applies>Gilt für: Ersteinrichtung, Einstellungen</p>
+      <h3 data-question>Welche Schritte gehören in den Einrichtungs-Assistenten (er startet, bis er einmal vollständig durchlaufen ist)?</h3>
+      <p data-context>Deine Notiz: „tutorial am anfang … wie ein wizard – wenn dieser noch kein mal durchgeführt wurde vollständig!“ Jeder Schritt ist vorausgefüllt und später einzeln änderbar.</p>
+      <div data-options>
+        <label data-opt="personen" data-recommended><input type="checkbox" name="dm-r2-wizard.personen" checked><span data-opt-label>Personen im Haushalt anlegen</span><span data-opt-consequence>Grundlage für Besitzer, Ausgleich und Punkte.</span></label>
+        <label data-opt="konten" data-recommended><input type="checkbox" name="dm-r2-wizard.konten" checked><span data-opt-label>Konten → Person A / B / gemeinsam zuordnen</span><span data-opt-consequence>Liefert den Standard-Besitzer jeder Buchung.</span></label>
+        <label data-opt="ort" data-recommended><input type="checkbox" name="dm-r2-wizard.ort" checked><span data-opt-label>PLZ (vorausgefüllt aus dem HA-Standort) und Bundesland abfragen</span><span data-opt-consequence>Steuert die Vergleichswerte; bleibt lokal in deiner Instanz.</span></label>
+        <label data-opt="zyklus" data-recommended><input type="checkbox" name="dm-r2-wizard.zyklus" checked><span data-opt-label>Gehaltstag je Person festlegen</span><span data-opt-consequence>Vorausgefüllt aus erkannten Gehaltseingängen.</span></label>
+        <label data-opt="plan" data-recommended><input type="checkbox" name="dm-r2-wizard.plan" checked><span data-opt-label>Plan aus der Historie vorbefüllen (erkannte Serien)</span><span data-opt-consequence>Du bestätigst statt abzutippen.</span></label>
+        <label data-opt="benachrichtigung" data-recommended><input type="checkbox" name="dm-r2-wizard.benachrichtigung" checked><span data-opt-label>Benachrichtigungen und Wochen-Digest einrichten</span><span data-opt-consequence>Wer bekommt welche Ausnahme, wann kommt der Digest.</span></label>
+        <label data-opt="llm" data-recommended><input type="checkbox" name="dm-r2-wizard.llm" checked><span data-opt-label>KI-Kategorisierung einrichten (Opt-in, Anbieter, Budget)</span><span data-opt-consequence>Ohne Zustimmung bleibt alles lokal.</span></label>
+        <label data-opt="ziele" data-recommended><input type="checkbox" name="dm-r2-wizard.ziele" checked><span data-opt-label>Sparziele anlegen</span><span data-opt-consequence>Überspringbar; dynamische Vorschläge sind vorausgefüllt.</span></label>
+        <label data-opt="punkte" data-recommended><input type="checkbox" name="dm-r2-wizard.punkte" checked><span data-opt-label>Punktesystem verbinden</span><span data-opt-consequence>Je nach Anbindung: Event, eigener Sensor oder Dienstname.</span></label>
+      </div>
+      <textarea data-comment="r2-wizard-note" placeholder="Notiz (optional)">ki nur bestimte unterstützen. wenns geht über home assistant funktionen, wenn nicht dann extra eintragbar z. B. grohk oder claudeoder chatgpt api key!</textarea>
+      <input type="hidden" name="dm-r2-wizard-touched" value="1">
+      <input type="hidden" name="dm-r2-wizard-issue" value="">
+      <input type="hidden" name="dm-r2-wizard-epic" value="">
+      <div data-alevel="3" data-title="Schritte des Einrichtungs-Assistenten">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"9","unit":"Schritte","label":"alle vorausgefüllt, einzeln später änderbar"}'></div><p>Neun vorausgefüllte Schritte; der Assistent kommt wieder, bis einer vollständig durchgelaufen ist.</p></div>
+        <div data-slot="long">
+          <div data-viz="flow" data-viz-spec='{"steps":[{"label":"Wer","value":"Personen, Konten"},{"label":"Wo","value":"PLZ, Bundesland"},{"label":"Wann","value":"Gehaltstag"},{"label":"Was","value":"Plan aus Historie"},{"label":"Wie","value":"Hinweise, KI, Ziele, Punkte"}]}'></div>
+          <p>Die Reihenfolge folgt den Abhängigkeiten: ohne Personen keine Kontozuordnung, ohne Gehaltstag kein Zyklus, ohne Zyklus kein Planentwurf. Der Assistent gilt erst als erledigt, wenn alle angehakten Schritte einmal bestätigt sind – Überspringen ist erlaubt, zählt aber nicht als vollständig.</p>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===================== Topic 2: Daten & Erkennung ===================== -->
+  <section id="r2-t-data" data-topic data-nav-label="Daten &amp; Erkennung">
+    <div data-alevel="2" data-title="Daten &amp; Erkennung">
+      <div data-slot="short">
+        <div data-viz="text" data-viz-spec='{"text":"Erst die eigenen Daten ausschöpfen (Konto, PayPal, Toleranzen), dann erst die KI."}'></div>
+        <p>Erst alles aus den eigenen Daten holen – Konto, PayPal, Betrag und Datum mit Toleranz –, die KI nur für den Rest.</p>
+      </div>
+      <div data-slot="long">
+        <div data-viz="flow" data-viz-spec='{"steps":[{"label":"Konto","value":"Standard-Besitzer"},{"label":"PayPal","value":"echter Händler, Artikeltext"},{"label":"Regeln","value":"Händler, Betrag ± Toleranz, Datum ± Toleranz"},{"label":"KI","value":"nur unbekannte Händler"},{"label":"Prüf-Inbox","value":"der Rest, max. 10 / Woche"}]}'></div>
+        <p>Deine Notizen schieben zwei Stufen vor die KI: PayPal-Details an die Bankbuchung holen und Serien über Betrag und Datum mit Toleranz erkennen (dein variabler Stromtarif). Die Neuberechnung ist entschieden: Finance rechnet neu, der Diff erscheint nur als Hinweis im Log des Berichts, nicht in der Prüf-Inbox.</p>
+      </div>
+    </div>
+
+    <!-- r2-owner-rule -->
+    <section id="r2-owner-rule" data-nav-label="Eigentümer-Regel richtig verstanden?" data-decision="r2-owner-rule" data-decision-mode="verify"
+             data-label="Eigentümer-Regel" data-rec="ok"
+             data-rec-why="So steht es in deiner Notiz: Konto als klarer Standard, die erkannte Planposition überschreibt, beides änderbar."
+             data-applies-to="Besitzer jeder Buchung, harte Regel Plan vs. Ist in CLAUDE.md" data-finding="r2-f-owner-rule">
+      <p data-applies>Gilt für: Besitzer jeder Buchung, harte Regel Plan vs. Ist in CLAUDE.md</p>
+      <h3 data-question>Stimmt die Regel: Jedes Konto gehört Person A, B oder gemeinsam – das ist der Standard jeder Buchung; eine erkannte Planposition überschreibt ihn; du kannst beides ändern?</h3>
+      <p data-context>Deine Notiz: „konto ist auf jeden fall person a, b oder gemeinsam zugeordnet! also je konto! … gemeinsames konto ist der vorschlag und dann die planposition die erkannte kann geändert werden. aber default ist klar“</p>
+      <div data-options>
+        <label data-opt="ok" data-recommended>
+          <input type="radio" name="dm-r2-owner-rule" value="ok" checked>
+          <span data-opt-label>Stimmt</span>
+          <span data-opt-consequence>Konto → Standard, Planposition → überschreibt, du → überschreibst beides. Die harte Regel in CLAUDE.md wird entsprechend umformuliert.</span>
+        </label>
+        <label data-opt="partial">
+          <input type="radio" name="dm-r2-owner-rule" value="partial">
+          <span data-opt-label>Teilweise</span>
+          <span data-opt-consequence>Ich passe die Reihenfolge an deine Korrektur an.</span>
+        </label>
+        <label data-opt="wrong">
+          <input type="radio" name="dm-r2-owner-rule" value="wrong">
+          <span data-opt-label>Stimmt nicht</span>
+          <span data-opt-consequence>Ich baue die Eigentümer-Auflösung aus deiner Beschreibung neu auf.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-r2-owner-rule-fix" placeholder="Was stimmt nicht?" value="">
+      <textarea data-comment="r2-owner-rule-note" placeholder="Notiz (optional)">genau wobei ich es überschreiben kann als regel für diese buchungen dike gggf. regelmäßig kommen!</textarea>
+      <input type="hidden" name="dm-r2-owner-rule-touched" value="1">
+      <input type="hidden" name="dm-r2-owner-rule-issue" value="">
+      <input type="hidden" name="dm-r2-owner-rule-epic" value="">
+      <div data-alevel="3" data-title="Eigentümer-Regel">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Konto gibt den Standard, Planposition überschreibt, du überschreibst beides."}'></div><p>Konto gibt den Standard, die Planposition überschreibt, du überschreibst beides.</p></div>
+        <div data-slot="long">
+          <div data-viz="flow" data-viz-spec='{"steps":[{"label":"Konto","value":"Standard: A, B oder gemeinsam"},{"label":"Planposition","value":"überschreibt, wenn erkannt"},{"label":"Du","value":"überschreibst beides"}]}'></div>
+          <p>Die harte Regel in CLAUDE.md sagt heute: „Eigentümerschaft wird nie aus dem belasteten Konto abgeleitet.“ Mit deiner Regel wird sie umformuliert zu: „Das Konto gibt den Standard, die Planposition überschreibt ihn.“ Der Kern bleibt: Das gemeinsame Abo, das von deinem Konto abgeht, zählt trotzdem als gemeinsam, sobald es als Planposition erkannt ist.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-paypal-first -->
+    <section id="r2-paypal-first" data-nav-label="PayPal vor der KI" data-decision="r2-paypal-first" data-decision-mode="yesnoalt"
+             data-label="PayPal-Details vor der KI" data-rec="yes"
+             data-rec-why="Viele „PAYPAL EUROPE“-Abbuchungen bekommen ihren echten Händler aus PayPal – ohne einen einzigen KI-Aufruf."
+             data-applies-to="Kategorisierung, KI-Budget, PayPal-Spiegel" data-finding="r2-f-paypal-first" data-finding-quant="true">
+      <p data-applies>Gilt für: Kategorisierung, KI-Budget, PayPal-Spiegel</p>
+      <h3 data-question>Holt Finance zuerst die Details aus PayPal (Händler, Artikeltext) an die Bankbuchung, bevor eine KI gefragt wird?</h3>
+      <p data-context>Deine Notiz: „bitte aber auch auswerten ob die infos z. B. in paypal stehen aber in der kontoabbuchung nicht bevor es an llms … geht“.</p>
+      <div data-options>
+        <label data-opt="yes" data-recommended>
+          <input type="radio" name="dm-r2-paypal-first" value="yes" checked>
+          <span data-opt-label>Ja, PayPal zuerst auswerten, KI nur für den Rest</span>
+          <span data-opt-consequence>Die verknüpfte PayPal-Zeile liefert Händler und Artikeltext; nur was danach noch unbekannt ist, geht an die KI.</span>
+        </label>
+        <label data-opt="no">
+          <input type="radio" name="dm-r2-paypal-first" value="no">
+          <span data-opt-label>Nein, Bankbuchung direkt einordnen</span>
+          <span data-opt-consequence>Einfacher; „PAYPAL EUROPE“ landet als unbekannter Händler bei der KI oder in der Inbox.</span>
+        </label>
+        <label data-opt="alt">
+          <input type="radio" name="dm-r2-paypal-first" value="alt">
+          <span data-opt-label>Anders …</span>
+          <span data-opt-consequence>Beschreibe deinen eigenen Ansatz.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-r2-paypal-first-alt" placeholder="Was stattdessen?" value="">
+      <textarea data-comment="r2-paypal-first-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-r2-paypal-first-touched" value="1">
+      <input type="hidden" name="dm-r2-paypal-first-issue" value="">
+      <input type="hidden" name="dm-r2-paypal-first-epic" value="">
+      <div data-alevel="3" data-title="PayPal-Details vor der KI">
+        <div data-slot="short"><div data-viz="compare" data-viz-spec='{"before":{"label":"ohne PayPal-Details (Schätzung)","value":30},"after":{"label":"mit PayPal-Details (Schätzung)","value":10},"unit":"Händler unbekannt / Monat"}'></div><p>Geschätzt: deutlich weniger unbekannte Händler, bevor die KI überhaupt gefragt wird.</p></div>
+        <div data-slot="long">
+          <div data-viz="compare" data-viz-spec='{"before":{"label":"Händler unbekannt, nur Bankbuchung (Schätzung)","value":30},"after":{"label":"Händler unbekannt, mit PayPal-Details (Schätzung)","value":10},"unit":"pro Monat"}'></div>
+          <p>Die Zahlen sind eine Schätzung zur Veranschaulichung, keine gemessenen Werte. Die PayPal-Spiegel-Verknüpfung aus Runde 1 bringt die Zuordnung Bank ↔ PayPal schon mit; diese Entscheidung nutzt sie zusätzlich als Informationsquelle. Welche Felder PayPal über Enable Banking wirklich liefert, ist vor dem Bau am Rohdaten-Archiv zu prüfen.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-tolerance-amount -->
+    <section id="r2-tolerance-amount" data-nav-label="Toleranz beim Betrag" data-decision="r2-tolerance-amount" data-decision-mode="slider" data-unit="%"
+             data-label="Betrags-Toleranz" data-rec="20"
+             data-rec-why="20 % fängt einen variablen Stromtarif, ohne dass zwei verschiedene Verträge desselben Händlers verschmelzen."
+             data-applies-to="Regeln aus Korrekturen, Serienerkennung" data-finding="r2-f-tolerance-amount" data-finding-quant="true">
+      <p data-applies>Gilt für: Regeln aus Korrekturen, Serienerkennung</p>
+      <h3 data-question>Wie viel darf der Betrag einer Regel oder Serie standardmäßig abweichen?</h3>
+      <p data-context>Deine Notiz: „mit +- abweichungen beim betrag einstellbar, weil z. B. mein variabler stromtarif immer unterschiedlich hoch ist“ – der Standard ist je Regel und Serie änderbar.</p>
+      <div data-options>
+        <input type="range" name="dm-r2-tolerance-amount" min="0" max="50" step="5" value="20">
+        <span data-opt="low" data-opt-label>5 % · fast nur Fixbeträge</span>
+        <span data-opt="rec" data-recommended data-opt-label>20 % · variabler Stromtarif</span>
+        <span data-opt="high" data-opt-label>50 % · Fehlgriffe möglich</span>
+      </div>
+      <textarea data-comment="r2-tolerance-amount-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-r2-tolerance-amount-touched" value="1">
+      <input type="hidden" name="dm-r2-tolerance-amount-issue" value="">
+      <input type="hidden" name="dm-r2-tolerance-amount-epic" value="">
+      <div data-alevel="3" data-title="Betrags-Toleranz">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"± 10 %","unit":"heute","label":"fest in der Serienerkennung"}'></div><p>Heute erkennt Finance Serien fest mit ± 10 %, nicht einstellbar.</p></div>
+        <div data-slot="long">
+          <div data-viz="compare" data-viz-spec='{"before":{"label":"heute, fest","value":10},"after":{"label":"Vorschlag, je Regel änderbar","value":20},"unit":"% Abweichung"}'></div>
+          <p>Die Serienerkennung arbeitet heute mit festen ± 10 %. Ein variabler Stromtarif schwankt im Beispiel zwischen 62 € und 78 € – das sind rund ± 12 % um die Mitte und fällt bei ± 10 % teilweise heraus. Der Standard gilt für neue Regeln und Serien; jede einzelne kann ihre eigene Toleranz tragen.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-tolerance-date -->
+    <section id="r2-tolerance-date" data-nav-label="Toleranz beim Datum" data-decision="r2-tolerance-date" data-decision-mode="slider" data-unit="Tage"
+             data-label="Datums-Toleranz" data-rec="3"
+             data-rec-why="3 Tage decken Wochenende plus Feiertag ab, ohne dass zwei Abbuchungen im selben Monat verwechselt werden."
+             data-applies-to="Regeln aus Korrekturen, Serienerkennung" data-finding="r2-f-tolerance-date" data-finding-quant="true">
+      <p data-applies>Gilt für: Regeln aus Korrekturen, Serienerkennung</p>
+      <h3 data-question>Wie viele Tage darf das Datum standardmäßig abweichen?</h3>
+      <p data-context>Deine Notiz: „in einzelfällen durch betrag und datum (beides mit toleranz) vor allem erkennbar“ – auch dieser Standard ist je Regel und Serie änderbar.</p>
+      <div data-options>
+        <input type="range" name="dm-r2-tolerance-date" min="0" max="10" step="1" value="5">
+        <span data-opt="low" data-opt-label>0 · nur exakt</span>
+        <span data-opt="rec" data-recommended data-opt-label>3 · Wochenende + Feiertag</span>
+        <span data-opt="high" data-opt-label>10 · Monatsverschiebung möglich</span>
+      </div>
+      <textarea data-comment="r2-tolerance-date-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-r2-tolerance-date-touched" value="1">
+      <input type="hidden" name="dm-r2-tolerance-date-issue" value="">
+      <input type="hidden" name="dm-r2-tolerance-date-epic" value="">
+      <div data-alevel="3" data-title="Datums-Toleranz">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"± 3","unit":"Tage","label":"Wochenende + Feiertag"}'></div><p>Eine Abbuchung zum 1. kann wegen Wochenende und Feiertag bis zu 3 Tage später kommen.</p></div>
+        <div data-slot="long">
+          <div data-viz="bars" data-viz-spec='{"items":[{"label":"Wochenende","value":2},{"label":"Wochenende + Feiertag","value":3},{"label":"Ostern / Weihnachten","value":4}],"unit":"Tage Verschiebung (typisch)"}'></div>
+          <p>Bankarbeitstage verschieben eine feste Abbuchung typischerweise um 2 bis 3 Tage, an Ostern oder Weihnachten um bis zu 4. Je größer die Toleranz, desto eher verschmelzen zwei verschiedene Abbuchungen desselben Händlers im selben Monat.</p>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <!-- ===================== Topic 3: Vergleich, Verträge, Ziele ===================== -->
+  <section id="r2-t-compare" data-topic data-nav-label="Vergleich, Verträge, Ziele">
+    <div data-alevel="2" data-title="Vergleich, Verträge, Ziele">
+      <div data-slot="short">
+        <div data-viz="kpi" data-viz-spec='{"value":"11","unit":"Vergleichsdimensionen","label":"Deutschland fest, Region über PLZ, nur feste Quellen"}'></div>
+        <p>Alles vergleichbar, was vertrauenswürdige Quellen hergeben – dazu Verträge mit echten Fristen, neutrale Ziele und gedeckte Rücklagen.</p>
+      </div>
+      <div data-slot="long">
+        <div data-viz="flow" data-viz-spec='{"steps":[{"label":"Vergleichen","value":"11 Dimensionen, PLZ → Bund"},{"label":"Verträge","value":"Betrag-Mechanismus, Fristen-Modell"},{"label":"Ziele","value":"neutral, selbst oder dynamisch"},{"label":"Rücklagen","value":"Töpfe gegen Kontostand"}]}'></div>
+        <p>Deine Notizen weiten Runde 1 deutlich aus: Fernwärme, Schuldenquote und Miete gehören in den Vergleich, die Region kommt über die PLZ statt über feste Orte im Repo. Verträge bekommen ein konfigurierbares Fristen-Modell, Serienbeträge einen Mechanismus statt Handpflege. Rücklagen werden gegen den echten Kontostand geprüft.</p>
+      </div>
+    </div>
+
+    <!-- r2-bench-dims -->
+    <section id="r2-bench-dims" data-nav-label="Was vergleichbar ist" data-decision="r2-bench-dims" data-decision-mode="multi"
+             data-label="Vergleichsdimensionen" data-rec="miete strom waerme lebensmittel mobil versicherung kommunikation schulden sparen einkommen sozial"
+             data-rec-why="Du willst „einfach alles vergleichbar, wenn möglich“; jede Dimension erscheint nur, wenn eine feste Quelle sie trägt."
+             data-applies-to="Jahresrückblick, Planentwurf, dynamische Sparziele" data-finding="r2-f-bench-dims" data-finding-quant="true">
+      <p data-applies>Gilt für: Jahresrückblick, Planentwurf, dynamische Sparziele</p>
+      <h3 data-question>Was soll mit Vergleichshaushalten vergleichbar sein?</h3>
+      <p data-context>Deine Notiz: „sei mal kreativ, auch fernwärme … schuldenquote … einfach alles soll vergleichbar sein wenn möglich, miete …“</p>
+      <div data-options>
+        <label data-opt="miete" data-recommended><input type="checkbox" name="dm-r2-bench-dims.miete" checked><span data-opt-label>Miete / Wohnkosten je m² vergleichen</span><span data-opt-consequence>Braucht die Wohnfläche im Assistenten.</span></label>
+        <label data-opt="strom" data-recommended><input type="checkbox" name="dm-r2-bench-dims.strom" checked><span data-opt-label>Strom in kWh und € vergleichen</span><span data-opt-consequence>kWh aus den HA-Energiedaten, € aus dem Konto.</span></label>
+        <label data-opt="waerme" data-recommended><input type="checkbox" name="dm-r2-bench-dims.waerme" checked><span data-opt-label>Heizung vergleichen: Fernwärme, Gas, Öl, Wärmepumpe</span><span data-opt-consequence>Je Heizart ein eigener Vergleichswert; die Heizart fragt der Assistent ab.</span></label>
+        <label data-opt="lebensmittel" data-recommended><input type="checkbox" name="dm-r2-bench-dims.lebensmittel" checked><span data-opt-label>Lebensmittel vergleichen</span><span data-opt-consequence>Gut belegt in der amtlichen Konsumstatistik.</span></label>
+        <label data-opt="mobil" data-recommended><input type="checkbox" name="dm-r2-bench-dims.mobil" checked><span data-opt-label>Mobilität vergleichen</span><span data-opt-consequence>Auto, ÖPNV, Fahrrad zusammen; Einzelteile nur grob.</span></label>
+        <label data-opt="versicherung" data-recommended><input type="checkbox" name="dm-r2-bench-dims.versicherung" checked><span data-opt-label>Versicherungen vergleichen</span><span data-opt-consequence>Nur als Summe belastbar, nicht je Police.</span></label>
+        <label data-opt="kommunikation" data-recommended><input type="checkbox" name="dm-r2-bench-dims.kommunikation" checked><span data-opt-label>Kommunikation und Abos vergleichen</span><span data-opt-consequence>Mobilfunk, Internet, Streaming als eine Gruppe.</span></label>
+        <label data-opt="schulden" data-recommended><input type="checkbox" name="dm-r2-bench-dims.schulden" checked><span data-opt-label>Schuldenquote vergleichen</span><span data-opt-consequence>Raten im Verhältnis zum Einkommen; Quellenlage dünner.</span></label>
+        <label data-opt="sparen" data-recommended><input type="checkbox" name="dm-r2-bench-dims.sparen" checked><span data-opt-label>Sparquote vergleichen</span><span data-opt-consequence>Gut belegt; Grundlage für dynamische Sparziele.</span></label>
+        <label data-opt="einkommen" data-recommended><input type="checkbox" name="dm-r2-bench-dims.einkommen" checked><span data-opt-label>Einkommen vergleichen (äquivalenzgewichtet)</span><span data-opt-consequence>Median vorhanden; fair auch bei einer Person ohne Einkommen.</span></label>
+        <label data-opt="sozial" data-recommended><input type="checkbox" name="dm-r2-bench-dims.sozial" checked><span data-opt-label>Bürgergeld-Regelbedarf als Untergrenze zeigen</span><span data-opt-consequence>Je Kategorie, ohne Miete und Heizung (die zahlt der Staat getrennt).</span></label>
+      </div>
+      <textarea data-comment="r2-bench-dims-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-r2-bench-dims-touched" value="1">
+      <input type="hidden" name="dm-r2-bench-dims-issue" value="">
+      <input type="hidden" name="dm-r2-bench-dims-epic" value="">
+      <div data-alevel="3" data-title="Vergleichsdimensionen">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"11","unit":"Dimensionen","label":"Datenlage von gut bis dünn"}'></div><p>Elf Dimensionen; die Datenlage reicht von gut (Lebensmittel, Einkommen) bis dünn (Schulden, Fernwärme).</p></div>
+        <div data-slot="long">
+          <div data-viz="bars" data-viz-spec='{"items":[{"label":"Lebensmittel","value":3},{"label":"Einkommen","value":3},{"label":"Bürgergeld","value":3},{"label":"Sparquote","value":3},{"label":"Miete je m²","value":2},{"label":"Strom","value":2},{"label":"Mobilität","value":2},{"label":"Kommunikation","value":2},{"label":"Versicherungen","value":2},{"label":"Heizung / Fernwärme","value":1},{"label":"Schuldenquote","value":1}],"unit":"Datenlage (1–3, Einschätzung)"}'></div>
+          <p>Die Datenlage ist eine erste Einschätzung, noch nicht geprüft. Gut belegt sind die klassischen Konsum- und Einkommenstabellen; Fernwärme und Schuldenquote haben die dünnsten amtlichen Quellen. Eine Dimension ohne feste Quelle wird nicht geschätzt, sondern als „keine Vergleichsdaten“ angezeigt.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-bench-region -->
+    <section id="r2-bench-region" data-nav-label="Regionsmodell richtig verstanden?" data-decision="r2-bench-region" data-decision-mode="verify"
+             data-label="Regionsmodell" data-rec="ok"
+             data-rec-why="So steht es in deiner Notiz; nichts Ortsspezifisches landet im öffentlichen Repo."
+             data-applies-to="Vergleichswerte, Einrichtungs-Assistent, öffentliches Repo" data-finding="r2-f-bench-region">
+      <p data-applies>Gilt für: Vergleichswerte, Einrichtungs-Assistent, öffentliches Repo</p>
+      <h3 data-question>Stimmt das Regionsmodell: Deutschland fest, Bundesland wählbar, PLZ im Assistenten (vorausgefüllt aus dem HA-Standort); je Vergleich die feinste vorhandene Ebene PLZ → Kreis → Bundesland → Bund; nichts Ortsspezifisches im öffentlichen Repo?</h3>
+      <p data-context>Deine Notiz: „Mach lieber deutschland fest, bundesland wählbar … frage … welche plz … falls es keine granularen gibt, nehmen wir das höchste“.</p>
+      <div data-options>
+        <label data-opt="ok" data-recommended>
+          <input type="radio" name="dm-r2-bench-region" value="ok" checked>
+          <span data-opt-label>Stimmt</span>
+          <span data-opt-consequence>Jede Vergleichszahl nennt ihre Ebene („Kreis“, „Bundesland“, „Bund“); feste Orte wie in Runde 1 entfallen aus dem Repo.</span>
+        </label>
+        <label data-opt="partial">
+          <input type="radio" name="dm-r2-bench-region" value="partial">
+          <span data-opt-label>Teilweise</span>
+          <span data-opt-consequence>Ich passe die Ebenen an deine Korrektur an.</span>
+        </label>
+        <label data-opt="wrong">
+          <input type="radio" name="dm-r2-bench-region" value="wrong">
+          <span data-opt-label>Stimmt nicht</span>
+          <span data-opt-consequence>Ich baue das Regionsmodell aus deiner Beschreibung neu auf.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-r2-bench-region-fix" placeholder="Was stimmt nicht?" value="">
+      <textarea data-comment="r2-bench-region-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-r2-bench-region-touched" value="1">
+      <input type="hidden" name="dm-r2-bench-region-issue" value="">
+      <input type="hidden" name="dm-r2-bench-region-epic" value="">
+      <div data-alevel="3" data-title="Regionsmodell">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"PLZ → Kreis → Bundesland → Bund: die feinste Ebene mit Daten gewinnt."}'></div><p>Die feinste Ebene mit Daten gewinnt; fehlt sie, rückt die nächsthöhere nach.</p></div>
+        <div data-slot="long">
+          <div data-viz="flow" data-viz-spec='{"steps":[{"label":"PLZ","value":"aus dem Assistenten, nur lokal"},{"label":"Kreis","value":"z. B. Mietspiegel"},{"label":"Bundesland","value":"regionale Konsumdaten"},{"label":"Bund","value":"immer vorhanden"}]}'></div>
+          <p>Die PLZ bleibt in deiner Instanz; das Repo liefert nur Tabellen je Ebene und eine Zuordnung PLZ → Kreis → Bundesland. Damit fällt die Festlegung auf einen Ort aus Runde 1 weg, und jeder Nutzer bekommt seine eigene Region.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-bench-sources -->
+    <section id="r2-bench-sources" data-nav-label="Vertrauenswürdige Quellen" data-decision="r2-bench-sources" data-decision-mode="single"
+             data-label="Quellen-Regel" data-rec="allowlist"
+             data-rec-why="Du willst „nur vertrauenswürdige einmal hier im repo festgelegte quellen“ – eine feste Liste ist genau das."
+             data-applies-to="Vergleichsdatensatz im Release" data-finding="r2-f-bench-sources" data-finding-quant="false">
+      <p data-applies>Gilt für: Vergleichsdatensatz im Release</p>
+      <h3 data-question>Wie wird festgelegt, welche Quellen vertrauenswürdig sind?</h3>
+      <p data-context>Der Datensatz wird mit dem Release gebündelt (Runde 1); offen ist, wer bestimmt, was hineinkommt.</p>
+      <div data-options>
+        <label data-opt="allowlist" data-recommended>
+          <input type="radio" name="dm-r2-bench-sources" value="allowlist" checked>
+          <span data-opt-label>Eine feste Quellenliste im Repo führen (nur amtliche Statistik und anerkannte Stellen)</span>
+          <span data-opt-consequence>Jede Zahl trägt Quelle und Jahr; eine neue Quelle braucht eine Änderung der Liste.</span>
+        </label>
+        <label data-opt="review">
+          <input type="radio" name="dm-r2-bench-sources" value="review">
+          <span data-opt-label>Feste Liste führen, plus Vorschläge neuer Quellen per Issue mit Review</span>
+          <span data-opt-consequence>Wächst mit der Community; jede Aufnahme kostet eine Prüfung.</span>
+        </label>
+        <label data-opt="free">
+          <input type="radio" name="dm-r2-bench-sources" value="free">
+          <span data-opt-label>Jede öffentliche Quelle zulassen</span>
+          <span data-opt-consequence>Mehr Dimensionen, aber Vergleichsportale und Lobbyzahlen mischen sich hinein.</span>
+        </label>
+      </div>
+      <textarea data-comment="r2-bench-sources-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-r2-bench-sources-touched" value="1">
+      <input type="hidden" name="dm-r2-bench-sources-issue" value="">
+      <input type="hidden" name="dm-r2-bench-sources-epic" value="">
+      <div data-alevel="3" data-title="Quellen-Regel">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Kandidaten: Destatis, Statistische Landesämter, BMAS, Bundesnetzagentur/BDEW, AGFW, BBSR – alle zu verifizieren."}'></div><p>Es gibt genug amtliche Kandidaten; alle sind vor der Aufnahme zu verifizieren.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Kandidaten (alle zu verifizieren): Destatis (EVS/LWR, Mikrozensus) · Statistische Landesämter · BMAS (Regelbedarf) · Bundesnetzagentur / BDEW (Strom, Gas) · Fernwärme-Preisangaben der Versorger (AGFW) · Mietspiegel / BBSR · Deutsche Bundesbank · SCHUFA-Schuldenatlas (privat, zu prüfen)."}'></div>
+          <p>Die Liste ist ein Entwurf: Jede Quelle ist vor der Aufnahme auf Lizenz, Aktualität und Detailgrad zu prüfen. Der SCHUFA-Schuldenatlas ist eine private Quelle und deshalb ausdrücklich „zu prüfen“. Ohne amtliche Quelle für die Schuldenquote bleibt diese Dimension leer statt geschätzt.</p>
+          <div data-evidence hidden>
+            <ul>
+              <li><strong>Destatis</strong>: EVS (alle 5 Jahre), LWR (jährlich), Mikrozensus – Konsum, Einkommen, Sparquote. Zu verifizieren.</li>
+              <li><strong>Statistische Landesämter</strong>: regionale EVS-Ergebnisse je Bundesland. Zu verifizieren.</li>
+              <li><strong>BMAS</strong>: Regelbedarf nach Stufen und Abteilungen. Zu verifizieren.</li>
+              <li><strong>Bundesnetzagentur / BDEW</strong>: Strom- und Gaspreise, Verbrauch je Haushaltsgröße. Zu verifizieren.</li>
+              <li><strong>AGFW / Preisangaben der Versorger</strong>: Fernwärme. Zu verifizieren.</li>
+              <li><strong>Mietspiegel / BBSR</strong>: Miete je m² auf Kreisebene. Zu verifizieren.</li>
+              <li><strong>Deutsche Bundesbank</strong>: Verschuldung privater Haushalte. Zu verifizieren.</li>
+              <li><strong>SCHUFA-Schuldenatlas</strong>: privat – ob er als „anerkannte Stelle“ zählt, ist zu prüfen.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-price-mech -->
+    <section id="r2-price-mech" data-nav-label="Betrag bei schwankenden Serien" data-decision="r2-price-mech" data-decision-mode="single"
+             data-label="Betrags-Mechanismus" data-rec="max"
+             data-rec-why="Dein Standard: Der höchste Wert plant nie zu knapp; ändern lässt er sich je Planposition."
+             data-applies-to="Planpositionen aus Serien, Preisänderungen" data-finding="r2-f-price-mech" data-finding-quant="true">
+      <p data-applies>Gilt für: Planpositionen aus Serien, Preisänderungen</p>
+      <h3 data-question>Welcher Betrag gilt standardmäßig im Plan, wenn eine Serie schwankt oder teurer wird?</h3>
+      <p data-context>Deine Notiz: „immer das höchste … oder den durchschnitt … einstellbar, standard wäre das höchste. Wir brauchen das nicht manuell anpassen“ – je Planposition änderbar, nie Handpflege.</p>
+      <div data-options>
+        <label data-opt="max" data-recommended>
+          <input type="radio" name="dm-r2-price-mech" value="max" checked>
+          <span data-opt-label>Den höchsten Wert der letzten 12 Monate nehmen</span>
+          <span data-opt-consequence>Der Plan ist nie zu knapp; Preiserhöhungen wirken sofort, Senkungen erst, wenn der alte Höchstwert aus dem Fenster fällt.</span>
+        </label>
+        <label data-opt="avg">
+          <input type="radio" name="dm-r2-price-mech" value="avg">
+          <span data-opt-label>Den Durchschnitt der letzten 12 Monate nehmen</span>
+          <span data-opt-consequence>Realistisch übers Jahr; einzelne Monate liegen über Plan.</span>
+        </label>
+        <label data-opt="last">
+          <input type="radio" name="dm-r2-price-mech" value="last">
+          <span data-opt-label>Den letzten Wert nehmen</span>
+          <span data-opt-consequence>Folgt jeder Änderung sofort; springt bei variablen Tarifen jeden Monat.</span>
+        </label>
+        <label data-opt="median">
+          <input type="radio" name="dm-r2-price-mech" value="median">
+          <span data-opt-label>Den Median der letzten 12 Monate nehmen</span>
+          <span data-opt-consequence>Unempfindlich gegen Ausreißer (Nachzahlung); liegt meist nahe am Durchschnitt.</span>
+        </label>
+      </div>
+      <textarea data-comment="r2-price-mech-note" placeholder="Notiz (optional)">aber durch den nutzer zu den jeweiligen anpassbar oder einen fixen wert! je nach planposition mag es auch anders sein, aber über die intervalle hinweg immer gleich!</textarea>
+      <input type="hidden" name="dm-r2-price-mech-touched" value="1">
+      <input type="hidden" name="dm-r2-price-mech-issue" value="">
+      <input type="hidden" name="dm-r2-price-mech-epic" value="">
+      <div data-alevel="3" data-title="Betrags-Mechanismus">
+        <div data-slot="short"><div data-viz="spark" data-viz-spec='{"points":[62,65,71,68,78,74],"label":"Beispiel-Serie (€): Höchstwert 78, Durchschnitt ≈ 70"}'></div><p>Beispiel: Bei 62–78 € plant „höchster Wert“ 78 €, der Durchschnitt ≈ 70 €.</p></div>
+        <div data-slot="long">
+          <div data-viz="bars" data-viz-spec='{"items":[{"label":"Höchster Wert","value":78},{"label":"Letzter Wert","value":74},{"label":"Durchschnitt","value":70},{"label":"Median","value":70}],"unit":"€ im Plan (Beispiel)"}'></div>
+          <p>Erfundene Beispiel-Serie 62, 65, 71, 68, 78, 74 €: Der höchste Wert plant 78 €, der letzte 74 €, Durchschnitt und Median rund 70 €. Der Mechanismus ist ein Standard für alle Serien und je Planposition umstellbar; eine Planposition wird nie von Hand nachgezogen.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-contract-model -->
+    <section id="r2-contract-model" data-nav-label="Was ein Vertrag trägt" data-decision="r2-contract-model" data-decision-mode="multi"
+             data-label="Vertragsmodell" data-rec="start laufzeit verlaengerung frist standard sonder erinnerung"
+             data-rec-why="Erst alle sieben Felder zusammen berechnen ein Fristende richtig; vorausgefüllt kostet keins davon Tipparbeit."
+             data-applies-to="Verträge, Abos, Kündigungs-Erinnerungen" data-finding="r2-f-contract-model">
+      <p data-applies>Gilt für: Verträge, Abos, Kündigungs-Erinnerungen</p>
+      <h3 data-question>Was kann ein Vertrag tragen (alles vorausgefüllt, Einheiten einstellbar)?</h3>
+      <p data-context>Deine Notiz: „kündigungsfrist ausgiebig eintragbar und mit standardwerten für kategorien … vertragsstart + 1 Jahr minus 30 Tage … bitte stark mehrere modelle konfigurierbar“.</p>
+      <div data-options>
+        <label data-opt="start" data-recommended><input type="checkbox" name="dm-r2-contract-model.start" checked><span data-opt-label>Vertragsbeginn erfassen</span><span data-opt-consequence>Vorausgefüllt aus der ersten erkannten Abbuchung.</span></label>
+        <label data-opt="laufzeit" data-recommended><input type="checkbox" name="dm-r2-contract-model.laufzeit" checked><span data-opt-label>Mindestlaufzeit erfassen</span><span data-opt-consequence>z. B. 12 oder 24 Monate.</span></label>
+        <label data-opt="verlaengerung" data-recommended><input type="checkbox" name="dm-r2-contract-model.verlaengerung" checked><span data-opt-label>Automatische Verlängerung (Dauer) erfassen</span><span data-opt-consequence>z. B. 12 Monate oder monatlich kündbar nach der Mindestlaufzeit.</span></label>
+        <label data-opt="frist" data-recommended><input type="checkbox" name="dm-r2-contract-model.frist" checked><span data-opt-label>Kündigungsfrist mit Einheit (Tage / Wochen / Monate) und Bezug (zum Laufzeitende / zum Monatsende) erfassen</span><span data-opt-consequence>Bildet „30 Tage zum Laufzeitende“ ebenso ab wie „3 Monate zum Monatsende“.</span></label>
+        <label data-opt="standard" data-recommended><input type="checkbox" name="dm-r2-contract-model.standard" checked><span data-opt-label>Standardwerte je Kategorie vorgeben (z. B. Mobilfunk, Versicherung, Strom)</span><span data-opt-consequence>Ein neuer Vertrag startet mit den üblichen Werten seiner Kategorie.</span></label>
+        <label data-opt="sonder" data-recommended><input type="checkbox" name="dm-r2-contract-model.sonder" checked><span data-opt-label>Sonderkündigung bei Preiserhöhung markieren</span><span data-opt-consequence>Eine erkannte Preiserhöhung öffnet ein eigenes Fristfenster.</span></label>
+        <label data-opt="erinnerung" data-recommended><input type="checkbox" name="dm-r2-contract-model.erinnerung" checked><span data-opt-label>Erinnerung X Tage vor Fristende senden</span><span data-opt-consequence>Zählt als Ausnahme-Hinweis (Runde 1) an die Person, der der Vertrag gehört.</span></label>
+      </div>
+      <textarea data-comment="r2-contract-model-note" placeholder="Notiz (optional)">ja aber nur preiserhöhungen sonderkündigung wenn das nicht vertragsimplizit ist, dafür ggf. eine checkboxl,die vorausgefüllt ist je nachdem was für ein patten erkannt wurde (gleichmäßige zahlungen vs immer unterschiedlich in 2 von drei fällen mindestens!</textarea>
+      <input type="hidden" name="dm-r2-contract-model-touched" value="1">
+      <input type="hidden" name="dm-r2-contract-model-issue" value="">
+      <input type="hidden" name="dm-r2-contract-model-epic" value="">
+      <div data-alevel="3" data-title="Vertragsmodell">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Start + Laufzeit − Frist − Vorlauf = Erinnerung; alles vorausgefüllt."}'></div><p>Aus Start, Laufzeit, Frist und Vorlauf ergibt sich der Erinnerungstag – ohne Rechnen.</p></div>
+        <div data-slot="long">
+          <div data-viz="flow" data-viz-spec='{"steps":[{"label":"Start","value":"01.03. (Beispiel)"},{"label":"+ 12 Monate","value":"Laufzeitende 28.02."},{"label":"− 30 Tage Frist","value":"Kündigen bis 29.01."},{"label":"− 14 Tage","value":"Erinnerung am 15.01."}]}'></div>
+          <p>Ein erfundenes Beispiel: Vertrag ab 01.03., 12 Monate, 30 Tage Frist zum Laufzeitende, Erinnerung 14 Tage vorher. Die Darstellung „relativ zu x y z im Jahr“ und die Diagramme dazu gehören in die Visual-Runde.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-goals -->
+    <section id="r2-goals" data-nav-label="Sparziele" data-decision="r2-goals" data-decision-mode="multi"
+             data-label="Arten von Sparzielen" data-rec="betrag deckel quote ruecklage dynamisch"
+             data-rec-why="Du willst Ziele selbst festlegen oder dynamisch einstellen; die fünf Arten decken beides ab und bleiben neutral formuliert."
+             data-applies-to="Sparziele, Wochen-Check, Jahresrückblick" data-finding="r2-f-goals" data-finding-quant="false">
+      <p data-applies>Gilt für: Sparziele, Wochen-Check, Jahresrückblick</p>
+      <h3 data-question>Welche Sparziele soll man anlegen können (neutral formuliert, nie auf eine Person gemünzt)?</h3>
+      <p data-context>Deine Notiz: „aktive sparziele selbst festgelegt oder dynamisch einstellbar … neutral für das was derjenige gerade sieht, nicht auf personen gemünzt“.</p>
+      <div data-options>
+        <label data-opt="betrag" data-recommended><input type="checkbox" name="dm-r2-goals.betrag" checked><span data-opt-label>Betrag bis Datum ansparen</span><span data-opt-consequence>„Noch 420 € bis August“ – mit Monatsrate.</span></label>
+        <label data-opt="deckel" data-recommended><input type="checkbox" name="dm-r2-goals.deckel" checked><span data-opt-label>Obergrenze je Kategorie setzen</span><span data-opt-consequence>„Lieferdienste diese Woche: 18 von 40 €“ – ohne Namen.</span></label>
+        <label data-opt="quote" data-recommended><input type="checkbox" name="dm-r2-goals.quote" checked><span data-opt-label>Sparquote in % anstreben</span><span data-opt-consequence>Bezogen auf das Haushaltseinkommen im Gehaltszyklus.</span></label>
+        <label data-opt="ruecklage" data-recommended><input type="checkbox" name="dm-r2-goals.ruecklage" checked><span data-opt-label>Rücklage auffüllen</span><span data-opt-consequence>Verknüpft mit den Rücklagen-Töpfen unten.</span></label>
+        <label data-opt="dynamisch" data-recommended><input type="checkbox" name="dm-r2-goals.dynamisch" checked><span data-opt-label>Dynamischen Vorschlag anbieten (z. B. aus dem Benchmark-Median)</span><span data-opt-consequence>Finance schlägt den Zielwert vor; du übernimmst oder änderst ihn.</span></label>
+      </div>
+      <textarea data-comment="r2-goals-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-r2-goals-touched" value="1">
+      <input type="hidden" name="dm-r2-goals-issue" value="">
+      <input type="hidden" name="dm-r2-goals-epic" value="">
+      <div data-alevel="3" data-title="Arten von Sparzielen">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Ziele beschreiben, was gerade zu sehen ist – nie, wer es verursacht hat."}'></div><p>Ziele sprechen über die angezeigte Zahl, nie über eine Person.</p></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Neutral heißt: „Lieferdienste diese Woche: 18 von 40 €“ statt „Du hast zu viel bestellt“. Wer das Gemeinsame ansieht, sieht das gemeinsame Ziel; wer seine eigenen Summen ansieht, sieht nur die eigenen."}'></div>
+          <p>Das setzt deine Notiz und den Kein-Schuldton-Grundsatz aus Runde 1 zusammen: Ein Ziel bezieht sich immer auf die Ansicht, die gerade offen ist, und nennt keine Person. Die Beispielbeträge sind erfunden.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r2-reserve-home -->
+    <section id="r2-reserve-home" data-nav-label="Wo die Rücklagen liegen" data-decision="r2-reserve-home" data-decision-mode="single"
+             data-label="Ort der Rücklagen" data-rec="virtual"
+             data-rec-why="Ein Konto mit virtuellen Töpfen lässt Finance jeden Topf verfolgen und eine Unterdeckung gegen den echten Kontostand erkennen."
+             data-applies-to="Rücklagen, Ausnahme-Hinweise, frei verfügbar" data-finding="r2-f-reserve-home" data-finding-quant="true">
+      <p data-applies>Gilt für: Rücklagen, Ausnahme-Hinweise, frei verfügbar</p>
+      <h3 data-question>Wo liegt das Geld der Rücklagen?</h3>
+      <p data-context>Deine Notiz: „auch tracken wenn dann doch zu wenig rücklage auf dem konto ist (mehrere rücklagen können auch ad-hoc monatsausgaben finanzieren) und manuell aufgefüllt werden muss“.</p>
+      <div data-options>
+        <label data-opt="virtual" data-recommended>
+          <input type="radio" name="dm-r2-reserve-home" value="virtual" checked>
+          <span data-opt-label>Ein Rücklagenkonto führen, virtuell auf mehrere Töpfe verteilt</span>
+          <span data-opt-consequence>Finance verfolgt jeden Topf, warnt, wenn der Kontostand unter der Summe der Töpfe liegt, und nennt den Betrag, der von Hand aufzufüllen ist; Töpfe dürfen Ad-hoc-Ausgaben des Monats finanzieren.</span>
+        </label>
+        <label data-opt="accounts">
+          <input type="radio" name="dm-r2-reserve-home" value="accounts">
+          <span data-opt-label>Ein (Unter-)Konto je Rücklage führen</span>
+          <span data-opt-consequence>Jeder Topf hat einen echten Kontostand; braucht so viele verknüpfte Konten wie Töpfe.</span>
+        </label>
+        <label data-opt="plan">
+          <input type="radio" name="dm-r2-reserve-home" value="plan">
+          <span data-opt-label>Nur rechnerisch im Plan führen, ohne Konto</span>
+          <span data-opt-consequence>Am einfachsten; eine echte Unterdeckung bleibt unsichtbar.</span>
+        </label>
+      </div>
+      <textarea data-comment="r2-reserve-home-note" placeholder="Notiz (optional)">gern kann man konten als sparkonten markieren, aber ansonsten kann man virtuelle töpfe erstellen die sich so anfühlen wie separate konten aber eigentlich nur ein konto sind, die sollen das volle funktionsset haben und ausweichsweise kann man auch weider auf das ursprungskonto gehen aber man kann es für die normale ansicht sozusagen virutell aufsplitten, dabei muss natürlich alle töpfe zusammen immer die reale positon im konto abdecken auf der soll und haben seite </textarea>
+      <input type="hidden" name="dm-r2-reserve-home-touched" value="1">
+      <input type="hidden" name="dm-r2-reserve-home-issue" value="">
+      <input type="hidden" name="dm-r2-reserve-home-epic" value="">
+      <div data-alevel="3" data-title="Ort der Rücklagen">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"− 350 €","unit":"aufzufüllen","label":"Beispiel: Töpfe 2 400 €, Kontostand 2 050 €"}'></div><p>Beispiel: Die Töpfe verlangen 2 400 €, auf dem Konto liegen 2 050 € – 350 € fehlen.</p></div>
+        <div data-slot="long">
+          <div data-viz="compare" data-viz-spec='{"before":{"label":"Soll-Summe der Töpfe (Beispiel)","value":2400},"after":{"label":"Kontostand (Beispiel)","value":2050},"unit":"€"}'></div>
+          <p>Erfundene Zahlen: Kfz-Versicherung, Urlaub und Geräte-Topf verlangen zusammen 2 400 €, das Konto zeigt 2 050 €, weil ein Topf eine Ad-hoc-Ausgabe getragen hat. Finance meldet das einmal als Ausnahme und nennt die 350 €, die du von Hand auffüllst – überwiesen wird nie automatisch.</p>
+        </div>
+      </div>
+    </section>
+  </section>
+</section>
