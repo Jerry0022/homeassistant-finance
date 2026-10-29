@@ -202,6 +202,17 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--fd-a500); o
 .mg .btns { display: flex; gap: 6px; flex: none; }
 .sug { padding: 8px 10px; border: 1px dashed var(--fd-desktop); border-radius: 10px; background: var(--fd-desktop-bg); }
 .sug + .sug { margin-top: 6px; }
+.hrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 10px; padding: 8px 0; }
+.hrow + .hrow { border-top: 1px solid var(--fd-line); }
+.hrow .hn { min-width: 0; overflow-wrap: anywhere; }
+.hist { width: 84px; height: 28px; overflow: visible; }
+.hist .hb { fill: var(--fd-a500); }
+.hist .hb.over { fill: var(--fd-over, #c0392b); }
+.hist .hl { stroke: var(--fd-t3); stroke-width: 1; stroke-dasharray: 2 2; }
+.hist-none { font-size: 12px; }
+.hcarry { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; font-size: 12.5px; min-width: 0; }
+.hcarry > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.hcarry .btns { display: flex; flex-wrap: wrap; gap: 6px; }
 .opt { padding: 10px 0; }
 .opt + .opt { border-top: 1px solid var(--fd-line); }
 .opt .row { padding: 0; }
@@ -1027,7 +1038,59 @@ class FdHome extends HTMLElement {
     if (this._horizon === "cycle") h += `<div id="cdslot"></div>${this._optimise(d, false)}`;
     else if (this._horizon === "week") h += this._adjust(d);
     else if (this._horizon === "year") h += this._optimise(d, true);
-    return h + this._accounts(d) + this._manage(d);
+    return h + this._history(d) + this._accounts(d) + this._manage(d);
+  }
+
+  /** Per spend pot: the last finished cycles as mini bars (spent vs. budget) + carry-over decision. */
+  _history(d) {
+    const pots = (d.pots || []).filter((p) => (p.cycle_budget || 0) > 0 && p.kind !== "reserve");
+    if (!pots.length) return "";
+    const rows = pots.map((p) => {
+      const h = p.history || [];
+      let chart = `<span class="muted hist-none">${this._t("home.hist.none")}</span>`;
+      if (h.length) {
+        const top = Math.max(1, ...h.map((c) => Math.max(c.spent || 0, c.budget || 0)));
+        const w = 8, gap = 4, H = 28;
+        const bars = h.map((c, i) => {
+          const bh = Math.max(1, Math.round(H * Math.max(0, c.spent || 0) / top));
+          const over = (c.spent || 0) > (c.budget || 0) + 0.005;
+          return `<rect x="${i * (w + gap)}" y="${H - bh}" width="${w}" height="${bh}" rx="1.5" class="${over ? "hb over" : "hb"}"/>`;
+        }).join("");
+        const line = Math.round(H - H * (h[h.length - 1].budget || 0) / top);
+        const label = this._t("home.hist.aria", {
+          name: p.name,
+          list: h.map((c) => this._t("home.hist.aria_item", { from: this._day(c.start), spent: this._m(c.spent, false), budget: this._m(c.budget, false) })).join("; "),
+        });
+        chart = `<svg class="hist" viewBox="0 0 ${h.length * (w + gap)} ${H}" role="img" aria-label="${this._e(label)}" preserveAspectRatio="xMinYMax meet"><line x1="0" x2="${h.length * (w + gap)}" y1="${line}" y2="${line}" class="hl"/>${bars}</svg>`;
+      }
+      return `<div class="hrow"><span class="hn"><b>${this._e(p.name)}</b></span>${chart}${this._carryAction(p)}</div>`;
+    }).join("");
+    return `<section class="card">${this._dhead("home.hist.title")}${rows}</section>`;
+  }
+
+  /** "Übertrag übernehmen / verwerfen" for the carry a pot brings into the current week. */
+  _carryAction(p) {
+    const c = p.carry_in_week || 0;
+    if (Math.abs(c) < 0.5) return "";
+    const amt = `${c > 0 ? "+" : "−"}${this._m(Math.abs(c), false)}`;
+    const dec = p.carry_decision;
+    if (dec) {
+      const other = dec === "drop" ? "accept" : "drop";
+      const txt = this._t(dec === "drop" ? "home.carry.dropped" : "home.carry.accepted", { amount: amt });
+      return `<div class="hcarry"><span>${txt}</span>${this._isAdmin ? `<button class="btn sm ghost" data-act="carry" data-id="${this._e(p.id)}" data-do="${other}">${this._t(other === "drop" ? "home.carry.drop" : "home.carry.accept")}</button>` : ""}</div>`;
+    }
+    return `<div class="hcarry"><span>${this._t("home.carry.line", { amount: amt })}</span>${this._isAdmin ? `<span class="btns"><button class="btn sm dsk" data-act="carry" data-id="${this._e(p.id)}" data-do="accept">${this._t("home.carry.accept")}</button>
+      <button class="btn sm dsk ghost" data-act="carry" data-id="${this._e(p.id)}" data-do="drop">${this._t("home.carry.drop")}</button></span>` : ""}</div>`;
+  }
+
+  async _doCarry(id, action) {
+    try {
+      await this._hass.callApi("POST", `${DOMAIN}/pots/carry`, { id, action });
+      this._toast(this._t(action === "drop" ? "home.carry.toast_drop" : "home.carry.toast_accept"));
+      this._load();
+    } catch (e) {
+      this._toast(this._t("home.pot.failed"));
+    }
   }
 
   /** Optimierung: per spend pot plan, deviation from the Soll-Linie, a rule-based reading and next steps. */
@@ -1285,6 +1348,7 @@ class FdHome extends HTMLElement {
       case "delyes": this._deletePot(t.dataset.id); break;
       case "delno": this._confirmId = null; this._paintSide(); break;
       case "adjust": this._doAdjust(); break;
+      case "carry": this._doCarry(t.dataset.id, t.dataset.do); break;
       case "cancel": this._closeSheet(); break;
       case "scrim": if (e.target === t) this._closeSheet(); break;
       case "sugcreate": {
