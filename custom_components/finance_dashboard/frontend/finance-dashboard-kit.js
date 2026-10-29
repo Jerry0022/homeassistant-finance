@@ -36,7 +36,6 @@ const COMPONENTS = [
   "fd-questions.js",
   "fd-contracts.js",
   "fd-benchmark.js",
-  "fd-transactions-log.js",
 ];
 
 const CARDS = [

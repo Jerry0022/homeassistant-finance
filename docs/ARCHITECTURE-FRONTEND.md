@@ -30,8 +30,9 @@ finance-dashboard-panel            shell: fd-home + subpage router + toast host
  fd-categorize (dialog)            desktop link from Fragen
 ```
 
-Lovelace cards (`finance-dashboard-card`, `finance-status-chip`, `fd-budget-config`, `fd-categorize`,
-`fd-transactions-log`) are separate and not part of the panel.
+Lovelace cards (`finance-dashboard-card`, `finance-status-chip`, `fd-budget-config`, `fd-categorize`)
+are separate and not part of the panel. None of them reads sensor attributes: `fd-budget-config`
+drives the split/remainder select entities and takes its option list from them.
 
 ## Start (`fd-home.js`)
 

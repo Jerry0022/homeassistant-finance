@@ -244,7 +244,7 @@ Severity: **P0** breaks navigation or misrepresents data · **P1** concept surfa
 | `fd-budget-plan.js` | Haushalt tab, API | Plan is the front door (PC § Purpose) | **Keep**, mounted as subpage "Budgetplan" (entry in Jahr, and links from "Fixkosten: Plan fehlt") |
 | `fd-data-provider.js` | Entity bridge for the legacy tree | Sensors are aggregates only; the panel reads the API | **Shrink**: no `POST /refresh`, no onboarding source; remove from the panel if nothing else needs it after G5/G6 |
 | `finance-dashboard-card.js` | Lovelace card (balance) | HO "Glance card": status, free to spend, next debits, freshness, pending apart; `person:` card option (VR-r3) | **Replace** later with a glance card on `/home?horizon=today` (A, last, optional) |
-| `fd-transactions-log.js`, `fd-budget-config.js`, `fd-categorize.js` | Lovelace cards; `fd-categorize` via the desktop link in Fragen | Not contradicted | Keep, out of scope |
+| `fd-budget-config.js`, `fd-categorize.js` | Lovelace cards; `fd-categorize` via the desktop link in Fragen | Not contradicted | Keep; `fd-budget-config` reads its options from the select entities. `fd-transactions-log.js` retired (its data source fd-data-provider is gone; `fd-transactions` replaces it) |
 
 ---
 
@@ -301,7 +301,7 @@ Owns: `frontend/fd-setup.js`, `frontend/fd-settings.js`. Nothing else.
    "share of shared pots" is rejected as contrary to the concept.
 4. Household cycle detail: simple strip on mobile, full analysis desktop-only (VR-r4 feedback).
 5. Transactions: desktop-only subpage from Datenstand (VR-later 5); no mobile entry.
-6. `finance-status-chip`, `fd-transactions-log`, `fd-budget-config`, `fd-categorize` stay untouched.
+6. `finance-status-chip`, `fd-categorize` stay untouched; `fd-budget-config` reads the select entities' own options; `fd-transactions-log` is retired.
 
 ## 6. Follow-ups outside both bundles (core)
 
