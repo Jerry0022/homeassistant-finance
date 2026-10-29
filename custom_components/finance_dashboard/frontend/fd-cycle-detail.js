@@ -175,7 +175,7 @@ button:focus-visible { outline: 2px solid var(--fd-a500); outline-offset: 2px; }
 .cell { min-width: 0; padding: 8px 10px; border-radius: 10px; background: var(--fd-sunk); }
 .cell .val { margin: 2px 0; font-size: clamp(13px, 4.7cqw, 24px); font-weight: 500; line-height: 1.15; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .cell .val.ok { color: var(--fd-ok); }
-.cell .dl { color: var(--fd-t2); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cell .dl { color: var(--fd-t2); font-size: 11px; line-height: 1.3; overflow-wrap: anywhere; }
 .quiet { margin: 8px 0 0; color: var(--fd-t2); font-size: 12px; }
 .link { display: inline-flex; align-items: center; min-height: var(--fd-touch); padding: 0 4px; border: 0; background: transparent; color: var(--fd-a700); font-weight: 500; }
 .btn { min-height: var(--fd-touch); padding: 0 16px; border: 1px solid transparent; border-radius: var(--fd-r-pill); background: var(--fd-a700); color: #fff; font-weight: 500; }
