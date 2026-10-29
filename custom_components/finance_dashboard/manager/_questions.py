@@ -13,12 +13,13 @@ from typing import Any
 
 from homeassistant.util import dt as dt_util
 
-from ..const import CATEGORY_OTHER, DEFAULT_CATEGORIES, DOMAIN
+from ..const import CATEGORY_OTHER, DEFAULT_CATEGORIES
 from ..merchants import POINT_EVERY, merchant_key
+from ..points_target import EVENT_POINTS_AWARDED, async_award, person_of_user
 
 _LOGGER = logging.getLogger(__name__)
 
-EVENT_POINTS = f"{DOMAIN}_points"
+EVENT_POINTS = EVENT_POINTS_AWARDED
 _SLUG = re.compile(r"^[a-z][a-z0-9_]{0,31}$")
 _FALLBACK_SUGGESTIONS = ("shopping", "food", "leisure")
 _NOT_SUGGESTED = (CATEGORY_OTHER, "income", "transfers")
@@ -126,7 +127,16 @@ class QuestionsMixin:
         await mem.async_save()
         self._derive_from_ledger(self._transfer_overrides)
         if point:
-            self._hass.bus.async_fire(EVENT_POINTS, {"user_id": user_id, "points": 1})
+            from ..setup_wizard import async_load_state
+
+            state = await async_load_state(self._hass)
+            await async_award(
+                self._hass,
+                target=state.get("points_target", ""),
+                user_id=user_id,
+                person=person_of_user(self.persons, user_id),
+                answered=mem.answered,
+            )
         return {
             "answered_total": mem.answered,
             "week_answered": mem.week_answered(today),

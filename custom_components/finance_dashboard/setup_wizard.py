@@ -73,6 +73,7 @@ def default_state() -> dict[str, Any]:
         "steps": {s: "pending" for s in STEPS if s != "done"},
         "completed": False,
         "ai_opt_in": False,
+        "points_target": "",
         "notifications": dict(DEFAULT_NOTIFICATIONS),
         "notified": {},
         "last_digest_week": "",
@@ -97,6 +98,7 @@ def _merge_state(raw: Any) -> dict[str, Any]:
             state["steps"][step] = status
     state["completed"] = bool(raw.get("completed"))
     state["ai_opt_in"] = bool(raw.get("ai_opt_in"))
+    state["points_target"] = str(raw.get("points_target") or "")
     state["notifications"].update(
         {k: v for k, v in (raw.get("notifications") or {}).items() if k in DEFAULT_NOTIFICATIONS}
     )
