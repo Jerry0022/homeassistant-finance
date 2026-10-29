@@ -5,8 +5,11 @@
  *   GET     finance_dashboard/setup/payday_suggestions   {suggestions:[{person, confirmed_day, suggested_day, source, amount}]}
  *   GET/POST finance_dashboard/setup/pot_suggestions     {suggestions:[{owner, category, name, cycle_budget, samples}]}
  *
- * Steps: persons, accounts (both embed <fd-settings section="...">), payday, pots, plan,
- * notifications, ai, done. Every "Weiter" stores the step on the server, so the wizard
+ *   GET/POST finance_dashboard/setup/plan_prefill       {proposals:[{series_id,name,owner,category,interval,amount,plan_mode,already_in_plan}]} / {accept:[...]}
+ *   GET/POST/DELETE finance_dashboard/setup/goals, GET/PUT setup/points, GET/PUT setup/ai  (via <fd-settings section="goals|points|ai">)
+ *
+ * Steps: persons, accounts, goals, points, ai (all embed <fd-settings section="...">), payday, region, pots, plan,
+ * notifications, done. Every "Weiter" stores the step on the server, so the wizard
  * resumes at the first unresolved step. Nothing here talks to the bank.
  *
  *   POST finance_dashboard/budget_plan/upload       {content_base64} → {ok, report}
@@ -19,8 +22,10 @@
  */
 
 const DOMAIN = "finance_dashboard";
-const STEPS = ["persons", "accounts", "payday", "region", "pots", "plan", "notifications", "ai", "done"];
-const SKIPPABLE = new Set(["payday", "region", "pots", "plan", "notifications", "ai"]);
+const STEPS = ["persons", "accounts", "payday", "region", "pots", "plan", "goals", "points", "notifications", "ai", "done"];
+const SKIPPABLE = new Set(["payday", "region", "pots", "plan", "goals", "points", "notifications", "ai"]);
+// region, goals and points have no backend step status: the wizard only walks through them.
+const CLIENT_ONLY = new Set(["region", "goals", "points"]);
 
 // Fallback texts: used until locales/*.json carry the setup.* keys.
 // Federal states (ISO 3166-2:DE) for the benchmark comparison.
@@ -73,6 +78,23 @@ const FB = {
     "setup.pots.empty": "Noch nicht genug Historie für Vorschläge. Töpfe legst du später auf Start an, sobald ein paar Monate Daten da sind.",
     "setup.pots.created": "$n Töpfe angelegt",
     "setup.pots.owner_shared": "Haushalt",
+    "setup.plan.prefill_title": "Vorschläge aus deiner Historie",
+    "setup.plan.prefill_body": "Das sind regelmäßige Zahlungen, die wir in deinen Buchungen gefunden haben. Wähle, was in den Plan soll, und passe Betrag und Besitzer an.",
+    "setup.plan.prefill_empty": "Keine Vorschläge gefunden. Dafür braucht es ein paar Monate Buchungen.",
+    "setup.plan.in_plan": "schon im Plan",
+    "setup.plan.per_month": "pro Monat",
+    "setup.plan.amount": "Betrag",
+    "setup.plan.owner": "Besitzer",
+    "setup.plan.accepted": "$n Posten in den Plan übernommen",
+    "setup.plan.alt": "Oder aus einer Tabelle",
+    "setup.plan.owner_shared": "Haushalt",
+    "setup.goals.title": "Sparziele",
+    "setup.goals.body": "Ein Betrag bis zu einem Datum, ein Limit für eine Kategorie, eine Sparquote oder eine Rücklage zum Auffüllen. Alles optional.",
+    "setup.points.title": "Punkte",
+    "setup.points.body": "Wenn ihr ein eigenes Punktesystem zuhause habt, kann Finance es füttern.",
+    "setup.summary.goals": "Sparziele",
+    "setup.summary.points": "Punkte",
+    "setup.summary.none": "keine",
     "setup.plan.title": "Budgetplan",
     "setup.plan.body": "Der Plan hält fest, was ihr fest eingeplant habt: Fixkosten und Einkommen pro Person. Er ist ein Extra und für den Start nicht nötig.",
     "setup.plan.import": "Hast du eure Haushaltstabelle? Lade die .xlsx-Datei hoch oder füge einen Google-Sheets-Link ein. Der Import ersetzt den bisherigen Plan.",
@@ -98,7 +120,7 @@ const FB = {
     "setup.notif.factor_label": "Faktor",
     "setup.notif.threshold": "Oder ab diesem Betrag in Euro (0 = aus)",
     "setup.ai.title": "KI-Kategorisierung",
-    "setup.ai.body": "Für Buchungen, die keine Regel erkennt, kann eine KI die Kategorie vorschlagen. Dafür wird zuerst die KI deiner Home-Assistant-Installation genutzt.",
+    "setup.ai.body": "Für Buchungen, die keine Regel erkennt, kann eine KI die Kategorie vorschlagen. Zuerst wird die KI deiner Home-Assistant-Installation genutzt, sonst ein eigener Schlüssel (Grok, Claude oder ChatGPT).",
     "setup.ai.privacy": "Gesendet werden nur Händlername und Verwendungszweck, nie Betrag, IBAN oder Datum. Ohne Zustimmung bleibt alles lokal.",
     "setup.ai.toggle": "KI-Kategorisierung erlauben",
     "setup.done.title": "Fertig",
@@ -158,6 +180,23 @@ const FB = {
     "setup.pots.empty": "Not enough history for suggestions yet. You can add pots later on Start once a few months of data are in.",
     "setup.pots.created": "$n pots created",
     "setup.pots.owner_shared": "Household",
+    "setup.plan.prefill_title": "Suggestions from your history",
+    "setup.plan.prefill_body": "These are recurring payments we found in your bookings. Choose what goes into the plan and adjust amount and owner.",
+    "setup.plan.prefill_empty": "No suggestions found. That needs a few months of bookings.",
+    "setup.plan.in_plan": "already in the plan",
+    "setup.plan.per_month": "per month",
+    "setup.plan.amount": "Amount",
+    "setup.plan.owner": "Owner",
+    "setup.plan.accepted": "$n positions added to the plan",
+    "setup.plan.alt": "Or from a spreadsheet",
+    "setup.plan.owner_shared": "Household",
+    "setup.goals.title": "Savings goals",
+    "setup.goals.body": "An amount by a date, a cap for a category, a savings rate or a reserve to top up. All optional.",
+    "setup.points.title": "Points",
+    "setup.points.body": "If your household has its own points system, Finance can feed it.",
+    "setup.summary.goals": "Savings goals",
+    "setup.summary.points": "Points",
+    "setup.summary.none": "none",
     "setup.plan.title": "Budget plan",
     "setup.plan.body": "The plan records what you set aside: fixed costs and income per person. It is an extra and not needed to start.",
     "setup.plan.import": "Got your household spreadsheet? Upload the .xlsx file or paste a Google Sheets link. The import replaces the current plan.",
@@ -241,11 +280,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--fd-a500); o
 .row .who { flex: 1 1 150px; min-width: 0; display: flex; flex-direction: column; }
 .row .who b { font-weight: 500; overflow-wrap: anywhere; }
 .row .who span { color: var(--fd-t2); font-size: 12px; }
-.sw { flex: none; position: relative; width: 48px; height: 28px; border-radius: 14px; border: 1px solid var(--fd-line); background: var(--fd-sunk); padding: 0; }
-.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--fd-t3); transition: transform .15s, background .15s; }
+.sw { box-sizing: border-box; flex: none; position: relative; width: 52px; height: 32px; border-radius: 16px; border: 1px solid var(--fd-line); background: var(--fd-sunk); padding: 0; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: var(--fd-t3); transition: transform .15s, background .15s; }
 .sw[aria-checked="true"] { background: var(--fd-a700); border-color: var(--fd-a700); }
 .sw[aria-checked="true"]::after { transform: translateX(20px); background: #fff; }
-.hit { display: inline-flex; align-items: center; min-height: var(--fd-touch); }
+.hit { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 52px; min-height: var(--fd-touch); }
 input[type=number] { box-sizing: border-box; width: 92px; min-height: var(--fd-touch); padding: 0 10px; border: 1px solid var(--fd-line); border-radius: 10px; background: var(--fd-page); color: var(--fd-t1); font: inherit; text-align: right; }
 .chip { display: inline-flex; align-items: center; padding: 1px 9px; border-radius: var(--fd-r-pill); font-size: 11.5px; font-weight: 500; background: var(--fd-a50); color: var(--fd-a900); }
 .states { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 8px; }
@@ -263,6 +302,17 @@ input[type=text] { box-sizing: border-box; width: 110px; min-height: var(--fd-to
 .imp label { width: 100%; color: var(--fd-t2); font-size: 12.5px; }
 .ok { padding: 10px 12px; border-radius: 10px; background: var(--fd-a50); color: var(--fd-a900); font-size: 13px; margin: 8px 0; }
 code { font-size: 12px; background: var(--fd-sunk); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+h3.alt { margin: 18px 0 4px; font-size: 15px; font-weight: 500; }
+.card h3 { margin: 0 0 2px; font-size: 15px; font-weight: 500; }
+.pf.off { opacity: .6; }
+.pf + .pf { border-top: 1px solid var(--fd-line); }
+.pf .row { border-top: 0; }
+.pf .row input[type=number] { flex: 0 0 96px; }
+.own { display: flex; gap: 6px; overflow-x: auto; padding: 0 0 8px 62px; scroll-snap-type: x proximity; }
+.own button { flex: none; scroll-snap-align: start; min-height: 36px; padding: 0 12px; border: 1px solid var(--fd-line); border-radius: var(--fd-r-pill); background: transparent; max-width: 100%; }
+.own button[aria-checked="true"] { background: var(--fd-a50); border-color: var(--fd-a500); color: var(--fd-a900); font-weight: 500; }
+.own .lb { display: block; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+button:disabled { cursor: default; }
 .msg { text-align: center; padding: 40px 14px; color: var(--fd-t2); }
 `;
 
@@ -278,7 +328,9 @@ class FdSetup extends HTMLElement {
     this._loadFailed = false;
     this._paydaySug = null;
     this._potSug = null;
-    this._plan = { busy: false, report: null, url: "" };
+    this._plan = { busy: false, report: null, url: "", accepted: 0 };
+    this._prefill = null;
+    this._goalsN = null;
     this._draft = {};
     this._wired = false;
   }
@@ -304,7 +356,6 @@ class FdSetup extends HTMLElement {
       this._idx = this._st.completed ? 0 : Math.max(0, cur);
       this._draft = {
         notifications: { ...(this._st.notifications || {}) },
-        ai: !!this._st.ai_opt_in,
         region: this._initRegion(),
       };
     } catch (e) {
@@ -327,12 +378,25 @@ class FdSetup extends HTMLElement {
         this._potSug = ((await this._hass.callApi("GET", `${DOMAIN}/setup/pot_suggestions`)).suggestions || [])
           .map((s) => ({ ...s, on: true, amount: s.cycle_budget }));
       } catch (e) { this._potSug = []; }
+    } else if (step === "plan" && this._prefill === null) {
+      await this._loadPrefill();
     } else if (step === "done") {
       try { this._st = await this._hass.callApi("GET", `${DOMAIN}/setup`); } catch (e) { this._toast(tr("setup.reload_error")); }
+      try { this._goalsN = ((await this._hass.callApi("GET", `${DOMAIN}/setup/goals`)).goals || []).length; } catch (e) { this._goalsN = null; }
     }
     if (step === this._step) this._render();
     this.shadowRoot.querySelector("h2")?.focus();
   }
+
+  async _loadPrefill() {
+    try {
+      this._prefill = ((await this._hass.callApi("GET", `${DOMAIN}/setup/plan_prefill`)).proposals || [])
+        .map((p) => ({ ...p, on: !p.already_in_plan, amount: p.amount, owner: p.owner || "shared" }));
+    } catch (e) { this._prefill = []; }
+  }
+
+  _dn(p) { return (p.display_name || "").trim() || p.name; }
+  _dnOf(name) { const p = (this._st.persons || []).find((x) => x.name === name); return p ? this._dn(p) : name; }
 
   /** Server value first; otherwise a state hint from hass.config when HA exposes one. */
   _initRegion() {
@@ -398,7 +462,7 @@ class FdSetup extends HTMLElement {
     const { escHtml } = window._fd;
     const sw = (id, on, label) => `<div class="row"><div class="who"><b>${escHtml(label)}</b></div><span class="hit"><button type="button" class="sw" role="switch" aria-checked="${on}" data-sw="${id}" aria-label="${escHtml(label)}"></button></span></div>`;
     switch (step) {
-      case "persons": case "accounts":
+      case "persons": case "accounts": case "goals": case "points": case "ai":
         return `${this._head(step)}<div id="embed"></div>`;
       case "payday": return this._paydayBody();
       case "region": return this._regionBody();
@@ -418,8 +482,6 @@ class FdSetup extends HTMLElement {
           ${sw("digest_enabled", n.digest_enabled !== false, tr("setup.notif.digest_enabled"))}`;
         return `${this._head("notif")}${sw("enabled", n.enabled !== false, tr("setup.notif.enabled"))}${detail}`;
       }
-      case "ai":
-        return `${this._head("ai")}<div class="note">${escHtml(tr("setup.ai.privacy"))}</div>${sw("ai", !!this._draft.ai, tr("setup.ai.toggle"))}`;
       default: return this._doneBody();
     }
   }
@@ -440,8 +502,8 @@ class FdSetup extends HTMLElement {
       const confirmed = p.payday && (typeof p.payday === "object" ? p.payday.confirmed : true);
       const use = s && s.suggested_day && String(s.suggested_day) !== String(val)
         ? `<button type="button" class="btn ghost" data-use="${escHtml(p.name)}" data-day="${escHtml(s.suggested_day)}">${escHtml(tr("setup.payday.use"))}</button>` : "";
-      return `<div class="row"><div class="who"><b>${escHtml(p.name)}${confirmed ? ` <span class="chip">${escHtml(tr("setup.payday.confirmed"))}</span>` : ""}</b><span>${escHtml(hint)}</span></div>
-        ${use}<input type="number" min="1" max="31" step="1" inputmode="numeric" data-day-of="${escHtml(p.name)}" value="${escHtml(val)}" aria-label="${escHtml(tr("setup.payday.day") + ": " + p.name)}"></div>`;
+      return `<div class="row"><div class="who"><b>${escHtml(this._dn(p))}${confirmed ? ` <span class="chip">${escHtml(tr("setup.payday.confirmed"))}</span>` : ""}</b><span>${escHtml(hint)}</span></div>
+        ${use}<input type="number" min="1" max="31" step="1" inputmode="numeric" data-day-of="${escHtml(p.name)}" value="${escHtml(val)}" aria-label="${escHtml(tr("setup.payday.day") + ": " + this._dn(p))}"></div>`;
     }).join("");
     return `${this._head("payday")}${rows}`;
   }
@@ -456,7 +518,7 @@ class FdSetup extends HTMLElement {
           positions: rep.positions_imported ?? 0,
           persons: Array.isArray(rep.persons) ? rep.persons.length : (rep.persons ?? 0) }))}${
           (rep.warnings || []).length ? `<br>${escHtml(tr("setup.plan.warnings", { n: rep.warnings.length }))}` : ""}</div>` : "";
-    return `${this._head("plan")}<p>${escHtml(tr("setup.plan.import"))}</p>
+    return `${this._head("plan")}${this._prefillHtml()}<h3 class="alt">${escHtml(tr("setup.plan.alt"))}</h3><p>${escHtml(tr("setup.plan.import"))}</p>
       <div class="imp"><input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" data-plan-file hidden>
         <button type="button" class="btn ghost" data-a="plan_file"${dis}>${escHtml(tr("setup.plan.file"))}</button></div>
       <div class="imp"><label for="sheet-url">${escHtml(tr("setup.plan.url_label"))}</label>
@@ -464,6 +526,37 @@ class FdSetup extends HTMLElement {
         <button type="button" class="btn ghost" data-a="plan_url"${dis}>${escHtml(tr("setup.plan.url_import"))}</button></div>
       <p class="muted">${escHtml(tr("setup.plan.url_hint"))}</p>
       ${result}<p class="muted">${escHtml(tr("setup.plan.later"))}</p>`;
+  }
+
+  _prefillHtml() {
+    const { escHtml } = window._fd;
+    const fmt = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+    if (this._prefill === null) return `<p class="muted">…</p>`;
+    const head = `<h3>${escHtml(tr("setup.plan.prefill_title"))}</h3><p class="muted">${escHtml(tr("setup.plan.prefill_body"))}</p>`;
+    if (!this._prefill.length) return `${head}<div class="note">${escHtml(tr("setup.plan.prefill_empty"))}</div>`;
+    const owners = [["shared", tr("setup.plan.owner_shared")]].concat((this._st.persons || []).map((p) => [p.name, this._dn(p)]));
+    const cats = window._fd.CAT_LABELS || {};
+    const rows = this._prefill.map((p, i) => {
+      const dis = p.already_in_plan;
+      const chips = owners.map(([v, l]) => `<button type="button" role="radio" aria-checked="${p.owner === v}" data-pf-owner="${i}" data-v="${escHtml(v)}"${p.on ? "" : " disabled"}><span class="lb">${escHtml(l)}</span></button>`).join("");
+      return `<div class="pf ${p.on ? "" : "off"}"><div class="row"><span class="hit"><button type="button" class="sw" role="switch" aria-checked="${p.on}" data-pf="${i}" aria-label="${escHtml(p.name)}"${dis ? " disabled" : ""}></button></span>
+        <div class="who"><b>${escHtml(p.name)}</b><span>${escHtml(cats[p.category] || p.category || "")} · ${escHtml(p.interval || "")}${dis ? ` · ${escHtml(tr("setup.plan.in_plan"))}` : ` · ${escHtml(fmt.format(Math.abs(Number(p.amount) || 0)))} ${escHtml(tr("setup.plan.per_month"))}`}</span></div>
+        <input type="number" step="any" inputmode="decimal" data-pf-amt="${i}" value="${escHtml(p.amount)}" aria-label="${escHtml(tr("setup.plan.amount") + ": " + p.name)}"${p.on ? "" : " disabled"}></div>
+        ${dis ? "" : `<div class="own" role="radiogroup" aria-label="${escHtml(tr("setup.plan.owner") + ": " + p.name)}">${chips}</div>`}</div>`;
+    }).join("");
+    return head + rows;
+  }
+
+  /** POST the toggled proposals; existing positions are never overwritten by the server. */
+  async _acceptPrefill() {
+    const accept = (this._prefill || []).filter((p) => p.on && !p.already_in_plan && p.amount !== "" && Number.isFinite(Number(p.amount)))
+      .map((p) => ({ series_id: p.series_id, name: p.name, owner: p.owner, amount: Number(p.amount) }));
+    if (!accept.length) return;
+    const res = await this._hass.callApi("POST", `${DOMAIN}/setup/plan_prefill`, { accept });
+    const n = Array.isArray(res.created) ? res.created.length : Number(res.created) || 0;
+    this._plan.accepted += n;
+    this._prefill = null;
+    if (n) this._toast(tr("setup.plan.accepted", { n }), "success");
   }
 
   /** Upload or link import: both replace the plan and return the import report. */
@@ -483,6 +576,7 @@ class FdSetup extends HTMLElement {
       this._err = detail ? `${tr("setup.plan.failed")}: ${detail}` : tr("setup.plan.failed");
     }
     this._plan.busy = false;
+    await this._loadPrefill();
     this._render();
   }
 
@@ -515,7 +609,7 @@ class FdSetup extends HTMLElement {
     if (!this._potSug.length) return `${this._head("pots")}<div class="note">${escHtml(tr("setup.pots.empty"))}</div>`;
     const cats = window._fd.CAT_LABELS || {};
     const rows = this._potSug.map((s, i) => {
-      const owner = s.owner === "shared" ? tr("setup.pots.owner_shared") : s.owner;
+      const owner = s.owner === "shared" ? tr("setup.pots.owner_shared") : this._dnOf(s.owner);
       const label = s.name || cats[s.category] || s.category;
       return `<div class="row pot ${s.on ? "" : "off"}"><span class="hit"><button type="button" class="sw" role="switch" aria-checked="${s.on}" data-pot="${i}" aria-label="${escHtml(label)}"></button></span>
         <div class="who"><b>${escHtml(label)}</b><span>${escHtml(owner)} · ${escHtml(tr("setup.pots.samples", { n: s.samples }))}</span></div>
@@ -538,12 +632,14 @@ class FdSetup extends HTMLElement {
     const persons = (this._st.persons || []);
     const paydays = persons.filter((p) => p.payday).length;
     const rows = [
-      ["persons", persons.length ? persons.map((p) => p.name).join(", ") : mark("persons")],
+      ["persons", persons.length ? persons.map((p) => this._dn(p)).join(", ") : mark("persons")],
       ["accounts", mark("accounts")],
       ["payday", persons.length ? `${paydays} / ${persons.length}` : mark("payday")],
       ["region", escHtml(this._regionLabel())],
       ["pots", mark("pots")],
       ["plan", mark("plan")],
+      ["goals", this._goalsN ? String(this._goalsN) : escHtml(tr("setup.summary.none"))],
+      ["points", this._st.points_target ? escHtml(this._st.points_target) : escHtml(tr("setup.status.skipped"))],
       ["notifications", escHtml(tr(n.enabled === false ? "setup.status.off" : "setup.status.on"))],
       ["ai", escHtml(tr(this._st.ai_opt_in ? "setup.status.on" : "setup.status.off"))],
     ];
@@ -572,7 +668,14 @@ class FdSetup extends HTMLElement {
       if (!t) return;
       if (t.dataset.a) this._action(t.dataset.a);
       else if (t.dataset.sw) this._toggle(t.dataset.sw);
-      else if (t.dataset.pot !== undefined) {
+      else if (t.dataset.pf !== undefined) {
+        const p = this._prefill[Number(t.dataset.pf)];
+        p.on = !p.on;
+        this._render();
+      } else if (t.dataset.pfOwner !== undefined) {
+        this._prefill[Number(t.dataset.pfOwner)].owner = t.dataset.v;
+        this._render();
+      } else if (t.dataset.pot !== undefined) {
         const s = this._potSug[Number(t.dataset.pot)];
         s.on = !s.on;
         this._render();
@@ -588,6 +691,7 @@ class FdSetup extends HTMLElement {
     sh.addEventListener("input", (ev) => {
       const el = ev.target;
       if (el.dataset.dayOf !== undefined) this._draft.paydays[el.dataset.dayOf] = el.value;
+      else if (el.dataset.pfAmt !== undefined) this._prefill[Number(el.dataset.pfAmt)].amount = el.value;
       else if (el.dataset.potAmt !== undefined) this._potSug[Number(el.dataset.potAmt)].amount = el.value;
       else if (el.dataset.postcode !== undefined) this._draft.region.postcode = el.value.trim();
       else if (el.dataset.sheetUrl !== undefined) this._plan.url = el.value;
@@ -604,11 +708,8 @@ class FdSetup extends HTMLElement {
   }
 
   _toggle(id) {
-    if (id === "ai") this._draft.ai = !this._draft.ai;
-    else {
-      const n = this._draft.notifications;
-      n[id] = n[id] === false;
-    }
+    const n = this._draft.notifications;
+    n[id] = n[id] === false;
     this._render();
   }
 
@@ -657,10 +758,13 @@ class FdSetup extends HTMLElement {
     this._busy = true;
     const buttons = this.shadowRoot.querySelectorAll(".foot button");
     buttons.forEach((b) => { b.disabled = true; });
-    if (step === "region" && status === "skipped") { this._busy = false; return this._go(this._idx + 1); }
+    if (CLIENT_ONLY.has(step) && status === "skipped") { this._busy = false; return this._go(this._idx + 1); }
     try {
       // The import itself already stored the plan; the step is done only if one ran.
-      if (step === "plan") status = this._plan.report ? "done" : "skipped";
+      if (step === "plan") {
+        if (status === "done") await this._acceptPrefill();
+        status = this._plan.report || this._plan.accepted ? "done" : "skipped";
+      }
       let body = { step, status };
       if (status === "done") {
         if (step === "persons" || step === "accounts") {
@@ -697,7 +801,14 @@ class FdSetup extends HTMLElement {
         } else if (step === "notifications") {
           body.notifications = this._cleanNotifications();
         } else if (step === "ai") {
-          body.ai_opt_in = !!this._draft.ai;
+          // Provider, key and budget are stored by the embedded section; nothing else to send.
+          const s = this._settingsEl;
+          if (s && !(await s.save())) return this._unbusy();
+        } else if (step === "goals" || step === "points") {
+          const s = this._settingsEl;
+          if (s && !(await s.save())) return this._unbusy();
+          this._busy = false;
+          return this._go(this._idx + 1);
         }
       }
       this._st = await this._put(body);
