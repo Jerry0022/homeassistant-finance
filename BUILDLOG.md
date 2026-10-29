@@ -1,5 +1,20 @@
 # Build Log
 
+## 0.22.0 — 2026-10-29
+Version: 0.22.0
+Branch: claude/suspicious-dewdney-12be4e
+Changes:
+- fix(sensor): the sensor platform no longer crashes when an account's `ha_users` holds plain user ids instead of objects; the crash left balance, bank and month sensors unavailable and the panel showed the onboarding although banks were linked
+- feat(panel): the panel is rebuilt to the visual-round concept — one screen with time horizons, the Person ⇄ Haushalt pill at the bottom, a gear for settings and subpages with one shared header (Datenstand, Zyklus, Buchungen, Budgetplan, Fragen, Einstellungen); the old tabs, the overview and eleven legacy components are removed
+- feat(refresh): only an explicit "Neu importieren", the setup bootstrap and the daily schedule reach the bank; `POST /refresh` requires `{"trigger":"user_import"}` and the open-panel auto refresh is retired; "Aktualisieren" re-derives from the cache (`POST /reprocess`)
+- feat(home): person view shows own items and own Spielraum (budget, spent, remaining); desktop side column with accounts, optimisation and a 6-cycle history per pot with carry-over accept/drop (`POST /pots/carry`)
+- feat(questions): question cards list the bookings behind them (date, amount, account, counterparty, last four IBAN digits, text) and how often the merchant occurred
+- feat(setup): new wizard steps — plan prefilled from detected contracts, savings goals, points event (`finance_dashboard_points_awarded`, counter/input_number helper), opt-in AI categorisation (HA AI, xAI Grok, Anthropic, OpenAI; key Fernet-encrypted and write-only; at most 100 calls per month) and editable nicknames per person
+- feat(ai): merchants left uncategorised after derive/import are categorised by the opt-in AI provider; payload is merchant and remittance text only
+- fix(cards): the Lovelace budget card reads option list and value from the split/remainder select entities; the transactions-log component lost its data source and is retired
+- docs: binding UI spec `docs/dev/ui-concept-gap.md`, fetch-trigger table, setup-wizard and categorisation contracts; live-audit and visual-round concept pages
+- test: user-id `ha_users`, explicit refresh trigger, booking details, pot history and carry-over, wizard steps, AI provider gating
+
 ## 0.21.0 — 2026-10-28
 Version: 0.21.0
 Branch: claude/gifted-cartwright-cb042e
