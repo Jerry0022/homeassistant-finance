@@ -305,6 +305,12 @@ ${SHARED_CSS}
 
   /** In-page back: pop our own history entry when we pushed one, else just close. */
   _back() {
+    // One gesture can reach here twice (Esc on the panel and on the subpage
+    // header, fd-questions re-emitting close); a second history.back() would
+    // leave the panel.
+    if (this._backPending) return;
+    this._backPending = true;
+    setTimeout(() => { this._backPending = false; }, 300);
     if (history.state && history.state.fdSub) history.back();
     else {
       this._closeSub();

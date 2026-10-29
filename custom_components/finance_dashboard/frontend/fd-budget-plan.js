@@ -233,7 +233,7 @@ class FdBudgetPlan extends HTMLElement {
 .chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: var(--fd-r-pill); font-size: 11.5px; font-weight: 500; white-space: nowrap; background: var(--cbg); color: var(--cfg); }
 .tag { display: inline-block; margin-left: 6px; padding: 0 7px; border: 1px dashed var(--fd-t3); border-radius: var(--fd-r-pill); font-size: 10.5px; color: var(--fd-t2); white-space: nowrap; }
 .tag.fix { border-style: solid; border-color: var(--fd-line); background: var(--fd-sunk); }
-.dtag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: var(--fd-r-pill); font-size: 10.5px; font-weight: 500; background: var(--fd-desktop-bg); color: var(--fd-desktop); }
+.dtag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: var(--fd-r-pill); font-size: 10.5px; font-weight: 500; background: var(--fd-desktop-bg); color: var(--fd-desktop); white-space: nowrap; }
 .dtag::before { content: "\\25C6"; font-size: 8px; }
 .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
 .big { font-size: 34px; font-weight: 500; line-height: 1.05; color: var(--cfg, var(--fd-t1)); }

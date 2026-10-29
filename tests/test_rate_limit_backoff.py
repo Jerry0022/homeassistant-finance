@@ -36,6 +36,11 @@ class _FakeRequest:
     def get(self, key, default=None):
         return self._data.get(key, default)
 
+    async def json(self):
+        # The explicit "Neu importieren" body; without it the view refuses
+        # before any gating (covered in test_fetch_triggers.py).
+        return {"trigger": "user_import"}
+
 
 class _FakeManager:
     def __init__(self, rate_limited_until):
