@@ -44,8 +44,6 @@
           "transfer_amount_tolerance": "Betrags-Toleranz (EUR)",
           "transfer_time_window": "Zeitfenster (Tage)",
           "demo_mode": "Demo-Modus (synthetische Daten)",
-          "auto_refresh_on_open": "Beim Öffnen des Panels aktualisieren",
-          "auto_refresh_max_age_minutes": "Panel aktualisiert nur, wenn die Daten älter sind als (Minuten)",
           "raw_retention_days": "Rohantworten der Bank aufbewahren (Tage, 0 = für immer)",
           "show_household": "Haushaltsbudget im Panel anzeigen"
         },
