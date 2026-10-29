@@ -80,6 +80,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .main { min-width: 0; touch-action: pan-y; min-height: 40vh; padding-bottom: 88px; }
 .main.slide-l { animation: slidel .2s ease-out; }
 .main.slide-r { animation: slider .2s ease-out; }
+/* The slide-in would push the page sideways at its peak: clip only while it runs. */
+.layout:has(> .main.slide-l), .layout:has(> .main.slide-r) { overflow-x: clip; }
 @keyframes slidel { from { opacity: 0; transform: translateX(24px); } }
 @keyframes slider { from { opacity: 0; transform: translateX(-24px); } }
 .card { margin: 0 0 12px; padding: 12px 14px; border-radius: var(--fd-r-card); background: var(--fd-card); box-shadow: var(--fd-sh1); min-width: 0; }
@@ -99,7 +101,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .pot + .pot { border-top: 1px solid var(--fd-line); }
 .pot > i { align-self: stretch; border-radius: 2px; background: var(--c); }
 .pot > span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.pot > span b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pot > span b { font-weight: 500; overflow-wrap: anywhere; }
 .pot > em { font-style: normal; font-size: 18px; font-weight: 500; color: var(--cfg); white-space: nowrap; }
 .add { flex: none; width: var(--fd-touch); height: var(--fd-touch); margin: -10px -10px -10px 0; border: 0; border-radius: 50%; background: transparent; color: var(--fd-t2); font-size: 22px; line-height: 1; }
 .add:hover { background: var(--fd-sunk); color: var(--fd-a700); }
@@ -457,6 +459,7 @@ class FdHome extends HTMLElement {
       if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.6) this._step(dx < 0 ? 1 : -1);
     });
     main.addEventListener("pointercancel", () => { down = false; });
+    main.addEventListener("animationend", () => main.classList.remove("slide-l", "slide-r"));
     this._rendered = true;
     this._observe();
     this._paint();

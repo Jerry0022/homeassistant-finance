@@ -2,236 +2,156 @@
 
 ## Overview
 
-The Finance Dashboard uses a **component-based architecture** built with vanilla Web Components (Custom Elements API). Data flows from the Home Assistant coordinator through entity states into an invisible data provider, which distributes a unified data object to visual components.
+The Finance panel is built with vanilla Web Components (Custom Elements, Shadow DOM). Every component
+reads the integration's **cache-only HTTP API** itself; no component reads sensor attributes. The panel
+follows the decided visual concept (`docs/concepts/20261027-2210-finance-visual-round/`,
+gap spec `docs/dev/ui-concept-gap.md`): **one screen, no tab bar**.
 
-## Component Hierarchy
+- Axis 1, horizon: segment control Heute · Woche · Zyklus · Jahr at the top (with sub-labels, swipeable).
+- Axis 2, perspective: Person ⇄ Haushalt as an oval pill toggle fixed to the bottom of the screen, in both views.
+- Everything else sits behind an icon or entry and opens a **subpage** with a back button.
 
-```
-finance-dashboard-panel (Shell — sidebar entry point, ~80 lines)
- |-- fd-data-provider (Invisible — entity subscription + API bridge)
- |-- fd-header (Title bar, month selector, refresh button, status chip)
- |    '-- finance-status-chip (Sync state indicator)
- |-- fd-stats-row (4 KPI cards grid)
- |    '-- fd-stat-card x4 (Single KPI: balance, expenses, income, savings)
- |-- fd-household-section (Conditional — only when household data present)
- |    '-- fd-person-card xN (Per-person Spielgeld breakdown)
- |-- fd-category-section (Grid: donut + top-3 + fix/var)
- |    |-- fd-donut-chart (SVG donut with category list)
- |    '-- (top-3 costs + fix/var inline)
- |-- fd-cost-distribution (Stacked horizontal bar — shared costs or category)
- '-- fd-recurring-list (Recurring payments, max 8)
-```
-
-Standalone Lovelace cards (registered separately):
-- `finance-dashboard-card` (compact balance widget, `frontend/finance-dashboard-card.js`; all cards and the panel share one kit loaded by `frontend/finance-dashboard-kit.js`, auto-registered via `add_extra_js_url`)
-- `fd-budget-config` (split model configuration)
-- `fd-categorize` (transaction categorization, admin-only)
-- `finance-status-chip` (sync state indicator)
-
-## Data Flow
+## Component tree
 
 ```
-Enable Banking API
-      |
-      v
-  Manager (business logic — manager.py)
-      |
-      v
-  Coordinator (10-min cycle — coordinator.py)
-      |
-      v
-  coordinator.data = { balances: {...}, summary: {...} }
-      |                                    |
-      v                                    v
-  Entity States updated              API endpoints read
-  (sensor.fd_*, number.fd_*,         from coordinator.data
-   select.fd_*)                            |
-      |                                    |
-      v                                    v
-  fd-data-provider <-------- merges -------+
-      |                    (reads entities for balances/summary,
-      |                     ONE API call for household/recurring)
-      v
-  CustomEvent("fd-data-updated")
-      |
-      v
-  All child components re-render via property setters
+finance-dashboard-panel            shell: fd-home + subpage router + toast host
+ |-- fd-home                       Start (the one screen)
+ |    |-- [slot menu] ha-menu-button   narrow screens only, inside the top bar
+ |    '-- fd-cycle-detail          Zyklus: strip under the tank (mobile) / analysis in the side column (desktop)
+ '-- subpage (one at a time, #viewSub)
+      |-- fd-subpage-header + fd-freshness       Datenstand
+      |-- fd-subpage-header + fd-settings mode=page section=…   Einstellungen
+      |-- fd-transactions          (own header) desktop-only transaction list
+      |-- fd-questions             (own header) Fragen / flash cards
+      |-- fd-contracts             (own header) Verträge
+      |-- fd-benchmark             (own header) Vergleich
+      '-- fd-budget-plan           (own header) Budgetplan
+ fd-setup                          guided wizard, its own full-screen layer
+ fd-categorize (dialog)            desktop link from Fragen
 ```
 
-## Data Strategy: Entities First, API for Complex Data
+Lovelace cards (`finance-dashboard-card`, `finance-status-chip`, `fd-budget-config`, `fd-categorize`,
+`fd-transactions-log`) are separate and not part of the panel.
 
-| Data Point | Source | Entity / Endpoint | Reason |
+## Start (`fd-home.js`)
+
+Top bar: `[menu (narrow)] [freshness ✓ 06:30] · [Eilmeldung pill, only with alerts] · [★ questions] [⚙ settings]`.
+No "Finance" title. The freshness button shows the `as_of` time (`HH:MM` today, `gestern HH:MM`, else `dd.mm.`;
+desktop prefixes the status word, "aktuell · 06:30") and opens **Datenstand**. The gear opens **Einstellungen**
+on every width. The star opens **Fragen**.
+
+Segment sub-labels: `Mi., 29.10.` · `KW 44` · `noch N Tage` (desktop: `dd.mm.–dd.mm.`) · `2026`.
+
+Bottom pill: avatar initial + `person.display_name` (fallback: first token of the name; ellipsis, full name in the
+tooltip and aria-label) with "deine Töpfe", and ⌂ Haushalt with "gemeinsam". `position: fixed`, aligned to the
+panel's content box from JS (ResizeObserver), so it never floats mid-screen and clears the HA sidebar. It stays
+visible in the household view; it is hidden only when the viewer maps to no person (`viewer_person: null`).
+
+Horizons (person view = own items only; household view = shared pots + persons as totals):
+
+| Horizon | Main column |
+|---|---|
+| Heute | coloured "noch frei" figure (no status chip), meter of what is left, today's spend, per day; "Deine/Gemeinsame Töpfe" with "+" and up to two suggestion chips when empty; persons totals in the household view |
+| Woche | verdict band, carry-over "+x € aus KW nn mitgenommen", day bars vs. the Soll line, thin dashed zero-carry line, day amounts for past days only, "wird diese Woche noch abgebucht" |
+| Zyklus | tank with Soll-Linie (info button flips the card to the cycle rule), fd-cycle-detail strip (mobile), Fixkosten gedeckt or "Plan fehlt → Plan anlegen", Wusstest du schon, Als Nächstes (top 3 + mehr), Rücklagen |
+| Jahr | Jan–Dec status squares of the calendar year ("keine Daten" for empty months), vs. Vorjahr, entries Verträge · Vergleich · Budgetplan |
+
+**Spielraum without pots** (spec § 1.4): with no pot budget the screen never collapses to "Noch keine Töpfe".
+It shows the view's own Spielraum: `person_budget {budget, spent, remaining, source}` from `/home` (person view),
+else `GET household_summary?cycle=current[&view=person]` — the viewer's own owner row (person view) or the
+household totals (household view): income − expenses, Soll-Linie over the cycle, "Gehalt erwartet am …" while
+income is pending.
+
+A setup card sits *above* the content only while something is missing: wizard not completed (admin: CTA;
+member: calm note), no bank connected, or accounts unassigned (→ Einstellungen › accounts).
+
+Desktop side column (`@container ≥ 760 px`, purple ◆ marker):
+
+| Horizon | Side column |
+|---|---|
+| Zyklus | fd-cycle-detail analysis, **Optimierung** (per pot: spent / plan, deviation from the Soll-Linie, projected gap, buttons Plan anpassen · Regel anlegen · Zum Vertrag) |
+| Woche | **Budget anpassen** (move cycle budget between two pots via two `PUT /pots`) |
+| Jahr | Optimierung light + Verträge |
+| all | **Konten** (`/balances` + `/assignments`): own accounts in detail, another person's accounts as a total only ("Details sieht nur X"); pot management + dismissible "neuer Topf" suggestions |
+
+## Subpage router (`finance-dashboard-panel.js`)
+
+`fd-navigate {target, section?}` (bubbling, composed) from any component:
+
+| target | opens |
+|---|---|
+| `freshness` | Datenstand (fd-freshness, shell draws fd-subpage-header) |
+| `settings` | `<fd-settings mode="page" section=…>` (shell draws the header) |
+| `transactions`, `questions`, `contracts`, `benchmark`, `plan` | the component, which draws its own header |
+| `setup` | the wizard layer (fd-setup) |
+| `back`, `settings-closed` | closes the subpage |
+
+Opening a subpage pushes a history entry `#sub=<target>`; browser back and the header's back button close it, and
+a reload with the hash reopens it. Esc closes it too. Legacy close events `fd-questions-close` and
+`fd-freshness-back` are honoured.
+
+The Budgetplan subpage gets its actuals from `GET /household_summary` (mapped onto the `data` shape
+fd-budget-plan reads), not from the retired sensor tree.
+
+## Bank calls and data actions
+
+Opening the panel **never** fetches from the bank. The only live fetch is the Datenstand button
+**Neu importieren** → `fd-refresh-requested` → the shell POSTs `finance_dashboard/refresh` with body
+`{"trigger":"user_import"}` (the backend refuses a bare POST with 400). The request carries the PSU context,
+so it is attended and not bound to the bank's background 4/day cap. **Aktualisieren** →
+`fd-reprocess-requested` → `POST finance_dashboard/reprocess` (stored raw data only). Both report through the
+shell's toast host and reload Start and Datenstand. In demo mode Neu importieren only shows a note.
+
+Datenstand (`fd-freshness`) shows Stand, last import / processing, the bank connections from `/bank_status`
+(consent, today's background budget, last manual fetch, block, last error, renew / manage link), the import log,
+monthly validity and the derivation check (`/freshness`, admin details). Desktop pointers get a link to the
+transaction list.
+
+## Events
+
+| Event | Source | Handled by | Purpose |
 |---|---|---|---|
-| Per-account balance | **Entity state** | `sensor.fd_{bank}_{account}` | Reactive, coordinator-driven |
-| Total balance | **Entity state** | `sensor.fd_total_balance` | Aggregation done server-side |
-| Monthly income | **Entity attr** | `sensor.fd_monthly_summary` → `total_income` | Already in extra_state_attributes |
-| Monthly expenses | **Entity attr** | `sensor.fd_monthly_summary` → `total_expenses` | Already in extra_state_attributes |
-| Categories | **Entity attr** | `sensor.fd_monthly_summary` → `categories` | Dict of category → amount |
-| Transaction count | **Entity attr** | `sensor.fd_monthly_summary` → `transaction_count` | Simple integer |
-| Fixed/variable costs | **Entity attr** | `sensor.fd_monthly_summary` → `fixed_costs`, `variable_costs` | Simple floats |
-| Budget limits | **Entity state** | `number.fd_budget_{category}` | One entity per category |
-| Split model | **Entity state** | `select.fd_split_model` | User-configurable select |
-| Household data | **API call** | `GET /summary` → `household` | Nested member arrays, too complex for attrs |
-| Recurring payments | **API call** | `GET /summary` → `recurring` | Array of objects |
-| Transaction list | **API call** | `GET /transactions` (admin-only) | Privacy: admin-only detail data |
+| `fd-navigate {target, section?}` | fd-home, fd-freshness, fd-subpage-header, fd-cycle-detail, fd-settings, … | shell | subpage router (above) |
+| `fd-refresh-requested` | fd-freshness | shell | Neu importieren (attended bank fetch) |
+| `fd-reprocess-requested` | fd-freshness | shell | Aktualisieren (`POST /reprocess`) |
+| `fd-toast {message, type}` | any | shell | toast host |
+| `fd-assignments-saved`, `fd-settings-saved`, `fd-pots-changed` | fd-settings, … | shell | reload Start |
+| `fd-demo-toggle` | fd-home (not configured), settings | shell | `POST /demo/toggle`, Start reads `?demo=1` |
+| `fd-categorize-requested` | (legacy) | shell | opens Fragen |
+| `fd-questions-all` | fd-questions | shell | categorise dialog (desktop) |
 
-## Unified Data Object
+## Data sources (all cache reads)
 
-The `fd-data-provider` merges entity states + API data into one object:
+`/home`, `/household_summary`, `/plan_vs_actual`, `/budget_plan`, `/balances`, `/assignments` (admin),
+`/bank_status`, `/freshness`, `/refresh_status`, `/transactions` (admin), `/pots`. Writes: `/pots`,
+`/setup…`, `/assignments`, `/demo/toggle`, `/reprocess`, `/refresh` (explicit trigger only).
 
-```javascript
-{
-  accounts: [
-    { entityId, name, institution, balance, ibanMasked, currency, person }
-  ],
-  totalBalance: 12345.67,
-  accountCount: 2,
-  summary: {
-    totalIncome: 4500.00,
-    totalExpenses: 3200.00,
-    balance: 1300.00,
-    categories: { housing: -1200, food: -450, ... },
-    transactionCount: 87,
-    fixedCosts: 2100.00,
-    variableCosts: 1100.00,
-    month: 3,
-    year: 2026,
-  },
-  budgets: { housing: 1300, food: 500, ... },
-  splitModel: "proportional",
-  household: { members: [...], split_model, total_shared_costs },
-  recurring: [ { creditor, average_amount, frequency, category, expected_day } ],
-  loading: false,
-  error: null,
-  lastRefresh: "2026-03-28T14:30:00",
-}
-```
+## Localisation
 
-## Event System
+`frontend/locales/de.json` and `en.json` hold the shell, Start and Datenstand strings (`sub.*`, `shell.*`,
+`home.*`, `fr.*`, …). Components built in parallel (fd-cycle-detail, fd-transactions, fd-subpage-header,
+fd-setup, fd-settings, fd-questions, fd-contracts, fd-benchmark) carry fallback dictionaries in their own file.
+Placeholders use `$name`; plurals use a `_one` sibling key.
 
-### Parent → Child: Property Setters
+## Kit loading
 
-```javascript
-// Panel shell pushes data to children
-this._statsRow.data = this._dataProvider.data;
-this._categorySection.data = this._dataProvider.data;
-```
+`finance-dashboard-kit.js` is the single entry point: it loads `fd-shared-styles.js` first (defines
+`window._fd`, tokens, tooltip and scrollbar styles), then every component with `Promise.allSettled`, so one
+broken module leaves its element undefined instead of blanking the panel. The panel and every card share
+the same `?v=<VERSION>` query for cache-busting.
 
-### Child → Parent: CustomEvents
+## Responsive and overflow rules
 
-All events use `fd-` prefix, `bubbles: true, composed: true` for Shadow DOM traversal.
-
-| Event | Dispatched By | Handled By | Purpose |
-|---|---|---|---|
-| `fd-data-updated` | fd-data-provider | panel shell | New data available |
-| `fd-refresh-requested` | fd-header | panel shell → data provider | Manual refresh |
-| `fd-month-changed` | fd-header | fd-data-provider | Month navigation (Phase 2) |
-| `fd-category-selected` | fd-donut-chart | fd-transaction-list (Phase 3) | Category drill-down |
-| `retry` | finance-status-chip | fd-header | Error recovery |
-| `fd-reprocess-requested` | fd-freshness | panel shell -> fd-overview.reprocess() | "Aktualisieren": POST `/reprocess`, stored raw data only, no bank call |
-| `fd-reprocess-done` | fd-overview | panel shell | Start + freshness page reload |
-| `fd-navigate` `{target}` | fd-home, fd-overview, fd-household-cycle, fd-budget-plan | panel shell | `freshness` opens fd-freshness; `setup` is the setup wizard's (empty plan / not configured CTA) |
-| `fd-freshness-back` | fd-freshness | panel shell | Back to the tab the page was opened from |
-
-### Sibling Communication
-
-Siblings never communicate directly. The panel shell mediates all cross-component data flow.
-
-## Extension Points
-
-### Phase 2: Household Budget
-- `fd-household-section` renders conditionally when `data.household` exists
-- Custom split slider dispatches `fd-split-changed` → `hass.callService("select", "select_option")`
-- `fd-person-card` supports month-over-month sparkline via optional `trend` property
-
-### Phase 3: Analytics
-- `fd-transaction-list`: activated by `fd-category-selected` from donut click
-- `fd-benchmark-card`: standalone, fetches from `GET /benchmark`
-- `fd-trend-chart`: reads from HA long-term statistics or new `GET /summary/history?months=6`
-
-### Adding New Components
-1. Create `frontend/fd-{name}.js` with `customElements.define()`
-2. Register for Lovelace use: `window.customCards.push(...)` + add to `LOVELACE_COMPONENTS` in `panel.py`
-3. For panel use: import in shell, create instance, set `data` property
-
-## File Layout
-
-```
-frontend/
-  finance-dashboard-panel.js    — Thin shell (~120 lines)
-  fd-data-provider.js           — Entity subscription + API bridge
-  fd-shared-styles.js           — CSS template + formatters + XSS helper
-  fd-header.js                  — Title bar, month, refresh, status chip
-  fd-stats-row.js               — 4-KPI grid container
-  fd-stat-card.js               — Single KPI card (reusable)
-  fd-household-section.js       — Person cards + shared costs bar
-  fd-person-card.js             — Single person Spielgeld card
-  fd-category-section.js        — Donut + top-3 + fix/var grid
-  fd-donut-chart.js             — SVG donut chart
-  fd-cost-distribution.js       — Stacked horizontal bar
-  fd-recurring-list.js          — Recurring payments card
-  finance-status-chip.js        — Sync state indicator (existing)
-  fd-budget-config.js           — Budget configuration (existing)
-  fd-categorize.js              — Transaction categorization (existing)
-```
+- Every flex/grid text column has `min-width: 0`; amounts are `flex: none` / `white-space: nowrap`.
+- Long merchant labels (Als Nächstes, upcoming) wrap with `overflow-wrap: anywhere`, clamped to two lines; the
+  `vorgemerkt` tag sits inline after the date.
+- Names in the pill, pot rows and account rows truncate with an ellipsis; the full name is in the tooltip.
+- Touch targets ≥ 44 px; tooltips via `data-tip` (never `title`); every action has a touch path.
+- Panel padding: 24 px desktop, 8 px below 600 px.
 
 ## Security
 
-- **IBAN masking**: Data provider reads `iban_masked` from entity attributes — never full IBAN
-- **Admin gate**: Components that show individual transactions check `this._hass.user.is_admin`
-- **Shadow DOM**: Each component uses `attachShadow({ mode: "open" })` for style isolation
-- **XSS prevention**: All user-provided text passed through `_esc()` helper
-- **No sensitive data in DOM**: Amounts in text content only, never in `data-*` attributes
-
-## Facts panel (Phase 3.2)
-
-The sidebar panel has two tabs. **Overview** (`fd-overview`) is plain facts and
-always on: accounts (booked + available balance, last update), per-bank status
-(consent valid-until with expiring/expired badge, fetch budget used today x/4,
-blocked-until, last error, link to the integration page) and, for admins, a
-server-side searchable/filterable/paged transaction list. **Household** is the
-previous component tree (household split, budget plan, categories, ...) and is
-shown only when the integration option `show_household` is true
-(`GET /api/finance_dashboard/settings`, default true if absent).
-
-Banks are linked as config subentries on the HA integration page; every "add /
-renew bank" entry point navigates to `/config/integrations/integration/finance_dashboard`
-(the in-panel setup wizard and its `/setup/*` views are gone).
-
-Cache-read endpoints used by the Overview: `/balances`, `/bank_status`
-(any authenticated user, no secrets), `/transactions` (admin; query `q`,
-`account`, `from`, `to`, `limit`, `offset`; non-admins get aggregates only),
-`/settings`, `/refresh_status`. The Refresh button posts the attended
-`/refresh` (admin-only); the `debounced` and `rate_limited` outcomes are
-reported as toasts, not retried.
-
-## Home screen (`fd-home.js`)
-
-The panel's first tab ("Start"). One cache-only request per horizon and view:
-`GET finance_dashboard/home?horizon=today|week|cycle|year&view=person|household[&demo=1]`.
-The response's `view` is authoritative (a user without a person mapping gets the household view).
-
-- Navigation, same on mobile and desktop: top bar (freshness icon, Eilmeldung pill with panel, star with question
-  badge), segment control Heute, Woche, Zyklus, Jahr (also swipeable via pointer events and arrow keys), bottom oval
-  Person / Haushalt toggle.
-- Desktop (`@container home (min-width: 760px)`): side column with pot management (create, edit, delete through
-  `POST/PUT/DELETE finance_dashboard/pots`) and rule-based "new pot" suggestions (categories without a pot,
-  dismissals kept in `localStorage`). Desktop-only controls carry the purple marker.
-- Events: `fd-categorize-requested` (star; the shell opens `fd-categorize` in a dialog), `fd-demo-toggle`.
-- Status wording: `passt` / `knapp` / `drüber` (colour carries the status, no red).
-- Design tokens (`--fd-*`) live in `SHARED_CSS` (`fd-shared-styles.js`) and map onto HA theme variables;
-  `[data-tip]` / `[data-tip-info]` give the app-styled tooltip (label and info delay tiers).
-
-## Household cycle and freshness page
-
-- `fd-household-cycle` replaces the calendar-month `fd-stats-row` in the Household tab. It reads
-  `GET household_summary?cycle=current|previous` (contract: `docs/dev/contracts/household-summary.md`):
-  cycle label with dates and day x/y, Einnahmen / Ausgaben / Ueberschuss with the previous-cycle delta,
-  Sparquote only when not null (else "Gehalt erwartet am ..." / "noch kein Einkommen"), Fix vs Variabel and the
-  owner split (restricted persons: totals only). Each block has one rule-based sentence; open (unassigned)
-  expenses offer "Konten zuordnen".
-- `fd-freshness` (own view `#viewFreshness` in the panel, opened with `fd-navigate {target:"freshness"}`)
-  shows Stand, last import / processing, processing version, the import log, monthly validity per account and the
-  derivation check from `GET freshness` (contract: `docs/dev/contracts/reprocess.md`); non-admins see Stand + last import.
-- Overview bank card: "Neu importieren" (`fd-refresh-requested`, attended bank fetch) and "Aktualisieren"
-  (`POST reprocess`, no bank call); the panel passes the import progress to `fd-overview.importing`.
+- IBANs arrive masked from the API; the Konten column shows `iban_masked` only.
+- Individual transactions are admin-only (`/transactions`); another person's accounts appear as totals only.
+- All user-provided text goes through `window._fd.escHtml`; amounts never go into `data-*` attributes.
+- Shadow DOM per component for style isolation.
