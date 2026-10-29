@@ -27,6 +27,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from .budget_plan import BudgetPlan, actual_amount_to_plan_sign
+from .const import POSITION_KIND_FIXED
 from .contracts import is_own_name, own_account_names
 from .cycle import (
     calendar_cycle,
@@ -398,6 +399,69 @@ def _did_you_know(scope_bookings: list[dict[str, Any]], cycle: tuple[date, date]
     }
 
 
+def _display_name(person: str, persons: list[dict[str, Any]] | None) -> str:
+    """Nickname of a person (``display_name``), falling back to the stable ``name``."""
+    for cfg in persons or []:
+        if str(cfg.get("name") or "") == person:
+            return str(cfg.get("display_name") or "").strip() or person
+    return person
+
+
+def _person_budget(
+    person: str,
+    scope: list[dict[str, Any]],
+    plan: BudgetPlan | None,
+    cycle: tuple[date, date],
+    today: date,
+) -> dict[str, Any]:
+    """The person's own Spielraum for the cycle (own items only, plan sign).
+
+    ``plan``: own plan income minus own fixed costs; ``spent`` skips bookings in
+    categories an own fixed position already covers (they are inside the fixed
+    costs, counting them again would eat the Spielraum twice).
+    ``history``: own income received in the cycle (previous cycle when none yet)
+    against all own spending.
+    """
+    start, end = cycle
+    skip_always = {"income", "transfers"}
+
+    def _own_spent(skip: set[str]) -> float:
+        return sum(
+            b["amount"]
+            for b in scope
+            if b["owner"] == person and _expense(b) and not b["pending"] and not b["in_chain"]
+            and b["category"] not in skip_always | skip and start <= b["date"] <= end
+        )
+
+    def _result(budget: float, spent: float, source: str) -> dict[str, Any]:
+        return {
+            "budget": round(budget, 2),
+            "spent": round(spent, 2),
+            "remaining": round(budget - spent, 2),
+            "source": source,
+        }
+
+    if plan is not None and not plan.is_empty():
+        own = plan.positions_for(person)
+        income = plan.income_net(person)
+        if income > 0 or own:
+            fixed = {
+                p.category
+                for p in own
+                if p.kind == POSITION_KIND_FIXED and p.is_active(today.month, today.year)
+            }
+            budget = income - plan.fixed_total(today.month, today.year, owner=person)
+            return _result(budget, _own_spent(fixed), "plan")
+
+    span = (end - start).days + 1
+    prev = (start - timedelta(days=span), start - timedelta(days=1))
+    own_income = _incomes(scope, person)
+    budget = sum(a for d, a in own_income if start <= d <= end)
+    if budget <= 0:
+        budget = sum(a for d, a in own_income if prev[0] <= d <= prev[1])
+    return _result(budget, _own_spent(set()), "history")
+
+
 def build_home(  # noqa: PLR0912, PLR0915
     *,
     accounts: list[dict[str, Any]],
@@ -423,6 +487,7 @@ def build_home(  # noqa: PLR0912, PLR0915
     banks = banks or []
     if horizon not in HORIZONS:
         horizon = "cycle"
+    viewer_person = person or None  # the caller's person, kept for every view
     if view != "person" or not person:
         view, person = "household", None
 
@@ -524,7 +589,12 @@ def build_home(  # noqa: PLR0912, PLR0915
 
     out: dict[str, Any] = {
         "view": view,
-        "person": {"id": person, "name": person} if person else None,
+        "person": (
+            {"id": person, "name": person, "display_name": _display_name(person, persons_cfg)}
+            if person
+            else None
+        ),
+        "viewer_person": viewer_person,
         "horizon": horizon,
         "freshness": _freshness(as_of, now, banks),
         "alerts": _alerts(banks),
@@ -545,6 +615,9 @@ def build_home(  # noqa: PLR0912, PLR0915
 
     if include_questions:
         out["questions"] = questions  # internal: admin question list, not in the public home view
+
+    if view == "person" and person:
+        out["person_budget"] = _person_budget(person, scope, plan, cycle, today)
 
     out["setup"] = setup_block(accounts, persons_cfg, len(pots), user_mapped=user_mapped)
 
