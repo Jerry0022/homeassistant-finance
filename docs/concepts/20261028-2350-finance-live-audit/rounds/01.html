@@ -1,0 +1,409 @@
+<section data-iteration="1" data-iteration-template="decision" data-analysis="full" data-baked>
+  <script type="application/json" data-frozen-feedback>{"general":{"text":"bitte check das urspürngliche concept mobile vs desktop 9innig, mir fehlt im desktop auf jeden fall einen einstellungsbutton. Ich sehe nicht das die header korrekt sind, auch leider wurde das was vorher existierte in der ui nicht vollkommen abgelöst durch das neue concept ggf. plus weitere anpassungen die du siehst, aber verkaufe mir das aktuelle bvitte nicht annäöhernd als das neue concept! Außerdem check überläufe etc.... \nUnd wir müssen nicht nur ha elemente nehmen, gern auch vnon ha apps und co. und selbst kreiierten...","attachments":[]}}</script>
+
+  <section id="briefing" data-analysis-briefing data-nav-label="Briefing">
+    <p data-briefing-what>Ich habe die Live-Installation (Finance 0.20.2 auf homeassistant.local) gegen das Produktkonzept geprüft: alle Panel-Tabs, alle Ansichten von Start und 19 API-Endpunkte. Der Haushalt-Tab zeigt „Noch keine Bank verbunden“, weil die Sensor-Plattform beim Start abstürzt. Alle 32 Finance-Entitäten sind dadurch nicht verfügbar.</p>
+    <p data-briefing-why>Die Bankdaten sind da (4 Konten, 647 Buchungen, frisch). Was fehlt, ist die Darstellung: Auf Start sieht eine Person ohne eigene Töpfe fast nichts, und ohne Budgetplan bleiben Plan-gegen-Ist und Vergleich leer.</p>
+    <div data-briefing-potential data-viz="kpi" data-viz-spec='{"value":"12","unit":"Befunde","label":"1 kritisch · 3 hoch · 4 mittel · 4 niedrig"}'>12 Befunde</div>
+    <a data-briefing-topic="t-live" data-share="45">Live kaputt</a>
+    <a data-briefing-topic="t-glance" data-share="30">Start &amp; Haushalt</a>
+    <a data-briefing-topic="t-plan" data-share="25">Plan &amp; Einrichtung</a>
+    <p data-briefing-duration>≈ 5 min</p>
+    <div data-alevel="1" data-title="Briefing">
+      <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"32 / 32","unit":"Entitäten","label":"live nicht verfügbar"}'></div></div>
+      <div data-slot="long">
+        <div data-viz="bars" data-viz-spec='{"items":[{"label":"kritisch","value":1},{"label":"hoch","value":3},{"label":"mittel","value":4},{"label":"niedrig","value":4}],"unit":"Befunde"}'></div>
+        <p>Ein Befund ist kritisch: Der Absturz der Sensoren reißt den Haushalt-Tab, die Statistik und jede Automation mit. Er ist in diesem Worktree behoben, aber noch nicht ausgeliefert. Drei Befunde sind hohe Konzeptlücken, die anderen sind Feinschliff oder Einstellungen.</p>
+        <div data-evidence hidden>Live gemessen am 28.10.2026, 23:40. Entity-Registry: 32 Einträge der Plattform finance_dashboard, alle Kontostand-, Bank- und Monats-Sensoren „unavailable“. Systemlog: „Error while setting up finance_dashboard platform for sensor: 'str' object has no attribute 'get'“ in sensor.py, Zeile 215. refresh_status: account_count 4, transaction_count 647, outcome ok.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="t-live" data-topic data-nav-label="Live kaputt">
+    <div data-alevel="2" data-title="Live kaputt">
+      <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"1","unit":"Absturz","label":"legt alle Sensoren lahm"}'></div></div>
+      <div data-slot="long">
+        <div data-viz="flow" data-viz-spec='{"steps":[{"label":"ha_users als Text","value":"seit 0.19"},{"label":"sensor.py stürzt ab","value":"Zeile 215"},{"label":"32 Entitäten fehlen","value":"unavailable"},{"label":"Panel zählt 0 Konten","value":"accountCount"},{"label":"Haushalt-Tab","value":"„Keine Bank“"}]}'></div>
+        <p>Seit 0.19 speichert die Kontozuordnung die HA-Benutzer als reine IDs, der Kontostand-Sensor erwartet aber Objekte mit Namen. Das Setup bricht ab, kein Sensor entsteht. Das Panel zählt Konten über die Kontostand-Sensoren und landet bei 0.</p>
+      </div>
+    </div>
+
+    <section id="d-root" data-nav-label="Ursache" data-decision="d-root" data-decision-mode="verify"
+             data-label="Ursache leerer Haushalt-Tab" data-rec="ok"
+             data-rec-why="Im Live-Log steht genau dieser Fehler, und alle 32 Entitäten sind unavailable, obwohl die API 4 Konten liefert."
+             data-applies-to="Haushalt-Tab, alle Sensoren" data-finding="f-root" data-finding-quant="true">
+      <p data-applies>Gilt für: Haushalt-Tab, alle Finance-Sensoren</p>
+      <h3 data-question>Stimmt die Diagnose: Der Haushalt-Tab ist leer, weil die Sensor-Plattform beim Start abstürzt?</h3>
+      <p data-context>Du hattest vermutet, live laufe gar nicht das neue Konzept. Live läuft 0.20.2, aber dieser eine Absturz verdeckt den Haushalt-Tab.</p>
+      <div data-options>
+        <label data-opt="ok" data-recommended>
+          <input type="radio" name="dm-d-root" value="ok" checked>
+          <span data-opt-label>Stimmt</span>
+          <span data-opt-consequence>Der Fix (Benutzer als Text oder Objekt lesen) geht so raus.</span>
+        </label>
+        <label data-opt="partial">
+          <input type="radio" name="dm-d-root" value="partial">
+          <span data-opt-label>Teilweise</span>
+          <span data-opt-consequence>Du siehst noch einen anderen Grund; ich prüfe ihn vor dem Ausliefern.</span>
+        </label>
+        <label data-opt="wrong">
+          <input type="radio" name="dm-d-root" value="wrong">
+          <span data-opt-label>Stimmt nicht</span>
+          <span data-opt-consequence>Ich suche die Ursache neu.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-d-root-fix" placeholder="Was stimmt nicht?" value="">
+      <textarea data-comment="d-root-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-root-touched" value="">
+      <input type="hidden" name="dm-d-root-issue" value="">
+      <input type="hidden" name="dm-d-root-epic" value="">
+      <div data-alevel="3" data-title="Ursache leerer Haushalt-Tab">
+        <div data-slot="short"><div data-viz="compare" data-viz-spec='{"before":{"label":"Konten in der API","value":4},"after":{"label":"Konten im Panel","value":0},"unit":"Konten"}'></div></div>
+        <div data-slot="long">
+          <div data-viz="compare" data-viz-spec='{"before":{"label":"Konten in der API","value":4},"after":{"label":"Konten im Panel","value":0},"unit":"Konten"}'></div>
+          <p>Die API meldet 4 Konten und 647 Buchungen. Das Panel liest Konten aber nur aus Kontostand-Sensoren, und davon existiert live keiner. Der Fix liest die Benutzer als Text oder Objekt. Zusätzlich fragt das Panel jetzt den Cache, wenn kein Sensor da ist, und zeigt „Sensoren fehlen“ statt „Bank verbinden“.</p>
+          <div data-evidence hidden>custom_components/finance_dashboard/sensor.py:215 (vorher u.get("name") für jeden Eintrag). frontend/fd-data-provider.js: accountCount zählt nur *_balance-Entitäten mit Zahl als Zustand. finance-dashboard-panel.js: Onboarding bei accountCount === 0.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="d-ship" data-nav-label="Hotfix-Umfang" data-decision="d-ship" data-decision-mode="single"
+             data-label="Umfang des Hotfix" data-rec="both"
+             data-rec-why="Beide Änderungen sind fertig und betreffen getrennte Dateien. Die Buchungsdetails beantworten deine Frage zu „‹Nachname›“ direkt."
+             data-applies-to="nächstes Release" data-finding="f-ship">
+      <p data-applies>Gilt für: das nächste Release</p>
+      <h3 data-question>Was geht mit dem Sensor-Fix zusammen raus?</h3>
+      <p data-context>In diesem Worktree liegen zwei fertige Änderungen: der Sensor-Fix und die Buchungsdetails auf den Fragen-Karten.</p>
+      <div data-options>
+        <label data-opt="both" data-recommended>
+          <input type="radio" name="dm-d-ship" value="both" checked>
+          <span data-opt-label>Sensor-Fix und Buchungsdetails zusammen ausliefern</span>
+          <span data-opt-consequence>Ein Release: Der Haushalt-Tab ist zurück, und die Karten zeigen Konto, Empfänger, Betrag und Häufigkeit.</span>
+        </label>
+        <label data-opt="fix">
+          <input type="radio" name="dm-d-ship" value="fix">
+          <span data-opt-label>Nur den Sensor-Fix ausliefern</span>
+          <span data-opt-consequence>Kleinstes Risiko; die Buchungsdetails kommen mit dem nächsten Release.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-ship-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-ship-touched" value="">
+      <input type="hidden" name="dm-d-ship-issue" value="">
+      <input type="hidden" name="dm-d-ship-epic" value="">
+      <div data-alevel="3" data-title="Umfang des Hotfix">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Zwei fertige Änderungen, keine gemeinsamen Dateien."}'></div></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Sensor-Fix: sensor.py, Panel, Datenquelle, Texte. Buchungsdetails: questions.py, home.py, fd-questions.js, Texte."}'></div>
+          <p>Lokal liefen die Tests nicht: pytest-homeassistant braucht fcntl, das es unter Windows nicht gibt, und der Rechner war ausgelastet. Die Tests laufen im CI des Pull Requests, das Ausliefern wartet auf grün.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="d-owner" data-nav-label="Kontozuordnung" data-decision="d-owner" data-decision-mode="verify"
+             data-label="Kontozuordnung live" data-rec="partial"
+             data-rec-why="Die Zuordnung sieht vertauscht aus, aber nur du weißt, wem welches Konto gehört."
+             data-applies-to="Übersicht, Besitzer-Kette" data-finding="f-owner">
+      <p data-applies>Gilt für: Übersicht und jede Buchung dieser Konten</p>
+      <h3 data-question>Stimmt die Zuordnung: Das Gemeinschaftskonto (…9194) gehört Ecxon, dein Konto …1892 dem Haushalt?</h3>
+      <p data-context>So zeigt es die Übersicht live. Der Besitzer eines Kontos ist der Standard-Besitzer aller seiner Buchungen.</p>
+      <div data-options>
+        <label data-opt="ok">
+          <input type="radio" name="dm-d-owner" value="ok" checked>
+          <span data-opt-label>Stimmt so</span>
+          <span data-opt-consequence>Nichts ändert sich.</span>
+        </label>
+        <label data-opt="partial" data-recommended>
+          <input type="radio" name="dm-d-owner" value="partial">
+          <span data-opt-label>Teilweise</span>
+          <span data-opt-consequence>Du schreibst, was falsch ist, und ich prüfe die Zuordnung und die Anzeige.</span>
+        </label>
+        <label data-opt="wrong">
+          <input type="radio" name="dm-d-owner" value="wrong">
+          <span data-opt-label>Stimmt nicht, ist vertauscht</span>
+          <span data-opt-consequence>Du ordnest unter Einrichtung → Konten neu zu; ich prüfe, ob die Anzeige die Zuordnung falsch liest.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-d-owner-fix" placeholder="Was stimmt nicht?" value="">
+      <textarea data-comment="d-owner-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-owner-touched" value="1">
+      <input type="hidden" name="dm-d-owner-issue" value="">
+      <input type="hidden" name="dm-d-owner-epic" value="">
+      <div data-alevel="3" data-title="Kontozuordnung live">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Gemeinschaftskonto unter Ecxon, eigenes Konto unter Haushalt."}'></div></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Jeremy: …9024 + PayPal · Ecxon: …9194 (Inhaber: beide) · Haushalt: …1892 (Inhaber: Jeremy)"}'></div>
+          <p>Die Kontoinhaber laut Bank passen nicht zu den Spalten. Ist das gewollt, bleibt es so. Sonst landen Ausgaben im falschen Topf und beim falschen Ausgleich.</p>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <section id="t-glance" data-topic data-nav-label="Start &amp; Haushalt">
+    <div data-alevel="2" data-title="Start &amp; Haushalt">
+      <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"3 von 4","unit":"Ansichten","label":"in der Personen-Sicht leer"}'></div></div>
+      <div data-slot="long">
+        <div data-viz="bars" data-viz-spec='{"items":[{"label":"Person · Heute","value":0},{"label":"Person · Woche","value":0},{"label":"Person · Zyklus","value":0},{"label":"Person · Jahr","value":5},{"label":"Haushalt · Heute","value":4},{"label":"Haushalt · Woche","value":5},{"label":"Haushalt · Zyklus","value":5},{"label":"Haushalt · Jahr","value":5}],"unit":"Inhaltsblöcke"}'></div>
+        <p>Das Konzept verlangt auf einen Blick: Status, frei verfügbar, nächste Abbuchungen, Stand. In der Haushalt-Sicht ist das da. In deiner Personen-Sicht zeigen Heute, Woche und Zyklus nur „Noch keine Töpfe“, weil der einzige Topf (Food) ein gemeinsamer ist. Der Haushalt-Tab ist außerdem noch der alte Komponentenbaum, der auf Sensoren baut.</p>
+      </div>
+    </div>
+
+    <section id="d-glance" data-nav-label="Personen-Sicht" data-decision="d-glance" data-decision-mode="single"
+             data-label="Personen-Sicht ohne eigene Töpfe" data-rec="share"
+             data-rec-why="Das Konzept stellt „frei verfügbar“ an erste Stelle. Eine leere Seite beantwortet die Frage „Sind wir im Plan?“ nicht."
+             data-applies-to="Start, Personen-Sicht" data-finding="f-glance" data-finding-quant="true">
+      <p data-applies>Gilt für: Start → deine Personen-Sicht</p>
+      <h3 data-question>Was zeigt deine Personen-Sicht, solange du keinen eigenen Topf hast?</h3>
+      <p data-context>Heute, Woche und Zyklus sind live leer; nur Jahr hat Inhalt.</p>
+      <div data-options>
+        <label data-opt="share" data-recommended>
+          <input type="radio" name="dm-d-glance" value="share" checked>
+          <span data-opt-label>Deinen Anteil an den gemeinsamen Töpfen und deine nächsten Abbuchungen zeigen</span>
+          <span data-opt-consequence>Die Seite ist sofort nützlich; Töpfe bleiben ein optionales Extra.</span>
+        </label>
+        <label data-opt="suggest">
+          <input type="radio" name="dm-d-glance" value="suggest">
+          <span data-opt-label>Persönliche Töpfe aus deiner Historie vorschlagen</span>
+          <span data-opt-consequence>Ein Klick legt Töpfe an; bis dahin bleibt die Seite leer.</span>
+        </label>
+        <label data-opt="household">
+          <input type="radio" name="dm-d-glance" value="household">
+          <span data-opt-label>Ohne eigene Töpfe direkt die Haushalt-Sicht öffnen</span>
+          <span data-opt-consequence>Kein Bau nötig; deine eigenen Ausgaben siehst du dort nicht getrennt.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-glance-note" placeholder="Notiz (optional)">Schau doch mal das concept an, das haben wir schon längst gelöst</textarea>
+      <input type="hidden" name="dm-d-glance-touched" value="1">
+      <input type="hidden" name="dm-d-glance-issue" value="">
+      <input type="hidden" name="dm-d-glance-epic" value="">
+      <div data-alevel="3" data-title="Personen-Sicht ohne eigene Töpfe">
+        <div data-slot="short"><div data-viz="bar" data-viz-spec='{"value":1,"max":4,"label":"Horizonte mit Inhalt","unit":""}'></div></div>
+        <div data-slot="long">
+          <div data-viz="bar" data-viz-spec='{"value":1,"max":4,"label":"Horizonte mit Inhalt (Personen-Sicht)","unit":""}'></div>
+          <p>Die API liefert für dich einen Restbetrag, eine nächste Abbuchung und eine „Wusstest du schon“-Zeile, die Seite zeigt davon nichts. Mit der Empfehlung wird aus diesen Daten der Blick, den das Konzept beschreibt.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="d-tab" data-nav-label="Haushalt-Tab" data-decision="d-tab" data-decision-mode="single"
+             data-label="Zukunft des Haushalt-Tabs" data-rec="api"
+             data-rec-why="Laut Konzept zeigen Sensoren nur Summen. Ein Tab, der von Sensoren abhängt, fällt bei jedem Sensorfehler komplett aus, wie heute."
+             data-applies-to="Haushalt-Tab" data-finding="f-tab">
+      <p data-applies>Gilt für: Haushalt-Tab</p>
+      <h3 data-question>Worauf baut der Haushalt-Tab künftig?</h3>
+      <p data-context>Er liest Konten, Monatssumme und Haushalt aus Sensor-Attributen; die neuen Endpunkte (Haushaltszyklus, Budgetplan) gibt es schon.</p>
+      <div data-options>
+        <label data-opt="api" data-recommended>
+          <input type="radio" name="dm-d-tab" value="api" checked>
+          <span data-opt-label>Auf die Haushalt-API umstellen</span>
+          <span data-opt-consequence>Der Tab lädt direkt aus dem Cache und braucht keine Sensoren mehr.</span>
+        </label>
+        <label data-opt="merge">
+          <input type="radio" name="dm-d-tab" value="merge">
+          <span data-opt-label>Tab auflösen, Inhalt in Start → Zyklus und Jahr</span>
+          <span data-opt-consequence>Ein Einstieg weniger; Plan-gegen-Ist und Ausgleich ziehen auf Start um.</span>
+        </label>
+        <label data-opt="keep">
+          <input type="radio" name="dm-d-tab" value="keep">
+          <span data-opt-label>So lassen, nur der Sensor-Fix</span>
+          <span data-opt-consequence>Kein Umbau; der Tab hängt weiter an den Sensoren.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-tab-note" placeholder="Notiz (optional)">cechk nochmal die gesamte architektur, robust und integer. Achtung, imports sind rate limited, die sollten nicht durhc ha seitenaufrufe oder aufbereitungen der rohdaten betroffen sein.</textarea>
+      <input type="hidden" name="dm-d-tab-touched" value="1">
+      <input type="hidden" name="dm-d-tab-issue" value="">
+      <input type="hidden" name="dm-d-tab-epic" value="">
+      <div data-alevel="3" data-title="Zukunft des Haushalt-Tabs">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"6 Komponenten, alle aus Sensor-Attributen gespeist."}'></div></div>
+        <div data-slot="long">
+          <div data-viz="flow" data-viz-spec='{"steps":[{"label":"Sensoren","value":"Attribute"},{"label":"fd-data-provider","value":"accountCount"},{"label":"Haushalt-Tab","value":"6 Komponenten"}]}'></div>
+          <p>Zyklus, Haushalt, Kategorien, Kostenverteilung und Wiederkehrendes kommen aus Sensoren. Nur der Budgetplan lädt schon über die API.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="d-ownname" data-nav-label="Eigener Name" data-decision="d-ownname" data-decision-mode="yesnoalt"
+             data-label="Zahlungen an den eigenen Namen in Fragen" data-rec="yes"
+             data-rec-why="Bei Verträgen ist das seit 0.20.2 so. Die Karte „‹Nachname›, ‹Betrag›“ fragt nach einer Kategorie für Geld, das wahrscheinlich nur umgebucht wurde."
+             data-applies-to="Fragen-Karten" data-finding="f-ownname">
+      <p data-applies>Gilt für: Fragen-Karten</p>
+      <h3 data-question>Sollen Zahlungen an den Namen eines Kontoinhabers als Umbuchung zählen statt als Frage zu erscheinen?</h3>
+      <p data-context>„‹Nachname›“ ist dein Nachname. Bei Verträgen filtert der eigene Name solche Zahlungen schon heraus, bei den Fragen nicht.</p>
+      <div data-options>
+        <label data-opt="yes" data-recommended>
+          <input type="radio" name="dm-d-ownname" value="yes" checked>
+          <span data-opt-label>Als Umbuchung behandeln</span>
+          <span data-opt-consequence>Die Karte „‹Nachname›“ verschwindet; Umbuchungen tauchen in keiner Kategorie auf.</span>
+        </label>
+        <label data-opt="no">
+          <input type="radio" name="dm-d-ownname" value="no">
+          <span data-opt-label>Weiter als Frage zeigen</span>
+          <span data-opt-consequence>Du entscheidest jedes Mal selbst, jetzt mit den Buchungsdetails.</span>
+        </label>
+        <label data-opt="alt">
+          <input type="radio" name="dm-d-ownname" value="alt">
+          <span data-opt-label>Anders</span>
+          <span data-opt-consequence>Du beschreibst, wie es laufen soll.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-d-ownname-alt" placeholder="Wie stattdessen?" value="">
+      <textarea data-comment="d-ownname-note" placeholder="Notiz (optional)">Btw, namen sollten editierbar sein um spitznamen zu setzen. </textarea>
+      <input type="hidden" name="dm-d-ownname-touched" value="1">
+      <input type="hidden" name="dm-d-ownname-issue" value="">
+      <input type="hidden" name="dm-d-ownname-epic" value="">
+      <div data-alevel="3" data-title="Zahlungen an den eigenen Namen in Fragen">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Größte offene Frage: „‹Nachname›“, 2 Buchungen."}'></div></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"Verträge: eigener Name → Umbuchung (seit 0.20.2). Fragen: eigener Name → Kategorie-Frage."}'></div>
+          <p>Gehört der Name zu einer Person außerhalb des Haushalts (Eltern, Geschwister), wäre „Anders“ richtig, etwa als eigene Kategorie „Familie“.</p>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <section id="t-plan" data-topic data-nav-label="Plan &amp; Einrichtung">
+    <div data-alevel="2" data-title="Plan &amp; Einrichtung">
+      <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"0","unit":"Planposten","label":"Plan-gegen-Ist und Vergleich leer"}'></div></div>
+      <div data-slot="long">
+        <div data-viz="bars" data-viz-spec='{"items":[{"label":"erkannte Verträge","value":16},{"label":"Planposten","value":0},{"label":"Vergleiche","value":0},{"label":"Rücklagen","value":0}],"unit":"Stück"}'></div>
+        <p>Im Konzept ist der Plan der Einstieg. Live ist er leer, weil der Schritt „Budgetplan“ übersprungen wurde und der Import nur über einen Dienst ging. Dazu fehlen im Assistenten Sparziele und die Anbindung an das Punktesystem, und die Benachrichtigungen sind aus.</p>
+      </div>
+    </div>
+
+    <section id="d-plan" data-nav-label="Plan befüllen" data-decision="d-plan" data-decision-mode="single"
+             data-label="Wie der Plan befüllt wird" data-rec="prefill"
+             data-rec-why="Das Konzept sagt „Plan vorbefüllt aus der Historie (erkannte Serien)“. Die 16 Verträge sind schon erkannt, der Upload kommt zusätzlich."
+             data-applies-to="Einrichtung → Budgetplan" data-finding="f-plan" data-finding-quant="true">
+      <p data-applies>Gilt für: Einrichtung → Budgetplan</p>
+      <h3 data-question>Wie kommt der Budgetplan ohne Tabelle zustande?</h3>
+      <p data-context>xlsx-Upload und Google-Sheets-Link baut gerade eine eigene Session; ohne Tabelle bliebe der Plan weiter leer.</p>
+      <div data-options>
+        <label data-opt="prefill" data-recommended>
+          <input type="radio" name="dm-d-plan" value="prefill" checked>
+          <span data-opt-label>Plan aus den erkannten Verträgen vorschlagen</span>
+          <span data-opt-consequence>16 Posten mit Betrag und Besitzer stehen bereit; du bestätigst oder streichst sie im Assistenten.</span>
+        </label>
+        <label data-opt="import">
+          <input type="radio" name="dm-d-plan" value="import">
+          <span data-opt-label>Nur über Tabellen-Import befüllen</span>
+          <span data-opt-consequence>Ohne Tabelle bleibt der Plan leer, wie heute.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-plan-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-plan-touched" value="1">
+      <input type="hidden" name="dm-d-plan-issue" value="">
+      <input type="hidden" name="dm-d-plan-epic" value="">
+      <div data-alevel="3" data-title="Wie der Plan befüllt wird">
+        <div data-slot="short"><div data-viz="compare" data-viz-spec='{"before":{"label":"erkannte Verträge","value":16},"after":{"label":"Planposten","value":0},"unit":""}'></div></div>
+        <div data-slot="long">
+          <div data-viz="compare" data-viz-spec='{"before":{"label":"erkannte Verträge","value":16},"after":{"label":"Planposten","value":0},"unit":""}'></div>
+          <p>Alle 16 Verträge sind monatlich, haben einen erwarteten Betrag und einen Besitzer. Daraus werden Planposten, die Plan-gegen-Ist und den Vergleich mit dem Durchschnitt sofort füllen.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="d-wizard" data-nav-label="Fehlende Schritte" data-decision="d-wizard" data-decision-mode="multi"
+             data-label="Fehlende Einrichtungsschritte" data-rec="goals points ai"
+             data-rec-why="Alle drei stehen im Konzept unter „Einrichtung“ und fehlen live."
+             data-applies-to="Einrichtungsassistent" data-finding="f-wizard">
+      <p data-applies>Gilt für: Einrichtungsassistent</p>
+      <h3 data-question>Welche Schritte aus dem Konzept kommen in den Assistenten?</h3>
+      <p data-context>Live gibt es 9 Schritte; das Konzept nennt zusätzlich Sparziele, Punktesystem und KI-Anbieter mit Budget.</p>
+      <div data-options>
+        <label data-opt="goals" data-recommended>
+          <input type="checkbox" name="dm-d-wizard.goals" checked>
+          <span data-opt-label>Sparziele anlegen</span>
+          <span data-opt-consequence>Betrag bis Datum, Kategorie-Deckel oder Sparquote als Ziel.</span>
+        </label>
+        <label data-opt="points" data-recommended>
+          <input type="checkbox" name="dm-d-wizard.points" checked>
+          <span data-opt-label>Punktesystem anbinden</span>
+          <span data-opt-consequence>Alle 30 Antworten löst ein HA-Ereignis oder einen Zähler-Helfer aus; euer Punktesystem bucht ihn.</span>
+        </label>
+        <label data-opt="ai" data-recommended>
+          <input type="checkbox" name="dm-d-wizard.ai" checked>
+          <span data-opt-label>KI-Anbieter und Monatsbudget wählen</span>
+          <span data-opt-consequence>Zeigt, welche HA-KI genutzt wird, und begrenzt sie auf 100 Aufrufe im Monat.</span>
+        </label>
+      </div>
+      <textarea data-comment="d-wizard-note" placeholder="Notiz (optional)">genau wobei das punktesystem selber bei uns liegt und außerhalb des repos hier. ich will grohk als anbieter nehmen guide mich durch
+</textarea>
+      <input type="hidden" name="dm-d-wizard-touched" value="1">
+      <input type="hidden" name="dm-d-wizard-issue" value="">
+      <input type="hidden" name="dm-d-wizard-epic" value="">
+      <div data-alevel="3" data-title="Fehlende Einrichtungsschritte">
+        <div data-slot="short"><div data-viz="bar" data-viz-spec='{"value":9,"max":12,"label":"Konzept-Schritte vorhanden","unit":""}'></div></div>
+        <div data-slot="long">
+          <div data-viz="bar" data-viz-spec='{"value":9,"max":12,"label":"Konzept-Schritte im Assistenten","unit":""}'></div>
+          <p>Personen, Konten, Zahltag, Region, Töpfe, Plan, Benachrichtigungen, KI und Abschluss sind da. Ob die KI das Limit von 100 Aufrufen im Monat einhält, ließ sich live nicht prüfen.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="d-notify" data-nav-label="Benachrichtigungen" data-decision="d-notify" data-decision-mode="yesnoalt"
+             data-label="Benachrichtigungen einschalten" data-rec="yes"
+             data-rec-why="Job 2 des Konzepts („einmal kurz Bescheid sagen“) und die Wochenübersicht laufen nur, wenn Benachrichtigungen an sind."
+             data-applies-to="deine Einstellung" data-finding="f-notify">
+      <p data-applies>Gilt für: deine Benachrichtigungs-Einstellung</p>
+      <h3 data-question>Sollen die Benachrichtigungen eingeschaltet werden?</h3>
+      <p data-context>Im Assistenten steht „Benachrichtigungen: aus“; alle Einzelarten stehen auf an.</p>
+      <div data-options>
+        <label data-opt="yes" data-recommended>
+          <input type="radio" name="dm-d-notify" value="yes" checked>
+          <span data-opt-label>Einschalten, wie im Assistenten vorbelegt</span>
+          <span data-opt-consequence>Hohe Abbuchung, doppelt abgebucht, Gehalt fehlt, Zugang läuft ab, Wochenübersicht.</span>
+        </label>
+        <label data-opt="no">
+          <input type="radio" name="dm-d-notify" value="no">
+          <span data-opt-label>Ausgeschaltet lassen</span>
+          <span data-opt-consequence>Finance meldet sich nie von selbst.</span>
+        </label>
+        <label data-opt="alt">
+          <input type="radio" name="dm-d-notify" value="alt">
+          <span data-opt-label>Anders</span>
+          <span data-opt-consequence>Nur bestimmte Arten, die du nennst.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-d-notify-alt" placeholder="Welche Arten?" value="">
+      <textarea data-comment="d-notify-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-notify-touched" value="1">
+      <input type="hidden" name="dm-d-notify-issue" value="">
+      <input type="hidden" name="dm-d-notify-epic" value="">
+      <div data-alevel="3" data-title="Benachrichtigungen einschalten">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Hauptschalter aus, alle 5 Arten an."}'></div></div>
+        <div data-slot="long">
+          <div data-viz="text" data-viz-spec='{"text":"enabled: false · large_debit · double_charge · missing_salary · consent_expiring · digest: an"}'></div>
+          <p>Vielleicht hast du sie bewusst ausgeschaltet. Dann bleibt es aus, und Job 2 des Konzepts bleibt eben ungenutzt.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="d-order" data-nav-label="Reihenfolge" data-decision="d-order" data-decision-mode="order"
+             data-label="Reihenfolge der Umsetzung" data-rec="fix,plan,glance,tab,ownname,wizard"
+             data-rec-why="Erst wieder alles sichtbar machen, dann den Plan füllen, weil Start und Haushalt-Tab davon leben, dann die Ansichten."
+             data-applies-to="Umsetzung nach dieser Runde" data-finding="f-order">
+      <p data-applies>Gilt für: die Umsetzung nach dieser Runde</p>
+      <h3 data-question>In welcher Reihenfolge werden die Punkte umgesetzt?</h3>
+      <p data-context>Gemacht wird alles, was du oben behältst; oben steht, was zuerst live geht.</p>
+      <div data-options>
+        <label data-opt="fix" data-recommended><span data-opt-label>Sensor-Fix ausliefern</span><span data-opt-consequence>Haushalt-Tab und alle Sensoren sind zurück.</span></label>
+        <label data-opt="plan"><span data-opt-label>Plan aus Verträgen vorschlagen</span><span data-opt-consequence>Plan-gegen-Ist und Vergleich füllen sich.</span></label>
+        <label data-opt="glance"><span data-opt-label>Personen-Sicht auf Start füllen</span><span data-opt-consequence>Deine Ansicht beantwortet „Sind wir im Plan?“.</span></label>
+        <label data-opt="tab"><span data-opt-label>Haushalt-Tab auf die API umstellen</span><span data-opt-consequence>Kein Totalausfall mehr bei Sensorfehlern.</span></label>
+        <label data-opt="ownname"><span data-opt-label>Eigener Name in Fragen</span><span data-opt-consequence>Umbuchungen tauchen nicht mehr als Fragen auf.</span></label>
+        <label data-opt="wizard"><span data-opt-label>Fehlende Assistenten-Schritte</span><span data-opt-consequence>Sparziele, Punktesystem, KI-Budget.</span></label>
+      </div>
+      <input type="hidden" name="dm-d-order" value="fix,plan,glance,tab,ownname,wizard">
+      <textarea data-comment="d-order-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-d-order-touched" value="">
+      <input type="hidden" name="dm-d-order-issue" value="">
+      <input type="hidden" name="dm-d-order-epic" value="">
+      <div data-alevel="3" data-title="Reihenfolge der Umsetzung">
+        <div data-slot="short"><div data-viz="text" data-viz-spec='{"text":"Sichtbarkeit → Plan → Ansichten → Feinschliff."}'></div></div>
+        <div data-slot="long">
+          <div data-viz="flow" data-viz-spec='{"steps":[{"label":"Sensor-Fix","value":"heute"},{"label":"Plan","value":"füllt alles"},{"label":"Start · Person","value":"Blick"},{"label":"Haushalt-Tab","value":"API"},{"label":"Feinschliff","value":"Fragen, Assistent"}]}'></div>
+          <p>Kleinere Punkte ohne Entscheidung, die ich mit erledige: Das Jahr zeigt nur Juli bis September (Oktober fehlt), und das PayPal-Konto zeigt „****“ ohne Ziffern. Rücklagen bleiben leer, solange alle Verträge monatlich sind; das ist korrekt.</p>
+        </div>
+      </div>
+    </section>
+  </section>
+</section>

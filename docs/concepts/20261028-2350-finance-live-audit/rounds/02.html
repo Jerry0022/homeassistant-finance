@@ -1,0 +1,117 @@
+<section data-iteration="2" data-iteration-template="free" data-final-report>
+  <div class="fr-head">
+    <span class="fr-phase">🏁 {{final.phase}}</span>
+    <h2 class="fr-title">Finance nach dem Konzept: Sensoren, Abrufe, Oberfläche, Einrichtung</h2>
+  </div>
+
+  <ol class="fr-flow">
+    <li>Live-Absturz der Sensoren behoben</li>
+    <li>Bankabruf nur noch auf ausdrücklichen Wunsch</li>
+    <li>Oberfläche neu nach dem Konzept, mobil und Desktop</li>
+    <li>Einrichtung mit Plan, Zielen, Punkten und KI</li>
+  </ol>
+
+  <p class="fr-label">{{final.done_what}}</p>
+  <p class="fr-sentence">Ich habe den Absturz behoben, der den Haushalt-Tab leer machte, und die Oberfläche komplett nach dem Konzept der Visual-Runde neu gebaut: ein Bildschirm mit Person ⇄ Haushalt unten statt drei Tabs oben. Dazu kommen alle Entscheidungen dieser Seite.</p>
+
+  <div class="fr-cols">
+    <div class="fr-card">
+      <p class="fr-label">{{final.results}}</p>
+      <ul class="fr-wins">
+        <li><span class="fr-win-icon" aria-hidden="true">🧭</span><span><b>Ein Bildschirm</b>: Horizonte oben, Person ⇄ Haushalt als Pill unten, Zahnrad für Einstellungen, Übersicht und 11 Alt-Komponenten entfernt.</span></li>
+        <li><span class="fr-win-icon" aria-hidden="true">🏦</span><span><b>Kein Bankabruf mehr beim Öffnen</b>: nur „Neu importieren“, Einrichtung und der tägliche Abruf, vom Server erzwungen.</span></li>
+        <li><span class="fr-win-icon" aria-hidden="true">🧩</span><span><b>Einrichtung komplett</b>: Plan aus 16 Verträgen, Sparziele, Punkte-Ereignis, KI inkl. Grok mit 100er-Budget, Kurznamen.</span></li>
+      </ul>
+    </div>
+    <div class="fr-card">
+      <p class="fr-label">{{final.holds}}</p>
+      <div class="fr-meters">
+        <div class="fr-meter" data-met="true" style="--fr-tested: 100%; --fr-target: 100%">
+          <span class="fr-meter-name">🧱 Stabilität</span>
+          <b class="fr-meter-value">724 / 724</b>
+          <div class="fr-meter-bar" aria-hidden="true"></div>
+          <p class="fr-meter-context">Tests grün (2 übersprungen), Ziel: alle grün. <span class="fr-meter-verdict">✓ {{final.target_met}}</span></p>
+        </div>
+        <div class="fr-meter" data-met="true" style="--fr-tested: 100%; --fr-target: 100%">
+          <span class="fr-meter-name">🛡 Sicherheit</span>
+          <b class="fr-meter-value">0 Abrufe</b>
+          <div class="fr-meter-bar" aria-hidden="true"></div>
+          <p class="fr-meter-context">Bankabrufe beim Laden des Panels (55 API-Aufrufe im Test, alle lesend). Ziel 0. <span class="fr-meter-verdict">✓ {{final.target_met}}</span></p>
+        </div>
+        <div class="fr-meter" data-met="true" style="--fr-tested: 100%; --fr-target: 100%">
+          <span class="fr-meter-name">📱 Kompatibilität</span>
+          <b class="fr-meter-value">0 px</b>
+          <div class="fr-meter-bar" aria-hidden="true"></div>
+          <p class="fr-meter-context">Seitlicher Überlauf bei 375 und 1280 px über alle Ansichten und Unterseiten, Ziel 0 (geschätzt). <span class="fr-meter-verdict">✓ {{final.target_met}}</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fr-depth">
+    <p class="fr-label">{{final.depth}}</p>
+    <p class="fr-ladder-top">{{final.level_local}}<small>Stufe 4 von 7</small></p>
+    <ol class="fr-ladder">
+      <li data-level="1" data-state="done">{{final.level_code}}</li>
+      <li data-level="2" data-state="done">{{final.level_dry}}</li>
+      <li data-level="3" data-state="done">{{final.level_interplay}}</li>
+      <li data-level="4" data-state="done">{{final.level_local}}</li>
+      <li data-level="5" data-state="na">{{final.level_prod}}</li>
+      <li data-level="6" data-state="open">{{final.level_live}}</li>
+      <li data-level="7" data-state="you">{{final.level_accept}}</li>
+    </ol>
+    <p class="fr-ladder-foot">Geprüft mit simulierten Daten im Browser. Auf deiner echten Installation läuft es erst nach dem Ausliefern. Die neue Topf-Verlaufsspalte am Desktop habe ich nicht im Browser gesehen, nur getestet. Eine Korrektur zu dieser Seite: Deine Personen-Sicht zeigt laut Konzept nur deine eigenen Dinge und deinen Spielraum, nicht „deinen Anteil an gemeinsamen Töpfen“. So ist sie gebaut.</p>
+  </div>
+
+  <details class="fr-fold" data-open-questions>
+    <summary>🔍 1 Fund unterwegs</summary>
+    <ul class="fr-funde">
+      <li data-oq-id="oq-lovelace"
+          data-issue-title="[CHORE] Lovelace cards fd-transactions-log and fd-budget-config still read sensor attributes"
+          data-issue-type="chore"
+          data-issue-body="Found during the concept-UI rebuild (audit concept 20261028-2350, final report). The panel no longer reads sensor attributes; the standalone Lovelace cards fd-transactions-log.js and fd-budget-config.js still read accountCount / hass.states (select.fd_split_model). They are outside the panel, still loaded by finance-dashboard-kit.js, and break the same way when the sensor platform fails. Move them to the cache API (/transactions, /setup) or retire them if no dashboard uses them."
+          data-issue-module="frontend"
+          data-oq-origin="found"
+          data-route-default="issue"
+          data-route-reason="außerhalb"
+          data-routed>
+        <span class="oq-label">Lovelace-Karten lesen noch Sensoren</span>
+        <dl class="fr-fkv">
+          <dt>{{final.fund_what}}</dt><dd>Zwei Dashboard-Karten hängen noch an Sensor-Attributen.</dd>
+          <dt>{{final.fund_where}}</dt><dd>fd-transactions-log, fd-budget-config</dd>
+          <dt>{{final.fund_why}}</dt><dd>📌 Issue, liegt außerhalb des Panels.</dd>
+        </dl>
+        <p class="oq-done">✓ umgesetzt: Budget-Karte liest die Auswahl-Entitäten, Buchungs-Log entfernt (6eb7ab4)</p>
+      </li>
+    </ul>
+  </details>
+
+  <section data-tests hidden aria-label="{{final.group_tests}}">
+    <ul>
+      <li data-todo-id="t-phone" data-crit="high" data-guide="">Neue Oberfläche am Handy ansehen</li>
+      <li data-todo-id="t-desktop" data-crit="mid" data-guide="">Desktop-Spalte mit Topf-Verlauf ansehen</li>
+    </ul>
+  </section>
+  <section data-handoffs hidden aria-label="{{final.group_handoffs}}">
+    <ul>
+      <li data-todo-id="h-grok" data-crit="mid" data-guide="web">Grok-API-Schlüssel bei xAI anlegen</li>
+      <li data-todo-id="h-notify" data-crit="mid" data-guide="">Benachrichtigungen einschalten</li>
+      <li data-todo-id="h-points" data-crit="low" data-guide="">Punkte-Zähler in Einstellungen wählen</li>
+    </ul>
+  </section>
+
+  <div class="fr-card fr-nachtrag">
+    <p class="fr-label">Nachtrag</p>
+    <p>Die Budget-Karte für Lovelace holt Auswahl und aktuellen Wert jetzt direkt aus den beiden Auswahl-Entitäten und hängt nicht mehr an Sensoren. Das Buchungs-Log hatte seine Datenquelle verloren und ist entfernt; die Buchungsliste im Panel ersetzt es. 723 Tests grün.</p>
+  </div>
+
+  <details class="fr-fold">
+    <summary>🛠 {{final.dev_fold}}</summary>
+    <ul class="fr-dev">
+      <li>Branch <code>claude/suspicious-dewdney-12be4e</code> · HEAD <code>361fa9c</code> · auf main 0.21.0</li>
+      <li><code>sensor.py</code>, <code>api/refresh.py</code>, <code>finance-dashboard-panel.js</code>, <code>fd-home.js</code>, <code>setup_wizard.py</code></li>
+      <li>Tests: 724 grün, 2 übersprungen (lokal unter Windows mit fcntl-Stub)</li>
+      <li>Spec: <code>docs/dev/ui-concept-gap.md</code></li>
+    </ul>
+  </details>
+</section>

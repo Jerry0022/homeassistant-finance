@@ -1,0 +1,36 @@
+[
+  {
+    "iteration": 1,
+    "action": "implement",
+    "decisions": {
+      "d-root": "ok",
+      "d-ship": "both",
+      "d-owner": "ok",
+      "d-glance": "share",
+      "d-tab": "api",
+      "d-ownname": {
+        "answer": "yes",
+        "alt": ""
+      },
+      "d-plan": "prefill",
+      "d-wizard": [
+        "goals",
+        "points",
+        "ai"
+      ],
+      "d-notify": {
+        "answer": "yes",
+        "alt": ""
+      },
+      "d-order": [
+        "fix",
+        "plan",
+        "glance",
+        "tab",
+        "ownname",
+        "wizard"
+      ]
+    },
+    "implemented_at": "361fa9c"
+  }
+]
