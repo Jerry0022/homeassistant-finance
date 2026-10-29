@@ -47,7 +47,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .back svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .ttl { position: relative; flex: 1 1 0; min-width: 0; }
 .ttl h1 { margin: 0; font-size: 18px; font-weight: 500; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ttl[data-tip]::after { left: 0; transform: none; }
+.ttl[data-tip]::after, .back[data-tip]::after { left: 0; transform: none; }
 .act { flex: none; display: flex; align-items: center; gap: 4px; max-width: 60%; }
 `;
 

@@ -173,7 +173,7 @@ button:focus-visible { outline: 2px solid var(--fd-a500); outline-offset: 2px; }
 .seg button[aria-checked="true"] { background: var(--fd-a50); color: var(--fd-a900); font-weight: 500; }
 .strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .cell { min-width: 0; padding: 8px 10px; border-radius: 10px; background: var(--fd-sunk); }
-.cell .val { margin: 2px 0; font-size: clamp(15px, 5.4cqw, 24px); font-weight: 500; line-height: 1.15; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cell .val { margin: 2px 0; font-size: clamp(13px, 4.7cqw, 24px); font-weight: 500; line-height: 1.15; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .cell .val.ok { color: var(--fd-ok); }
 .cell .dl { color: var(--fd-t2); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .quiet { margin: 8px 0 0; color: var(--fd-t2); font-size: 12px; }
