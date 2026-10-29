@@ -1,0 +1,83 @@
+<section data-iteration="4" data-iteration-template="free" data-final-report>
+  <div class="fr-head">
+    <span class="fr-phase">🏁 {{final.phase}}</span>
+    <h2 class="fr-title">Finance – wofür es da ist</h2>
+  </div>
+
+  <ol class="fr-flow">
+    <li>5 unabhängige Agents</li>
+    <li>Runde 1: 20 Entscheidungen</li>
+    <li>Runde 2: 17 Folgefragen</li>
+    <li>Runde 3: Gesamtkonzept abgenommen</li>
+    <li>Doku im Repo</li>
+  </ol>
+
+  <p class="fr-label">{{final.done_what}}</p>
+  <p class="fr-sentence">Dein Produktkonzept steht jetzt als Doku im Repo, die Roadmap ist danach neu geschnitten, und die zwei Projektregeln sind so umformuliert, wie du es abgenommen hast – Produktcode wurde nicht angefasst.</p>
+
+  <div class="fr-cols">
+    <div class="fr-card">
+      <p class="fr-label">{{final.results}}</p>
+      <ul class="fr-wins">
+        <li><span class="fr-win-icon" aria-hidden="true">🧭</span><span><b>Ein Konzept</b> beschreibt Zweck, Rhythmen und alle 37 Entscheidungen (<code>docs/dev/product-concept.md</code>).</span></li>
+        <li><span class="fr-win-icon" aria-hidden="true">🗺️</span><span><b>Phase 4 in 6 Schritten</b> (4a–4f), weiterhin nur mit deiner Freigabe.</span></li>
+        <li><span class="fr-win-icon" aria-hidden="true">📱</span><span><b>Übergabe an die Visual-/Mobile-Runde</b> und Gliederung für README + Web-Handbuch.</span></li>
+      </ul>
+    </div>
+    <div class="fr-card">
+      <p class="fr-label">{{final.holds}}</p>
+      <div class="fr-meters">
+        <div class="fr-meter" data-met="true" style="--fr-tested: 100%; --fr-target: 100%">
+          <span class="fr-meter-name">🔒 Datenintegrität</span>
+          <b class="fr-meter-value">0</b>
+          <div class="fr-meter-bar" aria-hidden="true"></div>
+          <p class="fr-meter-context">Finanzdaten im Commit (IBANs, Salden, Tokens) – geprüft vor dem Commit, Ziel 0. <span class="fr-meter-verdict">✓ {{final.target_met}}</span></p>
+        </div>
+        <div class="fr-meter" data-met="true" style="--fr-tested: 100%; --fr-target: 100%">
+          <span class="fr-meter-name">🛡 Sicherheit</span>
+          <b class="fr-meter-value">2 / 2</b>
+          <div class="fr-meter-bar" aria-hidden="true"></div>
+          <p class="fr-meter-context">Regeln präzisiert: KI nur opt-in mit minimaler Nutzlast, kein Laufzeit-Abruf für Vergleichsdaten. <span class="fr-meter-verdict">✓ {{final.target_met}}</span></p>
+        </div>
+        <div class="fr-meter" data-met="true" style="--fr-tested: 100%; --fr-target: 100%">
+          <span class="fr-meter-name">🧹 Wartbarkeit</span>
+          <b class="fr-meter-value">50 Zeilen</b>
+          <div class="fr-meter-bar" aria-hidden="true"></div>
+          <p class="fr-meter-context">CLAUDE.md bleibt an der 50-Zeilen-Grenze; Details stehen in <code>docs/dev/</code>, Ziel ≤ 50 (geschätzt). <span class="fr-meter-verdict">✓ {{final.target_met}}</span></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fr-depth">
+    <p class="fr-label">{{final.depth}}</p>
+    <p class="fr-ladder-top">{{final.level_code}}<small>Stufe 1 von 7</small></p>
+    <ol class="fr-ladder">
+      <li data-level="1" data-state="done">{{final.level_code}}</li>
+      <li data-level="2" data-state="na">{{final.level_dry}}</li>
+      <li data-level="3" data-state="na">{{final.level_interplay}}</li>
+      <li data-level="4" data-state="na">{{final.level_local}}</li>
+      <li data-level="5" data-state="na">{{final.level_prod}}</li>
+      <li data-level="6" data-state="na">{{final.level_live}}</li>
+      <li data-level="7" data-state="you">{{final.level_accept}}</li>
+    </ol>
+    <p class="fr-ladder-foot">Reine Doku – nichts zum Ausführen. Stufe 7 ist dein Durchlesen des Konzepts.</p>
+  </div>
+
+  <section data-tests hidden aria-label="{{final.group_tests}}">
+    <ul>
+      <li data-todo-id="t-read-concept" data-crit="mid" data-guide="">Produktkonzept im Repo durchlesen</li>
+    </ul>
+  </section>
+
+  <details class="fr-fold">
+    <summary>🛠 {{final.dev_fold}}</summary>
+    <ul class="fr-dev">
+      <li>Commit <code>b27ff83</code> auf <code>claude/inspiring-dubinsky-33b3f4</code> · Bereiche: docs, CLAUDE.md</li>
+      <li><code>docs/dev/product-concept.md</code>, <code>docs/dev/roadmap.md</code>, <code>docs/dev/visual-round-handoff.md</code> (+ <code>handbook-outline.md</code>)</li>
+      <li>Inline umgesetzt statt über Agents: nur Doku, eine Domäne, Inhalt lag vollständig in der Session</li>
+      <li>Plugin-Bug „Concept auf Englisch“: <a href="https://github.com/Jerry0022/dotclaude/issues/919" target="_blank" rel="noopener noreferrer">dotclaude#919</a></li>
+      <li>Reality-Check: main unverändert seit Concept-Start</li>
+    </ul>
+  </details>
+</section>

@@ -1,0 +1,407 @@
+<section data-iteration="3" data-iteration-template="free" data-baked>
+  <script type="application/json" data-frozen-feedback>{"general":{"text":"","attachments":[]}}</script>
+  <style>
+    [data-iteration="3"] .r3-lead { font-size: 1.05rem; }
+    [data-iteration="3"] .r3-note { color: var(--text-secondary); font-size: 0.92rem; }
+    [data-iteration="3"] .r3-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem; margin: 0.75rem 0; }
+    [data-iteration="3"] .r3-card { border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem 1rem; background: var(--panel-bg); }
+    [data-iteration="3"] .r3-card h4 { margin: 0 0 0.35rem; font-size: 0.98rem; }
+    [data-iteration="3"] .r3-card p, [data-iteration="3"] .r3-card ul { margin: 0.25rem 0; }
+    [data-iteration="3"] .r3-table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; font-size: 0.94rem; }
+    [data-iteration="3"] .r3-table th, [data-iteration="3"] .r3-table td { border: 1px solid var(--border-color); padding: 0.4rem 0.6rem; text-align: left; vertical-align: top; }
+    [data-iteration="3"] .r3-table th { background: var(--bg-secondary); }
+    [data-iteration="3"] .r3-tag { display: inline-block; padding: 0 0.45rem; border-radius: 999px; border: 1px solid var(--border-color); font-size: 0.82rem; color: var(--text-secondary); }
+    [data-iteration="3"] .r3-viz { margin: 0.75rem 0; }
+  </style>
+
+  <header class="iteration-intro">
+    <h2>{{iteration.tab}} 3 · Das Produktkonzept</h2>
+    <p class="r3-lead">Runde 1 und 2 sind vollständig entschieden (20 + 17 Entscheidungen, nichts unberührt). Diese Runde fasst alles zu <strong>einem</strong> Produktkonzept zusammen – hier wird nichts neu gefragt.</p>
+    <div class="r3-viz" data-viz="kpi" data-viz-spec='{"value":"37 / 37","unit":"entschieden","label":"Runde 1: 20 · Runde 2: 17 – alles fließt in dieses Konzept"}'>37 / 37 entschieden</div>
+    <p>Klick auf <strong>„Umsetzen“</strong> heißt hier <strong>nicht</strong> Code. Es schreibt das Konzept als <code>docs/dev/product-concept.md</code> ins Repo, ergänzt <code>docs/dev/roadmap.md</code> (Phase 4/5 bleiben freigabepflichtig) und legt eine Übergabe für die Visual-/Mobile-Runde an. Kein Produktcode in dieser Session.</p>
+    <p class="r3-note">Am Ende stehen drei kurze Fragen im <a href="#r3-c-check">Abschluss-Check</a>. Alle Zahlen auf dieser Seite sind Regeln oder Beispiele, keine echten Kontodaten.</p>
+  </header>
+
+  <!-- 1 · Zweck -->
+  <section id="r3-purpose" data-nav-label="Zweck">
+    <h2>1 · Zweck</h2>
+    <p class="r3-lead">Finance beantwortet zuerst: <strong>„Liegen wir im Plan – und was ist zu tun?“</strong></p>
+    <ul>
+      <li><strong>Der Plan ist die Eingangstür.</strong> Was ihr budgetiert habt, steht im Mittelpunkt; die Bankdaten bestätigen oder widersprechen ihm.</li>
+      <li><strong>Jede Antwort endet in einer Handlung</strong> (prüfen, einordnen, ausgleichen, kündigen) oder in „alles gut“.</li>
+    </ul>
+    <h3>Was Finance nicht ist</h3>
+    <ul>
+      <li>keine Zahlungen oder Überweisungen</li>
+      <li>keine Investments oder Depot-Verwaltung</li>
+      <li>kein Gamification-Druck (Punkte belohnen, bestrafen nie)</li>
+      <li>keine vorgetäuschte Echtzeit – jede Zahl trägt ihren Aktualitätsstempel</li>
+      <li>keine Schuldzuweisung – Hinweise sind neutral und nie auf Personen gemünzt</li>
+    </ul>
+  </section>
+
+  <!-- 2 · Jobs to be done -->
+  <section id="r3-jobs" data-nav-label="Jobs to be done">
+    <h2>2 · Jobs to be done</h2>
+    <p>Sechs Aufgaben, für die ihr Finance „anstellt“ – abgeleitet aus Runde 1.</p>
+    <div class="r3-grid">
+      <div class="r3-card"><h4>1 · Vor dem Ausgeben</h4><p>„Wie viel ist <strong>frei verfügbar</strong>, bevor ich das kaufe?“</p></div>
+      <div class="r3-card"><h4>2 · Bei Unerwartetem</h4><p>„Sag mir <strong>einmal</strong> Bescheid, wenn etwas nicht stimmt – nicht ständig.“</p></div>
+      <div class="r3-card"><h4>3 · Zum Zyklusende</h4><p>„Schließ den Monat ab: Plan gegen Ist, und <strong>wer schuldet wem</strong> wie viel.“</p></div>
+      <div class="r3-card"><h4>4 · Verträge</h4><p>„Erinnere mich <strong>vorher</strong> an Verlängerung, Kündigungsfrist und Preisänderung.“</p></div>
+      <div class="r3-card"><h4>5 · Ein Blick für den Partner</h4><p>„Gib dem weniger finanzaffinen Partner die Antwort <strong>in einem Blick</strong>.“</p></div>
+      <div class="r3-card"><h4>6 · Beim Planen</h4><p>„Zeig mir, wie <strong>ähnliche Haushalte</strong> dastehen, damit unser Plan realistisch ist.“</p></div>
+    </div>
+  </section>
+
+  <!-- 3 · Rhythmen & Interaktionen -->
+  <section id="r3-rhythms" data-nav-label="Rhythmen &amp; Interaktionen">
+    <h2>3 · Rhythmen &amp; Interaktionen</h2>
+    <div class="r3-viz" data-viz="flow" data-viz-spec='{"steps":[{"label":"Kurzblick","value":"jederzeit, ein Blick"},{"label":"Woche","value":"Kalenderwoche: Digest + Prüf-Inbox"},{"label":"Zyklus","value":"Gehaltszyklus: Abschluss + Ausgleich"},{"label":"Jahr","value":"Verträge, Jahreskosten, Vergleich"},{"label":"Ereignis","value":"nur Ausnahmen, an die betroffene Person"}]}'>Kurzblick → Woche → Zyklus → Jahr → Ereignis</div>
+    <table class="r3-table">
+      <thead><tr><th>Rhythmus</th><th>Was du siehst / tust</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Kurzblick</strong></td><td>Status „im Plan / knapp / drüber“ · <strong>frei verfügbar</strong> = verbleibendes variables Planbudget · nächste Abbuchungen · Aktualitätsstempel.</td></tr>
+        <tr><td><strong>Woche</strong> = Kalenderwoche</td><td>Wochen-Digest + <strong>Prüf-Inbox</strong>: max. 10 Fragen, die wertvollsten zuerst; je Buchung zuerst <em>mein / dein / unser</em>, dann die Kategorie.</td></tr>
+        <tr><td><strong>Planungszyklus</strong> = Gehaltszyklus</td><td>Eine Kalenderwoche, die über den Gehaltstag läuft, wird <strong>anteilig nach Tagen</strong> auf beide Zyklen verteilt (Beispiel: 4 Tage alter, 3 Tage neuer Zyklus).</td></tr>
+        <tr><td><strong>Zyklus-Abschluss</strong></td><td>Plan vs. Ist je Position, Ausgleich zwischen den Personen.</td></tr>
+        <tr><td><strong>Jahr</strong></td><td>Verträge und Abos, Jahreskosten, Vergleich mit ähnlichen Haushalten.</td></tr>
+        <tr><td><strong>Ereignis</strong></td><td>Nur Ausnahmen – Bank-Zustimmung läuft ab, ungewöhnliche Abbuchung, drohende Unterdeckung – und nur an die betroffene Person.</td></tr>
+      </tbody>
+    </table>
+    <p class="r3-note">Bewusst nicht gewählt (vorerst): Sprachausgabe, Steuerexport.</p>
+  </section>
+
+  <!-- 4 · Haushalt & Personen -->
+  <section id="r3-household" data-nav-label="Haushalt &amp; Personen">
+    <h2>4 · Haushalt &amp; Personen</h2>
+    <ul>
+      <li><strong>N Personen möglich</strong>, die Darstellung ist für <strong>2 Personen optimiert</strong> (mein / dein / unser). Ab drei Personen wird daraus „je Person + gemeinsam“.</li>
+      <li><strong>Privatsphäre:</strong> Gemeinsames und der Plan sind für alle voll sichtbar; persönliche Konten erscheinen bei den anderen nur als <strong>Summen</strong>.</li>
+    </ul>
+  </section>
+
+  <!-- 5 · Besitz -->
+  <section id="r3-ownership" data-nav-label="Besitz (mein/dein/unser)">
+    <h2>5 · Besitz (mein / dein / unser)</h2>
+    <div class="r3-viz" data-viz="flow" data-viz-spec='{"steps":[{"label":"1 · Konto","value":"Person A, B oder gemeinsam = Standard"},{"label":"2 · Planposition","value":"erkannt → überschreibt"},{"label":"3 · Nutzer","value":"ändert beides, optional als Regel"}]}'>Konto → Planposition → Nutzer</div>
+    <ol>
+      <li>Jedes Konto gehört <strong>Person A, Person B oder gemeinsam</strong> – das ist der Standard-Besitzer jeder Buchung darauf.</li>
+      <li>Wird die Buchung einer <strong>Planposition</strong> zugeordnet, gilt deren Besitzer (z. B. dein Vertrag, der vom gemeinsamen Konto abgeht).</li>
+      <li>Du kannst beides ändern und als <strong>Regel für wiederkehrende Buchungen</strong> speichern.</li>
+    </ol>
+  </section>
+
+  <!-- 6 · Datenwahrheit -->
+  <section id="r3-data-truth" data-nav-label="Datenwahrheit">
+    <h2>6 · Datenwahrheit</h2>
+    <div class="r3-viz" data-viz="flow" data-viz-spec='{"steps":[{"label":"Ingest","value":"Rohdaten, verschlüsselt"},{"label":"Normalisieren","value":"Vorzeichen, Händler, Datum"},{"label":"Verknüpfen","value":"6 Verknüpfungsarten"},{"label":"Anreichern","value":"PayPal → Regeln → KI"},{"label":"Aggregieren","value":"Plan vs. Ist, Zyklen"},{"label":"Anzeigen","value":"Kurzblick, Woche, Zyklus, Jahr"}]}'>Ingest → Normalisieren → Verknüpfen → Anreichern → Aggregieren → Anzeigen</div>
+    <div class="r3-grid">
+      <div class="r3-card">
+        <h4>Verknüpfungen (alle 6)</h4>
+        <ul>
+          <li>Umbuchung zwischen eigenen Konten</li>
+          <li>PayPal-Spiegel</li>
+          <li>Duplikat</li>
+          <li>Erstattung / Storno</li>
+          <li>Teilbuchungen zusammenführen (als Vorschlag)</li>
+          <li>Kreditkarte (Einzelbuchungen ↔ Abrechnung)</li>
+        </ul>
+      </div>
+      <div class="r3-card">
+        <h4>Anreicherung in dieser Reihenfolge</h4>
+        <ol>
+          <li><strong>PayPal-Details</strong> an die Bankbuchung holen</li>
+          <li>Regeln und Gelerntes</li>
+          <li><strong>KI nur für den Rest</strong></li>
+        </ol>
+      </div>
+      <div class="r3-card">
+        <h4>Korrekturen</h4>
+        <ul>
+          <li>Reichweite: nur diese / Händler / Muster</li>
+          <li>Toleranzen standardmäßig <strong>±20 % Betrag, ±5 Tage Datum</strong>, je Regel/Serie einstellbar</li>
+          <li><strong>Überleben jede Neuberechnung</strong></li>
+        </ul>
+      </div>
+      <div class="r3-card">
+        <h4>Neuberechnung</h4>
+        <p>Bei neuer Logik rechnet Finance aus den Rohdaten neu. Der Unterschied erscheint <strong>nur als Hinweis im Log des Berichts</strong>, nicht in der Prüf-Inbox.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · KI-Kategorisierung -->
+  <section id="r3-ai" data-nav-label="KI-Kategorisierung">
+    <h2>7 · KI-Kategorisierung</h2>
+    <div class="r3-viz" data-viz="kpi" data-viz-spec='{"value":"100","unit":"Aufrufe / Monat","label":"Budget; pro Händler dauerhaft gecacht"}'>100 Aufrufe / Monat</div>
+    <ul>
+      <li><strong>Opt-in.</strong> Ohne Zustimmung bleibt alles lokal.</li>
+      <li><strong>Minimale Nutzlast:</strong> nur Händler + Verwendungszweck – <strong>nie</strong> Betrag, IBAN oder Datum.</li>
+      <li><strong>Pro Händler dauerhaft gecacht</strong> – derselbe Händler kostet nie zweimal.</li>
+      <li><strong>Anbieter:</strong> zuerst über Home-Assistant-Funktionen, die du schon eingerichtet hast (z. B. die Integration „AI Task“ oder Conversation-Agenten); sonst ein eigener API-Key für eine <strong>feste Auswahl</strong>: Grok, Claude, ChatGPT.</li>
+    </ul>
+  </section>
+
+  <!-- 8 · Punkte -->
+  <section id="r3-points" data-nav-label="Punkte">
+    <h2>8 · Punkte</h2>
+    <div class="r3-viz" data-viz="compare" data-viz-spec='{"before":{"label":"beantwortete Inbox-Fragen","value":30},"after":{"label":"Punkt","value":1},"unit":""}'>30 Fragen = 1 Punkt</div>
+    <ul>
+      <li><strong>30 beantwortete Inbox-Fragen = 1 Punkt</strong> (≈ 15 vollständig eingeordnete Buchungen, je Besitz + Kategorie) für die Person, die eingeordnet hat – egal wessen Buchung es ist.</li>
+      <li>Finance <strong>feuert ein HA-Event / erhöht einen Zähler</strong>; euer bestehendes Punktesystem verbucht.</li>
+      <li>Vollautomatisch, <strong>nur vom Empfänger löschbar</strong>, nie per Button vergebbar. Eine händlerweite Regel zählt <strong>einmal</strong>.</li>
+      <li>Das <strong>Punkte-Budget bleibt separat</strong>. Finance erkennt nur Buchungen mit einem bestimmten Verwendungszweck als eigene Buchungsklasse.</li>
+    </ul>
+  </section>
+
+  <!-- 9 · Verträge & Abos -->
+  <section id="r3-contracts" data-nav-label="Verträge &amp; Abos">
+    <h2>9 · Verträge &amp; Abos</h2>
+    <div class="r3-grid">
+      <div class="r3-card">
+        <h4>Erkennung</h4>
+        <ul>
+          <li>beliebige Intervalle (wöchentlich bis jährlich und dazwischen)</li>
+          <li>erwartetes Datum und Betrag, Status „fehlt“</li>
+          <li>Preisänderung, Verknüpfung mit Planposition, Jahreskosten</li>
+        </ul>
+      </div>
+      <div class="r3-card">
+        <h4>Planbetrag aus der Serie</h4>
+        <p>Standard: <strong>höchster Wert</strong>. Je Planposition änderbar: Durchschnitt, letzter, Median oder fester Wert. Gleiche Logik für alle Intervalle, <strong>nie manuelles Nachpflegen</strong>.</p>
+      </div>
+      <div class="r3-card">
+        <h4>Vertragsmodell</h4>
+        <ul>
+          <li>Beginn, Mindestlaufzeit, Verlängerung</li>
+          <li>Kündigungsfrist mit Einheit und Bezug</li>
+          <li>Standardwerte je Kategorie, alles vorausgefüllt</li>
+          <li>Erinnerung an den Vertragsbesitzer</li>
+        </ul>
+      </div>
+      <div class="r3-card">
+        <h4>Sonderkündigung</h4>
+        <p>Nur wenn eine Preiserhöhung nicht vertragsimplizit ist: Checkbox, vorausgefüllt nach erkanntem Muster – gleichmäßige Zahlungen → angehakt; in mind. 2 von 3 Fällen unterschiedlich → nicht angehakt.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 · Vergleich -->
+  <section id="r3-benchmark" data-nav-label="Vergleich mit anderen Haushalten">
+    <h2>10 · Vergleich mit anderen Haushalten</h2>
+    <div class="r3-viz" data-viz="flow" data-viz-spec='{"steps":[{"label":"PLZ","value":"feinste Ebene"},{"label":"Kreis","value":"falls keine PLZ-Daten"},{"label":"Land","value":"Bundesland wählbar"},{"label":"Bund","value":"Deutschland fest"}]}'>PLZ → Kreis → Land → Bund</div>
+    <ul>
+      <li><strong>Region:</strong> Deutschland fest, Bundesland wählbar, PLZ im Assistenten (vorausgefüllt aus dem HA-Standort). Es gilt die feinste vorhandene Ebene. <strong>Nichts Ortsspezifisches im öffentlichen Repo.</strong></li>
+      <li><strong>Dimensionen:</strong> Miete/m² · Strom (kWh + €) · Heizung (Fernwärme / Gas / Öl / Wärmepumpe) · Lebensmittel · Mobilität · Versicherungen · Kommunikation/Abos · Schuldenquote · Sparquote · Einkommen (äquivalenzgewichtet) · Bürgergeld-Regelbedarf als Untergrenze.</li>
+      <li><strong>Statistik:</strong> Median wo vorhanden, sonst Mittelwert – gekennzeichnet.</li>
+      <li><strong>Quellen:</strong> gebündelter, versionierter Datensatz; feste Quellen-Allowlist im Repo; jede Zahl mit <strong>Quelle + Jahr</strong>. Kein Abruf zur Laufzeit.</li>
+    </ul>
+  </section>
+
+  <!-- 11 · Ziele & Rücklagen -->
+  <section id="r3-goals" data-nav-label="Ziele &amp; Rücklagen">
+    <h2>11 · Ziele &amp; Rücklagen</h2>
+    <div class="r3-grid">
+      <div class="r3-card">
+        <h4>Sparhinweise</h4>
+        <p>Immer belegt (Preiserhöhung, Doppelabo, über dem Median …), neutral formuliert, nie auf Personen gemünzt.</p>
+      </div>
+      <div class="r3-card">
+        <h4>Ziele</h4>
+        <ul>
+          <li>Betrag bis Datum</li>
+          <li>Kategorie-Deckel</li>
+          <li>Sparquote</li>
+          <li>Rücklage auffüllen</li>
+          <li>dynamischer Vorschlag</li>
+        </ul>
+      </div>
+      <div class="r3-card">
+        <h4>Rücklagen &amp; Konten</h4>
+        <ul>
+          <li>Rücklagen als Monatsbeträge im Plan</li>
+          <li>Konten als Sparkonto markierbar</li>
+        </ul>
+      </div>
+      <div class="r3-card">
+        <h4>Virtuelle Töpfe</h4>
+        <ul>
+          <li>auf einem Konto, mit vollem Funktionsumfang wie eigene Konten</li>
+          <li>Ansicht umschaltbar aufs Ursprungskonto</li>
+          <li>Summe der Töpfe deckt <strong>immer</strong> die reale Kontoposition (Soll und Haben) – bei Unterdeckung Warnung + Auffüllbetrag</li>
+          <li>Töpfe dürfen Ad-hoc-Monatsausgaben finanzieren</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 · Einrichtungs-Assistent -->
+  <section id="r3-wizard" data-nav-label="Einrichtungs-Assistent">
+    <h2>12 · Einrichtungs-Assistent</h2>
+    <p>Er erscheint, <strong>bis er einmal vollständig durchlaufen ist</strong> (jeder Schritt bestätigt). Alles ist vorausgefüllt und später einzeln änderbar.</p>
+    <div class="r3-viz" data-viz="flow" data-viz-spec='{"steps":[{"label":"1","value":"Personen"},{"label":"2","value":"Konten → Person"},{"label":"3","value":"PLZ / Bundesland"},{"label":"4","value":"Gehaltstag je Person"},{"label":"5","value":"Plan aus Historie vorbefüllen"},{"label":"6","value":"Benachrichtigungen"},{"label":"7","value":"KI (Opt-in, Anbieter, Budget)"},{"label":"8","value":"Sparziele"},{"label":"9","value":"Punktesystem verbinden"}]}'>9 Schritte</div>
+  </section>
+
+  <!-- 13 · Auswirkungen auf Projektregeln -->
+  <section id="r3-rules" data-nav-label="Auswirkungen auf Projektregeln">
+    <h2>13 · Auswirkungen auf Projektregeln</h2>
+    <p>Das Konzept verschiebt fünf Stellen im Projekt. (a) und (b) ändern Regeln in <code>CLAUDE.md</code> – dazu die Frage im <a href="#r3-c-rules">Abschluss-Check</a>.</p>
+    <table class="r3-table">
+      <thead><tr><th></th><th>Heute</th><th>Neu</th></tr></thead>
+      <tbody>
+        <tr><td>(a) <span class="r3-tag">CLAUDE.md</span></td><td>Hard Rule: „Ownership is a property of a position, never inferred from which account was debited.“</td><td>„Das Konto liefert den Standard-Besitzer, die Planposition überschreibt, Nutzerregeln überschreiben beides.“</td></tr>
+        <tr><td>(b) <span class="r3-tag">CLAUDE.md</span></td><td>Sicherheitsregel 6: keine externen Aufrufe außer Enable Banking.</td><td>Plus opt-in KI-Kategorisierung – minimale Nutzlast, HA-Funktionen bevorzugt.</td></tr>
+        <tr><td>(c) <code>benchmark.py</code></td><td>Crawl zur Laufzeit</td><td>entfällt → gebündelter, versionierter Datensatz</td></tr>
+        <tr><td>(d) <code>recurring.py</code></td><td>nur monatlich</td><td>beliebige Intervalle</td></tr>
+        <tr><td>(e) <code>month_cycle.py</code></td><td>vorhanden, nicht verdrahtet</td><td>verdrahten: Gehaltszyklus als Planungszyklus</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 14 · Doku -->
+  <section id="r3-docs" data-nav-label="Doku">
+    <h2>14 · Doku</h2>
+    <p>Deine Notiz: „gut die readme beschreiben und ein web handbuch zu dem ganzen!“</p>
+    <ul>
+      <li><strong>README</strong> beschreibt das Ganze: Zweck, Rhythmen, Einrichtung, Datenschutz.</li>
+      <li><strong>Web-Handbuch</strong> erklärt jede Funktion ausführlich (Assistent, Prüf-Inbox, Verträge, Töpfe, Vergleich, KI, Punkte).</li>
+    </ul>
+  </section>
+
+  <!-- 15 · Für die Visual-/Mobile-Runde -->
+  <section id="r3-visual-handoff" data-nav-label="Für die Visual-/Mobile-Runde">
+    <h2>15 · Für die Visual-/Mobile-Runde</h2>
+    <p><strong>Formfaktoren:</strong> Handy · Wand-Tablet · HA-Dashboard-Karte · Desktop-Panel.</p>
+    <ul>
+      <li>Kurzblick-Karte</li>
+      <li>Wochen-Check mit Prüf-Inbox und Punkten</li>
+      <li>Zyklus-Abschluss</li>
+      <li>Verträge „relativ zu x/y/z im Jahr“ als Diagramme</li>
+      <li>virtuelle Töpfe wie Konten</li>
+      <li>Assistent als geführter Flow</li>
+      <li>Vergleichsansicht mit Quelle/Jahr</li>
+      <li>2-Personen-optimierte Darstellung von mein / dein / unser</li>
+    </ul>
+  </section>
+
+  <!-- Lite: Abschluss-Check -->
+  <section id="r3-c-check" data-analysis="lite" data-nav-label="Abschluss-Check">
+    <h2>Abschluss-Check</h2>
+    <div data-alevel="1" data-title="Abschluss-Check">
+      <div data-slot="short">
+        <div data-viz="kpi" data-viz-spec='{"value":"3","unit":"Fragen","label":"dann wird das Konzept ins Repo geschrieben"}'></div>
+        <p>Drei Fragen, dann schreibt „Umsetzen“ das Konzept ins Repo.</p>
+      </div>
+      <div data-slot="long">
+        <div data-viz="flow" data-viz-spec='{"steps":[{"label":"Konzept","value":"stimmt es?"},{"label":"Regeln","value":"CLAUDE.md umformulieren?"},{"label":"Dateien","value":"was ins Repo?"}]}'></div>
+        <p>Alles oben ist bereits entschieden. Hier bestätigst du nur, dass die Zusammenfassung stimmt, ob die zwei Projektregeln mitwandern und welche Dokumente beim Umsetzen entstehen.</p>
+      </div>
+    </div>
+
+    <!-- r3-c-concept -->
+    <section id="r3-c-concept" data-nav-label="Konzept stimmt?" data-decision="r3-c-concept" data-decision-mode="verify"
+             data-label="Konzept stimmt?" data-rec="ok"
+             data-rec-why="Jeder Abschnitt gibt nur wieder, was du in Runde 1 und 2 entschieden oder notiert hast."
+             data-applies-to="das ganze Produktkonzept (Abschnitte 1–15)" data-finding="r3-f-concept">
+      <p data-applies>Gilt für: das ganze Produktkonzept (Abschnitte 1–15)</p>
+      <h3 data-question>Stimmt das konsolidierte Konzept so, wie es oben steht?</h3>
+      <p data-context>Es fasst 37 Entscheidungen aus zwei Runden zusammen; neu ist nur die Zusammenstellung.</p>
+      <div data-options>
+        <label data-opt="ok" data-recommended>
+          <input type="radio" name="dm-r3-c-concept" value="ok" checked>
+          <span data-opt-label>Stimmt</span>
+          <span data-opt-consequence>Das Konzept wird so als docs/dev/product-concept.md geschrieben.</span>
+        </label>
+        <label data-opt="partial">
+          <input type="radio" name="dm-r3-c-concept" value="partial">
+          <span data-opt-label>Teilweise</span>
+          <span data-opt-consequence>Ich korrigiere die genannten Stellen, bevor etwas ins Repo geht.</span>
+        </label>
+        <label data-opt="wrong">
+          <input type="radio" name="dm-r3-c-concept" value="wrong">
+          <span data-opt-label>Stimmt nicht</span>
+          <span data-opt-consequence>Ich baue die betroffenen Abschnitte aus deiner Beschreibung neu auf.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-r3-c-concept-fix" placeholder="Was stimmt nicht?" value="">
+      <textarea data-comment="r3-c-concept-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-r3-c-concept-touched" value="1">
+      <input type="hidden" name="dm-r3-c-concept-issue" value="">
+      <input type="hidden" name="dm-r3-c-concept-epic" value="">
+      <div data-alevel="3" data-title="Konzept stimmt?">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"37 → 15","unit":"Abschnitte","label":"37 Entscheidungen in 15 Abschnitten"}'></div><p>37 Entscheidungen, verdichtet in 15 Abschnitte.</p></div>
+        <div data-slot="long">
+          <div data-viz="bars" data-viz-spec='{"items":[{"label":"Runde 1","value":20},{"label":"Runde 2","value":17}],"unit":"Entscheidungen"}'></div>
+          <p>Runde 1 hat Zweck, Rhythmen und Datenbedarf festgelegt, Runde 2 die Details aus deinen Notizen (Punkte, Toleranzen, Verträge, Töpfe, Vergleich). Nichts davon blieb unberührt. Was hier nicht stimmt, wird vor dem Schreiben korrigiert.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r3-c-rules -->
+    <section id="r3-c-rules" data-nav-label="Projektregeln umformulieren?" data-decision="r3-c-rules" data-decision-mode="yesnoalt"
+             data-label="Projektregeln umformulieren?" data-rec="yes"
+             data-rec-why="Beide Regeln widersprechen sonst dem, was du entschieden hast (Besitz-Standard aus dem Konto, opt-in KI); eine Regel, die das Konzept verbietet, blockiert jede spätere Umsetzung."
+             data-applies-to="CLAUDE.md: Hard Rule „plan vs. actual“, Sicherheitsregel 6" data-finding="r3-f-rules">
+      <p data-applies>Gilt für: CLAUDE.md – Hard Rule „plan vs. actual“, Sicherheitsregel 6</p>
+      <h3 data-question>Sollen die zwei Projektregeln in CLAUDE.md beim Umsetzen so umformuliert werden (Besitz-Standard aus dem Konto; Opt-in-KI als Ausnahme von Regel 6)?</h3>
+      <p data-context>Die Wortlaute stehen in Abschnitt 13 (a) und (b).</p>
+      <div data-options>
+        <label data-opt="yes" data-recommended>
+          <input type="radio" name="dm-r3-c-rules" value="yes" checked>
+          <span data-opt-label>Ja, so umformulieren</span>
+          <span data-opt-consequence>CLAUDE.md erlaubt danach den Konto-Standard-Besitzer und die opt-in KI mit minimaler Nutzlast.</span>
+        </label>
+        <label data-opt="no">
+          <input type="radio" name="dm-r3-c-rules" value="no">
+          <span data-opt-label>Nein, Regeln bleiben, Konzept anpassen</span>
+          <span data-opt-consequence>Besitz kommt nur aus Planpositionen und Nutzerregeln; die KI-Kategorisierung entfällt.</span>
+        </label>
+        <label data-opt="alt">
+          <input type="radio" name="dm-r3-c-rules" value="alt">
+          <span data-opt-label>Anders …</span>
+          <span data-opt-consequence>Beschreibe deine eigene Formulierung.</span>
+        </label>
+      </div>
+      <input type="text" name="dm-r3-c-rules-alt" placeholder="Was stattdessen?" value="">
+      <textarea data-comment="r3-c-rules-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-r3-c-rules-touched" value="1">
+      <input type="hidden" name="dm-r3-c-rules-issue" value="">
+      <input type="hidden" name="dm-r3-c-rules-epic" value="">
+      <div data-alevel="3" data-title="Projektregeln umformulieren?">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"2","unit":"Regeln","label":"widersprechen heute dem Konzept"}'></div><p>Zwei Regeln in CLAUDE.md widersprechen heute dem, was du entschieden hast.</p></div>
+        <div data-slot="long">
+          <div data-viz="flow" data-viz-spec='{"steps":[{"label":"(a) heute","value":"Besitz nie aus dem Konto"},{"label":"(a) neu","value":"Konto = Standard, Planposition und Nutzerregel überschreiben"},{"label":"(b) heute","value":"nur Enable Banking extern"},{"label":"(b) neu","value":"+ opt-in KI, minimale Nutzlast, HA bevorzugt"}]}'></div>
+          <p>Die alte Besitz-Regel bleibt im Kern erhalten: Die Planposition schlägt das Konto weiterhin. Neu ist nur, dass das Konto einen Standard liefert, statt gar nichts. Bei Regel 6 bleibt Enable Banking der einzige Pflicht-Aufruf; die KI ist abschaltbar und sendet nie Betrag, IBAN oder Datum.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- r3-c-docs -->
+    <section id="r3-c-docs" data-nav-label="Was ins Repo?" data-decision="r3-c-docs" data-decision-mode="multi"
+             data-label="Was ins Repo?" data-rec="konzept roadmap visual handbuch"
+             data-rec-why="Konzept und Roadmap sind die Grundlage jeder späteren Freigabe; Übergabe und Handbuch-Gliederung halten fest, was sonst nur in dieser Seite steht."
+             data-applies-to="docs/dev/, README" data-finding="r3-f-docs">
+      <p data-applies>Gilt für: docs/dev/, README</p>
+      <h3 data-question>Was soll beim Umsetzen ins Repo geschrieben werden?</h3>
+      <p data-context>Nur Dokumente – kein Produktcode in dieser Session.</p>
+      <div data-options>
+        <label data-opt="konzept" data-recommended><input type="checkbox" name="dm-r3-c-docs.konzept" checked><span data-opt-label>Produktkonzept als docs/dev/product-concept.md</span><span data-opt-consequence>Die Abschnitte 1–15 werden zur dauerhaften Referenz im Repo.</span></label>
+        <label data-opt="roadmap" data-recommended><input type="checkbox" name="dm-r3-c-docs.roadmap" checked><span data-opt-label>Roadmap: Phase 4 neu geschnitten nach diesem Konzept (bleibt freigabepflichtig)</span><span data-opt-consequence>docs/dev/roadmap.md bekommt den neuen Schnitt; nichts davon startet ohne deine Freigabe.</span></label>
+        <label data-opt="visual" data-recommended><input type="checkbox" name="dm-r3-c-docs.visual" checked><span data-opt-label>Übergabe-Notiz für die Visual-/Mobile-Runde</span><span data-opt-consequence>Abschnitt 15 wird zur Startliste der nächsten Konzept-Runde.</span></label>
+        <label data-opt="handbuch" data-recommended><input type="checkbox" name="dm-r3-c-docs.handbuch" checked><span data-opt-label>Gliederung für README + Web-Handbuch</span><span data-opt-consequence>Eine Kapitelstruktur, die README und Handbuch später füllen.</span></label>
+      </div>
+      <textarea data-comment="r3-c-docs-note" placeholder="Notiz (optional)"></textarea>
+      <input type="hidden" name="dm-r3-c-docs-touched" value="1">
+      <input type="hidden" name="dm-r3-c-docs-issue" value="">
+      <input type="hidden" name="dm-r3-c-docs-epic" value="">
+      <div data-alevel="3" data-title="Was ins Repo?">
+        <div data-slot="short"><div data-viz="kpi" data-viz-spec='{"value":"4","unit":"Dokumente","label":"kein Produktcode"}'></div><p>Vier Dokumente, kein Produktcode.</p></div>
+        <div data-slot="long">
+          <div data-viz="flow" data-viz-spec='{"steps":[{"label":"product-concept.md","value":"neu"},{"label":"roadmap.md","value":"Phase 4 neu geschnitten"},{"label":"Übergabe","value":"Visual-/Mobile-Runde"},{"label":"Gliederung","value":"README + Web-Handbuch"}]}'></div>
+          <p>Das Konzept ist die Quelle, die anderen drei leiten sich daraus ab. Phase 4 und 5 bleiben freigabepflichtig – die Roadmap beschreibt nur den neuen Schnitt, sie gibt nichts frei.</p>
+        </div>
+      </div>
+    </section>
+  </section>
+</section>

@@ -1,0 +1,10 @@
+[
+  {
+    "iteration": 1,
+    "action": "implement",
+    "accepted": ["W1 HACS-only", "W2 panel + cards from one kit", "W3 config flow via my.home-assistant.io", "W4 encrypt raw + ledger", "1.1", "1.2", "1.3", "1.4", "2.1", "2.2", "2.3", "2.4", "3.1", "3.2"],
+    "discarded": ["W1-B add-on optional", "W2-B dashboard strategy", "W3-B fixed external URL", "W4-B plaintext data"],
+    "comments": "none",
+    "result": "implemented on feat/rethink-foundation (e2d0adb); 2.4 real DKB test pending user"
+  }
+]

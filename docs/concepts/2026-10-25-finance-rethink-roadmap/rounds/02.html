@@ -1,0 +1,94 @@
+<section data-iteration="2" data-iteration-template="free" data-final-report>
+  <div class="iteration-intro">
+    <h2>{{iteration.final_tab}}</h2>
+    <p>Phasen 1 bis 3 sind umgesetzt, alle Weichen wie empfohlen. Alles liegt auf dem Zweig <code>feat/rethink-foundation</code> (zuletzt <code>e2d0adb</code>, 27 Commits, 174 Dateien). Noch nicht gemergt und nicht released. Danach erst kommen Intentionen und Use Cases (Phase 4), und zwar nur auf deine Freigabe.</p>
+  </div>
+
+  <section id="summary" data-nav-label="Zusammenfassung">
+    <h3>Zusammenfassung</h3>
+    <ul>
+      <li><strong>Installation (W1, 1.1):</strong> HACS ist der einzige Weg, ab HA 2026.3. Der Add-on mit Payload-Sync ist entfernt. Die CI prüft mit hassfest und der HACS-Action, Releases entstehen bei <code>v*</code>-Tags, und die README ist neu.</li>
+      <li><strong>Branding (1.2):</strong> eigenes Icon (zweifarbige Münze mit Haus und Balken) und Logo, hell und dunkel, jeweils @2x. Dazu <code>icons.json</code> für Services und Entities.</li>
+      <li><strong>Frontend (W2, 1.3):</strong> ein Baukasten in zwei Hüllen. Das Sidebar-Panel ist direkt über <code>panel_custom</code> registriert, nur für Admins, mit Cache-Busting. Die Lovelace-Karten laden automatisch auf jedem Dashboard, ein Ressourcen-Eintrag ist nicht mehr nötig. Das Fremdpaket <code>ha-customapps</code> ist entfernt.</li>
+      <li><strong>Verbinden (W3, 2.1):</strong> Jede Bank ist ein Unterpunkt der Integration („Bank hinzufügen“). Die Freigabe läuft über <code>my.home-assistant.io</code>, mit Testabruf direkt nach dem Verbinden. Pro Bank gibt es Reconfigure zum Erneuern, und Reparatur-Hinweise erscheinen 14 Tage vor Ablauf und bei Ablauf. Die App-Zugangsdaten lassen sich per Reconfigure tauschen. Der alte Panel-Wizard ist entfernt.</li>
+      <li><strong>Abruf (2.2):</strong> Das Budget gilt pro Bank und Konto und Tag. Der geplante Abruf nutzt höchstens 1 von 4. Abrufe im Beisein bleiben unlimitiert, werden aber entprellt. Ein 429 sperrt nur die betroffene Bank für 6 h. Abgerufen wird inkrementell mit Überlappung, die Paginierung hat einen Schutz vor Endlosschleifen.</li>
+      <li><strong>Speicher (W4, 2.3):</strong> drei Schichten:
+        <ul>
+          <li>Rohstände pro Abruf, verschlüsselt, eine Datei pro Monat, Aufbewahrung einstellbar (Standard 400 Tage).</li>
+          <li>Ein verschlüsseltes, dedupliziertes Buchungsbuch (vorgemerkt wird durch gebucht ersetzt) plus Saldenverlauf.</li>
+          <li>Ableitungen werden immer neu gerechnet.</li>
+        </ul>
+        Der alte Klartext-Cache wird beim ersten Start migriert und gelöscht. Eine alte Einzel-Session wird automatisch zur Bank.</li>
+      <li><strong>Karten ohne IBAN (2.4, Vorbereitung):</strong> Eine stabile Identität für Kreditkarten wie die DKB Visa ist eingebaut.</li>
+      <li><strong>Anzeige (3.1/3.2, 1.4):</strong>
+        <ul>
+          <li>Geräte pro Bank und pro Konto: Saldo, verfügbarer Saldo, letzte Aktualisierung, Zustimmung gültig bis/Status, Abrufbudget, Sperre, letzter Fehler, Refresh-Button.</li>
+          <li>Die Saldenhistorie fließt in die Langzeitstatistik (Format für 2026.11), dazu kommen Diagnose-Export (geschwärzt), <code>runtime_data</code> und <code>quality_scale.yaml</code>.</li>
+          <li>Das Panel zeigt nur Fakten: Konten, Bankstatus und Buchungssuche (nur für Admins). Der Haushaltsteil ist per Option <code>show_household</code> als eigener Tab zuschaltbar und wurde nicht gelöscht.</li>
+        </ul></li>
+      <li><strong>Nebenbei behoben:</strong>
+        <ul>
+          <li><code>_build_stats</code> hätte bei jedem echten Abruf einen Fehler geworfen.</li>
+          <li>Der Options-Flow hat beim Speichern die Tagesabruf-Einstellungen gelöscht.</li>
+          <li>Die automatische Aktualisierung beim Öffnen des Panels lief wegen einer undefinierten Variable nie.</li>
+          <li>Der Coordinator übergab den Config-Entry nicht, wodurch das Setup auf HA 2026.10 scheitern konnte.</li>
+        </ul></li>
+      <li><strong>Achtung, geändertes Verhalten:</strong> Die Split-Modell-Selects liefern jetzt stabile Werte (<code>pooled_equal</code>, <code>equal</code> …) statt Anzeigetexten. Automationen, die auf den alten Text prüfen, müssen angepasst werden.</li>
+      <li><strong>Nicht umgesetzt, weil es dich braucht:</strong> 2.4, der echte DKB-Test (Giro <em>und</em> Visa). Er setzt die eingetragene Redirect-URL und deine Freigabe in der DKB-App voraus. Deshalb steht er unten unter „Danach von Hand“, und ich begleite ihn per Web-Guide.</li>
+    </ul>
+  </section>
+
+  <section id="changed-files" data-nav-label="Geänderte Bereiche">
+    <h3>Geänderte Bereiche</h3>
+    <ul>
+      <li><code>hacs.json</code>, <code>.github/workflows/</code>, <code>scripts/</code>: HACS-only, CI auf Python 3.14 für die Tests, kein Add-on mehr. <code>finance_dashboard_companion/</code> ist gelöscht.</li>
+      <li><code>brand/</code>, <code>docs/brand/</code> (SVG-Quellen und Render-Skript), <code>icons.json</code></li>
+      <li><code>panel.py</code>, <code>frontend/</code>: <code>finance-dashboard-kit.js</code>, das neue <code>fd-overview.js</code>, Karte und Chip. <code>www/</code> ist entfernt.</li>
+      <li><code>config_flow.py</code>, <code>connect.py</code>, <code>repairs.py</code>: Bank-Unterpunkte, Reauth und Reconfigure, Reparatur-Flow.</li>
+      <li><code>credential_manager.py</code>, <code>data_store.py</code>, <code>fetch_budget.py</code>, <code>manager/</code>, <code>account_identity.py</code>, <code>enablebanking_client.py</code></li>
+      <li><code>sensor.py</code>, <code>button.py</code>, <code>entity.py</code>, <code>runtime.py</code>, <code>balance_statistics.py</code>, <code>diagnostics.py</code>, <code>coordinator.py</code>, <code>quality_scale.yaml</code></li>
+      <li><code>api/</code>: <code>/bank_status</code>, <code>/settings</code>, gefilterte <code>/transactions</code>, die Wizard-Views sind entfernt.</li>
+      <li><code>strings.json</code> und <code>translations/</code> (de/en): Config, Bank-Unterpunkte, Issues, Entities, Optionen, Services.</li>
+      <li><code>manifest.json</code>: <code>cloud_polling</code>, <code>my</code>/<code>recorder</code> als after_dependencies. README und CLAUDE.md sind aktualisiert.</li>
+    </ul>
+  </section>
+
+  <section id="tests" data-nav-label="Tests &amp; Verifikation">
+    <h3>Tests &amp; Verifikation</h3>
+    <ul>
+      <li><strong>pytest:</strong> 419 grün auf zwei Ständen, HA 2025.1.4 (Python 3.12) und HA 2026.10.4 (Python 3.14).</li>
+      <li><strong>Boot-Test HA 2026.10.4:</strong> Die Integration lädt, der Config-Flow erscheint, und Icon und Logo werden ausgeliefert (<code>/api/brands/…</code>, 200). Panel- und Karten-JS laden, und die API antwortet. Das Hochfahren lief unter Windows mit Shims, ein Linux-Lauf folgt über die CI.</li>
+      <li><strong>Prüfungen nach Art von hassfest:</strong> Manifest-Reihenfolge, Übersetzungen, <code>icons.json</code> gegen services und entities, <code>quality_scale.yaml</code>. <code>node --check</code> lief über 20 von 20 JS-Dateien.</li>
+      <li><strong>Panel und Karten:</strong> im Browser gegen gemockte Daten geprüft, ohne Konsolenfehler. Tabs, Suche, Filter, Paging und Toasts funktionieren.</li>
+      <li><strong>Noch nicht gegen eine echte Bank geprüft:</strong> OAuth-Rücksprung über my.home-assistant.io, echte 429-Werte, das Zählverhalten der Bank (Salden und Buchungen als 1 oder 2 Zugriffe) und die Struktur der DKB-Visa-Antwort.</li>
+    </ul>
+  </section>
+
+  <section id="open-questions" data-nav-label="{{final.open_questions}}" data-open-questions>
+    <h3>{{final.open_questions}}</h3>
+    <ul class="open-questions-list">
+      <li>
+        <label>
+          <input type="checkbox"
+                 name="oq-claude-md-slim"
+                 data-issue-title="[REFACTOR] Slim CLAUDE.md into an index with deep-knowledge files"
+                 data-issue-type="refactor"
+                 data-issue-body="CLAUDE.md has grown to ~260 lines (architecture tree, hard rules, phases, labels, patterns). The devops plugin budget for CLAUDE.md is ~25 lines with a 50-line ceiling: it is loaded into every session and long sections stop being followed reliably. Move the detail (architecture tree, split model, month cycle, entity architecture, development phases, label tables) into .claude/deep-knowledge/&lt;topic&gt;.md files and keep one-line pointers plus the hard rules in CLAUDE.md. Found while updating the architecture tree for the rethink-foundation branch; unrelated to that change."
+                 data-oq-origin="found"
+                 checked>
+          <span class="oq-label">CLAUDE.md ist mit ~260 Zeilen zu lang für zuverlässiges Befolgen. In Index plus Detaildateien aufteilen.</span>
+        </label>
+      </li>
+    </ul>
+  </section>
+
+  <section id="handoffs" data-nav-label="{{final.handoffs}}" data-handoffs>
+    <h3>{{final.handoffs}}</h3>
+    <ol>
+      <li>Bei Enable Banking in deiner App die Redirect-URL <code>https://my.home-assistant.io/redirect/oauth</code> eintragen. Ich begleite das per Web-Guide.</li>
+      <li>Nach dem Release das Repo in HACS als Custom Repository hinzufügen (Kategorie Integration) und die Integration installieren. Den alten Add-on deinstallieren, HA neu starten.</li>
+      <li>Unter Einstellungen → Geräte &amp; Dienste → Finance auf „Bank hinzufügen“ gehen, die DKB wählen und in der DKB-App freigeben. Dann prüfen, ob Giro <em>und</em> Visa als eigene Geräte erscheinen (DKB-Realitätstest 2.4).</li>
+      <li>Automationen prüfen, die auf die Anzeigetexte der Split-Modell-Selects reagieren. Die Werte heißen jetzt <code>pooled_equal</code>, <code>equal</code>, <code>proportional</code> und <code>custom</code>.</li>
+    </ol>
+  </section>
+</section>

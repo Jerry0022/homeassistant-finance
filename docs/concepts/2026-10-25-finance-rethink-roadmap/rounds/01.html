@@ -1,0 +1,383 @@
+<section data-iteration="1" data-iteration-template="decision" data-baked>
+  <script type="application/json" data-frozen-feedback>{"general":{"text":"","attachments":[]}}</script>
+  <div class="iteration-intro">
+    <h2>Runde 1 · Fahrplan und Grundsatzentscheidungen</h2>
+    <p>Du hast eine klare Reihenfolge vorgegeben: erst das Fundament (Installierbarkeit, HA-Integration, Enable Banking, Datenhaltung), dann die reine Ist-Anzeige mit HA-Bordmitteln. Erst nach deiner Freigabe folgen Intentionen, Use Cases und Visuals. Diese Seite legt den Plan für die ersten drei Phasen fest und fragt die Weichen ab, die vorher entschieden sein müssen. Alle Schritte unabhängiger Themen sind auf <em>Miteinbeziehen</em> vorbelegt. Bei Alternativen ist meine Empfehlung vorausgewählt.</p>
+  </div>
+
+  <section id="ist" data-nav-label="Ist-Stand in einem Blick" data-nav-group="Kontext">
+    <h3>Ist-Stand in einem Blick</h3>
+    <p><strong>Was das Projekt heute ist:</strong> eine HA-Custom-Integration (<code>finance_dashboard</code>, v0.15.3). Sie zieht Konten über Enable Banking (PSD2), kategorisiert Buchungen nach Regeln und rechnet das Haushaltsmodell aus deinem Spreadsheet nach. Ausgeliefert wird sie über einen Supervisor-Add-on, der die Dateien nach <code>custom_components/</code> kopiert. Dazu kommen ein Sidebar-Panel und eine Lovelace-Karte.</p>
+    <div class="variant-card">
+      <h4>Was bereits solide ist (bleibt)</h4>
+      <ul>
+        <li>Kein Polling: Live-Abruf nur auf Klick, per Service oder einmal täglich geplant. Ein 429 löst 6 h Backoff aus, der Zustand übersteht einen Neustart.</li>
+        <li>Saubere Trennung „im Beisein“ (PSU-Header, kein 4/Tag-Limit) vs. „im Hintergrund“ (limitiert).</li>
+        <li>Die Kontoidentität hängt an der IBAN, nicht an der wechselnden uid. Die Buchungshistorie wächst über das Abrufraster hinaus mit (Dedupe per Transaktions-ID).</li>
+        <li>Monetäre Sensoren mit <code>state_class: total</code> (das ist für Geldbeträge in HA korrekt). Credentials sind Fernet-verschlüsselt.</li>
+      </ul>
+    </div>
+    <div class="variant-card">
+      <h4>Was fehlt oder hakt (Audit + HA-Stand Oktober 2026)</h4>
+      <ul>
+        <li><strong>Installation:</strong> Der Add-on-Installer ist der Hauptweg. Er funktioniert nur auf HA OS und Supervised und hat 0.13.1 bis 0.15.1 still nicht ausgeliefert. In <code>hacs.json</code> fehlt die HA-Mindestversion, und Releases fehlen.</li>
+        <li><strong>Branding:</strong> Die vier Brand-PNGs sind identische Platzhalter, und es gibt keine @2x-Varianten. Seit HA 2026.3 werden sie lokal aus <code>brand/</code> geladen, die Struktur stimmt also, nur der Inhalt nicht. <code>icons.json</code> fehlt.</li>
+        <li><strong>Frontend:</strong> Das Panel hängt am Fremdpaket <code>ha-customapps</code> und hat kein <code>require_admin</code> und kein Cache-Busting. Die Karte muss von Hand als Lovelace-Ressource eingetragen werden.</li>
+        <li><strong>Verbinden:</strong> Der Bank-Wizard läuft außerhalb des HA-Config-Flows. Die Callback-URL wird aus dem Host des aktuellen Requests gebaut, ein Aufruf über einen anderen Host bricht also den Rücksprung. Es gibt keinen Reauth-Flow, wenn die Zustimmung nach 90/180 Tagen abläuft, und keinen Reconfigure-Flow.</li>
+        <li><strong>Daten:</strong> Rohantworten der Bank werden nicht gespeichert, es liegt nur der aufbereitete Stand vor. Der Transaktions-Cache ist unverschlüsselt, obwohl der Code das Gegenteil behauptet. Store-Versionierung und Migrationen fehlen.</li>
+        <li><strong>HA-Qualität:</strong> Es fehlen <code>runtime_data</code>, Geräte (<code>device_info</code>), <code>diagnostics.py</code>, Übersetzungen der Entity-Namen und Tests für Config-Flow und Entities.</li>
+        <li><strong>Frist:</strong> Mit HA 2026.11 (nächster Monat) brauchen Statistik-Importe <code>unit_class</code> und <code>mean_type</code>. Das betrifft uns, sobald wir Salden-Historie importieren.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="sheet" data-nav-label="Was das Spreadsheet lehrt" data-nav-group="Kontext">
+    <h3>Was das Spreadsheet lehrt (nur Logik, keine Beträge)</h3>
+    <p>Das Sheet hat drei Haushaltsmodelle hintereinander erlebt, und genau das ist die wichtigste Erkenntnis: <strong>Das Modell ändert sich mit dem Leben.</strong></p>
+    <ul>
+      <li><strong>2023:</strong> Kosten anteilig nach Schuldenlast. Wohnungs-, Personen- und Neuschulden gehen getrennt ein.</li>
+      <li><strong>2024:</strong> anteilig nach steuerbereinigtem Nettoeinkommen. Erstattungen und Privatversicherung sind herausgerechnet, „Essen machen“ zählt als fiktiver Beitrag. Dazu die offene Frage, wie Hausarbeit gewürdigt wird.</li>
+      <li><strong>2026:</strong> Pool-gleich. Beide Netto-Einkommen fließen zusammen, Gemeinschaftskosten gehen ab, der Rest wird halbiert, und jede Person zahlt ihre eigenen Fixkosten aus ihrer Hälfte. Darauf baut eine <strong>Kontenchoreografie</strong> auf: Einzahlung, Umbuchung aufs Lebenshaltungskonto, Abbuchungen, Puffer für Essen und Haushalt, Steuerklassenausgleich (III/V) und Privat-KV als Durchlaufposten. Konten verschiedener Banken (DKB, Revolut) sind beteiligt.</li>
+      <li><strong>Querschnitt:</strong> Kostenpositionen mit Eigentümer (Person A, Person B, gemeinsam), Gültigkeit („bis inkl. April 2027“), Puffer als eigene Positionsart, Benchmark gegen Destatis und bpb mit Quellenangabe.</li>
+    </ul>
+    <p><strong>Konsequenz für den Rethink:</strong> Das Repo hat das 2026er-Modell fest einprogrammiert. Für später heißt das: <em>Bausteine statt Modell</em>. Positionen, Eigentümer, Verteilschlüssel, Puffer, Durchlaufposten und Konten-Rollen werden einzeln konfigurierbar. Das 2026er-Modell ist dann eine Vorlage, und Einordnungen, die das System nicht sicher erkennt, fragt es beim Nutzer nach und lernt daraus. Das gehört in Phase 4 (deine Freigabe). Phase 2 muss die Daten aber schon so ablegen, dass das später ohne Neuaufbau geht.</p>
+  </section>
+
+  <section id="weichen" data-nav-label="Weichen (vorab zu entscheiden)" data-nav-group="Weichen">
+    <h3>Weichen, die vorab entschieden sein müssen</h3>
+    <p>Jede Gruppe ist eine Entweder-oder-Frage. Meine Empfehlung ist vorausgewählt.</p>
+
+    <h4>W1 · Installationsweg</h4>
+    <div class="variant-card">
+      <p><strong>Frage:</strong> Wie kommt die Integration auf deine HA-Instanz?</p>
+      <div class="variant-evaluation" data-decision="w1-hacs" data-label="W1-A · HACS als einziger Weg, Add-on entfällt">
+        <p><strong>A · HACS als einziger Weg, der Add-on entfällt (Empfehlung).</strong> Das ist der Standard für Custom-Integrationen. Er funktioniert auf jeder HA-Installationsart und bringt Update-Hinweise im HA-UI. Die Karten-JS liefert die Integration selbst aus, statt sie nach <code>www/</code> zu kopieren. Kosten: eine einmalige Umstellung, ein CI-Job mit HACS-Action und hassfest, und echte GitHub-Releases.</p>
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-w1-hacs" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-w1-hacs" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="w1-hacs-note">{{decision.comment_label}}</label>
+          <textarea id="w1-hacs-note" data-comment="w1-hacs-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="variant-evaluation" data-decision="w1-both" data-label="W1-B · HACS plus Add-on optional">
+        <p><strong>B · HACS als Hauptweg, Add-on bleibt optional.</strong> Wer keinen HACS nutzt, kann weiter den Add-on nehmen. Nachteil: Zwei Auslieferungswege müssen synchron bleiben (Payload-Sync, Versionsabgleich), und genau dieser Weg ist schon einmal still kaputtgegangen.</p>
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-w1-both" value="discard" checked><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-w1-both" value="include"><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="w1-both-note">{{decision.comment_label}}</label>
+          <textarea id="w1-both-note" data-comment="w1-both-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <h4>W2 · Wo das Dashboard lebt</h4>
+    <div class="variant-card">
+      <p><strong>Frage:</strong> Du willst es als Menüpunkt <em>oder</em> als View in einem Tab eines anderen Dashboards sehen. Ein Sidebar-Panel lässt sich technisch nicht in ein Dashboard einbetten. Beides gleichzeitig geht nur, wenn dieselben Bausteine einmal gebaut und zweifach verpackt werden.</p>
+      <div class="variant-evaluation" data-decision="w2-dual" data-label="W2-A · Ein Baukasten, zwei Hüllen: Panel + Karten">
+        <p><strong>A · Ein Baukasten, zwei Hüllen (Empfehlung).</strong> Die Web-Components werden einmal gebaut und zweifach verpackt:</p>
+        <ul>
+          <li><strong>Sidebar-Panel</strong> (Menüpunkt, nur für Admins wegen der Einzelbuchungen).</li>
+          <li><strong>Lovelace-Karten</strong> mit visuellem Editor und Sections-Grid-Größen. Damit lässt sich ein ganzer Tab in deinem bestehenden Dashboard daraus bauen.</li>
+        </ul>
+        <p>Die Karten registrieren sich automatisch, ein manueller Ressourcen-Eintrag ist nicht mehr nötig. Risiko: Laut Forenberichten gab es um HA 2026.8 Ladeprobleme bei mitgelieferten Karten. Das wird auf deiner Version getestet.</p>
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-w2-dual" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-w2-dual" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="w2-dual-note">{{decision.comment_label}}</label>
+          <textarea id="w2-dual-note" data-comment="w2-dual-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="variant-evaluation" data-decision="w2-strategy" data-label="W2-B · Zusätzlich Dashboard-Strategy">
+        <p><strong>B · A plus eine Dashboard-Strategy.</strong> Seit HA 2026.5 erzeugt die Integration auf Knopfdruck ein komplettes, automatisch befülltes Finanz-Dashboard. Das ist praktisch für Neuinstallationen, aber zusätzlicher Bau- und Testaufwand, und es bringt dir nichts, wenn du ohnehin einen Tab im bestehenden Dashboard willst. Mein Vorschlag: später nachrüsten.</p>
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-w2-strategy" value="discard" checked><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-w2-strategy" value="include"><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="w2-strategy-note">{{decision.comment_label}}</label>
+          <textarea id="w2-strategy-note" data-comment="w2-strategy-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <h4>W3 · Wie eine Bank verbunden wird</h4>
+    <div class="variant-card">
+      <p><strong>Frage:</strong> Enable Banking verlangt eine fest registrierte Redirect-URL. Heute wird sie aus dem Host gebaut, über den du HA gerade aufrufst. Das bricht, sobald du intern und extern unterschiedliche Adressen nutzt.</p>
+      <div class="variant-evaluation" data-decision="w3-myha" data-label="W3-A · Config-Flow mit my.home-assistant.io-Redirect">
+        <p><strong>A · Alles im HA-Config-Flow, Rücksprung über <code>my.home-assistant.io</code> (Empfehlung).</strong> Du registrierst in Enable Banking <em>einmal</em> <code>https://my.home-assistant.io/redirect/oauth</code>. Die Seite leitet zu deiner jeweiligen HA-Adresse zurück, egal ob intern oder extern. So machen es die HA-eigenen OAuth-Integrationen.</p>
+        <p>Auch hinzufügen, entfernen und neu autorisieren läuft dann über Standard-HA-Dialoge: Bank hinzufügen, Reauth bei Ablauf, Reconfigure. Ein Ablauf der Zustimmung wird als Reparatur-Hinweis mit Ein-Klick-Neuverbindung gemeldet.</p>
+        <p>Risiko: Ob Enable Banking eine exakte URL-Übereinstimmung verlangt, ist ungeprüft. Ich teste es gleich zu Beginn, mit deiner Hilfe per Web-Guide.</p>
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-w3-myha" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-w3-myha" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="w3-myha-note">{{decision.comment_label}}</label>
+          <textarea id="w3-myha-note" data-comment="w3-myha-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="variant-evaluation" data-decision="w3-fixed" data-label="W3-B · Eigener Callback mit fest konfigurierter externer URL">
+        <p><strong>B · Eigener Callback, aber an die fest konfigurierte externe HA-URL gebunden.</strong> Das kommt ohne den my-Dienst aus, setzt aber voraus, dass HA von außen erreichbar ist (Nabu Casa oder ein eigener Reverse-Proxy), auch beim Verbinden vom Handy aus.</p>
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-w3-fixed" value="discard" checked><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-w3-fixed" value="include"><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="w3-fixed-note">{{decision.comment_label}}</label>
+          <textarea id="w3-fixed-note" data-comment="w3-fixed-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <h4>W4 · Verschlüsselung der Bankdaten auf der Platte</h4>
+    <div class="variant-card">
+      <p><strong>Frage:</strong> Rohdaten und aufbereitete Daten liegen in HAs <code>.storage</code>. Verschlüsseln wir sie zusätzlich?</p>
+      <div class="variant-evaluation" data-decision="w4-encrypt" data-label="W4-A · Roh- und Aufbereitungsdaten verschlüsselt">
+        <p><strong>A · Alles verschlüsselt (Empfehlung).</strong> Rohstände, aufbereiteter Stand und Credentials werden mit Fernet verschlüsselt. Der Schlüssel liegt getrennt von den Daten. HA-Backups enthalten dann keine lesbaren Kontoumsätze, was zu deinem „Banking-Grade“-Anspruch passt. Kosten: etwas CPU beim Laden und keine Lesbarkeit beim Debuggen. Das gleicht ein Diagnose-Export mit Schwärzung aus.</p>
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-w4-encrypt" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-w4-encrypt" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="w4-encrypt-note">{{decision.comment_label}}</label>
+          <textarea id="w4-encrypt-note" data-comment="w4-encrypt-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="variant-evaluation" data-decision="w4-plain" data-label="W4-B · Nur Credentials verschlüsselt">
+        <p><strong>B · Nur Credentials verschlüsselt, Daten im Klartext.</strong> Das ist HA-üblich und einfacher zu debuggen. Dann muss aber der falsche „verschlüsselt“-Hinweis im Code raus, und Backups enthalten deine Umsätze lesbar.</p>
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-w4-plain" value="discard" checked><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-w4-plain" value="include"><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="w4-plain-note">{{decision.comment_label}}</label>
+          <textarea id="w4-plain-note" data-comment="w4-plain-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="phase1" data-nav-label="Phase 1 · Paketierung &amp; HA-Integration" data-nav-group="Phasen">
+    <h3>Phase 1 · Paketierung und HA-Integration auf Stand 2026</h3>
+    <p><strong>Ziel:</strong> Die Integration lässt sich per HACS installieren, hat ein eigenes Icon, taucht sauber unter Geräte &amp; Dienste auf, hat einen Menüpunkt und lässt sich als Karte in jeden Dashboard-Tab ziehen. Am Fachverhalten ändert sich noch nichts.</p>
+
+    <div class="variant-card">
+      <h4>1.1 · HACS-fähig und Release-Pipeline <small>(M)</small></h4>
+      <p>Dazu gehören:</p>
+      <ul>
+        <li><code>hacs.json</code> mit HA-Mindestversion, und HACS-Action plus hassfest in der CI.</li>
+        <li>Echte GitHub-Releases, damit HACS Updates anbietet.</li>
+        <li>Je nach W1 fällt der Add-on mit Payload-Sync weg. Die Installationsanleitung in der README wird neu geschrieben.</li>
+      </ul>
+      <div class="variant-evaluation" data-decision="p1-hacs" data-label="1.1 HACS + Releases">
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-p1-hacs" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-p1-hacs" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="p1-hacs-note">{{decision.comment_label}}</label>
+          <textarea id="p1-hacs-note" data-comment="p1-hacs-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant-card">
+      <h4>1.2 · Icon und Branding <small>(S)</small></h4>
+      <p>Ein echtes Icon und Logo statt der Platzhalter, jeweils hell und dunkel und in @2x (256/512 px, transparent, ohne Rand), dazu <code>icons.json</code> für Entity- und Service-Icons. Der Entwurf kommt als kleine Auswahl. Du entscheidest, ich setze um.</p>
+      <div class="variant-evaluation" data-decision="p1-brand" data-label="1.2 Icon + Branding">
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-p1-brand" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-p1-brand" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="p1-brand-note">{{decision.comment_label}}</label>
+          <textarea id="p1-brand-note" data-comment="p1-brand-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant-card">
+      <h4>1.3 · Frontend-Auslieferung: Panel und Karten <small>(M)</small></h4>
+      <p>Das Panel wird direkt über HAs <code>panel_custom</code> registriert, ohne Fremdpaket, mit <code>require_admin</code>, Verknüpfung zur Integrationsseite und Cache-Busting per Version. Die Karten werden automatisch geladen und bekommen visuellen Editor, Vorschlagskonfiguration und Grid-Größen für Sections-Views. Getestet wird auf deiner HA-Version.</p>
+      <div class="variant-evaluation" data-decision="p1-frontend" data-label="1.3 Panel + Karten">
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-p1-frontend" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-p1-frontend" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="p1-frontend-note">{{decision.comment_label}}</label>
+          <textarea id="p1-frontend-note" data-comment="p1-frontend-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant-card">
+      <h4>1.4 · HA-Qualitätsstandard (Ziel: Silber, wo sinnvoll Gold) <small>(M)</small></h4>
+      <p>Konkret:</p>
+      <ul>
+        <li><code>entry.runtime_data</code>, Geräte pro Bank und Konto (gruppiert unter Geräte &amp; Dienste), übersetzte Entity-Namen und sauberes Entladen.</li>
+        <li>Diagnose-Export mit Schwärzung von IBAN und Tokens, und Reparatur-Hinweise.</li>
+        <li>Eine <code>quality_scale.yaml</code> als Checkliste.</li>
+        <li>Tests für Config-Flow und Entities.</li>
+      </ul>
+      <div class="variant-evaluation" data-decision="p1-quality" data-label="1.4 Qualitätsstandard">
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-p1-quality" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-p1-quality" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="p1-quality-note">{{decision.comment_label}}</label>
+          <textarea id="p1-quality-note" data-comment="p1-quality-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="phase2" data-nav-label="Phase 2 · Enable Banking &amp; Datenhaltung" data-nav-group="Phasen">
+    <h3>Phase 2 · Enable Banking robust: verbinden, abrufen, speichern</h3>
+    <p><strong>Ziel:</strong> Eine Bank zu verbinden klappt von jedem Gerät aus. Jeder Abruf landet als Rohstand nachvollziehbar auf der Platte, und daraus entsteht deterministisch der aufbereitete Stand. Nichts geht verloren, nichts wird doppelt gezählt, und die 4/Tag-Grenze der Bank wird nie gerissen.</p>
+
+    <div class="variant-card">
+      <h4>2.1 · Verbinden neu: Config-Flow, Reauth, Reconfigure <small>(L)</small></h4>
+      <p>Gemäß W3: Der Bankauswahl- und Freigabe-Schritt zieht in den HA-Config-Flow (externer Schritt).</p>
+      <ul>
+        <li>Eine Bank wird als Unterpunkt (Subentry) hinzugefügt, mehrere Banken laufen nebeneinander.</li>
+        <li>Wenn die Zustimmung abläuft, startet automatisch ein Reauth. Vorher kommt eine Vorwarnung, standardmäßig 14 Tage vorher.</li>
+        <li>Neu ist auch eine Verbindungsprüfung: ein Testabruf direkt nach dem Verbinden, mit Klartext-Fehlern.</li>
+      </ul>
+      <p>Die Einrichtung des Enable-Banking-Kontos (App anlegen, Schlüssel erzeugen, Redirect-URL eintragen) begleite ich per Web-Guide.</p>
+      <div class="variant-evaluation" data-decision="p2-connect" data-label="2.1 Verbinden neu">
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-p2-connect" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-p2-connect" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="p2-connect-note">{{decision.comment_label}}</label>
+          <textarea id="p2-connect-note" data-comment="p2-connect-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant-card">
+      <h4>2.2 · Abruf-Budget pro Bank statt globaler Sperre <small>(M)</small></h4>
+      <p>Das Limit gilt pro Konto und Bank (ASPSP), nicht pro Integration. Deshalb ein Budgetzähler pro Konto und Tag:</p>
+      <ul>
+        <li>Der geplante Tagesabruf nutzt höchstens 1 von 4 Hintergrund-Abrufen.</li>
+        <li>Abrufe im Beisein des Nutzers bleiben unlimitiert, werden aber entprellt (kein Doppelklick-Doppelabruf).</li>
+        <li>Abgerufen wird inkrementell, also nur ab der letzten bekannten Buchung mit Überlappung. Paginierung läuft ohne festes 10-Seiten-Limit, aber mit Schutz vor Endlosschleifen.</li>
+        <li>Ein 429 sperrt nur die betroffene Bank. Die Restlaufzeit ist im UI sichtbar.</li>
+      </ul>
+      <div class="variant-evaluation" data-decision="p2-budget" data-label="2.2 Abruf-Budget">
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-p2-budget" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-p2-budget" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="p2-budget-note">{{decision.comment_label}}</label>
+          <textarea id="p2-budget-note" data-comment="p2-budget-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant-card">
+      <h4>2.3 · Zwei-Schichten-Speicher: Rohstand und Aufbereitung <small>(L)</small></h4>
+      <ul>
+        <li><strong>Rohschicht (unveränderlich):</strong> Jeder Abruf wird als Snapshot mit Zeitstempel, Konto, Abrufart und unveränderter Bankantwort abgelegt, verschlüsselt laut W4. Aufbewahrung konfigurierbar, zum Beispiel 13 Monate. Damit lässt sich jede Aufbereitung jederzeit neu rechnen.</li>
+        <li><strong>Buchungsbuch (aufbereitet):</strong> Eine normalisierte, deduplizierte Buchungsliste pro Konto (stabile ID aus Transaktions-ID, ersatzweise aus einem Fingerabdruck). Vorgemerkte Buchungen werden sauber gegen gebuchte ersetzt. Dazu kommt eine Salden-Zeitreihe.</li>
+        <li><strong>Ableitungen (rechenbar, nie Quelle):</strong> Kategorien, Monatsummen, Haushaltsrechnung. Sie werden aus Buchungsbuch und Regeln neu gerechnet. So lässt sich später jedes Modell (W-Spreadsheet-Lehre) rückwirkend anwenden.</li>
+        <li>Alle Stores sind versioniert, mit Migrationen. Ein Schreibfehler zerstört nie den letzten guten Stand (Schreiben per Datei-Tausch).</li>
+      </ul>
+      <div class="variant-evaluation" data-decision="p2-storage" data-label="2.3 Zwei-Schichten-Speicher">
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-p2-storage" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-p2-storage" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="p2-storage-note">{{decision.comment_label}}</label>
+          <textarea id="p2-storage-note" data-comment="p2-storage-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant-card">
+      <h4>2.4 · DKB-Realitätstest inklusive Visa <small>(S)</small></h4>
+      <p>Mit dir zusammen verbinden wir die DKB über die neue Strecke. Geprüft wird, ob Giro <em>und</em> Visa (Kontotyp CARD, oft ohne IBAN) ankommen, wie lange die Zustimmung gültig ist und ob Revolut ebenfalls verfügbar ist (dein Sheet nutzt es). Falls die Visa fehlt, entscheiden wir dann über FinTS als Zusatzweg nur für die Karte.</p>
+      <div class="variant-evaluation" data-decision="p2-dkbtest" data-label="2.4 DKB-Realitätstest">
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-p2-dkbtest" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-p2-dkbtest" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="p2-dkbtest-note">{{decision.comment_label}}</label>
+          <textarea id="p2-dkbtest-note" data-comment="p2-dkbtest-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="phase3" data-nav-label="Phase 3 · Ist-Situation anzeigen" data-nav-group="Phasen">
+    <h3>Phase 3 · Ist-Situation mit HA-Bordmitteln anzeigen</h3>
+    <p><strong>Ziel:</strong> Der aufbereitete Stand wird zuverlässig und ohne Interpretation sichtbar. Hier gibt es noch kein Haushaltsmodell und keine Bewertung, das kommt in Phase 4.</p>
+
+    <div class="variant-card">
+      <h4>3.1 · Entities aus dem aufbereiteten Stand <small>(M)</small></h4>
+      <ul>
+        <li>Pro Konto ein Gerät mit Saldo-Sensor, verfügbarem Saldo (wenn die Bank ihn liefert) und Zeitpunkt der letzten Aktualisierung.</li>
+        <li>Pro Bank ein Gerät mit Zustimmungsablauf, Abrufbudget und Status.</li>
+        <li>Ein Refresh-Button als Entity.</li>
+        <li>Die Saldenhistorie wird in HAs Langzeitstatistik importiert (neues API-Format mit <code>unit_class</code>/<code>mean_type</code>). Dadurch gibt es Verlaufsgraphen ab dem ersten Abruf, rückwirkend so weit die Bank liefert.</li>
+      </ul>
+      <div class="variant-evaluation" data-decision="p3-entities" data-label="3.1 Entities + Statistik">
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-p3-entities" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-p3-entities" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="p3-entities-note">{{decision.comment_label}}</label>
+          <textarea id="p3-entities-note" data-comment="p3-entities-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="variant-card">
+      <h4>3.2 · Schlichtes Ist-Panel <small>(M)</small></h4>
+      <p>Panel und Karten zeigen vorerst nur Fakten: Konten mit Saldo, Buchungsliste (nur Admin) mit Suche, Abrufstatus und Budget sowie eine Aktualisieren-Aktion. Die bestehenden Haushalts-Komponenten bleiben bis Phase 4 hinter einem Schalter verborgen, statt gelöscht zu werden.</p>
+      <div class="variant-evaluation" data-decision="p3-panel" data-label="3.2 Ist-Panel">
+        <div class="eval-group">
+          <label class="eval-option"><input type="radio" name="eval-p3-panel" value="discard"><span class="eval-label">Verwerfen</span></label>
+          <label class="eval-option"><input type="radio" name="eval-p3-panel" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+        </div>
+        <div class="field-row decision-comment-row">
+          <label for="p3-panel-note">{{decision.comment_label}}</label>
+          <textarea id="p3-panel-note" data-comment="p3-panel-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="later" data-nav-label="Danach · erst nach deiner Freigabe" data-nav-group="Phasen">
+    <h3>Danach, erst nach deiner Freigabe</h3>
+    <div class="variant-card">
+      <ul>
+        <li><strong>Phase 4 · Intentionen und Use Cases:</strong> zuerst klären, was du wissen und entscheiden willst (z. B. „Reicht es diesen Monat?“, „Wer schuldet wem?“, „Wo laufen wir aus dem Ruder?“, „Was ändert sich, wenn …?“). Dann ein Baukasten aus Positionen, Rollen, Verteilschlüsseln und Puffern. Das 2026er-Modell wird eine Vorlage. Was das System nicht sicher erkennt, fragt es aktiv nach („Ist diese Buchung gemeinsam oder privat?“) und lernt aus der Antwort.</li>
+        <li><strong>Phase 5 · Visuelle Elemente:</strong> Design-Konzept mit Varianten auf Basis der Use Cases aus Phase 4.</li>
+      </ul>
+      <p>Für diese beiden Phasen gibt es hier keine Entscheidung, nur damit der Plan vollständig ist.</p>
+    </div>
+  </section>
+
+  <section id="ablauf" data-nav-label="Ablauf &amp; deine Mithilfe" data-nav-group="Kontext">
+    <h3>Ablauf und deine Mithilfe</h3>
+    <ul>
+      <li>Jede Phase landet als eigener, getesteter Release (Alpha), damit du sie auf deiner HA-Instanz prüfen kannst, bevor die nächste startet.</li>
+      <li>An diesen Stellen brauche ich dich (per Web-Guide): Redirect-URL bei Enable Banking eintragen, DKB-Freigabe in der App bestätigen, Endtest in deinem HA.</li>
+      <li>Der bestehende Funktionsumfang (Haushalt, Transferplan, Benchmark) bleibt erhalten, er wird nur bis Phase 4 nicht weiterentwickelt.</li>
+    </ul>
+  </section>
+</section>
