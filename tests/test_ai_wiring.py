@@ -146,18 +146,28 @@ def test_skips_income_chains_own_names_cache_and_invalid_answers() -> None:
         [
             _tx("Jeremy Tim Treder", -300),           # own name
             _tx("Chainquux Inc", -80, chain="c1"),       # transfer chain
-            _tx("Cachedquux Inc", -70),                  # already in AI cache
+            _tx("Cachedquux Inc", -70),                  # in AI cache: learned, no call
             _tx("Refundquux Inc", +60),                  # income side
             _tx("Oddquux Inc", -20),                     # answer is not a category
         ],
         accounts,
     )
     env = _Env(answer="blorp", cache={"cachedquux": "food"})
-    assert _run(mgr, env) == 0
+    assert _run(mgr, env) == 1  # the cached merchant, without a call
     assert len(env.prompts) == 1 and "Oddquux Inc" in env.prompts[0]
+    assert mgr._memory.known_merchants()["cachedquux"]["category"] == "food"
     assert "oddquux" not in mgr._memory.known_merchants()
     # a failed answer is not retried within the session
     assert _run(mgr, env) == 0 and len(env.prompts) == 1
+
+
+def test_cached_answers_are_learned_even_when_the_budget_is_used_up() -> None:
+    mgr = _Mgr([_tx("Cachedquux Inc", -70), _tx("Newquux Inc", -50)])
+    env = _Env(cap=0, cache={"cachedquux": "food"})
+    assert _run(mgr, env) == 1
+    assert env.prompts == []
+    assert mgr._memory.known_merchants()["cachedquux"]["category"] == "food"
+    assert "newquux" not in mgr._memory.known_merchants()
 
 
 def test_payload_has_no_amount_iban_or_date() -> None:

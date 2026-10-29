@@ -7,7 +7,8 @@ Rules (CLAUDE.md security rule 6, product-concept § AI categorisation):
   (Grok), Anthropic (Claude) or OpenAI (ChatGPT)
 * payload is ONLY merchant + remittance text - never amount, IBAN or date; the
   remittance is scrubbed of IBAN-, date- and long-number-looking text first
-* hard cap of ``HARD_CAP`` calls per calendar month (persisted, resets monthly);
+* a user-set budget (default ``DEFAULT_CAP``, at most ``HARD_CAP``) of calls per
+  calendar month (persisted, resets monthly);
   an attempt counts, a failed call is not retried
 * results are cached per merchant permanently
 * the API key is Fernet-encrypted (credential manager) in its own Store and is
@@ -32,7 +33,8 @@ _LOGGER = logging.getLogger(__name__)
 
 STORAGE_KEY = f"{DOMAIN}.ai_provider"
 STORAGE_VERSION = 1
-HARD_CAP = 100
+HARD_CAP = 1000  # user-settable monthly budget, at most this many calls
+DEFAULT_CAP = 100
 REQUEST_TIMEOUT = 20
 MAX_REMITTANCE = 140
 MAX_MERCHANT = 80
@@ -67,7 +69,7 @@ def default_config() -> dict[str, Any]:
         "provider": PROVIDER_HA,
         "model": "",
         "ha_agent": "",
-        "budget_cap": HARD_CAP,
+        "budget_cap": DEFAULT_CAP,
         "key_enc": "",
         "usage": {"month": "", "calls": 0},
         "cache": {},

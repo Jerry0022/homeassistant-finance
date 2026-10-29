@@ -129,7 +129,7 @@ All admin only, cache/config only. Errors are 400 `{error, detail}` unless noted
   Readers: `savings_goals.async_get_goals(hass)`.
 - `GET/PUT /setup/points` `{entity_id}` (`counter.*` / `input_number.*`, "" clears) -> `{entity_id, event,
   every, answered_total}`. Errors `invalid_entity, unknown_entity`. Finance keeps no points ledger.
-- `GET/PUT /setup/ai`: PUT any of `provider (ha|xai|anthropic|openai), model, ha_agent, budget_cap (0-100),
+- `GET/PUT /setup/ai`: PUT any of `provider (ha|xai|anthropic|openai), model, ha_agent, budget_cap (0-1000, default 100),
   api_key (write-only, "" removes), ai_opt_in`. Response: `{opt_in, provider, model, effective_model, ha_agent,
   has_key, budget {month, calls, cap, hard_cap, remaining}, cached_merchants, providers[]}`. The key is
   Fernet-encrypted (credential manager) in the `finance_dashboard.ai_provider` store and never returned.

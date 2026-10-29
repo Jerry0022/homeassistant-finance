@@ -78,6 +78,13 @@ class QuestionsMixin:
             "points_every": POINT_EVERY,
         }
 
+    def get_question_history(self) -> dict[str, Any]:
+        """Past categorisations (merchant memory, cache read, admin only)."""
+        mem = getattr(self, "_memory", None)
+        if mem is None:
+            return {"items": [], "total": 0, "by_user": 0, "by_ai": 0, "bookings": 0}
+        return mem.history()
+
     # --- opt-in AI categorisation (background, derive/import paths only) ----
     def schedule_ai_categorization(self) -> None:
         """Start the AI pass in the background; never blocks, never raises.
@@ -133,7 +140,9 @@ class QuestionsMixin:
             counterparty_of=_counterparty,
             own_names=own_account_names(self._accounts),
             is_own=is_own_name,
-            skip=set(cfg["cache"]) | tried,
+            # Cached merchants stay candidates: a cached answer is learned below
+            # without a call, so a result whose memory save got lost is not stranded.
+            skip=tried,
             has_rule=lambda k: k in mem.known_merchants(),
         )
         known = [
@@ -145,8 +154,9 @@ class QuestionsMixin:
         learned = 0
         for cand in candidates:
             today = dt_util.now().date()
-            if ai.usage_view(await ai.async_load_config(self._hass), today)["remaining"] <= 0:
-                break  # monthly cap reached
+            current = await ai.async_load_config(self._hass)
+            if cand["id"] not in current["cache"] and ai.usage_view(current, today)["remaining"] <= 0:
+                continue  # monthly cap reached - only cached answers are still free
             tried.add(cand["id"])
             category = await ai.async_categorize(
                 self._hass,

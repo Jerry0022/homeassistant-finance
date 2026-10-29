@@ -49,7 +49,11 @@ from .plan import (
     FinanceDashboardPlanVsActualView,
     FinanceDashboardTransferPlanView,
 )
-from .questions import FinanceDashboardQuestionAnswerView, FinanceDashboardQuestionsView
+from .questions import (
+    FinanceDashboardQuestionAnswerView,
+    FinanceDashboardQuestionHistoryView,
+    FinanceDashboardQuestionsView,
+)
 from .refresh import (
     FinanceDashboardFreshnessView,
     FinanceDashboardRefreshStatusView,
@@ -103,6 +107,7 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
     "FinanceDashboardReservesView",
     "FinanceDashboardAccountSavingsView",
     "FinanceDashboardQuestionAnswerView",
+    "FinanceDashboardQuestionHistoryView",
     "FinanceDashboardQuestionsView",
     "FinanceDashboardSetupView",
     "FinanceDashboardPaydaySuggestionsView",
@@ -154,6 +159,7 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardAccountSavingsView())
     hass.http.register_view(FinanceDashboardQuestionsView())
     hass.http.register_view(FinanceDashboardQuestionAnswerView())
+    hass.http.register_view(FinanceDashboardQuestionHistoryView())
     hass.http.register_view(FinanceDashboardSetupView())
     hass.http.register_view(FinanceDashboardPaydaySuggestionsView())
     hass.http.register_view(FinanceDashboardPotSuggestionsView())

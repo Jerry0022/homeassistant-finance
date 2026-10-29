@@ -111,11 +111,32 @@ async def test_memory_persists_without_amounts_or_dates() -> None:
     assert again.week_answered(date(2026, 11, 9)) == 0  # next week
 
 
-def test_points_every_thirty_answers() -> None:
+def test_points_every_seven_answers() -> None:
     mem = MerchantMemory(store=FakeStore())
-    awarded = [mem.record_answer(date(2026, 10, 28)) for _ in range(60)]
-    assert [i for i, a in enumerate(awarded, 1) if a] == [30, 60]
+    awarded = [mem.record_answer(date(2026, 10, 28)) for _ in range(14)]
+    assert [i for i, a in enumerate(awarded, 1) if a] == [7, 14]
     assert mem.points == 2
+
+
+def test_history_is_newest_first_and_a_user_answer_moves_the_merchant_up() -> None:
+    mem = MerchantMemory(store=FakeStore())
+    mem.learn_merchant("rewe", "food")
+    assert mem.learn_ai_merchant("aral", "transport")
+    mem.learn_merchant("ikea", "shopping", "shared")
+    mem.learn_merchant("aral", "leisure")  # user overrides the AI entry
+    mem.learn_booking("lid-1", "health")
+    h = mem.history()
+    assert [i["merchant"] for i in h["items"]] == ["aral", "ikea", "rewe"]
+    assert h["items"][0] == {
+        "merchant": "aral", "category": "leisure", "owner": None, "source": "user"
+    }
+    assert h["items"][1]["owner"] == "shared"
+    assert (h["total"], h["by_user"], h["by_ai"], h["bookings"]) == (3, 3, 0, 1)
+    assert mem.learn_ai_merchant("dm", "health")
+    assert mem.history(limit=1)["items"] == [
+        {"merchant": "dm", "category": "health", "owner": None, "source": "ai"}
+    ]
+    assert mem.history()["by_ai"] == 1
 
 
 def test_select_groups_orders_and_caps() -> None:
@@ -241,9 +262,9 @@ async def test_answer_merchant_recategorises_all_and_counts_once() -> None:
 
 
 @pytest.mark.asyncio
-async def test_answer_booking_reach_is_one_off_and_30th_fires_point() -> None:
+async def test_answer_booking_reach_is_one_off_and_7th_fires_point() -> None:
     m = _mgr()
-    m._memory._data["answered"] = 29
+    m._memory._data["answered"] = 6
     with patch("custom_components.finance_dashboard.manager._questions.dt_util") as du:
         du.now.return_value = NOW
         out = await m.async_answer_question(
@@ -251,7 +272,7 @@ async def test_answer_booking_reach_is_one_off_and_30th_fires_point() -> None:
     assert out["point_awarded"] is True
     m._hass.bus.async_fire.assert_called_once_with(
         "finance_dashboard_points_awarded",
-        {"user_id": "u1", "person": None, "points": 1, "answered_total": 30})
+        {"user_id": "u1", "person": None, "points": 1, "answered_total": 7})
     assert m._memory.known_merchants() == {}  # no merchant rule
     assert m._transactions[2]["category"] == "leisure"
 

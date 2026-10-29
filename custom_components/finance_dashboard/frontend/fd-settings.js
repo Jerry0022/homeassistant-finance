@@ -125,7 +125,8 @@ const FB = {
     "settings.ai.key_hint": "Der Schlüssel wird verschlüsselt abgelegt und nie wieder angezeigt.",
     "settings.ai.key_removed": "Schlüssel entfernt",
     "settings.ai.budget": "Monatsbudget (Aufrufe)",
-    "settings.ai.budget_hint": "Maximal $cap Aufrufe pro Monat – danach pausiert die KI bis zum nächsten Monat.",
+    "settings.ai.budget_hint": "0 bis $cap Aufrufe pro Monat. Ist das Budget aufgebraucht, pausiert die KI bis zum nächsten Monat. Mit Home Assistant (z. B. Gemini gratis) kostet ein Aufruf nichts, mit eigenem Schlüssel zahlst du je Aufruf.",
+    "settings.ai.budget_err": "Bitte eine ganze Zahl von 0 bis $cap eingeben.",
     "settings.ai.usage": "Diesen Monat: $calls von $cap Aufrufen, $left übrig",
     "settings.ai.test": "Verbindung testen",
     "settings.ai.test_busy": "Teste …",
@@ -141,7 +142,7 @@ const FB = {
     "ai.err.request_failed": "Anfrage fehlgeschlagen",
     "ai.err.no_answer": "leere Antwort oder Fehler beim Anbieter",
     "ai.err.unparsable": "Antwort war keine bekannte Kategorie",
-    "settings.points.intro": "Alle 30 beantworteten Fragen löst Finance das Home-Assistant-Ereignis $event aus (mit der Person). Eure Automatisierung vergibt damit die Punkte im eigenen System.",
+    "settings.points.intro": "Alle $every beantworteten Fragen löst Finance das Home-Assistant-Ereignis $event aus (mit der Person). Eure Automatisierung vergibt damit die Punkte im eigenen System.",
     "settings.points.entity": "Hilfs-Entität (optional)",
     "settings.points.entity_hint": "Ein Zähler oder Eingabezahl-Helfer, den deine Automatisierung hochzählt. Finance führt selbst kein Punktekonto.",
     "settings.points.search": "Entität suchen",
@@ -253,7 +254,8 @@ const FB = {
     "settings.ai.key_hint": "The key is stored encrypted and never shown again.",
     "settings.ai.key_removed": "Key removed",
     "settings.ai.budget": "Monthly budget (calls)",
-    "settings.ai.budget_hint": "At most $cap calls per month – after that the AI pauses until next month.",
+    "settings.ai.budget_hint": "0 to $cap calls per month. Once the budget is used up, the AI pauses until next month. Through Home Assistant (e.g. free Gemini) a call costs nothing; with an own key you pay per call.",
+    "settings.ai.budget_err": "Please enter a whole number from 0 to $cap.",
     "settings.ai.usage": "This month: $calls of $cap calls used, $left left",
     "settings.ai.test": "Test connection",
     "settings.ai.test_busy": "Testing …",
@@ -269,7 +271,7 @@ const FB = {
     "ai.err.request_failed": "request failed",
     "ai.err.no_answer": "empty answer or provider error",
     "ai.err.unparsable": "answer was not a known category",
-    "settings.points.intro": "Every 30 answered questions Finance fires the Home Assistant event $event (with the person). Your own automation turns it into points in your household's system.",
+    "settings.points.intro": "Every $every answered questions Finance fires the Home Assistant event $event (with the person). Your own automation turns it into points in your household's system.",
     "settings.points.entity": "Helper entity (optional)",
     "settings.points.entity_hint": "A counter or number helper your automation increments. Finance keeps no points ledger itself.",
     "settings.points.search": "Search entity",
@@ -767,7 +769,7 @@ class FdSettings extends HTMLElement {
     const label = (id) => (id === "ha" ? tr("settings.ai.ha") : AI_LABELS[id] || id);
     const opts = list.map((p) => `<button type="button" role="radio" aria-checked="${a.provider === p.id}" data-c="ai.provider=${escHtml(p.id)}">${escHtml(label(p.id))}</button>`).join("");
     const b = v.budget || {};
-    const hard = b.hard_cap || 100;
+    const hard = b.hard_cap || 1000;
     let prov;
     if (a.provider === "ha") {
       prov = `<p class="muted">${escHtml(tr("settings.ai.ha_hint"))}</p>
@@ -788,7 +790,7 @@ class FdSettings extends HTMLElement {
       <div class="opts" role="radiogroup" aria-labelledby="ai-prov">${opts}</div>
       ${prov}
       <div class="f"><label for="ai-bud">${escHtml(tr("settings.ai.budget"))}</label>
-        <div class="rng"><input type="range" id="ai-bud" min="0" max="${hard}" step="5" data-b="ai.budget_cap" value="${escHtml(a.budget_cap)}"><output data-out="ai.budget_cap" for="ai-bud">${escHtml(a.budget_cap)}</output></div>
+        <input type="number" id="ai-bud" min="0" max="${hard}" step="1" inputmode="numeric" style="max-width:160px" data-b="ai.budget_cap" value="${escHtml(a.budget_cap)}">
         <span class="muted">${escHtml(tr("settings.ai.budget_hint", { cap: hard }))}</span>
         <span class="muted" role="status">${escHtml(tr("settings.ai.usage", { calls: b.calls ?? 0, cap: b.cap ?? a.budget_cap, left: b.remaining ?? 0 }))}</span></div>
       <div class="row" style="border:0;padding:0"><div class="who"><span class="${v.last_test ? (v.last_test.ok ? "ok" : "warn") : ""}" role="status">${escHtml(aiTestText(v.last_test))}</span>
@@ -817,8 +819,8 @@ class FdSettings extends HTMLElement {
     if (!v) return this._loading("points");
     const p = this._dr.points;
     const ev = v.event || POINTS_EVENT;
-    const every = v.every || 30;
-    const intro = tr("settings.points.intro", { event: "\u0001" }).replace("\u0001", `<code>${escHtml(ev)}</code>`);
+    const every = v.every || 7;
+    const intro = tr("settings.points.intro", { event: "\u0001", every }).replace("\u0001", `<code>${escHtml(ev)}</code>`);
     const states = (this._hass && this._hass.states) || {};
     const q = (p.q || "").trim().toLowerCase();
     const matches = Object.keys(states).filter((id) => /^(counter|input_number)\./.test(id))
@@ -831,7 +833,7 @@ class FdSettings extends HTMLElement {
       ? `<div class="pick" role="group" aria-label="${escHtml(tr("settings.points.entity"))}">${matches.map((id) =>
           `<button type="button" data-pt="${escHtml(id)}" aria-pressed="${p.entity_id === id}"><b>${escHtml((states[id].attributes || {}).friendly_name || id)}</b><span>${escHtml(id)}</span></button>`).join("")}</div>`
       : `<p class="muted">${escHtml(tr("settings.points.none"))}</p>`;
-    return `<p class="muted" style="font-size:12.5px">${intro.replace("30", String(every))}</p>
+    return `<p class="muted" style="font-size:12.5px">${intro}</p>
       <div class="f"><label for="pt-q">${escHtml(tr("settings.points.entity"))}</label>
       <p class="muted" style="margin:0">${escHtml(tr("settings.points.entity_hint"))}</p>${sel}
       <input type="text" id="pt-q" data-b="points.q" value="${escHtml(p.q || "")}" placeholder="${escHtml(tr("settings.points.search"))}" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="${escHtml(tr("settings.points.search"))}">
@@ -1077,7 +1079,10 @@ class FdSettings extends HTMLElement {
   async _saveAi() {
     if (!this._d.ai) return true;
     const a = this._dr.ai;
-    const body = { provider: a.provider, budget_cap: Number(a.budget_cap), ai_opt_in: !!a.opt_in };
+    const cap = Number(a.budget_cap);
+    const hard = (this._d.ai.budget || {}).hard_cap || 1000;
+    if (!Number.isInteger(cap) || cap < 0 || cap > hard) return this._fail(tr("settings.ai.budget_err", { cap: hard }), "ai"), false;
+    const body = { provider: a.provider, budget_cap: cap, ai_opt_in: !!a.opt_in };
     if (a.provider === "ha") body.ha_agent = (a.ha_agent || "").trim();
     else body.model = (a.model || "").trim();
     if (a.api_key) body.api_key = a.api_key;

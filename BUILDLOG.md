@@ -1,5 +1,16 @@
 # Build Log
 
+## 0.24.0 — 2026-10-29
+Version: 0.24.0
+Branch: claude/ai-budget-points-history
+Changes:
+- feat(ai): the monthly AI budget is a number field (0-1000, default 100) instead of a 0-100 slider; free providers such as Gemini via Home Assistant no longer run dry after 100 calls
+- fix(ai): merchants already answered by the AI are learned from the cache without a new call, also when the budget is used up; before, a cached answer whose memory save was lost never reached the bookings
+- feat(questions): the star page has an "Offen | Verlauf" switch; "Verlauf" lists every learned merchant newest first with its category, owner and whether you or the AI assigned it (`GET /questions/history`)
+- feat(points): one point per 7 answered questions (was 30), matching the visual-round concept
+- docs(security): the AI call budget is user-set, default 100, hard cap 1000
+- test: history order and sources, 7-answer points, cached answers under a used-up budget
+
 ## 0.23.0 — 2026-10-29
 Version: 0.23.0
 Branch: claude/grohk-app-consumer-integration-1de45f
