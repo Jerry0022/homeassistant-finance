@@ -1,5 +1,14 @@
 # Build Log
 
+## 0.23.0 — 2026-10-29
+Version: 0.23.0
+Branch: claude/grohk-app-consumer-integration-1de45f
+Changes:
+- feat(ai): "Verbindung testen" in the AI settings asks the configured provider about a made-up merchant (no bank data, counts as one call, never cached) and shows the outcome with its reason (`POST /setup/ai/test`)
+- feat(freshness): the Datenstand page shows an AI card for admins — state (active / off / not set up), calls this month, merchants learned, last assignment, last test, assignments per category and the latest learned merchants
+- feat(ai): `GET /setup/ai` also returns `usable`, `last_run`, `last_test` and `results`; the last categorisation and test outcome are stored as error codes only
+- test: connection test outcomes (success, not opted in, no key, budget, unparsable, timeout), results summary, outcome merge
+
 ## 0.22.0 — 2026-10-29
 Version: 0.22.0
 Branch: claude/suspicious-dewdney-12be4e

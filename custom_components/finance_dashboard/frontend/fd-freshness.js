@@ -77,6 +77,24 @@ const FB = {
     "fr.banks.manage": "Bank hinzufügen / verwalten",
     "fr.banks.empty": "Noch keine Bank verbunden.",
     "fr.tx.link": "Alle Transaktionen",
+    "fr.ai.title": "KI-Kategorisierung",
+    "fr.ai.on": "aktiv",
+    "fr.ai.off": "aus",
+    "fr.ai.unusable": "nicht eingerichtet",
+    "fr.ai.say_on": "Händler ohne Regel ordnet $prov einer Kategorie zu. Gesendet werden nur Händlername und Verwendungszweck.",
+    "fr.ai.say_off": "Die KI ist ausgeschaltet. Buchungen ohne Regel bleiben unter „Sonstiges“, bis du sie zuordnest.",
+    "fr.ai.say_unusable": "Die KI ist erlaubt, aber $prov ist nicht nutzbar. In den Einstellungen kannst du die Verbindung testen.",
+    "fr.ai.calls": "Aufrufe diesen Monat",
+    "fr.ai.calls_v": "$calls von $cap",
+    "fr.ai.learned": "Gelernte Händler",
+    "fr.ai.last_run": "Letzte Zuordnung",
+    "fr.ai.last_test": "Letzter Test",
+    "fr.ai.ok_cat": "$cat",
+    "fr.ai.failed": "fehlgeschlagen",
+    "fr.ai.by_cat": "Zugeordnet nach Kategorie",
+    "fr.ai.recent": "Zuletzt gelernt",
+    "fr.ai.none": "Noch nichts gelernt. Neue Händler ohne Regel werden beim nächsten „Aktualisieren“ zugeordnet.",
+    "fr.ai.settings": "KI-Einstellungen",
   },
   en: {
     "fr.back": "Back",
@@ -131,6 +149,24 @@ const FB = {
     "fr.banks.manage": "Add / manage bank",
     "fr.banks.empty": "No bank connected yet.",
     "fr.tx.link": "All transactions",
+    "fr.ai.title": "AI categorisation",
+    "fr.ai.on": "active",
+    "fr.ai.off": "off",
+    "fr.ai.unusable": "not set up",
+    "fr.ai.say_on": "$prov assigns merchants without a rule to a category. Only merchant name and remittance text are sent.",
+    "fr.ai.say_off": "The AI is switched off. Bookings without a rule stay under \"Other\" until you assign them.",
+    "fr.ai.say_unusable": "The AI is allowed, but $prov is not usable. You can test the connection in the settings.",
+    "fr.ai.calls": "Calls this month",
+    "fr.ai.calls_v": "$calls of $cap",
+    "fr.ai.learned": "Merchants learned",
+    "fr.ai.last_run": "Last assignment",
+    "fr.ai.last_test": "Last test",
+    "fr.ai.ok_cat": "$cat",
+    "fr.ai.failed": "failed",
+    "fr.ai.by_cat": "Assigned by category",
+    "fr.ai.recent": "Recently learned",
+    "fr.ai.none": "Nothing learned yet. New merchants without a rule are assigned on the next \"Refresh\".",
+    "fr.ai.settings": "AI settings",
   },
 };
 /*FB-END*/
@@ -178,6 +214,8 @@ h3 { margin: 0 0 2px; font-size: 14px; font-weight: 500; }
 .chip.near { background: var(--fd-near-bg); color: var(--fd-near); }
 .chip.over { background: var(--fd-over-bg); color: var(--fd-over); }
 .chip.unk { background: var(--fd-sunk); color: var(--fd-t2); }
+.card > .lab { color: var(--fd-t2); font-size: 11.5px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .acc { margin-top: 10px; font-weight: 500; overflow-wrap: anywhere; }
 details { margin-top: 4px; }
 summary { min-height: var(--fd-touch); display: flex; align-items: center; color: var(--fd-t2); cursor: pointer; }
@@ -185,6 +223,8 @@ summary { min-height: var(--fd-touch); display: flex; align-items: center; color
 .empty b { display: block; color: var(--fd-t1); font-weight: 500; }
 .empty .btn { margin-top: 10px; }
 `;
+
+const AI_NAMES = { xai: "Grok (xAI)", anthropic: "Claude", openai: "ChatGPT" };
 
 const OUTCOME_CLS = { ok: "ok", rebuilt: "ok", partial: "near", rate_limited: "near", empty: "unk", unavailable: "unk", error: "over" };
 
@@ -229,13 +269,15 @@ class FdFreshness extends HTMLElement {
     if (!this._built) { this._built = true; this._bind(); }
     if (!this._d) { this._state = "loading"; this._render(); }
     try {
-      const [r, b] = await Promise.all([
+      const [r, b, ai] = await Promise.all([
         this._hass.callApi("GET", `${DOMAIN}/freshness`),
         this._hass.callApi("GET", `${DOMAIN}/bank_status`).catch(() => null),
+        this._isAdmin ? this._hass.callApi("GET", `${DOMAIN}/setup/ai`).catch(() => null) : null,
       ]);
       if (seq !== this._seq) return;
       this._d = r || {};
       this._banks = (b && b.banks) || [];
+      this._ai = ai;
       this._state = "ok";
     } catch (e) {
       if (seq !== this._seq) return;
@@ -254,6 +296,7 @@ class FdFreshness extends HTMLElement {
         case "import": fire("fd-refresh-requested"); break;
         case "manage": window._fd.navigate(window._fd.INTEGRATION_PATH, ev); break;
         case "tx": this.dispatchEvent(new CustomEvent("fd-navigate", { bubbles: true, composed: true, detail: { target: "transactions" } })); break;
+        case "ai": this.dispatchEvent(new CustomEvent("fd-navigate", { bubbles: true, composed: true, detail: { target: "settings", section: "ai" } })); break;
         case "reprocess": fire("fd-reprocess-requested"); break;
         case "retry": this.reload(); break;
         default: break;
@@ -280,6 +323,39 @@ class FdFreshness extends HTMLElement {
     const manage = this._isAdmin ? `<button class="btn ghost sm" data-act="manage">${escHtml(tr("fr.banks.manage"))}</button>` : "";
     return `<div class="card"><h3 class="hd"><span>${tr("fr.banks.title")}</span>${manage}</h3>
   ${banks.length ? banks.map((b) => this._bankRow(b)).join("") : `<div class="empty">${tr("fr.banks.empty")}</div>`}</div>`;
+  }
+
+  /** AI categorisation (admin): state, monthly calls, last run/test and what was learned. */
+  _aiCard() {
+    const v = this._ai;
+    if (!v) return "";
+    const { escHtml, fmtDate, CAT_LABELS } = window._fd;
+    const prov = v.provider === "ha" ? "Home Assistant" : (AI_NAMES[v.provider] || v.provider);
+    const state = !v.opt_in ? "off" : v.usable === false ? "unusable" : "on";
+    const cls = state === "on" ? "ok" : state === "unusable" ? "near" : "unk";
+    const cat = (c) => CAT_LABELS[c] || c;
+    const outcome = (o) => (!o ? tr("fr.never")
+      : `${fmtDate(o.at, true)} · ${o.ok ? cat(o.category) : tr("fr.ai.failed")}`);
+    const b = v.budget || {};
+    const facts = [
+      [tr("fr.ai.calls"), tr("fr.ai.calls_v", { calls: b.calls ?? 0, cap: b.cap ?? 0 })],
+      [tr("fr.ai.learned"), String(v.cached_merchants ?? 0)],
+      [tr("fr.ai.last_run"), outcome(v.last_run)],
+      [tr("fr.ai.last_test"), outcome(v.last_test)],
+    ];
+    const res = v.results || {};
+    const byCat = Object.entries(res.by_category || {});
+    const recent = res.recent || [];
+    const learned = byCat.length
+      ? `<div class="lab" style="margin-top:12px">${escHtml(tr("fr.ai.by_cat"))}</div>
+  <div class="chips">${byCat.map(([c, n]) => `<span class="chip unk">${escHtml(cat(c))} · ${n}</span>`).join("")}</div>
+  <details><summary>${escHtml(tr("fr.ai.recent"))}</summary>${recent.map((r) => `<div class="row"><div class="l">${escHtml(r.merchant)}</div><div class="r"><span class="chip ok">${escHtml(cat(r.category))}</span></div></div>`).join("")}</details>`
+      : `<p class="say" style="margin-bottom:0">${escHtml(tr("fr.ai.none"))}</p>`;
+    return `<div class="card"><h3 class="hd"><span>${tr("fr.ai.title")} <span class="chip ${cls}">${escHtml(tr("fr.ai." + state))}</span></span>
+    <button class="btn ghost sm" data-act="ai">${escHtml(tr("fr.ai.settings"))}</button></h3>
+  <p class="say">${escHtml(tr("fr.ai.say_" + state, { prov }))}</p>
+  <div class="facts">${facts.map(([l, x]) => `<div><div class="lab">${escHtml(l)}</div><div class="v">${escHtml(x)}</div></div>`).join("")}</div>
+  ${state === "off" ? "" : learned}</div>`;
   }
 
   _bankRow(b) {
@@ -328,6 +404,7 @@ class FdFreshness extends HTMLElement {
     <button class="btn ghost dsk-only" data-act="tx">${tr("fr.tx.link")}</button></div>` : ""}</div>`;
     h += this._banksCard();
     if (!admin) return h + `<div class="card"><div class="empty">${tr("fr.nonadmin")}</div></div>`;
+    h += this._aiCard();
 
     // Log
     const log = d.log || [];

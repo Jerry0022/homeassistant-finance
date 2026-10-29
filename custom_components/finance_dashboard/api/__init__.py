@@ -23,7 +23,6 @@ from .contracts import (
     FinanceDashboardContractView,
     FinanceDashboardReservesView,
 )
-from .questions import FinanceDashboardQuestionAnswerView, FinanceDashboardQuestionsView
 from .data import (
     FinanceDashboardBalanceView,
     FinanceDashboardBankStatusView,
@@ -50,7 +49,15 @@ from .plan import (
     FinanceDashboardPlanVsActualView,
     FinanceDashboardTransferPlanView,
 )
+from .questions import FinanceDashboardQuestionAnswerView, FinanceDashboardQuestionsView
+from .refresh import (
+    FinanceDashboardFreshnessView,
+    FinanceDashboardRefreshStatusView,
+    FinanceDashboardRefreshTriggerView,
+    FinanceDashboardReprocessView,
+)
 from .setup import (
+    FinanceDashboardAiTestView,
     FinanceDashboardAiView,
     FinanceDashboardGoalsView,
     FinanceDashboardGoalView,
@@ -59,12 +66,6 @@ from .setup import (
     FinanceDashboardPointsView,
     FinanceDashboardPotSuggestionsView,
     FinanceDashboardSetupView,
-)
-from .refresh import (
-    FinanceDashboardFreshnessView,
-    FinanceDashboardRefreshStatusView,
-    FinanceDashboardReprocessView,
-    FinanceDashboardRefreshTriggerView,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -161,4 +162,5 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardGoalView())
     hass.http.register_view(FinanceDashboardPointsView())
     hass.http.register_view(FinanceDashboardAiView())
+    hass.http.register_view(FinanceDashboardAiTestView())
     _LOGGER.debug("Finance API endpoints registered")
