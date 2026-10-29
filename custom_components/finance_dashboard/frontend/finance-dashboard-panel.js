@@ -1,28 +1,38 @@
 /**
  * Finance Dashboard — Sidebar Panel Shell
  *
- * Three tabs:
- *   Start / Home          fd-home (Heute · Woche · Zyklus · Jahr), the default.
- *   Übersicht / Overview  fd-overview   plain facts (accounts, bank status,
- *                                       admin transaction list). Always on.
- *   Haushalt / Household  the household / budget-plan component tree.
- *                         Only when the integration option `show_household`
- *                         is on (GET finance_dashboard/settings, default on).
+ * One screen, no tab bar (docs/dev/ui-concept-gap.md § 1.1): the shell hosts
+ * fd-home (horizon segment on top, Person ⇄ Haushalt pill at the bottom) and a
+ * subpage router. Everything else opens as a full-screen subpage via the
+ * bubbling `fd-navigate {target}` event:
  *
- * The Refresh button lives in fd-header (Overview tab) and in the Start tab's
- * freshness note; this shell performs the attended
- * POST finance_dashboard/refresh itself (the backend derives the PSU headers
- * from this very HTTP request) and then reloads whatever is on screen.
+ *   freshness     Datenstand (fd-freshness): bank connections, import log,
+ *                 "Neu importieren", "Aktualisieren", validity check
+ *   settings      Einstellungen (<fd-settings mode="page" section=…>)
+ *   transactions  Transaktionen (fd-transactions, desktop entry from Datenstand)
+ *   questions     Fragen (fd-questions, star in the Start top bar)
+ *   contracts     Verträge (fd-contracts)
+ *   benchmark     Vergleich (fd-benchmark)
+ *   plan          Budgetplan (fd-budget-plan)
+ *   setup         the guided setup wizard (fd-setup, its own full-screen layer)
+ *   back          closes the open subpage (fd-subpage-header's back button)
  *
- * Household data flow: fd-data-provider reads HA entities + one API call and
- * dispatches "fd-data-updated" -> shell pushes data into the persistent
- * components (A3: created once, only .data changes afterwards). The provider
- * is only activated when the household tab is enabled or demo mode is used.
+ * Subpages the shell frames itself (freshness, settings) get
+ * <fd-subpage-header title=…>; transactions, questions, contracts, benchmark
+ * and the budget plan draw that header inside their own component. Browser back closes a
+ * subpage (history entry with #sub=<target>).
  *
- * Banks are linked in the HA integration page (config subentries); every
- * "add bank" entry point here navigates there.
+ * Bank calls: opening the panel never fetches from the bank. The only live
+ * fetch is the Datenstand button "Neu importieren", which this shell turns
+ * into POST finance_dashboard/refresh with {"trigger":"user_import"} (the
+ * backend refuses a bare POST and derives the PSU headers from this very
+ * request, so the call is attended). "Aktualisieren" is POST /reprocess:
+ * stored raw data only, never a bank call.
  *
- * See docs/ARCHITECTURE-FRONTEND.md for full architecture documentation.
+ * Data: every component reads the cache-only HTTP API itself; the shell reads
+ * no sensor attributes. Toasts from any component land in the shell's toast host.
+ *
+ * See docs/ARCHITECTURE-FRONTEND.md for the full architecture.
  */
 
 // One kit, two shells: load the shared components before defining the shell.
@@ -35,25 +45,30 @@ const VERSION = new URL(import.meta.url).searchParams.get("v") || "";
 // HACS routes a repository page by its GitHub repository id (JerryT2T/homeassistant-finance).
 const HACS_REPO_PATH = "/hacs/repository/1190753760";
 
+/** Subpage targets: element tag, title key, and whether the shell draws the header. */
+const SUBPAGES = {
+  freshness: { tag: "fd-freshness", title: "sub.freshness", header: true },
+  settings: { tag: "fd-settings", title: "sub.settings", header: true },
+  transactions: { tag: "fd-transactions", title: "sub.transactions", header: false },
+  questions: { tag: "fd-questions", title: "sub.questions", header: false },
+  contracts: { tag: "fd-contracts", title: "sub.contracts", header: false },
+  benchmark: { tag: "fd-benchmark", title: "sub.benchmark", header: false },
+  plan: { tag: "fd-budget-plan", title: "sub.plan", header: false },
+};
+
 class FinanceDashboardPanel extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
     this._hass = null;
     this._rendered = false;
-    // Persistent household component references (A3)
-    this._statsRow = null;
-    this._household = null;
-    this._category = null;
-    this._costDist = null;
-    this._recurring = null;
-    this._budgetPlan = null;
-    this._overlay = null;
-    this._overlayState = null; // "loading" | "refreshing" | "error" | "onboarding" | null
-    this._showHousehold = false;
-    this._dpActive = false;
-    this._tab = "home";
-    this._refreshing = false;
+    this._sub = null;       // open subpage target or null
+    this._subEl = null;     // its body element
+    this._importing = false;
+    this._reprocessing = false;
+    this._demo = false;
+    this._toastTimer = null;
+    this._onPop = () => this._syncFromLocation();
     // The top-level kit import delays customElements.define, so HA can create
     // the element and assign hass/narrow/route/panel before this class exists.
     // Those land as own properties that shadow the setters - the panel would
@@ -67,6 +82,9 @@ class FinanceDashboardPanel extends HTMLElement {
     }
   }
 
+  connectedCallback() { window.addEventListener("popstate", this._onPop); }
+  disconnectedCallback() { window.removeEventListener("popstate", this._onPop); }
+
   set hass(hass) {
     this._hass = hass;
     // Expose hass for i18n language detection
@@ -78,26 +96,17 @@ class FinanceDashboardPanel extends HTMLElement {
         window._fd.t("panel.loading").finally(() => {
           this._render();
           this._rendered = true;
-          // Dismiss setup-complete notification on first panel load
           this._dismissSetupNotification(this._hass);
-          this._init();
           this.hass = this._hass;
+          this._syncFromLocation();
         });
       }
       return;
     }
     this._syncMenu();
-    const ov = this.shadowRoot.querySelector("fd-overview");
-    if (ov) ov.hass = hass;
     const home = this.shadowRoot.querySelector("fd-home");
     if (home) home.hass = hass;
-    // Forward hass to the data provider only while the household side is live
-    // (it subscribes to the entity registry and reads entity states).
-    if (this._dpActive) {
-      const dp = this.shadowRoot.querySelector("fd-data-provider");
-      if (dp) dp.hass = hass;
-      if (this._budgetPlan && !this._budgetPlan.hass) this._budgetPlan.hass = hass;
-    }
+    if (this._subEl && "hass" in this._subEl) this._subEl.hass = hass;
   }
 
   set narrow(value) {
@@ -109,147 +118,13 @@ class FinanceDashboardPanel extends HTMLElement {
     return this._narrow;
   }
 
+  /** HA hides its sidebar on narrow screens; the menu button sits in fd-home's top bar (slot "menu"). */
   _syncMenu() {
     const menu = this.shadowRoot && this.shadowRoot.getElementById("menu");
     if (!menu) return;
     menu.hass = this._hass;
     menu.narrow = this._narrow;
     menu.hidden = !this._narrow;
-  }
-
-  async _init() {
-    await this._loadSettings();
-    await this._loadHeaderStatus();
-    this._maybeAutoRefresh();
-  }
-
-  /** Read panel options; a failure keeps the household features on (default). */
-  async _loadSettings() {
-    let show = true;
-    try {
-      const s = await this._hass.callApi("GET", `${DOMAIN}/settings`);
-      if (s && typeof s.show_household === "boolean") show = s.show_household;
-    } catch (e) {
-      // Older backend or transient error: keep the default.
-    }
-    this._setHouseholdEnabled(show);
-  }
-
-  _setHouseholdEnabled(enabled) {
-    this._showHousehold = enabled;
-    if (enabled) this._activateProvider();
-    this._updateTabs();
-  }
-
-  _activateProvider() {
-    if (this._dpActive || !this._hass) return;
-    this._dpActive = true;
-    const dp = this.shadowRoot.querySelector("fd-data-provider");
-    if (dp) dp.hass = this._hass;
-    if (this._budgetPlan) this._budgetPlan.hass = this._hass;
-  }
-
-  /** Household tab is offered when enabled, or while demo mode is on. */
-  get _householdVisible() {
-    const dp = this.shadowRoot.querySelector("fd-data-provider");
-    return this._showHousehold || !!(dp && dp.demoMode);
-  }
-
-  _updateTabs() {
-    const sh = this.shadowRoot;
-    const bar = sh.getElementById("tabs");
-    if (!bar) return;
-    const visible = this._householdVisible;
-    const hb = bar.querySelector('[data-tab="household"]');
-    if (hb) hb.hidden = !visible;
-    if (!visible && this._tab === "household") this._selectTab("home");
-    else this._selectTab(this._tab);
-  }
-
-  _selectTab(tab) {
-    const sh = this.shadowRoot;
-    this._tab = tab;
-    for (const b of sh.querySelectorAll("#tabs [role=tab]")) {
-      const on = b.dataset.tab === tab;
-      b.setAttribute("aria-selected", String(on));
-      b.tabIndex = on ? 0 : -1;
-    }
-    // Refresh, demo and "add bank" live on the Overview tab (new design: Start has its own top bar).
-    sh.querySelector("fd-header")?.toggleAttribute("toast-only", tab !== "overview");
-    sh.getElementById("viewHome").hidden = tab !== "home";
-    sh.getElementById("viewOverview").hidden = tab !== "overview";
-    sh.getElementById("viewHousehold").hidden = tab !== "household";
-    sh.getElementById("viewFreshness").hidden = true;
-  }
-
-  /**
-   * Freshness subpage ("Aktualität"): shown instead of the tab views, Back returns
-   * to the tab it was opened from. Reached via fd-navigate {target:"freshness"}.
-   */
-  _openFreshness() {
-    const sh = this.shadowRoot;
-    this._freshFrom = this._tab;
-    for (const id of ["viewHome", "viewOverview", "viewHousehold"]) sh.getElementById(id).hidden = true;
-    sh.querySelector("fd-header")?.toggleAttribute("toast-only", true);
-    sh.getElementById("viewFreshness").hidden = false;
-    const fr = sh.querySelector("fd-freshness");
-    if (fr) { if (!fr.hass) fr.hass = this._hass; else fr.reload(); }
-    window.scrollTo?.({ top: 0 });
-  }
-
-  _closeFreshness() {
-    this._selectTab(this._freshFrom || "home");
-  }
-
-  /**
-   * Fetch live data once when the panel opens and the cache has aged out.
-   *
-   * The user opening the dashboard IS the session, so the backend attaches
-   * PSU headers and the call counts as attended - PSD2 RTS Art. 36(5)(b)
-   * caps only unattended access, which is why this does not eat into the
-   * 4/day budget the way the scheduled 06:30 fetch does.
-   *
-   * Fires at most once per panel mount, only for admins (the endpoint is
-   * admin-only) and only above the configured age threshold. This is a user
-   * action, not an interval - no polling.
-   */
-  async _maybeAutoRefresh() {
-    if (!this._hass || !this._hass.user || !this._hass.user.is_admin) return;
-    try {
-      const status = await this._hass.callApi("GET", `${DOMAIN}/refresh_status`);
-      if (!status || status.auto_refresh_on_open === false) return;
-      if (status.demo_mode || status.is_refreshing) return;
-      if (!status.account_count) return;
-
-      const maxAge = status.auto_refresh_max_age_seconds;
-      if (!maxAge) return;
-      const age = status.cache_age_seconds;
-      // A never-refreshed cache (null) is maximally stale - fetch it.
-      if (age !== null && age !== undefined && age < maxAge) return;
-
-      this.shadowRoot.dispatchEvent(new CustomEvent("fd-refresh-requested", { bubbles: false }));
-    } catch (e) {
-      // Best effort: the panel is fully usable from cache without this.
-    }
-  }
-
-  /** Header timestamp / rate-limit chip from the cache-only status endpoint. */
-  async _loadHeaderStatus() {
-    if (!this._hass) return;
-    try {
-      const s = await this._hass.callApi("GET", `${DOMAIN}/refresh_status`);
-      this._applyStatusToHeader(s);
-    } catch (e) {
-      // Cosmetic only.
-    }
-  }
-
-  _applyStatusToHeader(s) {
-    const header = this.shadowRoot.querySelector("fd-header");
-    if (!header || !s) return;
-    header.lastRefresh = s.last_refresh || null;
-    header.rateLimitedUntil = s.rate_limited_until || null;
-    header.lastRefreshStats = s.stats || null;
   }
 
   _dismissSetupNotification(hass) {
@@ -262,172 +137,199 @@ class FinanceDashboardPanel extends HTMLElement {
   }
 
   _render() {
-    const { tSync } = window._fd;
+    const { tSync, SHARED_CSS } = window._fd;
     this.shadowRoot.innerHTML = `
 <style>
+${SHARED_CSS}
 :host {
-  --bg: var(--primary-background-color, #0a0a0f);
-  --sf: var(--card-background-color, #12121a);
-  --bd: rgba(255,255,255,0.06);
-  --tx: var(--primary-text-color, #e0e0e0);
-  --tx2: var(--secondary-text-color, #9898a8);
-  --ac: var(--accent-color, #4ecca3);
-  --dg: var(--error-color, #e74c3c);
   display: block;
   font-family: 'Segoe UI', system-ui, sans-serif;
-  background: var(--bg);
-  color: var(--tx);
+  background: var(--fd-page);
+  color: var(--fd-t1);
   min-height: 100vh;
 }
-.fd {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px;
-}
-.loading {
-  text-align: center;
-  padding: 60px;
-  color: var(--tx2);
-}
-.error {
-  text-align: center;
-  padding: 40px;
-  color: var(--dg);
-}
+.fd { box-sizing: border-box; max-width: 1200px; min-width: 0; margin: 0 auto; padding: 16px 24px 24px; }
+@media (max-width: 600px) { .fd { padding: 4px 8px 16px; } }
 [hidden] { display: none !important; }
-/* HA hides its sidebar on narrow screens; a custom panel must offer the menu button itself. */
-#menu { display: block; margin: -12px 0 4px -12px; color: var(--tx); }
-.tabs {
-  display: flex;
-  gap: 4px;
-  margin: 0 0 var(--sp-xl, 24px);
-  border-bottom: 1px solid var(--bd);
-}
-.tabs button {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  color: var(--tx2);
-  padding: 8px 16px;
-  font-size: 14px;
-  font-family: inherit;
-  cursor: pointer;
-}
-.tabs button:hover { color: var(--tx); }
-.tabs button[aria-selected="true"] { color: var(--primary-color, var(--ac)); border-bottom-color: var(--primary-color, var(--ac)); font-weight: 600; }
-.tabs button:focus-visible { outline: 2px solid var(--primary-color, var(--ac)); outline-offset: 2px; border-radius: 4px; }
-/* Overlay covers the component tree for transient states */
-#overlay { display: block; }
-#overlay.hidden { display: none; }
-/* Component tree is hidden while overlay is shown */
-#components { display: block; }
-#components.hidden { display: none; }
+#menu { display: block; color: var(--fd-t1); }
+#viewSub { min-width: 0; }
+.subbody { min-width: 0; }
 /* Store link: a quiet footer for desktop pointers only - a phone never sees it. */
-.foot { display: none; margin-top: 48px; text-align: right; font-size: 11px; color: var(--tx2); opacity: .45; }
+.foot { display: none; margin-top: 48px; text-align: right; font-size: 11px; color: var(--fd-t2); opacity: .45; }
 .foot:hover, .foot:focus-within { opacity: 1; }
 .foot a { color: inherit; text-decoration: none; }
-.foot a:hover { color: var(--ac); text-decoration: underline; }
+.foot a:hover { color: var(--fd-a700); text-decoration: underline; }
 @media (hover: hover) and (pointer: fine) and (min-width: 900px) { .foot { display: block; } }
+/* Toast host: one for the whole panel, above the bottom pill. */
+.toast { position: fixed; left: 50%; bottom: calc(max(12px, env(safe-area-inset-bottom)) + 72px); z-index: 70;
+  box-sizing: border-box; max-width: min(480px, calc(100vw - 24px)); padding: 10px 16px;
+  border: 1px solid var(--fd-line); border-left: 4px solid var(--fd-a500); border-radius: 12px;
+  background: var(--fd-card); color: var(--fd-t1); box-shadow: var(--fd-sh2); font-size: 13px;
+  overflow-wrap: anywhere; opacity: 0; visibility: hidden; transform: translate(-50%, 8px);
+  transition: opacity .15s, transform .15s, visibility .15s; }
+.toast.show { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+.toast.success { border-left-color: var(--fd-ok); }
+.toast.warn { border-left-color: var(--fd-attn); }
+.toast.error { border-left-color: var(--fd-over); }
 </style>
-
-<fd-data-provider></fd-data-provider>
 <div class="fd">
-  <ha-menu-button id="menu" hidden></ha-menu-button>
-  <div class="tabs" id="tabs" role="tablist" aria-label="${tSync("tabs.label")}">
-    <button role="tab" data-tab="home" aria-selected="true">${tSync("tabs.home")}</button>
-    <button role="tab" data-tab="overview" aria-selected="false" tabindex="-1">${tSync("tabs.overview")}</button>
-    <button role="tab" data-tab="household" aria-selected="false" tabindex="-1">${tSync("tabs.household")}</button>
-  </div>
-  <fd-header toast-only></fd-header>
-  <div id="viewHome" role="tabpanel"><fd-home></fd-home></div>
-  <div id="viewOverview" role="tabpanel" hidden><fd-overview></fd-overview></div>
-  <div id="viewFreshness" role="region" hidden><fd-freshness></fd-freshness></div>
-  <div id="viewHousehold" role="tabpanel" hidden>
-    <div id="overlay" class="loading">${tSync("panel.loading")}</div>
-    <div id="components" class="hidden"></div>
-  </div>
-  <div class="foot">Finance ${VERSION ? `v${VERSION} · ` : ""}<a id="storeLink" href="${HACS_REPO_PATH}" title="${tSync("panel.footer.store_title")}">${tSync("panel.footer.store")}</a></div>
-</div>`;
+  <div id="viewHome"><fd-home><ha-menu-button id="menu" slot="menu" hidden></ha-menu-button></fd-home></div>
+  <div id="viewSub" role="region" hidden></div>
+  <div class="foot">Finance ${VERSION ? `v${VERSION} · ` : ""}<a id="storeLink" href="${HACS_REPO_PATH}" data-tip="${tSync("panel.footer.store_title")}">${tSync("panel.footer.store")}</a></div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>`;
 
-    this._overlay = this.shadowRoot.getElementById("overlay");
     const sh = this.shadowRoot;
-
-    // Tabs: click + arrow-key navigation
-    const tabs = sh.getElementById("tabs");
-    tabs.addEventListener("click", (e) => {
-      const b = e.target.closest("[role=tab]");
-      if (b) this._selectTab(b.dataset.tab);
-    });
-    tabs.addEventListener("keydown", (e) => {
-      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      const order = [...tabs.querySelectorAll("[role=tab]")].filter((b) => !b.hidden);
-      const next = order[(order.findIndex((b) => b.dataset.tab === this._tab) + (e.key === "ArrowRight" ? 1 : -1) + order.length) % order.length];
-      this._selectTab(next.dataset.tab);
-      next.focus();
-    });
-
+    this._syncMenu();
     sh.getElementById("storeLink").addEventListener("click", (e) => window._fd.navigate(HACS_REPO_PATH, e));
 
-    sh.addEventListener("fd-data-updated", (e) => this._onData(e.detail));
-    sh.addEventListener("fd-categorize-requested", () => this._openQuestions());
-    sh.addEventListener("fd-questions-all", () => this._openCategorize());
-
-    sh.addEventListener("fd-refresh-requested", () => this._refresh());
-    // "Aktualisieren": re-process stored raw data only (fd-overview owns the call + toast).
-    sh.addEventListener("fd-reprocess-requested", () => sh.querySelector("fd-overview")?.reprocess?.());
-    sh.addEventListener("fd-reprocess-done", () => {
-      sh.querySelector("fd-home")?.reload?.();
-      sh.querySelector("fd-freshness")?.reload?.();
-      if (this._dpActive) sh.querySelector("fd-data-provider")?.rebuildAfterRefresh?.();
-    });
-    // Sub-navigation by target: freshness subpage or the setup wizard.
     sh.addEventListener("fd-navigate", (e) => {
-      const target = e.detail && e.detail.target;
-      if (target === "freshness") this._openFreshness();
-      else if (target === "setup") this._openSetup();
+      const d = e.detail || {};
+      if (d.target === "back" || d.target === "settings-closed") this._back();
+      else if (d.target === "setup") this._openSetup();
+      else if (SUBPAGES[d.target]) this._openSub(d.target, d, true);
     });
-    sh.addEventListener("fd-freshness-back", () => this._closeFreshness());
-
-    // Person/account settings (fd-settings inside the Overview tab).
-    sh.addEventListener("fd-open-settings", () => {
-      this._selectTab("overview");
-      const ov = sh.querySelector("fd-overview");
-      const target = ov && ov.shadowRoot && ov.shadowRoot.querySelector("fd-settings");
-      (target || ov)?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-    // Guided setup wizard: Start card and Overview entry (fd-navigate handled above).
+    // Legacy close events of components that predate fd-subpage-header.
+    sh.addEventListener("fd-questions-close", () => this._back());
+    sh.addEventListener("fd-freshness-back", () => this._back());
+    sh.addEventListener("fd-categorize-requested", () => this._openSub("questions", {}, true));
+    sh.addEventListener("fd-questions-all", () => this._openCategorize());
     sh.addEventListener("fd-open-setup", () => this._openSetup());
+
+    // Datenstand actions (admin): the shell performs both calls.
+    sh.addEventListener("fd-refresh-requested", () => this._import());
+    sh.addEventListener("fd-reprocess-requested", () => this._reprocess());
+
     sh.addEventListener("fd-toast", (e) => {
       const d = e.detail || {};
-      sh.querySelector("fd-header")?.showToast?.(d.message || "", d.type || "info");
+      this._toast(d.message || "", d.type || "info");
     });
-    sh.addEventListener("fd-assignments-saved", () => {
-      sh.querySelector("fd-home")?.reload?.();
-    });
-
-    // dp-initiated refreshes (demo mode) report through this event.
-    sh.addEventListener("fd-refresh-done", (e) => this._toastRefresh(e.detail || {}));
-
-    sh.addEventListener("fd-demo-toggle", async () => {
-      const dp = sh.querySelector("fd-data-provider");
-      const header = sh.querySelector("fd-header");
-      if (!dp) return;
-      this._dpActive = true;
-      if (this._hass) dp.hass = this._hass;
-      const enabled = await dp.toggleDemo();
-      if (header) {
-        header.demoMode = enabled;
-        if (header.showToast) {
-          header.showToast(window._fd.tSync(enabled ? "toast.demo_started" : "toast.demo_stopped"), "info");
-        }
-      }
-      // The home screen reads demo data through ?demo=1.
-      const home = sh.querySelector("fd-home");
-      if (home) home.demo = enabled;
-      this._updateTabs();
-      if (!enabled && !this._showHousehold) this._dpActive = false;
+    for (const ev of ["fd-assignments-saved", "fd-settings-saved", "fd-pots-changed"]) {
+      sh.addEventListener(ev, () => sh.querySelector("fd-home")?.reload?.());
+    }
+    sh.addEventListener("fd-demo-toggle", () => this._toggleDemo());
+    sh.getElementById("viewSub").addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !e.defaultPrevented) this._back();
     });
   }
+
+  // ---- subpage router ---------------------------------------------------
+
+  /** Open a subpage (target from SUBPAGES). push=false when restoring from the URL. */
+  _openSub(target, detail, push) {
+    const cfg = SUBPAGES[target];
+    if (!cfg || !this._hass) return;
+    const sh = this.shadowRoot;
+    const { tSync } = window._fd;
+    const host = sh.getElementById("viewSub");
+    if (this._sub !== target || !this._subEl) {
+      host.innerHTML = "";
+      if (cfg.header) {
+        const hd = document.createElement("fd-subpage-header");
+        hd.setAttribute("title", tSync(cfg.title));
+        host.append(hd);
+      }
+      const el = document.createElement(cfg.tag);
+      if (target === "settings") {
+        el.setAttribute("mode", "page");
+        if (detail && detail.section) el.setAttribute("section", detail.section);
+      }
+      el.classList.add("subbody");
+      if (target === "freshness") el.demo = this._demo;
+      el.hass = this._hass;
+      host.append(el);
+      this._subEl = el;
+      if (target === "plan") this._feedPlanActuals(el);
+    } else if (target === "settings" && detail && detail.section) {
+      this._subEl.setAttribute("section", detail.section);
+    } else {
+      this._subEl.reload?.();
+    }
+    this._sub = target;
+    sh.getElementById("viewHome").hidden = true;
+    host.hidden = false;
+    if (push) {
+      try { history.pushState({ fdSub: target }, "", `${location.pathname}${location.search}#sub=${target}`); }
+      catch (_) { /* sandboxed iframe: the in-page back button still works */ }
+    }
+    window.scrollTo?.({ top: 0 });
+    requestAnimationFrame(() => {
+      const hd = host.querySelector("fd-subpage-header");
+      const focusable = hd?.shadowRoot?.querySelector("button") || this._subEl?.shadowRoot?.querySelector("button, h2");
+      focusable?.focus?.();
+    });
+  }
+
+  _closeSub() {
+    const sh = this.shadowRoot;
+    if (!this._sub) return;
+    this._sub = null;
+    this._subEl = null;
+    const host = sh.getElementById("viewSub");
+    host.innerHTML = "";
+    host.hidden = true;
+    sh.getElementById("viewHome").hidden = false;
+    sh.querySelector("fd-home")?.reload?.();
+  }
+
+  /**
+   * fd-budget-plan compares the plan with what was booked. Its actuals used to
+   * come from the retired sensor tree (window._fd._actual); now they come from
+   * GET /household_summary (cache read), mapped onto the shape it reads:
+   * {summary:{totalExpenses, fixedCosts, variableCosts, categories{cat: bank sign}},
+   *  household:{total_shared_costs, members[{person, individual_costs}]}}.
+   */
+  async _feedPlanActuals(el) {
+    let s = null;
+    try { s = await this._hass.callApi("GET", `${DOMAIN}/household_summary?cycle=current`); } catch (_) { return; }
+    if (!s || this._subEl !== el) return;
+    const categories = {};
+    for (const o of s.owners || []) {
+      for (const c of o.categories || []) categories[c.category] = (categories[c.category] || 0) - (c.amount || 0);
+    }
+    const owners = s.owners || [];
+    const shared = owners.find((o) => o.kind === "shared");
+    el.data = {
+      summary: {
+        totalExpenses: s.expenses || 0,
+        fixedCosts: s.fixed || 0,
+        variableCosts: s.variable || 0,
+        categories,
+      },
+      household: {
+        total_shared_costs: shared ? shared.expenses || 0 : 0,
+        members: owners.filter((o) => o.kind === "person").map((o) => ({ person: o.owner, individual_costs: o.expenses || 0 })),
+      },
+    };
+  }
+
+  /** In-page back: pop our own history entry when we pushed one, else just close. */
+  _back() {
+    // One gesture can reach here twice (Esc on the panel and on the subpage
+    // header, fd-questions re-emitting close); a second history.back() would
+    // leave the panel.
+    if (this._backPending) return;
+    this._backPending = true;
+    setTimeout(() => { this._backPending = false; }, 300);
+    if (history.state && history.state.fdSub) history.back();
+    else {
+      this._closeSub();
+      if (location.hash.startsWith("#sub=")) {
+        try { history.replaceState(null, "", `${location.pathname}${location.search}`); } catch (_) { /* ignore */ }
+      }
+    }
+  }
+
+  /** Browser back/forward and a reload with #sub=… */
+  _syncFromLocation() {
+    if (!this._rendered) return;
+    const m = /^#sub=([a-z]+)/.exec(location.hash || "");
+    const target = m && SUBPAGES[m[1]] ? m[1] : null;
+    if (target) this._openSub(target, {}, false);
+    else this._closeSub();
+  }
+
+  // ---- layers -----------------------------------------------------------
 
   _openSetup() {
     const sh = this.shadowRoot;
@@ -438,26 +340,10 @@ class FinanceDashboardPanel extends HTMLElement {
       wiz.remove();
       const home = sh.querySelector("fd-home");
       if (home) { home._wizard = undefined; home.reload?.(); }
-      sh.querySelector("fd-overview")?.reload?.();
+      this._subEl?.reload?.();
     });
     sh.append(wiz);
-    wiz.shadowRoot.querySelector("h2, button")?.focus();
-  }
-
-  /** Star on the home screen: open questions as flash cards (full-screen layer). */
-  _openQuestions() {
-    const sh = this.shadowRoot;
-    if (sh.getElementById("questionsLayer") || !this._hass) return;
-    const wrap = document.createElement("div");
-    wrap.id = "questionsLayer";
-    wrap.style.cssText = "position:fixed;inset:0;z-index:55;overflow:auto;background:var(--primary-background-color,#f4f6f8);";
-    const card = document.createElement("fd-questions");
-    card.hass = this._hass;
-    const done = () => { wrap.remove(); sh.querySelector("fd-home")?.reload?.(); };
-    card.addEventListener("fd-questions-close", done);
-    wrap.addEventListener("keydown", (e) => { if (e.key === "Escape") done(); });
-    wrap.append(card);
-    sh.append(wrap);
+    wiz.shadowRoot?.querySelector("h2, button")?.focus();
   }
 
   /** Desktop link inside the questions view: the existing categorise card in a dialog. */
@@ -472,247 +358,154 @@ class FinanceDashboardPanel extends HTMLElement {
     wrap.setAttribute("aria-label", tSync("home.categorize.title"));
     wrap.style.cssText = "position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4);padding:12px;";
     const box = document.createElement("div");
-    box.style.cssText = "width:min(720px,100%);max-height:90dvh;overflow:auto;border-radius:16px;background:var(--card-background-color,#fff);";
+    box.style.cssText = "width:min(720px,100%);max-height:90dvh;overflow:auto;border-radius:16px;background:var(--fd-card);";
     const close = document.createElement("button");
     close.textContent = tSync("home.alert.close");
-    close.style.cssText = "display:block;margin:8px 8px 0 auto;min-height:44px;padding:0 16px;border:0;border-radius:999px;background:transparent;color:var(--primary-color);font:inherit;cursor:pointer;";
+    close.style.cssText = "display:block;margin:8px 8px 0 auto;min-height:44px;padding:0 16px;border:0;border-radius:999px;background:transparent;color:var(--fd-a700);font:inherit;cursor:pointer;";
     const card = document.createElement("fd-categorize");
     card.setConfig?.({});
     card.hass = this._hass;
-    const done = () => { wrap.remove(); sh.querySelector("fd-home")?.reload?.(); };
+    const done = () => { wrap.remove(); this._subEl?.reload?.(); };
     close.addEventListener("click", done);
     wrap.addEventListener("click", (e) => { if (e.target === wrap) done(); });
-    wrap.addEventListener("keydown", (e) => { if (e.key === "Escape") done(); });
+    wrap.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); done(); } });
     box.append(close, card);
     wrap.append(box);
     sh.append(wrap);
     close.focus();
   }
 
-  /**
-   * One attended live refresh. The button is the user's action, so the
-   * backend sends PSU headers (never gated on the unattended 4/day cap).
-   * A debounced or blocked answer is reported, not retried.
-   */
-  async _refresh() {
-    if (this._refreshing || !this._hass) return;
-    const sh = this.shadowRoot;
-    const header = sh.querySelector("fd-header");
-    const dp = sh.querySelector("fd-data-provider");
-    this._refreshing = true;
-    if (header) header.refreshing = true;
-    const ovBtn = sh.querySelector("fd-overview");
-    if (ovBtn) ovBtn.importing = true;
-    try {
-      if (dp && dp.demoMode) {
-        await dp.refresh();
-        return;
-      }
-      let detail;
-      try {
-        const resp = await this._hass.callApi("POST", `${DOMAIN}/refresh`);
-        const status = resp && resp.status;
-        detail = {
-          status,
-          ok: !!(resp && resp.ok),
-          reason: resp && resp.ok === false
-            ? (resp.reason || "error")
-            : (status && status.stats && status.stats.outcome) || "ok",
-        };
-        if (resp && resp.message) detail.message = resp.message;
-        this._applyStatusToHeader(status);
-      } catch (e) {
-        const denied = e && (e.status_code === 403 || (e.body && e.body.error === "admin_required"));
-        detail = { ok: false, reason: denied ? "admin_required" : "error" };
-      }
-      this._toastRefresh(detail);
-      const ov = sh.querySelector("fd-overview");
-      if (ov) ov.reload();
-      sh.querySelector("fd-home")?.reload?.();
-      if (this._dpActive && dp) dp.rebuildAfterRefresh();
-    } finally {
-      this._refreshing = false;
-      if (header) header.refreshing = false;
-      if (ovBtn) ovBtn.importing = false;
-      sh.querySelector("fd-freshness")?.reload?.();
+  // ---- toasts -----------------------------------------------------------
+
+  _toast(message, type) {
+    const el = this.shadowRoot.getElementById("toast");
+    if (!el || !message) return;
+    el.textContent = message;
+    el.className = `toast ${type || "info"} show`;
+    el.setAttribute("aria-live", type === "error" || type === "warn" ? "assertive" : "polite");
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => el.classList.remove("show"), type === "error" ? 6000 : 4000);
+  }
+
+  // ---- Datenstand actions -----------------------------------------------
+
+  _syncBusy() {
+    const fr = this.shadowRoot.querySelector("fd-freshness");
+    if (fr) {
+      fr.importing = this._importing;
+      fr.reprocessing = this._reprocessing;
     }
   }
 
-  _toastRefresh(d) {
-    const header = this.shadowRoot.querySelector("fd-header");
-    if (!header || !header.showToast) return;
+  _afterDataChange() {
+    const sh = this.shadowRoot;
+    sh.querySelector("fd-home")?.reload?.();
+    sh.querySelector("fd-freshness")?.reload?.();
+  }
+
+  /**
+   * "Neu importieren": the one attended live bank fetch. The explicit trigger
+   * body is required by the backend; the request itself carries the PSU
+   * context, so the bank's unattended 4/day cap does not apply. A debounced or
+   * rate-limited answer is reported, not retried.
+   */
+  async _import() {
+    if (this._importing || this._reprocessing || !this._hass) return;
+    const { tSync } = window._fd;
+    if (this._demo) { this._toast(tSync("shell.toast.demo"), "info"); return; }
+    this._importing = true;
+    this._syncBusy();
+    let detail;
+    try {
+      const resp = await this._hass.callApi("POST", `${DOMAIN}/refresh`, { trigger: "user_import" });
+      const status = resp && resp.status;
+      detail = {
+        status,
+        reason: resp && resp.ok === false
+          ? (resp.reason || "error")
+          : (status && status.stats && status.stats.outcome) || "ok",
+      };
+    } catch (e) {
+      const denied = e && (e.status_code === 403 || (e.body && e.body.error === "admin_required"));
+      detail = { reason: denied ? "admin_required" : "error" };
+    } finally {
+      this._importing = false;
+      this._syncBusy();
+    }
+    this._toastImport(detail);
+    this._afterDataChange();
+  }
+
+  _toastImport(d) {
     const { tSync } = window._fd;
     const s = (d.status && d.status.stats) || {};
     const reason = d.reason || s.outcome || "error";
     if (reason === "ok") {
-      header.showToast(
-        tSync("header.refresh.toast_success", {
-          accounts: s.accounts || 0,
-          tx: s.transactions || 0,
-          new: s.new || 0,
-          duration: `${((s.duration_ms || 0) / 1000).toFixed(1)}s`,
-        }),
-        "success",
-      );
+      this._toast(tSync("shell.toast.import_ok", {
+        accounts: s.accounts || 0,
+        tx: s.transactions || 0,
+        new: s.new || 0,
+        duration: `${((s.duration_ms || 0) / 1000).toFixed(1)} s`,
+      }), "success");
     } else if (reason === "partial") {
-      const msg = `${tSync("general.partial_error")} — `
-        + `${s.accounts || 0} ${tSync("general.accounts_plural")}, ${s.transactions || 0} Tx. `
-        + `${(s.errors || []).join(" · ")}`.trim();
-      header.showToast(msg, "warn");
+      const errs = (s.errors || []).slice(0, 2).join(" · ");
+      this._toast(`${tSync("shell.toast.import_partial", { accounts: s.accounts || 0, tx: s.transactions || 0 })}${errs ? ` ${errs}` : ""}`, "warn");
     } else if (reason === "debounced") {
-      header.showToast(tSync("header.refresh.toast_debounced"), "info");
+      this._toast(tSync("shell.toast.import_debounced"), "info");
     } else if (reason === "rate_limited") {
-      header.showToast(tSync("header.refresh.toast_rate_limited"), "warn");
+      this._toast(tSync("shell.toast.import_rate_limited"), "warn");
     } else if (reason === "admin_required") {
-      header.showToast(tSync("header.refresh.toast_admin"), "warn");
-    } else if (reason === "demo") {
-      header.showToast(tSync("toast.demo_started"), "info");
+      this._toast(tSync("shell.toast.admin"), "warn");
     } else {
-      const errs = (s.errors || []).slice(0, 2).join(" · ") || tSync("general.error");
-      header.showToast(`${tSync("general.error")} — ${errs}`, "error");
+      const errs = (s.errors || []).slice(0, 2).join(" · ");
+      this._toast(`${tSync("shell.toast.import_error")}${errs ? ` ${errs}` : ""}`, "error");
     }
   }
 
-  /**
-   * A3: Create the persistent household component tree once.
-   * Subsequent calls are no-ops.
-   */
-  _ensureComponents() {
-    if (this._statsRow) return; // already created
-
-    const container = this.shadowRoot.getElementById("components");
-
-    // Cycle view (household_summary) instead of the calendar-month KPI cards.
-    this._statsRow = document.createElement("fd-household-cycle");
-    if (this._hass) this._statsRow.hass = this._hass;
-    container.appendChild(this._statsRow);
-
-    this._household = document.createElement("fd-household-section");
-    container.appendChild(this._household);
-
-    // The migrated spreadsheet: income, cost ledger, pocket money, transfer
-    // choreography and the benchmark comparison. Loads its own data - the plan
-    // exists whether or not a bank is linked.
-    this._budgetPlan = document.createElement("fd-budget-plan");
-    if (this._hass) this._budgetPlan.hass = this._hass;
-    container.appendChild(this._budgetPlan);
-
-    this._category = document.createElement("fd-category-section");
-    container.appendChild(this._category);
-
-    this._costDist = document.createElement("fd-cost-distribution");
-    container.appendChild(this._costDist);
-
-    this._recurring = document.createElement("fd-recurring-list");
-    container.appendChild(this._recurring);
-    // The plain transaction list moved to the Overview tab (fd-overview).
-  }
-
-  /** Show overlay with a given state; hide component tree. */
-  _showOverlay(state, html) {
-    this._overlayState = state;
-    const overlay = this._overlay;
-    const components = this.shadowRoot.getElementById("components");
-    if (!overlay) return;
-    overlay.className = state === "error" ? "error" : "loading";
-    overlay.innerHTML = html;
-    overlay.classList.remove("hidden");
-    if (components) components.classList.add("hidden");
-  }
-
-  /** Hide overlay; show component tree. */
-  _hideOverlay() {
-    this._overlayState = null;
-    const overlay = this._overlay;
-    const components = this.shadowRoot.getElementById("components");
-    if (overlay) overlay.classList.add("hidden");
-    if (components) components.classList.remove("hidden");
-  }
-
-  _bindNav(root, selector) {
-    root.querySelector(selector)?.addEventListener("click", (ev) => {
-      window._fd.navigate(window._fd.INTEGRATION_PATH, ev);
-    });
-  }
-
-  _onData(data) {
+  /** "Aktualisieren": POST /reprocess — re-derive from stored raw data, never a bank call. */
+  async _reprocess() {
+    if (this._importing || this._reprocessing || !this._hass) return;
     const { tSync } = window._fd;
-
-    // Update header timestamp, rate limit, and demo state
-    const header = this.shadowRoot.querySelector("fd-header");
-    if (header) {
-      if (data.lastRefresh !== undefined) header.lastRefresh = data.lastRefresh;
-      if (data.rateLimitedUntil !== undefined) header.rateLimitedUntil = data.rateLimitedUntil;
-      if (data.lastRefreshStats !== undefined) header.lastRefreshStats = data.lastRefreshStats;
-      if (data.demoMode !== undefined) header.demoMode = data.demoMode;
-    }
-
-    // Loading state (e.g. during demo toggle)
-    if (data.loading) {
-      this._showOverlay("loading", tSync("panel.loading"));
-      return;
-    }
-
-    if (data.error) {
-      this._showOverlay("error",
-        `<div>${tSync("panel.error")} <a id="errorNavBtn" href="${window._fd.INTEGRATION_PATH}" style="color:var(--ac);text-decoration:underline;">${tSync("panel.error.connect")}</a></div>`);
-      this._bindNav(this._overlay, "#errorNavBtn");
-      return;
-    }
-
-    // While a refresh is in flight and there's no data yet, keep the
-    // user on the loading screen instead of flashing the onboarding
-    // prompt momentarily.
-    if (data.isRefreshing && data.accountCount === 0 && !data.demoMode) {
-      this._showOverlay("loading", tSync("panel.loading.refresh"));
-      return;
-    }
-
-    // Onboarding: no accounts and no demo -> link to the integration page
-    if (data.accountCount === 0 && !data.demoMode) {
-      const needsRebind = this._overlayState !== "onboarding";
-      this._showOverlay("onboarding", `
-<div style="text-align:center;padding:60px 20px;max-width:480px;margin:0 auto;">
-  <h2 style="margin:0 0 8px;font-size:20px;font-weight:600;">${tSync("panel.onboarding.title")}</h2>
-  <p style="color:var(--tx2);margin:0 0 24px;line-height:1.5;">
-    ${tSync("panel.onboarding.body")}
-  </p>
-  <a id="onboardingConnectBtn" href="${window._fd.INTEGRATION_PATH}" style="
-    display:inline-block;padding:12px 28px;border-radius:12px;border:none;text-decoration:none;
-    background:var(--ac);color:var(--bg);font-size:15px;font-weight:700;
-    cursor:pointer;font-family:inherit;margin-bottom:12px;
-  ">${tSync("panel.onboarding.cta_link")}</a>
-  <div style="margin-top:12px;">
-    <button id="onboardingDemoBtn" style="
-      padding:10px 24px;border-radius:10px;border:2px solid var(--warning-color,#f39c12);
-      background:transparent;color:var(--warning-color,#f39c12);font-size:14px;font-weight:600;
-      cursor:pointer;font-family:inherit;
-    ">${tSync("panel.onboarding.cta_demo")}</button>
-  </div>
-</div>`);
-      if (needsRebind) {
-        // _showOverlay() rebuilds innerHTML so listeners must be re-attached.
-        this._bindNav(this._overlay, "#onboardingConnectBtn");
-        this._overlay.querySelector("#onboardingDemoBtn")
-          ?.addEventListener("click", () => {
-            this.shadowRoot.dispatchEvent(new CustomEvent("fd-demo-toggle", {
-              bubbles: true,
-              composed: true,
-            }));
-          });
+    this._reprocessing = true;
+    this._syncBusy();
+    try {
+      const r = await this._hass.callApi("POST", `${DOMAIN}/reprocess`);
+      const st = (r && r.stats) || {};
+      if (r && r.ok && st.outcome === "rebuilt") {
+        this._toast(tSync("shell.toast.reprocess_ok", { tx: st.transactions ?? 0, snapshots: st.snapshots ?? 0, version: st.version ?? "" }), "success");
+      } else if (r && r.ok) {
+        this._toast(tSync("shell.toast.reprocess_empty"), "info");
+      } else if (st.outcome === "unavailable") {
+        this._toast(tSync("shell.toast.reprocess_unavailable"), "warn");
+      } else {
+        this._toast(tSync("shell.toast.reprocess_error"), "error");
       }
-      return;
+    } catch (e) {
+      const denied = e && (e.status_code === 403 || (e.body && e.body.error === "admin_required"));
+      this._toast(tSync(denied ? "shell.toast.admin" : "shell.toast.reprocess_error"), denied ? "warn" : "error");
+    } finally {
+      this._reprocessing = false;
+      this._syncBusy();
     }
+    this._afterDataChange();
+  }
 
-    // Data available: ensure persistent components exist and push new data.
-    this._ensureComponents();
-    this._hideOverlay();
-
-    this._statsRow.data = data;
-    this._household.data = data;
-    this._category.data = data;
-    this._costDist.data = data;
-    this._recurring.data = data;
+  /** Demo mode on/off (Start's not-configured screen; settings › Erweitert). */
+  async _toggleDemo() {
+    if (!this._hass || this._demoBusy) return;
+    const { tSync } = window._fd;
+    this._demoBusy = true;
+    try {
+      const r = await this._hass.callApi("POST", `${DOMAIN}/demo/toggle`);
+      this._demo = !!(r && r.demo_mode);
+      const home = this.shadowRoot.querySelector("fd-home");
+      if (home) home.demo = this._demo;
+      this._toast(tSync(this._demo ? "toast.demo_started" : "toast.demo_stopped"), "info");
+    } catch (e) {
+      this._toast(tSync("shell.toast.demo_failed"), "error");
+    } finally {
+      this._demoBusy = false;
+    }
   }
 }
 

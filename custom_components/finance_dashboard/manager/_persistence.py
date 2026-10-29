@@ -170,6 +170,7 @@ class PersistenceMixin:
             except Exception:
                 _LOGGER.exception("Recurring detection failed — skipping")
             await self._persist_transactions()  # also saves the log entry
+        self.schedule_ai_categorization()
         return {**result, "transaction_count": len(derived)}
 
     def get_freshness(self, *, admin: bool) -> dict:

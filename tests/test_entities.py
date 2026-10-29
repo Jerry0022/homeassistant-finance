@@ -189,6 +189,16 @@ def test_entities_have_translation_keys_and_entity_names():
 # -- availability and values --------------------------------------------------
 
 
+def test_balance_sensor_accepts_user_id_ha_users():
+    """0.19+ stores ha_users as plain user ids; a crash here took every sensor down live."""
+    c = _coord()
+    for users, names in ((["u1", "u2"], ["u1", "u2"]), ([{"id": "u1", "name": "Anna"}], ["Anna"])):
+        ent = sensor_mod.AccountBalanceSensor(
+            c, FakeEntry(c.manager, c), {**ACCOUNT, "ha_users": users}, BANK_ID, "T"
+        )
+        assert ent._base_attrs["ha_users"] == names
+
+
 def test_balance_unavailable_without_data():
     c = _coord(balances="none")
     ent = sensor_mod.AccountBalanceSensor(c, FakeEntry(c.manager, c), ACCOUNT, BANK_ID, "T")

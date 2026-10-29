@@ -33,7 +33,11 @@ from .data import (
     FinanceDashboardTransferChainsView,
 )
 from .demo import FinanceDashboardDemoDataView, FinanceDashboardDemoToggleView
-from .home import FinanceDashboardHomeView, FinanceDashboardPotsView
+from .home import (
+    FinanceDashboardHomeView,
+    FinanceDashboardPotCarryView,
+    FinanceDashboardPotsView,
+)
 from .household import FinanceDashboardHouseholdSummaryView
 from .plan import (
     FinanceDashboardBenchmarkView,
@@ -47,7 +51,12 @@ from .plan import (
     FinanceDashboardTransferPlanView,
 )
 from .setup import (
+    FinanceDashboardAiView,
+    FinanceDashboardGoalsView,
+    FinanceDashboardGoalView,
     FinanceDashboardPaydaySuggestionsView,
+    FinanceDashboardPlanPrefillView,
+    FinanceDashboardPointsView,
     FinanceDashboardPotSuggestionsView,
     FinanceDashboardSetupView,
 )
@@ -85,6 +94,7 @@ __all__ = [  # noqa: RUF022  # grouped by category, not alphabetical
     # Home screen + pots
     "FinanceDashboardHomeView",
     "FinanceDashboardPotsView",
+    "FinanceDashboardPotCarryView",
     "FinanceDashboardAssignmentsView",
     "FinanceDashboardHouseholdSummaryView",
     "FinanceDashboardContractsView",
@@ -134,6 +144,7 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardPlanImportUrlView())
     hass.http.register_view(FinanceDashboardHomeView())
     hass.http.register_view(FinanceDashboardPotsView())
+    hass.http.register_view(FinanceDashboardPotCarryView())
     hass.http.register_view(FinanceDashboardAssignmentsView())
     hass.http.register_view(FinanceDashboardHouseholdSummaryView())
     hass.http.register_view(FinanceDashboardContractsView())
@@ -145,4 +156,9 @@ async def async_register_api(hass: HomeAssistant) -> None:
     hass.http.register_view(FinanceDashboardSetupView())
     hass.http.register_view(FinanceDashboardPaydaySuggestionsView())
     hass.http.register_view(FinanceDashboardPotSuggestionsView())
+    hass.http.register_view(FinanceDashboardPlanPrefillView())
+    hass.http.register_view(FinanceDashboardGoalsView())
+    hass.http.register_view(FinanceDashboardGoalView())
+    hass.http.register_view(FinanceDashboardPointsView())
+    hass.http.register_view(FinanceDashboardAiView())
     _LOGGER.debug("Finance API endpoints registered")

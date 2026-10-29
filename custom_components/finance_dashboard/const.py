@@ -4,7 +4,7 @@ DOMAIN = "finance_dashboard"
 PLATFORMS = ["sensor", "number", "select"]
 
 # Version — must match manifest.json and companion config.yaml
-VERSION = "0.21.0"
+VERSION = "0.22.0"
 
 # Panel
 PANEL_URL_PATH = "finance-dashboard"
@@ -344,14 +344,13 @@ DEFAULT_DAILY_REFRESH = True
 DEFAULT_DAILY_REFRESH_HOUR = 6
 DEFAULT_DAILY_REFRESH_MINUTE = 30
 
-# Attended refresh on panel open.  Opening the dashboard IS a user session,
-# so the call carries PSU headers and is exempt from the unattended 4/day cap
-# (PSD2 RTS Art. 36(5)(b)).  Fires at most once per panel mount and only when
-# the cache is older than the threshold — a user action, never an interval.
-OPT_AUTO_REFRESH_ON_OPEN = "auto_refresh_on_open"
-OPT_AUTO_REFRESH_MAX_AGE_MINUTES = "auto_refresh_max_age_minutes"
-DEFAULT_AUTO_REFRESH_ON_OPEN = True
-DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES = 60
+# Body value POST /refresh must carry; anything else never reaches the bank.
+EXPLICIT_IMPORT_TRIGGER = "user_import"
+
+# NOTE: there is deliberately no "refresh on panel open" option.  Opening the
+# panel is a cache read; live bank calls come only from the explicit import,
+# the setup bootstrap and the one daily schedule (see docs/dev/architecture.md,
+# "Fetch triggers").
 
 
 # --- Bank connect flow / config subentries (Phase 2.1) ---

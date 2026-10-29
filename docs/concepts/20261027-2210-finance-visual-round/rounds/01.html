@@ -1,0 +1,253 @@
+<section data-iteration="1" data-iteration-template="design" data-design-set="alternatives" data-viewports="phone tablet desktop" data-viewport-default="phone" data-baked>
+  <script type="application/json" data-frozen-feedback>{"general":{"text":"wie realisieren wir die verschiedenen sichtweisen! schaue dir nochmal tiefer die anforderungen an die wir zusammgenschriben haben!","attachments":[]},"designs":{},"screens":{},"views":{},"favorite":"d2"}</script>
+<style>
+.mock-app{max-width:100%;box-sizing:border-box;font-family:Roboto,"Segoe UI",sans-serif;background:#f4f5f7;color:#1c1c1e;padding:14px;min-height:560px}
+.mock-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.mock-muted{color:#6b6f76;font-size:12px}
+.mock-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;font-size:14px}
+.mock-row + .mock-row{border-top:1px solid #eceef1}
+.mock-btn{display:inline-block;border:0;border-radius:18px;padding:8px 14px;font-size:13px;background:#03a9f4;color:#fff;cursor:pointer}
+.mock-btn.mock-ghost{background:transparent;color:#0277bd;border:1px solid #b3e0f7}
+.mock-nav{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.mock-chip{font-size:12px;padding:4px 10px;border-radius:12px;background:#e8eaed;color:#3c4043}
+.mock-chip.mock-on{background:#03a9f4;color:#fff}
+.mock-pend{color:#8a6d00;font-size:12px}
+.mock-bar{height:8px;border-radius:4px;background:#e8eaed;overflow:hidden}
+.mock-bar > span{display:block;height:100%;background:#03a9f4}
+.mock-bar > span.mock-over{background:#e8a33b}
+.d1-verdict{font-size:22px;line-height:1.3;font-weight:500;margin:4px 0 8px}
+.d1-dot{display:inline-block;width:14px;height:14px;border-radius:50%;background:#43a047;margin-right:8px;vertical-align:middle}
+.d1-dot.d1-amber{background:#e8a33b}
+.d1-free{font-size:15px}
+.d1-free b{font-size:18px}
+.d1-q{border:1px solid #e3e6ea;border-radius:10px;padding:10px;margin-bottom:8px;font-size:14px}
+.d1-ans{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.d2-tank{position:relative;height:150px;border-radius:14px;background:#e3f2fd;overflow:hidden;margin:6px 0 10px}
+.d2-fill{position:absolute;left:0;right:0;bottom:0;height:58%;background:#4fc3f7}
+.d2-label{position:absolute;left:14px;top:12px;font-size:12px;color:#01579b}
+.d2-amt{position:absolute;left:14px;bottom:12px;font-size:30px;font-weight:500;color:#fff}
+.d2-mark{position:absolute;left:0;right:0;bottom:42%;border-top:2px dashed #01579b;opacity:.6}
+.d2-pots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.d2-pot{background:#f1f8fe;border-radius:10px;padding:8px;font-size:12px;text-align:center}
+.d2-pot b{display:block;font-size:15px;color:#01579b}
+.d3-run{position:relative;height:64px;margin:10px 0 4px}
+.d3-line{position:absolute;left:0;right:0;top:30px;height:4px;border-radius:2px;background:#e8eaed}
+.d3-done{position:absolute;left:0;top:30px;height:4px;width:40%;border-radius:2px;background:#03a9f4}
+.d3-pin{position:absolute;top:8px;font-size:11px;transform:translateX(-50%);text-align:center;white-space:nowrap}
+.d3-pin i{display:block;width:10px;height:10px;border-radius:50%;background:#7e57c2;margin:6px auto 0}
+.d3-pin.d3-today i{background:#03a9f4;width:14px;height:14px}
+.d3-pin.d3-pay i{background:#43a047}
+.d3-big{font-size:26px;font-weight:500}
+.d3-day{display:flex;gap:10px;font-size:14px;padding:6px 0}
+.d3-day span:first-child{width:46px;color:#6b6f76}
+</style>
+<header class="iteration-intro">
+  <h2>{{iteration.tab}} 1 · Die Eingangstür von Finance</h2>
+  <p>Drei grundverschiedene Richtungen für dieselbe Frage: „Liegen wir im Plan, und müssen wir etwas tun?“ Jede Richtung zeigt Glance, Wochen-Check und Zyklus-Abschluss. Alle Zahlen sind erfunden.</p>
+</header>
+
+<section data-design="d1" data-nav-label="Klartext-Ampel" data-design-active="true"
+  data-design-motto="Ein Satz statt Zahlen"
+  data-design-traits="Antwort als Satz in Alltagssprache|Ampelfarbe trägt den Status|Zahlen erst auf Antippen"
+  data-design-icon="message" data-design-color="#43a047" data-design-overlay="br">
+  <section id="d1-s1" data-nav-label="Glance" data-screen data-screen-active="true">
+    <div class="mock-app">
+      <div class="mock-nav"><span class="mock-chip mock-on">Heute</span><button class="mock-chip" data-screen-link="d1-s2">Woche</button><button class="mock-chip" data-screen-link="d1-s3">Zyklus</button></div>
+      <div class="mock-card d1-status">
+        <div class="mock-muted">Stand 06:30 · Zyklus bis 31.10.</div>
+        <div class="d1-verdict"><span class="d1-dot"></span>Ihr liegt im Plan.</div>
+        <div class="d1-free">Bis zum Gehalt könnt ihr noch <b>412 €</b> frei ausgeben.</div>
+      </div>
+      <div class="mock-card d1-next">
+        <div class="mock-muted">Kommt als Nächstes</div>
+        <div class="mock-row"><span>Miete · 29.10.</span><span>1.150 €</span></div>
+        <div class="mock-row"><span>Strom · 30.10.</span><span>94 €</span></div>
+        <div class="mock-row"><span class="mock-pend">2 Buchungen vorgemerkt</span><span class="mock-pend">−38 €</span></div>
+      </div>
+      <div class="mock-card d1-todo"><div class="mock-row"><span>3 Fragen warten auf euch</span><button class="mock-btn" data-screen-link="d1-s2">Ansehen</button></div></div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="d1-s1-a1" data-anno-side="left" data-anno-target=".d1-verdict" style="--anno-x:80%;--anno-y:22%">
+        <button class="anno-pin" type="button" data-anno-pin="d1-s1-a1" aria-expanded="false" aria-controls="anno-bubble-d1-s1-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-d1-s1-a1" data-anno-bubble="d1-s1-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="d1-s1-a1" aria-expanded="false" aria-controls="anno-bubble-d1-s1-a1"><span class="anno-bubble-question">Trägt ein ganzer Satz die Antwort besser als Zahl plus Label?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-d1-s1-a1" data-annotation="d1-s1-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-d1-s1-a1"></div></div>
+        </div>
+      </div>
+      <div class="anno" data-anno="d1-s1-a2" data-anno-side="left" data-anno-target=".d1-free" style="--anno-x:80%;--anno-y:30%">
+        <button class="anno-pin" type="button" data-anno-pin="d1-s1-a2" aria-expanded="false" aria-controls="anno-bubble-d1-s1-a2" aria-label="Anmerkung 2">2</button>
+        <div class="anno-bubble" id="anno-bubble-d1-s1-a2" data-anno-bubble="d1-s1-a2" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="d1-s1-a2" aria-expanded="false" aria-controls="anno-bubble-d1-s1-a2"><span class="anno-bubble-question">„Frei verfügbar“ als gemeinsame Zahl oder pro Person?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-d1-s1-a2" data-annotation="d1-s1-a2" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-d1-s1-a2"></div></div>
+        </div>
+      </div>
+      <div class="anno" data-anno="d1-s1-a3" data-anno-side="left" data-anno-target=".mock-pend" style="--anno-x:80%;--anno-y:55%">
+        <button class="anno-pin" type="button" data-anno-pin="d1-s1-a3" aria-expanded="false" aria-controls="anno-bubble-d1-s1-a3" aria-label="Anmerkung 3">3</button>
+        <div class="anno-bubble" id="anno-bubble-d1-s1-a3" data-anno-bubble="d1-s1-a3" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="d1-s1-a3" aria-expanded="false" aria-controls="anno-bubble-d1-s1-a3"><span class="anno-bubble-question">Vorgemerkte Buchungen in der Liste oder ganz getrennt?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-d1-s1-a3" data-annotation="d1-s1-a3" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-d1-s1-a3"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="d1-s2" data-nav-label="Wochen-Check" data-screen hidden>
+    <div class="mock-app">
+      <div class="mock-nav"><button class="mock-chip" data-screen-link="d1-s1">Heute</button><span class="mock-chip mock-on">Woche</span><button class="mock-chip" data-screen-link="d1-s3">Zyklus</button></div>
+      <div class="mock-card"><div class="d1-verdict" style="font-size:18px"><span class="d1-dot d1-amber"></span>Lebensmittel liegen diese Woche 40 € über Plan.</div><div class="mock-muted">KW 43 · sonst alles im Rahmen</div></div>
+      <div class="mock-card">
+        <div class="mock-muted">Deine Fragen · 1 von 3</div>
+        <div class="d1-q">Ist „AMZN Mktp 52,99 €“ für euch beide oder nur für dich?
+          <div class="d1-ans"><button class="mock-btn mock-ghost">Für uns</button><button class="mock-btn mock-ghost">Nur ich</button><button class="mock-btn mock-ghost">Immer so</button></div></div>
+        <div class="mock-muted">Noch 12 Antworten bis zum nächsten Punkt</div>
+      </div>
+      <button class="mock-btn" data-screen-link="d1-s3">Weiter zum Zyklus</button>
+    </div>
+  </section>
+  <section id="d1-s3" data-nav-label="Zyklus-Abschluss" data-screen hidden>
+    <div class="mock-app">
+      <div class="mock-nav"><button class="mock-chip" data-screen-link="d1-s1">Heute</button><button class="mock-chip" data-screen-link="d1-s2">Woche</button><span class="mock-chip mock-on">Zyklus</span></div>
+      <div class="mock-card"><div class="d1-verdict" style="font-size:18px"><span class="d1-dot"></span>Oktober: 86 € unter Plan.</div><div class="mock-muted">Ausgleich: Anna überweist 124 € an Ben.</div></div>
+      <div class="mock-card">
+        <div class="mock-row"><span>Wohnen</span><span>im Plan</span></div>
+        <div class="mock-row"><span>Lebensmittel</span><span>+62 €</span></div>
+        <div class="mock-row"><span>Mobilität</span><span>−148 €</span></div>
+      </div>
+      <button class="mock-btn" data-screen-link="d1-s1">Fertig</button>
+    </div>
+  </section>
+</section>
+
+<section data-design="d2" data-nav-label="Budget-Tank" hidden
+  data-design-motto="Wie viel ist noch drin?"
+  data-design-traits="Frei verfügbar als Füllstand|Töpfe wie eigene Konten|Plan-Linie im Tank statt Ampel"
+  data-design-icon="database" data-design-color="#0288d1" data-design-overlay="tr">
+  <section id="d2-s1" data-nav-label="Glance" data-screen data-screen-active="true">
+    <div class="mock-app">
+      <div class="mock-nav"><span class="mock-chip mock-on">Tank</span><button class="mock-chip" data-screen-link="d2-s2">Woche</button><button class="mock-chip" data-screen-link="d2-s3">Zyklus</button></div>
+      <div class="mock-card">
+        <div class="d2-tank"><div class="d2-fill"></div><div class="d2-mark"></div><span class="d2-label">Frei bis 31.10. · Stand 06:30</span><span class="d2-amt">412 €</span></div>
+        <div class="mock-muted">Gestrichelt: so voll sollte es heute laut Plan sein</div>
+      </div>
+      <div class="mock-card">
+        <div class="mock-muted" style="margin-bottom:8px">Töpfe</div>
+        <div class="d2-pots"><div class="d2-pot">Urlaub<b>1.240 €</b></div><div class="d2-pot">Auto<b>380 €</b></div><div class="d2-pot">Rücklage<b>2.100 €</b></div></div>
+      </div>
+      <div class="mock-card"><div class="mock-row"><span>Abgang bis Monatsende</span><span>−1.244 €</span></div><div class="mock-row"><span class="mock-pend">vorgemerkt</span><span class="mock-pend">−38 €</span></div></div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="d2-s1-a1" data-anno-side="left" data-anno-target=".d2-tank" style="--anno-x:85%;--anno-y:20%">
+        <button class="anno-pin" type="button" data-anno-pin="d2-s1-a1" aria-expanded="false" aria-controls="anno-bubble-d2-s1-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-d2-s1-a1" data-anno-bubble="d2-s1-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="d2-s1-a1" aria-expanded="false" aria-controls="anno-bubble-d2-s1-a1"><span class="anno-bubble-question">Ist der Füllstand ohne Ampel eindeutig genug?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-d2-s1-a1" data-annotation="d2-s1-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-d2-s1-a1"></div></div>
+        </div>
+      </div>
+      <div class="anno" data-anno="d2-s1-a2" data-anno-side="left" data-anno-target=".d2-pots" style="--anno-x:85%;--anno-y:50%">
+        <button class="anno-pin" type="button" data-anno-pin="d2-s1-a2" aria-expanded="false" aria-controls="anno-bubble-d2-s1-a2" aria-label="Anmerkung 2">2</button>
+        <div class="anno-bubble" id="anno-bubble-d2-s1-a2" data-anno-bubble="d2-s1-a2" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="d2-s1-a2" aria-expanded="false" aria-controls="anno-bubble-d2-s1-a2"><span class="anno-bubble-question">Gehören die Töpfe auf die Startseite?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-d2-s1-a2" data-annotation="d2-s1-a2" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-d2-s1-a2"></div></div>
+        </div>
+      </div>
+      <div class="anno" data-anno="d2-s1-a3" data-anno-side="left" data-anno-target=".d2-mark" style="--anno-x:85%;--anno-y:30%">
+        <button class="anno-pin" type="button" data-anno-pin="d2-s1-a3" aria-expanded="false" aria-controls="anno-bubble-d2-s1-a3" aria-label="Anmerkung 3">3</button>
+        <div class="anno-bubble" id="anno-bubble-d2-s1-a3" data-anno-bubble="d2-s1-a3" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="d2-s1-a3" aria-expanded="false" aria-controls="anno-bubble-d2-s1-a3"><span class="anno-bubble-question">Plan-Linie im Tank: verständlich oder zu abstrakt?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-d2-s1-a3" data-annotation="d2-s1-a3" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-d2-s1-a3"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="d2-s2" data-nav-label="Wochen-Check" data-screen hidden>
+    <div class="mock-app">
+      <div class="mock-nav"><button class="mock-chip" data-screen-link="d2-s1">Tank</button><span class="mock-chip mock-on">Woche</span><button class="mock-chip" data-screen-link="d2-s3">Zyklus</button></div>
+      <div class="mock-card">
+        <div class="mock-muted">KW 43 · Verbrauch je Kategorie</div>
+        <div class="mock-row"><span>Lebensmittel</span><span>140 / 100 €</span></div><div class="mock-bar"><span class="mock-over" style="width:100%"></span></div>
+        <div class="mock-row"><span>Freizeit</span><span>35 / 60 €</span></div><div class="mock-bar"><span style="width:58%"></span></div>
+      </div>
+      <div class="mock-card"><div class="mock-row"><span>3 Buchungen ohne Zuordnung</span><button class="mock-btn">Zuordnen</button></div></div>
+      <button class="mock-btn" data-screen-link="d2-s3">Weiter zum Zyklus</button>
+    </div>
+  </section>
+  <section id="d2-s3" data-nav-label="Zyklus-Abschluss" data-screen hidden>
+    <div class="mock-app">
+      <div class="mock-nav"><button class="mock-chip" data-screen-link="d2-s1">Tank</button><button class="mock-chip" data-screen-link="d2-s2">Woche</button><span class="mock-chip mock-on">Zyklus</span></div>
+      <div class="mock-card"><div class="mock-muted">Oktober · Rest im Tank</div><div style="font-size:26px;font-weight:500">86 €</div><div class="mock-muted">→ in Topf „Rücklage“ umbuchen?</div></div>
+      <div class="mock-card"><div class="mock-row"><span>Anna</span><span>trug 52 %</span></div><div class="mock-row"><span>Ben</span><span>trug 48 %</span></div><div class="mock-row"><span>Ausgleich</span><span>124 € an Ben</span></div></div>
+      <button class="mock-btn" data-screen-link="d2-s1">Fertig</button>
+    </div>
+  </section>
+</section>
+
+<section data-design="d3" data-nav-label="Zeitstrahl bis Zahltag" hidden
+  data-design-motto="Der Weg bis zum Gehalt"
+  data-design-traits="Zeit statt Kategorien als Achse|Kommende Abbuchungen im Mittelpunkt|Kalenderwoche als Leitstruktur"
+  data-design-icon="calendar" data-design-color="#7e57c2" data-design-overlay="bl">
+  <section id="d3-s1" data-nav-label="Glance" data-screen data-screen-active="true">
+    <div class="mock-app">
+      <div class="mock-nav"><span class="mock-chip mock-on">Strecke</span><button class="mock-chip" data-screen-link="d3-s2">Woche</button><button class="mock-chip" data-screen-link="d3-s3">Zyklus</button></div>
+      <div class="mock-card">
+        <div class="mock-muted">Noch 4 Tage bis Gehalt · Stand 06:30</div>
+        <div class="d3-big">412 € frei</div>
+        <div class="d3-run"><div class="d3-line"></div><div class="d3-done"></div>
+          <span class="d3-pin d3-today" style="left:40%">heute<i></i></span>
+          <span class="d3-pin" style="left:60%">Miete<i></i></span>
+          <span class="d3-pin" style="left:75%">Strom<i></i></span>
+          <span class="d3-pin d3-pay" style="left:96%">Gehalt<i></i></span></div>
+      </div>
+      <div class="mock-card d3-list">
+        <div class="d3-day"><span>Mi 29.</span><span>Miete 1.150 €</span></div>
+        <div class="d3-day"><span>Do 30.</span><span>Strom 94 €</span></div>
+        <div class="d3-day"><span>Fr 31.</span><span>Gehalt Anna +2.900 €</span></div>
+        <div class="d3-day"><span class="mock-pend">offen</span><span class="mock-pend">2 vorgemerkt −38 €</span></div>
+      </div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="d3-s1-a1" data-anno-side="left" data-anno-target=".d3-run" style="--anno-x:85%;--anno-y:25%">
+        <button class="anno-pin" type="button" data-anno-pin="d3-s1-a1" aria-expanded="false" aria-controls="anno-bubble-d3-s1-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-d3-s1-a1" data-anno-bubble="d3-s1-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="d3-s1-a1" aria-expanded="false" aria-controls="anno-bubble-d3-s1-a1"><span class="anno-bubble-question">Reicht der Strahl ohne Ampel, um „im Plan“ zu erkennen?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-d3-s1-a1" data-annotation="d3-s1-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-d3-s1-a1"></div></div>
+        </div>
+      </div>
+      <div class="anno" data-anno="d3-s1-a2" data-anno-side="left" data-anno-target=".d3-list" style="--anno-x:85%;--anno-y:55%">
+        <button class="anno-pin" type="button" data-anno-pin="d3-s1-a2" aria-expanded="false" aria-controls="anno-bubble-d3-s1-a2" aria-label="Anmerkung 2">2</button>
+        <div class="anno-bubble" id="anno-bubble-d3-s1-a2" data-anno-bubble="d3-s1-a2" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="d3-s1-a2" aria-expanded="false" aria-controls="anno-bubble-d3-s1-a2"><span class="anno-bubble-question">Auch Einnahmen auf dem Strahl zeigen?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-d3-s1-a2" data-annotation="d3-s1-a2" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-d3-s1-a2"></div></div>
+        </div>
+      </div>
+      <div class="anno" data-anno="d3-s1-a3" data-anno-side="left" data-anno-target=".d3-big" style="--anno-x:85%;--anno-y:15%">
+        <button class="anno-pin" type="button" data-anno-pin="d3-s1-a3" aria-expanded="false" aria-controls="anno-bubble-d3-s1-a3" aria-label="Anmerkung 3">3</button>
+        <div class="anno-bubble" id="anno-bubble-d3-s1-a3" data-anno-bubble="d3-s1-a3" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="d3-s1-a3" aria-expanded="false" aria-controls="anno-bubble-d3-s1-a3"><span class="anno-bubble-question">Zahltag je Person: ein Strahl oder zwei?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-d3-s1-a3" data-annotation="d3-s1-a3" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-d3-s1-a3"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section id="d3-s2" data-nav-label="Wochen-Check" data-screen hidden>
+    <div class="mock-app">
+      <div class="mock-nav"><button class="mock-chip" data-screen-link="d3-s1">Strecke</button><span class="mock-chip mock-on">Woche</span><button class="mock-chip" data-screen-link="d3-s3">Zyklus</button></div>
+      <div class="mock-card">
+        <div class="mock-muted">KW 43 · Mo 21. – So 27.</div>
+        <div class="d3-day"><span>Mo</span><span>Rewe 64 € · Lebensmittel</span></div>
+        <div class="d3-day"><span>Mi</span><span>AMZN 52,99 € · <b>wem?</b></span></div>
+        <div class="d3-day"><span>Sa</span><span>Tankstelle 71 € · Mobilität</span></div>
+      </div>
+      <div class="mock-card"><div class="mock-row"><span>Diese Woche 40 € über Plan</span><button class="mock-btn" data-screen-link="d3-s3">Zyklus</button></div></div>
+    </div>
+  </section>
+  <section id="d3-s3" data-nav-label="Zyklus-Abschluss" data-screen hidden>
+    <div class="mock-app">
+      <div class="mock-nav"><button class="mock-chip" data-screen-link="d3-s1">Strecke</button><button class="mock-chip" data-screen-link="d3-s2">Woche</button><span class="mock-chip mock-on">Zyklus</span></div>
+      <div class="mock-card"><div class="mock-muted">Zyklus 01.10. – 31.10.</div>
+        <div class="mock-row"><span>KW 40</span><span>im Plan</span></div><div class="mock-row"><span>KW 41</span><span>−22 €</span></div><div class="mock-row"><span>KW 42</span><span>+18 €</span></div><div class="mock-row"><span>KW 43</span><span>+40 €</span></div>
+      </div>
+      <div class="mock-card"><div class="mock-row"><span>Ausgleich</span><span>Anna → Ben 124 €</span></div></div>
+      <button class="mock-btn" data-screen-link="d3-s1">Fertig</button>
+    </div>
+  </section>
+</section>
+</section>

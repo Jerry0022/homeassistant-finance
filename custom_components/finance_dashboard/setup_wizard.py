@@ -31,8 +31,10 @@ from .recurring import detect_recurring
 STORAGE_KEY = f"{DOMAIN}.setup_wizard"
 STORAGE_VERSION = 1
 
-STEPS = ("persons", "accounts", "payday", "pots", "plan", "notifications", "ai", "done")
-SKIPPABLE = {"plan", "ai", "notifications", "pots", "payday"}
+STEPS = (
+    "persons", "accounts", "payday", "pots", "plan", "goals", "points", "notifications", "ai", "done",
+)
+SKIPPABLE = {"plan", "goals", "points", "ai", "notifications", "pots", "payday"}
 STATUSES = ("pending", "done", "skipped")
 
 DEFAULT_NOTIFICATIONS: dict[str, Any] = {
@@ -73,6 +75,7 @@ def default_state() -> dict[str, Any]:
         "steps": {s: "pending" for s in STEPS if s != "done"},
         "completed": False,
         "ai_opt_in": False,
+        "points_target": "",
         "notifications": dict(DEFAULT_NOTIFICATIONS),
         "notified": {},
         "last_digest_week": "",
@@ -97,6 +100,7 @@ def _merge_state(raw: Any) -> dict[str, Any]:
             state["steps"][step] = status
     state["completed"] = bool(raw.get("completed"))
     state["ai_opt_in"] = bool(raw.get("ai_opt_in"))
+    state["points_target"] = str(raw.get("points_target") or "")
     state["notifications"].update(
         {k: v for k, v in (raw.get("notifications") or {}).items() if k in DEFAULT_NOTIFICATIONS}
     )
@@ -403,6 +407,50 @@ def validate_pot_acceptance(raw: Any) -> list[dict[str, Any]]:
                 "category_keys": [str(item["category"])],
             }
         )
+    return out
+
+
+# Nicknames: ``name`` is the stable key (accounts, pots, plan, rules reference
+# it); ``display_name`` is display-only and can change freely.
+MAX_NICKNAME = 40
+
+
+def validate_nicknames(raw: Any, persons: list[dict[str, Any]]) -> dict[str, str]:
+    """``[{"person", "display_name"}]`` -> ``{person: nickname}`` ("" clears)."""
+    if not isinstance(raw, list):
+        raise SetupError("invalid_nicknames", "nicknames must be a list")
+    names = {str(p.get("name")) for p in persons}
+    out: dict[str, str] = {}
+    for item in raw:
+        if not isinstance(item, dict):
+            raise SetupError("invalid_nicknames", "Each nickname must be an object")
+        person = str(item.get("person") or "")
+        if person not in names:
+            raise SetupError("unknown_person", "Unknown person")
+        nick = item.get("display_name")
+        if nick is None:
+            nick = ""
+        if not isinstance(nick, str) or len(nick.strip()) > MAX_NICKNAME:
+            raise SetupError("invalid_display_name", "display_name must be at most 40 characters")
+        out[person] = nick.strip()
+    return out
+
+
+def apply_nicknames(
+    persons: list[dict[str, Any]], nicknames: dict[str, str]
+) -> list[dict[str, Any]]:
+    """New person records with nicknames set; an empty or identical one is removed."""
+    out = []
+    for p in persons:
+        p = dict(p)
+        name = p.get("name")
+        if name in nicknames:
+            nick = nicknames[name]
+            if nick and nick != name:
+                p["display_name"] = nick
+            else:
+                p.pop("display_name", None)
+        out.append(p)
     return out
 
 

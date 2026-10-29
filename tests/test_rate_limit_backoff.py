@@ -36,6 +36,11 @@ class _FakeRequest:
     def get(self, key, default=None):
         return self._data.get(key, default)
 
+    async def json(self):
+        # The explicit "Neu importieren" body; without it the view refuses
+        # before any gating (covered in test_fetch_triggers.py).
+        return {"trigger": "user_import"}
+
 
 class _FakeManager:
     def __init__(self, rate_limited_until):
@@ -128,44 +133,17 @@ def _status_manager(options=None):
     return mgr
 
 
-def test_auto_refresh_defaults_are_exposed():
-    """The panel reads policy from status — it must not hardcode defaults."""
-    from custom_components.finance_dashboard.const import (
-        DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES,
-        DEFAULT_AUTO_REFRESH_ON_OPEN,
-    )
-
+def test_auto_refresh_on_open_is_retired():
+    """Opening the panel never fetches: the compat fields say so."""
     status = _status_manager().get_refresh_status()
-
-    assert status["auto_refresh_on_open"] is DEFAULT_AUTO_REFRESH_ON_OPEN
-    assert status["auto_refresh_max_age_seconds"] == (
-        DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES * 60
-    )
-
-
-def test_auto_refresh_can_be_disabled():
-    """Opting out must actually reach the panel."""
-    from custom_components.finance_dashboard.const import OPT_AUTO_REFRESH_ON_OPEN
-
-    status = _status_manager({OPT_AUTO_REFRESH_ON_OPEN: False}).get_refresh_status()
     assert status["auto_refresh_on_open"] is False
+    assert status["auto_refresh_max_age_seconds"] == 0
 
 
-def test_auto_refresh_threshold_is_configurable():
-    from custom_components.finance_dashboard.const import (
-        OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
-    )
-
-    status = _status_manager({OPT_AUTO_REFRESH_MAX_AGE_MINUTES: 30}).get_refresh_status()
-    assert status["auto_refresh_max_age_seconds"] == 1800
-
-
-@pytest.mark.parametrize("bad", [0, -5, "", None, "abc"])
-def test_auto_refresh_threshold_never_collapses_to_zero(bad):
-    """A zero threshold would refresh on every open — that IS polling."""
-    from custom_components.finance_dashboard.const import (
-        OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
-    )
-
-    status = _status_manager({OPT_AUTO_REFRESH_MAX_AGE_MINUTES: bad}).get_refresh_status()
-    assert status["auto_refresh_max_age_seconds"] >= 60
+def test_legacy_auto_refresh_option_cannot_revive_it():
+    """A stale stored option must not re-enable fetch-on-open."""
+    status = _status_manager(
+        {"auto_refresh_on_open": True, "auto_refresh_max_age_minutes": 5}
+    ).get_refresh_status()
+    assert status["auto_refresh_on_open"] is False
+    assert status["auto_refresh_max_age_seconds"] == 0

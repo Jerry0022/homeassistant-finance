@@ -1,0 +1,663 @@
+<section data-iteration="4" data-iteration-template="design" data-viewports="phone desktop tablet" data-viewport-default="phone" data-baked>
+  <script type="application/json" data-frozen-feedback>{"general":{"text":"btw, vorgemerkte gehören genauso in die als nächstes liste bzw. in die top 3 nicht außerhalb nur  ggf. vorgemerkt label dahinter!","attachments":[]},"designs":{},"screens":{"r4-s1":"der seitenwechsel ben vs haushalt ist visuell naja....\ndie grafik im plan sollten wir noch mal refinen, aber hinhatlich ok, darstellung der ganzen box sehr chaotisch. wir brauchen doch bei heute keine zeit und soll linie, es geht ja im wesentlich en um heute, für woche und monat und jahr verstehe ich das. \n\nBei den töpfen ist immer schlecht wenn man mehr ausgegebn hat als man soll bis zu dem zeitpunkt linerarverteilt, hat man weniger oder gleich viel ausgegeben (+-1ß0%) ist das ok, so soll die farbgehung auch sein. \ndie drei buchungen unkategorisiert benötigt es dort nicht, die reichenoben durch das sternchen. \nDie eilmeldungen passen visuell naja nicht ins konzept so richtig... gern das schwarz als background nochmal überlegen und ein design system aufstellen!\n\nals nächstes ist ein monatsthema kein heute, wochen oder jahr thema! naja in wochen vllt. nur im sinne von wie viel wird noch abgebucht.\nAchtung berücksichtige das eine person mehreere konten habe aknn (z. B. ich habe dkb und paypal, oder wer anders dkb und revolut absseits von gemeinschaftskonsten), sprich konten sollten erstmal hier keine rolle spieelen, ddie sind aggreegiert unter personen und haushalt. Außer in der desktop ansicht wo man auf kontoen runtergebrochen gehen kann.","r4-s2":"qusaaarwar suz axhon dinsw ich super, aber nix für heute sondern eher für Monat und Jahr (da unterschiedliche natürlich)! Auch Rücklagen ist eher ein monats und jahr thema. \nAch warte monat sollte doch eher zyklus heißen,w eil es ja von frühstes höchtes einkommen der person bis nächstes ist und bei mehreren personen= haushalt gern jeweils das höchste einkommen, wobei das allerhöchste den ton angibt außer wenn +- 7 Tage davor eine andere person ihr höchstes einkommen hat, dann zählt das als anfang des zyklus. \nkeine ahnung was die mini grläser anna und links daneben sein sollen, aber das ist zu viel....","r4-s3":"bitte berücksichtigen wie sich nicht ausgegebenes auch aggregiert über die woche bzw. ob man an einem tag mehr ausgegben hat als man sollte nach der linean wochen verteilung. \ndas knapp über soll sollte die ganze box dominieren... \nbessser dargestellt wie viel man ggf. aus der vorherigen woche + oder - mitnimmt (aber nur innerhalb des zyklus!)","r4-s4":"das finde ich super!","r4-s5":"Richtig gut! Wobei tropfen? Why tropfen... nicht thematisch, weder zum thema finance, noch das man ja aufräumt / einen überblick gewinnt. \nAußerdem dann lass uns wieder einfach nicht 15 sondern 7 punkte machen bis man einen punkt als ereignis erreicht.","r4-s6":"Sehr schön!","r4-s7":"sehr gut!","r4-s8":"naja, siehe vorthige kommenate, hier eher die anlayse use cases größer im fokus (bei monat, vllt. die optimierung, bei jahr genauso optimierung und bei woche eher budgetanpassungen). Außerdem finde ich super das die desktop zusätzlihcen buttons markiert sind z. B. mit dem lila, die dürfen gern als einziges \"inline\" in den boxen selber sein, die es auch mobilee gibt!."},"views":{}}</script>
+<style>
+div.r4-app{box-sizing:border-box;container:r4w / inline-size;display:flex;flex-direction:column;min-height:100%;font-family:Roboto,"Segoe UI",sans-serif;font-size:14px;line-height:1.35;background:#f4f5f7;color:#1c1c1e}
+div.r4-app *,div.r4-app *::before,div.r4-app *::after{box-sizing:border-box}
+div.r4-app button{font:inherit;cursor:pointer}
+/* top bar: freshness left, message pill centre, questions right */
+div.r4-app .r4-top{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:9px 12px;background:#fff;border-bottom:1px solid #e3e6ea}
+div.r4-app .r4-fresh{justify-self:start;display:inline-flex;align-items:center;gap:6px;border:0;border-radius:14px;padding:4px 10px 4px 8px;font-size:12px;background:#e8f5e9;color:#2e7d32}
+div.r4-app .r4-fresh > i{width:8px;height:8px;border-radius:50%;background:#43a047;box-shadow:0 0 0 3px rgba(67,160,71,.25)}
+div.r4-app .r4-title{font-size:17px;font-weight:500}
+div.r4-app .r4-pill{display:inline-flex;align-items:center;gap:7px;border:0;border-radius:16px;padding:6px 13px;font-size:12.5px;background:#263238;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+div.r4-app .r4-pill > i{width:8px;height:8px;border-radius:50%;background:#ffb74d}
+div.r4-app .r4-ask{justify-self:end;position:relative;width:38px;height:38px;padding:3px;border:0;border-radius:50%;background:conic-gradient(#03a9f4 0 93%,#e1e5ea 0)}
+div.r4-app .r4-ask > span{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:50%;font-size:16px;background:#fff;color:#f9a825}
+div.r4-app .r4-ask > b{position:absolute;top:-4px;right:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;font-size:11px;line-height:18px;text-align:center;background:#e8a33b;color:#fff}
+div.r4-app .r4-sub{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#fff;border-bottom:1px solid #e3e6ea}
+div.r4-app .r4-back{border:0;background:transparent;padding:4px 6px;font-size:14px;color:#0277bd}
+div.r4-app .r4-sub > b{font-size:16px;font-weight:500}
+div.r4-app .r4-sub > .r4-muted{margin-left:auto}
+div.r4-app .r4-wrap{flex:1;padding:12px}
+/* zoom + person switch */
+div.r4-app .r4-zoom{display:flex;gap:2px;padding:3px;margin-bottom:8px;border-radius:18px;background:#e8eaed}
+div.r4-app .r4-z{flex:1;border:0;border-radius:15px;padding:7px 4px;font-size:13px;text-align:center;background:transparent;color:#3c4043}
+div.r4-app .r4-z.r4-on{background:#fff;color:#01579b;font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+div.r4-app .r4-z > span{display:none}
+div.r4-app .r4-who{display:flex;justify-content:center;align-items:center;gap:7px;margin:0 0 10px;font-size:12px;color:#6b6f76}
+div.r4-app .r4-wl{border:0;background:transparent;padding:2px 4px;font-size:12px;color:#5f6368}
+div.r4-app .r4-wl.r4-on{color:#01579b;font-weight:500}
+div.r4-app .r4-dot{width:8px;height:8px;padding:0;border:0;border-radius:50%;background:#c5ccd3}
+div.r4-app .r4-dot.r4-on{width:20px;border-radius:4px;background:#03a9f4}
+/* cards and rows */
+div.r4-app .r4-card{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+div.r4-app .r4-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;font-size:13px;font-weight:500;color:#3c4043}
+div.r4-app .r4-muted{font-size:12px;color:#6b6f76}
+div.r4-app .r4-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;font-size:13px}
+div.r4-app .r4-row + .r4-row{border-top:1px solid #eceef1}
+div.r4-app .r4-more{display:block;width:100%;margin-top:4px;padding:6px 0 0;border:0;border-top:1px solid #eceef1;background:transparent;font-size:12.5px;text-align:left;color:#0277bd}
+div.r4-app .r4-pend{display:flex;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 10px;border-radius:8px;font-size:12px;background:#fafafa;border:1px dashed #d6dbe0;color:#8a6d00}
+div.r4-app .r4-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+div.r4-app .r4-btn{border:0;border-radius:16px;padding:7px 14px;font-size:13px;background:#03a9f4;color:#fff}
+div.r4-app .r4-btn.r4-ghost{background:transparent;color:#0277bd;border:1px solid #b3e0f7}
+div.r4-app .r4-tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;color:#fff;background:#0288d1;white-space:nowrap}
+div.r4-app .r4-tag.r4-ben{background:#00897b}
+div.r4-app .r4-tag.r4-anna{background:#7e57c2}
+div.r4-app .r4-tag.r4-own{background:#e0f2f1;color:#00695c}
+div.r4-app .r4-flag{display:inline-block;border-radius:8px;padding:0 7px;font-size:11px;background:#fff3e0;color:#8a5a00}
+div.r4-app .r4-ok{color:#2e7d32}
+div.r4-app .r4-warnc{color:#a15c00}
+/* verdict + tank with Soll-Linie */
+div.r4-app .r4-verdict{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-bottom:10px}
+div.r4-app .r4-badge{display:inline-flex;align-items:center;gap:6px;border-radius:16px;padding:5px 12px;font-size:15px;font-weight:500;background:#e8f5e9;color:#2e7d32}
+div.r4-app .r4-badge.r4-warn{background:#fff3e0;color:#8a5a00}
+div.r4-app .r4-verdict > span:last-child{font-size:12.5px;color:#5f6368}
+div.r4-app .r4-tank{position:relative;height:160px;border-radius:14px;background:#e3f2fd;overflow:hidden}
+div.r4-app .r4-tank.r4-sm{height:118px}
+div.r4-app .r4-tank > svg{position:absolute;left:0;top:0;width:100%;height:100%}
+div.r4-app .r4-tl{position:absolute;left:12px;top:9px;font-size:12px;color:#01579b}
+div.r4-app .r4-now{position:absolute;top:9px;transform:translateX(-50%);font-size:10.5px;color:#01579b}
+div.r4-app .r4-ta{position:absolute;left:12px;font-size:28px;font-weight:500;line-height:1.05;color:#01579b}
+div.r4-app .r4-ta > small{display:block;font-size:11px;font-weight:400;color:#3c6e91}
+div.r4-app .r4-mk{position:absolute;transform:translate(-100%,-50%);padding:1px 6px;border-radius:8px;font-size:10.5px;white-space:nowrap;background:rgba(255,255,255,.92);color:#01579b}
+div.r4-app .r4-mk.r4-lead{font-weight:600;color:#2e7d32}
+div.r4-app .r4-mk.r4-lag{font-weight:600;color:#a15c00}
+div.r4-app .r4-tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+div.r4-app .r4-tile{border-radius:10px;padding:8px 10px;background:#f1f9fe}
+div.r4-app .r4-tile > span{display:block;font-size:11.5px;color:#5f6368}
+div.r4-app .r4-tile > b{font-size:22px;font-weight:500;color:#01579b}
+div.r4-app .r4-tile > em{display:block;font-style:normal;font-size:11px;color:#6b6f76}
+div.r4-app .r4-legend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:6px;font-size:11px;color:#6b6f76}
+div.r4-app .r4-legend i{display:inline-block;width:14px;height:0;margin-right:4px;vertical-align:middle;border-top:2px dashed #01579b}
+div.r4-app .r4-legend i.r4-lw{height:9px;border:0;border-radius:2px;background:#4fc3f7}
+/* pots */
+div.r4-app .r4-pot{padding:8px 0}
+div.r4-app .r4-pot + .r4-pot{border-top:1px solid #eceef1}
+div.r4-app .r4-pot > div{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
+div.r4-app .r4-pot em{font-style:normal;font-size:12.5px;white-space:nowrap;color:#3c4043}
+div.r4-app .r4-pot em > b{font-weight:500;color:#01579b}
+div.r4-app .r4-pb{position:relative;display:block;height:6px;margin-top:5px;border-radius:3px;background:#e8eaed}
+div.r4-app .r4-pb > i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:#4fc3f7}
+div.r4-app .r4-pb.r4-low > i{background:#e8a33b}
+div.r4-app .r4-pb > b{position:absolute;top:-3px;bottom:-3px;width:2px;background:#01579b}
+div.r4-app .r4-goal{display:block;height:4px;margin-top:5px;border-radius:2px;background:#e8eaed;overflow:hidden}
+div.r4-app .r4-goal > i{display:block;height:100%;background:#00897b}
+div.r4-app .r4-potgrid{display:block}
+/* context hints */
+div.r4-app .r4-hint{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:8px 12px;border-radius:10px;font-size:12.5px;background:#fffbe6;border:1px solid #f3e2a9}
+div.r4-app .r4-hint > span{flex:1}
+div.r4-app .r4-hint > button{flex:none;border:0;border-radius:14px;padding:5px 11px;font-size:12px;background:#fff;color:#0277bd;border:1px solid #b3e0f7}
+div.r4-app .r4-know{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;padding:10px 12px;border-radius:12px;background:#fff;border-left:4px solid #7e57c2;box-shadow:0 1px 2px rgba(0,0,0,.08);font-size:12.5px}
+div.r4-app .r4-know > span{flex:1}
+div.r4-app .r4-know b{display:block;margin-bottom:2px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#5e35b1}
+div.r4-app .r4-stat{flex:none;border:1px solid #d1c4e9;border-radius:14px;padding:5px 10px;font-size:12px;background:#f6f2fc;color:#5e35b1}
+/* persons in Haushalt */
+div.r4-app .r4-ppl{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+div.r4-app .r4-pp{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;padding:8px 10px;border:1px solid #e3e6ea;border-radius:10px;background:#fff;text-align:left}
+div.r4-app .r4-mini{grid-row:1 / 3;position:relative;width:18px;height:38px;border-radius:5px;background:#e3f2fd;overflow:hidden}
+div.r4-app .r4-mini > i{position:absolute;left:0;right:0;bottom:0;background:#4fc3f7}
+div.r4-app .r4-pp b{font-size:15px;font-weight:500}
+div.r4-app .r4-pp em{font-style:normal;font-size:11px;color:#6b6f76}
+/* week strip */
+div.r4-app .r4-days7{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:10px}
+div.r4-app .r4-days7 > span{display:flex;flex-direction:column;align-items:center;gap:1px;padding:4px 0;border-radius:5px;font-size:10.5px;background:#e1f5fe;color:#01579b}
+div.r4-app .r4-days7 > span > b{font-weight:500;font-size:11px}
+div.r4-app .r4-days7 > span.r4-past{background:#b3e5fc}
+div.r4-app .r4-days7 > span.r4-today{background:#03a9f4;color:#fff}
+div.r4-app .r4-days7 > span.r4-nov{background:#fff;border:1px dashed #0288d1}
+div.r4-app .r4-due{display:inline-block;width:6px;height:6px;border-radius:50%;background:#e8a33b}
+div.r4-app .r4-note{margin-top:8px;padding:7px 10px;border-radius:8px;font-size:12px;background:#f1f9fe;color:#01579b}
+/* notification shade */
+div.r4-app .r4-shade{padding:12px 12px 6px;background:#263238;border-radius:0 0 18px 18px;color:#fff}
+div.r4-app .r4-shade > .r4-sh{display:flex;justify-content:space-between;align-items:center;margin:0 2px 10px;font-size:12px;color:#cfd8dc}
+div.r4-app .r4-shade > .r4-sh > button{border:0;background:transparent;font-size:18px;line-height:1;color:#fff}
+div.r4-app .r4-nc{margin-bottom:10px;padding:12px 14px;border-radius:14px;background:#fff;color:#1c1c1e}
+div.r4-app .r4-nc .r4-kick{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#a15c00}
+div.r4-app .r4-nc > b{display:block;margin:3px 0 2px;font-size:15px}
+div.r4-app .r4-shade > .r4-foot{margin:0 2px 6px;font-size:11.5px;color:#b0bec5}
+div.r4-app .r4-dim{opacity:.35;filter:grayscale(.6)}
+/* flash cards */
+div.r4-app .r4-prog{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+div.r4-app .r4-drops{display:flex;flex-wrap:wrap;gap:6px;padding:4px 2px}
+div.r4-app .r4-drops > i{width:13px;height:13px;border-radius:0 50% 50% 50%;transform:rotate(45deg);background:#4fc3f7}
+div.r4-app .r4-drops > i.r4-e{background:transparent;border:1.5px dashed #0288d1}
+div.r4-app .r4-stack{position:relative;padding-top:14px;margin:4px 0 12px}
+div.r4-app .r4-stack::before,div.r4-app .r4-stack::after{content:"";position:absolute;top:0;left:18px;right:18px;height:24px;border-radius:14px 14px 0 0;background:#d9dee4}
+div.r4-app .r4-stack::after{top:7px;left:9px;right:9px;background:#e9ecf0}
+div.r4-app .r4-fc{position:relative;z-index:1;padding:16px;border-radius:16px;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.12)}
+div.r4-app .r4-fc .r4-amt{font-size:30px;font-weight:500;line-height:1.1}
+div.r4-app .r4-fc .r4-q{margin:14px 0 6px;font-size:13px;font-weight:500;color:#3c4043}
+div.r4-app .r4-big{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+div.r4-app .r4-big > button{min-height:50px;border:1px solid #81d4fa;border-radius:12px;padding:6px;font-size:14px;background:#f1f9fe;color:#01579b}
+div.r4-app .r4-big > button.r4-sug{border:2px solid #03a9f4;background:#e1f5fe;font-weight:500}
+div.r4-app .r4-big > button > small{display:block;font-size:10.5px;font-weight:400;color:#0277bd}
+div.r4-app .r4-reach{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:#3c4043}
+div.r4-app .r4-reach > i{width:30px;height:18px;border-radius:9px;background:#03a9f4;position:relative}
+div.r4-app .r4-reach > i::after{content:"";position:absolute;right:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff}
+div.r4-app .r4-swipe{display:flex;justify-content:space-between;margin-top:12px;font-size:11.5px;color:#6b6f76}
+div.r4-app .r4-q3{display:flex;justify-content:space-between;gap:8px;padding:6px 0;font-size:12.5px}
+div.r4-app .r4-q3 + .r4-q3{border-top:1px solid #eceef1}
+/* celebration */
+div.r4-app .r4-party{position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;gap:6px;padding:36px 16px 24px;text-align:center}
+div.r4-app .r4-star{display:flex;align-items:center;justify-content:center;width:110px;height:110px;margin-bottom:14px;border-radius:50%;font-size:56px;color:#fff;background:radial-gradient(circle,#ffd54f 0 58%,#ffb300 59% 100%);box-shadow:0 0 0 12px rgba(255,193,7,.22),0 0 0 26px rgba(255,193,7,.1);animation:r4-pop 1.1s ease-out both}
+div.r4-app .r4-cf{position:absolute;width:8px;height:14px;border-radius:2px;animation:r4-fall 3.2s ease-in infinite}
+div.r4-app .r4-cf.r4-round{width:10px;height:10px;border-radius:50%}
+div.r4-app .r4-party > b{font-size:24px;font-weight:500}
+div.r4-app .r4-party .r4-btns{justify-content:center;margin-top:14px}
+@keyframes r4-pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1);opacity:1}}
+@keyframes r4-fall{0%{transform:translateY(-30px) rotate(0deg);opacity:0}12%{opacity:1}100%{transform:translateY(300px) rotate(340deg);opacity:0}}
+@media (prefers-reduced-motion: reduce){div.r4-app .r4-star,div.r4-app .r4-cf{animation:none}}
+/* Datenstand */
+div.r4-app .r4-hero{display:flex;align-items:center;gap:12px}
+div.r4-app .r4-hero > i{flex:none;display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;font-style:normal;font-size:22px;background:#e8f5e9;color:#2e7d32}
+div.r4-app .r4-hero b{display:block;font-size:17px;font-weight:500}
+div.r4-app .r4-bank{padding:8px 0;font-size:12.5px}
+div.r4-app .r4-bank + .r4-bank{border-top:1px solid #eceef1}
+div.r4-app .r4-bank > div{display:flex;justify-content:space-between;gap:8px}
+div.r4-app .r4-quota{display:inline-flex;gap:3px;vertical-align:middle}
+div.r4-app .r4-quota > i{width:9px;height:9px;border-radius:2px;background:#e1e5ea}
+div.r4-app .r4-quota > i.r4-used{background:#0288d1}
+div.r4-app .r4-days{display:grid;grid-template-columns:repeat(14,1fr);gap:3px}
+div.r4-app .r4-days > span{display:flex;align-items:center;justify-content:center;height:22px;border-radius:4px;font-size:9px;background:#c8e6c9;color:#2e7d32}
+div.r4-app .r4-days > span.r4-late{background:#ffe0b2;color:#8a5a00}
+div.r4-app .r4-lg{display:grid;grid-template-columns:62px 1fr auto;gap:2px 10px;padding:7px 0;font-size:12px}
+div.r4-app .r4-lg + .r4-lg{border-top:1px solid #eceef1}
+div.r4-app .r4-lg > span:first-child{color:#6b6f76}
+div.r4-app .r4-lg > em{grid-column:2 / 4;font-style:normal;color:#6b6f76}
+div.r4-app .r4-kind{display:inline-block;padding:0 6px;border-radius:6px;font-size:10.5px;background:#e1f5fe;color:#01579b}
+div.r4-app .r4-kind.r4-proc{background:#ede7f6;color:#5e35b1}
+div.r4-app .r4-eq{padding:8px 10px;border-radius:8px;font-size:12px;background:#f1f8e9;color:#33691e}
+div.r4-app .r4-vm{display:grid;grid-template-columns:64px repeat(3,minmax(0,1fr));gap:4px;align-items:center;padding:6px 0;font-size:12px;text-align:center}
+div.r4-app .r4-vm > span:first-child{text-align:left}
+div.r4-app .r4-vm + .r4-vm{border-top:1px solid #eceef1}
+div.r4-app .r4-vm.r4-vh{padding-top:0;font-size:10.5px;color:#6b6f76}
+div.r4-app .r4-vm .r4-bad{border-radius:6px;padding:1px 4px;background:#fff3e0;color:#8a5a00}
+div.r4-app .r4-score{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+div.r4-app .r4-score > b{font-size:20px;font-weight:500}
+/* desktop rail */
+div.r4-app .r4-dsk{display:none}
+div.r4-app .r4-mobnote{margin-top:6px;font-size:11.5px;color:#6b6f76}
+div.r4-app .r4-center{max-width:560px;margin:0 auto}
+@container r4w (min-width: 760px){
+  div.r4-app .r4-top{padding:10px 20px}
+  div.r4-app .r4-sub{padding:10px 20px}
+  div.r4-app .r4-wrap{padding:16px 20px}
+  div.r4-app .r4-zoom{gap:0;padding:0;margin-bottom:12px;border-radius:0;background:transparent;border-bottom:2px solid #d6dbe0}
+  div.r4-app .r4-z{border-radius:0;padding:8px 12px 10px;margin-bottom:-2px;text-align:left;border-bottom:3px solid transparent}
+  div.r4-app .r4-z.r4-on{background:#e1f5fe;box-shadow:none;border-bottom-color:#03a9f4}
+  div.r4-app .r4-z > span{display:block;margin-top:2px;font-size:11px;font-weight:400;color:#6b6f76}
+  div.r4-app .r4-who{display:inline-flex;gap:2px;padding:3px;margin-bottom:14px;border-radius:16px;background:#e8eaed}
+  div.r4-app .r4-who > .r4-dot,div.r4-app .r4-who > .r4-sw{display:none}
+  div.r4-app .r4-wl{padding:5px 16px;border-radius:13px}
+  div.r4-app .r4-wl.r4-on{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+  div.r4-app .r4-split{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:16px;align-items:start}
+  div.r4-app .r4-tank{height:220px}
+  div.r4-app .r4-tank.r4-sm{height:150px}
+  div.r4-app .r4-ta{font-size:34px}
+  div.r4-app .r4-potgrid{display:grid;grid-template-columns:1fr 1fr;column-gap:20px}
+  div.r4-app .r4-potgrid > .r4-pot + .r4-pot{border-top:0}
+  div.r4-app .r4-potgrid > .r4-pot:nth-child(n+3){border-top:1px solid #eceef1}
+  div.r4-app .r4-shade{max-width:600px;margin:0 auto;border-radius:0 0 18px 18px}
+  div.r4-app .r4-dsk{display:block}
+  div.r4-app .r4-mobnote{display:none}
+}
+</style>
+<header class="iteration-intro">
+  <h2>{{iteration.tab}} 4 · Durchstich Startseite</h2>
+  <p>Ab jetzt gehen wir Schritt für Schritt: Diese Runde zeigt nur die Startseite und was direkt an ihr hängt, Handy zuerst. Basis ist dein Favorit „Zoom durch die Zeit“ (Heute · Woche · Monat · Jahr, „Zyklus“ heißt jetzt Monat). Der Budget-Tank hat jetzt eine Soll-Linie: Sie zeigt, wo du bei gleichmäßigem Ausgeben heute stehen würdest. Mit dem Geräte-Umschalter siehst du jeden Screen als Handy, Desktop und Tablet.</p>
+  <p>In der Ansicht „Startseite: was wohin?“ legst du je Gerät fest, was sofort sichtbar ist, was nur bei Bedarf erscheint, was per Umschalten kommt und was hinter einem Icon liegt. Danach verfeinern wir jedes Element einzeln und gründlich.</p>
+  <p>Notiert, kommt in den nächsten Runden: Schulden-, Einkommens- und Saldo-Ansicht als geführter Check-up am Desktop (Statistik und Verbesserungsideen direkt in der jeweiligen Ansicht, mit sichtbarem Handlungsbedarf), Verträge, Statistik, die ausführliche Monatsanalyse (nur Desktop) und die Zoomstufen Monat und Jahr im Detail. Alle Zahlen sind erfunden.</p>
+</header>
+
+<!-- ============ r4home · Startseite ============ -->
+<section data-design="r4home" data-nav-label="Startseite" data-design-active="true">
+
+  <!-- s1 · Heute · Person -->
+  <section id="r4-s1" data-nav-label="Heute · Ben (Handy)" data-screen data-screen-active="true">
+    <div class="r4-app">
+      <div class="r4-top"><button class="r4-fresh" data-screen-link="r4-s7"><i></i>aktuell</button><button class="r4-pill" data-screen-link="r4-s4"><i></i>2 Eilmeldungen</button><button class="r4-ask" data-screen-link="r4-s5" aria-label="3 Fragen an dich, 14 von 15 bis zum Punkt"><span>★</span><b>3</b></button></div>
+      <div class="r4-wrap">
+        <div class="r4-zoom"><button class="r4-z r4-on">Heute<span>Mi 28.10.</span></button><button class="r4-z" data-screen-link="r4-s3">Woche<span>KW 44 · 26.10.–01.11.</span></button><button class="r4-z">Monat<span>Oktober · noch 4 Tage</span></button><button class="r4-z">Jahr<span>Kalenderjahr 2026</span></button></div>
+        <div class="r4-who"><span class="r4-sw">‹</span><button class="r4-wl r4-on">Ben</button><button class="r4-dot r4-on" aria-label="Ben"></button><button class="r4-dot" data-screen-link="r4-s2" aria-label="Haushalt"></button><button class="r4-wl" data-screen-link="r4-s2">Haushalt</button><span class="r4-sw">›</span></div>
+        <div class="r4-split">
+          <div>
+            <div class="r4-card">
+              <div class="r4-verdict"><span class="r4-badge">✓ Im Plan</span><span>75 € vor der Soll-Linie · Oktober noch 4 Tage</span></div>
+              <div class="r4-tank">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="72" width="100" height="28" fill="#4fc3f7"/><rect x="87" y="0" width="13" height="100" fill="#ffffff" fill-opacity=".28"/><line x1="87" y1="0" x2="87" y2="100" stroke="#ffffff" stroke-width="1.5" vector-effect="non-scaling-stroke"/><line x1="0" y1="0" x2="100" y2="100" stroke="#01579b" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><line x1="87" y1="72" x2="87" y2="87" stroke="#2e7d32" stroke-width="5" vector-effect="non-scaling-stroke"/></svg>
+                <span class="r4-tl">Oktober · dein Spielraum</span>
+                <span class="r4-now" style="left:87%">heute</span>
+                <span class="r4-ta" style="bottom:31%">140 €<small>noch frei bis 31.10.</small></span>
+                <span class="r4-mk r4-lead" style="left:85%;top:62%">+75 € Vorsprung</span>
+                <span class="r4-mk" style="left:85%;top:88%">Soll-Linie heute 65 €</span>
+              </div>
+              <div class="r4-legend"><span><i></i>Soll-Linie: gleichmäßig ausgeben</span><span><i class="r4-lw"></i>Wasser: noch frei</span></div>
+              <div class="r4-tiles"><div class="r4-tile"><span>Heute frei</span><b>35 €</b></div><div class="r4-tile"><span>Bis So 01.11. frei</span><b>156 €</b></div></div>
+            </div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Deine Töpfe</span><span class="r4-muted">heute · bis So</span></div>
+              <div class="r4-potgrid">
+                <div class="r4-pot"><div><span>Mobilität</span><em><b>25 €</b> · 107 €</em></div><span class="r4-pb"><i style="width:45%"></i><b style="left:13%"></b></span></div>
+                <div class="r4-pot"><div><span>Freizeit <span class="r4-flag">hinter Soll</span></span><em><b>3 €</b> · 17 €</em></div><span class="r4-pb r4-low"><i style="width:8%"></i><b style="left:13%"></b></span></div>
+                <div class="r4-pot"><div><span>Persönliches</span><em><b>7 €</b> · 32 €</em></div><span class="r4-pb"><i style="width:23%"></i><b style="left:13%"></b></span></div>
+                <div class="r4-pot"><div><span>Neues Fahrrad <span class="r4-tag r4-own">persönlich · Giro Ben</span></span><em>340 / 600 €</em></div><span class="r4-goal"><i style="width:57%"></i></span></div>
+              </div>
+              <div class="r4-legend"><span>Balken = noch frei im Monat, Strich = Soll-Linie heute</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="r4-hint"><span>3 Buchungen (132,92 €) sind noch unkategorisiert. Sie zählen im Tank schon mit.</span><button data-screen-link="r4-s5">Beantworten</button></div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Als Nächstes</span><span class="r4-muted">Girokonto Ben</span></div>
+              <div class="r4-row"><span>Fr 30.10. · Fitness</span><span>36,00 €</span></div>
+              <div class="r4-row"><span>So 01.11. · Netflix</span><span>17,99 €</span></div>
+              <div class="r4-row"><span>So 01.11. · Dauerauftrag Gemeinschaftskonto</span><span>950,00 €</span></div>
+              <button class="r4-more">mehr anzeigen (2)</button>
+              <div class="r4-pend"><span>vorgemerkt · Aral</span><span>52,40 €</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r4-s1-a1" data-anno-side="right" data-anno-target=".r4-tank" style="--anno-x:60%;--anno-y:35%">
+        <button class="anno-pin" type="button" data-anno-pin="r4-s1-a1" aria-expanded="false" aria-controls="anno-bubble-r4-s1-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r4-s1-a1" data-anno-bubble="r4-s1-a1" data-open="false">
+          <p class="anno-bubble-improved"><strong>{{design.change_improved}}</strong> Tank zeigt jetzt den Zeitaspekt</p>
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r4-s1-a1" aria-expanded="false" aria-controls="anno-bubble-r4-s1-a1"><span class="anno-bubble-question">Die gestrichelte Diagonale ist die Soll-Linie: So voll wäre der Tank heute bei gleichmäßigem Ausgeben. Steht das Wasser darüber, bist du vorne (grüner Abstand). Ohne Erklärung lesbar?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r4-s1-a1" data-annotation="r4-s1-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r4-s1-a1"></div></div>
+        </div>
+      </div>
+      <div class="anno" data-anno="r4-s1-a2" data-anno-side="bottom" data-anno-target=".r4-pill" style="--anno-x:50%;--anno-y:6%">
+        <button class="anno-pin" type="button" data-anno-pin="r4-s1-a2" aria-expanded="false" aria-controls="anno-bubble-r4-s1-a2" aria-label="Anmerkung 2">2</button>
+        <div class="anno-bubble" id="anno-bubble-r4-s1-a2" data-anno-bubble="r4-s1-a2" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r4-s1-a2" aria-expanded="false" aria-controls="anno-bubble-r4-s1-a2"><span class="anno-bubble-question">Eilmeldung als Pill oben in der Mitte, wie eine Android-Benachrichtigung. Ein Tipp öffnet die Meldungen zum Abarbeiten. Passt das?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r4-s1-a2" data-annotation="r4-s1-a2" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r4-s1-a2"></div></div>
+        </div>
+      </div>
+      <div class="anno" data-anno="r4-s1-a3" data-anno-side="bottom" data-anno-target=".r4-who" style="--anno-x:50%;--anno-y:18%">
+        <button class="anno-pin" type="button" data-anno-pin="r4-s1-a3" aria-expanded="false" aria-controls="anno-bubble-r4-s1-a3" aria-label="Anmerkung 3">3</button>
+        <div class="anno-bubble" id="anno-bubble-r4-s1-a3" data-anno-bubble="r4-s1-a3" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r4-s1-a3" aria-expanded="false" aria-controls="anno-bubble-r4-s1-a3"><span class="anno-bubble-question">Wischen links/rechts wechselt jetzt zwischen dir und dem Haushalt. Die Zeitstufe wechselst du nur noch per Tipp oben (in Runde 3 war Wischen die Zeitstufe). So richtig?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r4-s1-a3" data-annotation="r4-s1-a3" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r4-s1-a3"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- s2 · Heute · Haushalt -->
+  <section id="r4-s2" data-nav-label="Heute · Haushalt (gewischt)" data-screen hidden>
+    <div class="r4-app">
+      <div class="r4-top"><button class="r4-fresh" data-screen-link="r4-s7"><i></i>aktuell</button><button class="r4-pill" data-screen-link="r4-s4"><i></i>2 Eilmeldungen</button><button class="r4-ask" data-screen-link="r4-s5" aria-label="3 Fragen an dich"><span>★</span><b>3</b></button></div>
+      <div class="r4-wrap">
+        <div class="r4-zoom"><button class="r4-z r4-on">Heute<span>Mi 28.10.</span></button><button class="r4-z" data-screen-link="r4-s3">Woche<span>KW 44 · 26.10.–01.11.</span></button><button class="r4-z">Monat<span>Oktober · noch 4 Tage</span></button><button class="r4-z">Jahr<span>Kalenderjahr 2026</span></button></div>
+        <div class="r4-who"><span class="r4-sw">‹</span><button class="r4-wl" data-screen-link="r4-s1">Ben</button><button class="r4-dot" data-screen-link="r4-s1" aria-label="Ben"></button><button class="r4-dot r4-on" aria-label="Haushalt"></button><button class="r4-wl r4-on">Haushalt</button><span class="r4-sw">›</span></div>
+        <div class="r4-split">
+          <div>
+            <div class="r4-card">
+              <div class="r4-verdict"><span class="r4-badge">✓ Im Plan, knapp</span><span>30 € vor der Soll-Linie · gemeinsame Töpfe</span></div>
+              <div class="r4-tank">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="84" width="100" height="16" fill="#4fc3f7"/><rect x="87" y="0" width="13" height="100" fill="#ffffff" fill-opacity=".28"/><line x1="87" y1="0" x2="87" y2="100" stroke="#ffffff" stroke-width="1.5" vector-effect="non-scaling-stroke"/><line x1="0" y1="0" x2="100" y2="100" stroke="#01579b" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><line x1="87" y1="84" x2="87" y2="87.5" stroke="#2e7d32" stroke-width="5" vector-effect="non-scaling-stroke"/></svg>
+                <span class="r4-tl">Oktober · Haushalt</span>
+                <span class="r4-now" style="left:87%">heute</span>
+                <span class="r4-ta" style="bottom:20%">142 €<small>gemeinsam frei bis 31.10.</small></span>
+                <span class="r4-mk r4-lead" style="left:85%;top:72%">+30 € Vorsprung</span>
+              </div>
+              <div class="r4-tiles"><div class="r4-tile"><span>Heute frei</span><b>35 €</b></div><div class="r4-tile"><span>Bis So 01.11. frei</span><b>171 €</b></div></div>
+              <div class="r4-ppl">
+                <button class="r4-pp" data-screen-link="r4-s1"><span class="r4-mini"><i style="height:28%"></i></span><b>Ben · 140 €</b><em>✓ im Plan</em></button>
+                <div class="r4-pp"><span class="r4-mini"><i style="height:35%"></i></span><b>Anna · 210 €</b><em>✓ im Plan · nur Summe</em></div>
+              </div>
+            </div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Gemeinsame Töpfe</span><span class="r4-muted">heute · bis So</span></div>
+              <div class="r4-potgrid">
+                <div class="r4-pot"><div><span>Lebensmittel <span class="r4-flag">hinter Soll</span></span><em><b>13 €</b> · 72 €</em></div><span class="r4-pb r4-low"><i style="width:9%"></i><b style="left:13%"></b></span></div>
+                <div class="r4-pot"><div><span>Drogerie &amp; Haushalt</span><em><b>9 €</b> · 40 €</em></div><span class="r4-pb"><i style="width:30%"></i><b style="left:13%"></b></span></div>
+                <div class="r4-pot"><div><span>Ausgehen</span><em><b>13 €</b> · 59 €</em></div><span class="r4-pb"><i style="width:36%"></i><b style="left:13%"></b></span></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="r4-know"><span><b>Wusstest du schon?</b>Lebensmittel liegen seit 3 Monaten über eurem Plan (Ø 655 € statt 600 €) und 11 % über dem Median ähnlicher Haushalte (590 €, Destatis EVS 2023).</span><button class="r4-stat">▥ Statistik</button></div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Rücklagen</span><span class="r4-muted">Tagesgeld gemeinsam</span></div>
+              <div class="r4-pot"><div><span>🛡 Notgroschen</span><em>1.800 / 3.000 €</em></div><span class="r4-goal"><i style="width:60%"></i></span><div class="r4-muted">seit 4 Monaten unangetastet · +77 €/Monat</div></div>
+              <div class="r4-pot"><div><span>Urlaub</span><em>1.240 / 2.000 €</em></div><span class="r4-goal"><i style="width:62%"></i></span><div class="r4-muted">bis 06/2027 · im Plan</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- s3 · Woche -->
+  <section id="r4-s3" data-nav-label="Woche · Ben" data-screen hidden>
+    <div class="r4-app">
+      <div class="r4-top"><button class="r4-fresh" data-screen-link="r4-s7"><i></i>aktuell</button><button class="r4-pill" data-screen-link="r4-s4"><i></i>2 Eilmeldungen</button><button class="r4-ask" data-screen-link="r4-s5" aria-label="3 Fragen an dich"><span>★</span><b>3</b></button></div>
+      <div class="r4-wrap">
+        <div class="r4-zoom"><button class="r4-z" data-screen-link="r4-s1">Heute<span>Mi 28.10.</span></button><button class="r4-z r4-on">Woche<span>KW 44 · 26.10.–01.11.</span></button><button class="r4-z">Monat<span>Oktober · noch 4 Tage</span></button><button class="r4-z">Jahr<span>Kalenderjahr 2026</span></button></div>
+        <div class="r4-who"><span class="r4-sw">‹</span><button class="r4-wl r4-on">Ben</button><button class="r4-dot r4-on" aria-label="Ben"></button><button class="r4-dot" data-screen-link="r4-s2" aria-label="Haushalt"></button><button class="r4-wl" data-screen-link="r4-s2">Haushalt</button><span class="r4-sw">›</span></div>
+        <div class="r4-split">
+          <div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Wie stehe ich in der Woche?</span></div>
+              <div class="r4-verdict"><span class="r4-badge r4-warn">≈ Knapp über Soll</span><span>4 € über dem Wochen-Soll, der Monats-Vorsprung deckt das</span></div>
+              <div class="r4-tank r4-sm">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="32" width="100" height="68" fill="#4fc3f7"/><rect x="85.7" y="0" width="14.3" height="100" fill="#ffffff" fill-opacity=".35"/><line x1="28.6" y1="0" x2="28.6" y2="100" stroke="#ffffff" stroke-width="1.5" vector-effect="non-scaling-stroke"/><line x1="0" y1="0" x2="100" y2="100" stroke="#01579b" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><line x1="28.6" y1="28.6" x2="28.6" y2="32" stroke="#e8a33b" stroke-width="5" vector-effect="non-scaling-stroke"/></svg>
+                <span class="r4-tl">KW 44 · Wochenbudget 114 €</span>
+                <span class="r4-now" style="left:28.6%;top:auto;bottom:6px;color:#fff">heute</span>
+                <span class="r4-mk r4-lag" style="left:27%;top:30%">−4 €</span>
+                <span class="r4-ta" style="left:auto;right:16%;bottom:8%;color:#fff">78 €<small style="color:#e1f5fe">Wochen-Soll übrig</small></span>
+              </div>
+              <div class="r4-days7"><span class="r4-past">Mo<b>21 €</b></span><span class="r4-past">Di<b>15 €</b></span><span class="r4-today">Mi<b>heute</b></span><span>Do<b>–</b></span><span>Fr<b><i class="r4-due"></i></b></span><span>Sa<b>–</b></span><span class="r4-nov">So<b>Nov</b></span></div>
+              <div class="r4-note">Die KW 44 reicht in den November: Mo–Sa zählen zum Oktober, So 01.11. schon zum November-Budget, anteilig nach Tagen.</div>
+              <div class="r4-tiles"><div class="r4-tile"><span>Bis So frei</span><b>156 €</b><em>81 € Wochen-Soll + 75 € Vorsprung</em></div><div class="r4-tile"><span>Diese Woche ausgegeben</span><b>36 €</b><em>Soll bis heute 32 €</em></div></div>
+            </div>
+          </div>
+          <div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Was kommt auf mich zu?</span><span class="r4-muted">bis So 01.11.</span></div>
+              <div class="r4-row"><span>Fr 30.10. · Fitness<br><span class="r4-muted">Vertrag · im Plan</span></span><span>36,00 €</span></div>
+              <div class="r4-row"><span>So 01.11. · Dauerauftrag Gemeinschaftskonto<br><span class="r4-muted">Anteil Miete &amp; Fixkosten · gedeckt ✓</span></span><span>950,00 €</span></div>
+              <div class="r4-row"><span>So 01.11. · Netflix<br><span class="r4-muted">Abo · im Plan</span></span><span>17,99 €</span></div>
+              <button class="r4-more">mehr anzeigen (1)</button>
+              <div class="r4-pend"><span>vorgemerkt, noch nicht gebucht · Aral</span><span>52,40 €</span></div>
+              <div class="r4-muted" style="margin-top:8px">Fixkosten stehen im Plan, nicht im Tank. Der Tank zeigt nur das frei Verfügbare.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r4-s3-a1" data-anno-side="top" data-anno-target=".r4-note" style="--anno-x:50%;--anno-y:62%">
+        <button class="anno-pin" type="button" data-anno-pin="r4-s3-a1" aria-expanded="false" aria-controls="anno-bubble-r4-s3-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r4-s3-a1" data-anno-bubble="r4-s3-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r4-s3-a1" aria-expanded="false" aria-controls="anno-bubble-r4-s3-a1"><span class="anno-bubble-question">Die Woche zeigt dein Tempo (Wochen-Soll), „Bis So frei“ rechnet den Vorsprung aus dem Monat dazu. Zwei Zahlen verständlich, oder nur eine zeigen?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r4-s3-a1" data-annotation="r4-s3-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r4-s3-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- s4 · Eilmeldungen geöffnet -->
+  <section id="r4-s4" data-nav-label="Eilmeldungen geöffnet" data-screen hidden>
+    <div class="r4-app">
+      <div class="r4-shade">
+        <div class="r4-sh"><span>Eilmeldungen · nur für dich</span><button data-screen-link="r4-s1" aria-label="Schließen">×</button></div>
+        <div class="r4-nc"><span class="r4-kick">Ungewöhnliche Abbuchung</span><b>Netflix doppelt abgebucht</b><span class="r4-muted">17,99 € gingen am 26.10. zweimal von deinem Girokonto ab.</span>
+          <div class="r4-btns"><button class="r4-btn" data-screen-link="r4-s4b">Ist in Ordnung</button><button class="r4-btn r4-ghost">Prüfen</button></div></div>
+        <div class="r4-nc"><span class="r4-kick">Bankzugang</span><b>DKB-Zugang läuft in 7 Tagen ab</b><span class="r4-muted">Danach holt Finance keine neuen Buchungen von Annas Girokonto und dem Tagesgeld. Erneuern dauert etwa eine Minute.</span>
+          <div class="r4-btns"><button class="r4-btn" data-screen-link="r4-s4b">Jetzt erneuern</button><button class="r4-btn r4-ghost" data-screen-link="r4-s4b">Später</button></div></div>
+        <div class="r4-foot">Erledigte Meldungen verschwinden. Nach der letzten schließt sich die Ansicht und die Pill ist weg.</div>
+      </div>
+      <div class="r4-wrap r4-dim">
+        <div class="r4-zoom"><button class="r4-z r4-on">Heute<span>Mi 28.10.</span></button><button class="r4-z">Woche<span>KW 44</span></button><button class="r4-z">Monat<span>Oktober</span></button><button class="r4-z">Jahr<span>2026</span></button></div>
+        <div class="r4-card">
+          <div class="r4-verdict"><span class="r4-badge">✓ Im Plan</span><span>75 € vor der Soll-Linie</span></div>
+          <div class="r4-tiles"><div class="r4-tile"><span>Heute frei</span><b>35 €</b></div><div class="r4-tile"><span>Bis So 01.11. frei</span><b>156 €</b></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- s4b · Heute ohne Eilmeldung -->
+  <section id="r4-s4b" data-nav-label="Heute · Meldungen erledigt" data-screen hidden>
+    <div class="r4-app">
+      <div class="r4-top"><button class="r4-fresh" data-screen-link="r4-s7"><i></i>aktuell</button><span class="r4-title">Finance</span><button class="r4-ask" data-screen-link="r4-s5" aria-label="3 Fragen an dich"><span>★</span><b>3</b></button></div>
+      <div class="r4-wrap">
+        <div class="r4-zoom"><button class="r4-z r4-on">Heute<span>Mi 28.10.</span></button><button class="r4-z" data-screen-link="r4-s3">Woche<span>KW 44 · 26.10.–01.11.</span></button><button class="r4-z">Monat<span>Oktober · noch 4 Tage</span></button><button class="r4-z">Jahr<span>Kalenderjahr 2026</span></button></div>
+        <div class="r4-who"><span class="r4-sw">‹</span><button class="r4-wl r4-on">Ben</button><button class="r4-dot r4-on" aria-label="Ben"></button><button class="r4-dot" data-screen-link="r4-s2" aria-label="Haushalt"></button><button class="r4-wl" data-screen-link="r4-s2">Haushalt</button><span class="r4-sw">›</span></div>
+        <div class="r4-split">
+          <div>
+            <div class="r4-card">
+              <div class="r4-verdict"><span class="r4-badge">✓ Im Plan</span><span>75 € vor der Soll-Linie · Oktober noch 4 Tage</span></div>
+              <div class="r4-tank">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="72" width="100" height="28" fill="#4fc3f7"/><rect x="87" y="0" width="13" height="100" fill="#ffffff" fill-opacity=".28"/><line x1="87" y1="0" x2="87" y2="100" stroke="#ffffff" stroke-width="1.5" vector-effect="non-scaling-stroke"/><line x1="0" y1="0" x2="100" y2="100" stroke="#01579b" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><line x1="87" y1="72" x2="87" y2="87" stroke="#2e7d32" stroke-width="5" vector-effect="non-scaling-stroke"/></svg>
+                <span class="r4-tl">Oktober · dein Spielraum</span>
+                <span class="r4-now" style="left:87%">heute</span>
+                <span class="r4-ta" style="bottom:31%">140 €<small>noch frei bis 31.10.</small></span>
+                <span class="r4-mk r4-lead" style="left:85%;top:62%">+75 € Vorsprung</span>
+                <span class="r4-mk" style="left:85%;top:88%">Soll-Linie heute 65 €</span>
+              </div>
+              <div class="r4-tiles"><div class="r4-tile"><span>Heute frei</span><b>35 €</b></div><div class="r4-tile"><span>Bis So 01.11. frei</span><b>156 €</b></div></div>
+            </div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Deine Töpfe</span><span class="r4-muted">heute · bis So</span></div>
+              <div class="r4-potgrid">
+                <div class="r4-pot"><div><span>Mobilität</span><em><b>25 €</b> · 107 €</em></div><span class="r4-pb"><i style="width:45%"></i><b style="left:13%"></b></span></div>
+                <div class="r4-pot"><div><span>Freizeit <span class="r4-flag">hinter Soll</span></span><em><b>3 €</b> · 17 €</em></div><span class="r4-pb r4-low"><i style="width:8%"></i><b style="left:13%"></b></span></div>
+                <div class="r4-pot"><div><span>Persönliches</span><em><b>7 €</b> · 32 €</em></div><span class="r4-pb"><i style="width:23%"></i><b style="left:13%"></b></span></div>
+                <div class="r4-pot"><div><span>Neues Fahrrad <span class="r4-tag r4-own">persönlich · Giro Ben</span></span><em>340 / 600 €</em></div><span class="r4-goal"><i style="width:57%"></i></span></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="r4-hint"><span>3 Buchungen (132,92 €) sind noch unkategorisiert. Sie zählen im Tank schon mit.</span><button data-screen-link="r4-s5">Beantworten</button></div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Als Nächstes</span><span class="r4-muted">Girokonto Ben</span></div>
+              <div class="r4-row"><span>Fr 30.10. · Fitness</span><span>36,00 €</span></div>
+              <div class="r4-row"><span>So 01.11. · Netflix</span><span>17,99 €</span></div>
+              <div class="r4-row"><span>So 01.11. · Dauerauftrag Gemeinschaftskonto</span><span>950,00 €</span></div>
+              <button class="r4-more">mehr anzeigen (2)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- s5 · Fragen als Karteikarten -->
+  <section id="r4-s5" data-nav-label="Fragen · Karteikarten" data-screen hidden>
+    <div class="r4-app">
+      <div class="r4-sub"><button class="r4-back" data-screen-link="r4-s1">‹ Startseite</button><b>Fragen an dich</b><span class="r4-muted">Karte 1 von 3</span></div>
+      <div class="r4-wrap">
+        <div class="r4-split">
+          <div class="r4-center">
+            <div class="r4-card">
+              <div class="r4-prog"><div class="r4-drops" aria-label="14 von 15 Tropfen"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="r4-e"></i></div><span class="r4-muted"><b style="color:#01579b">14 / 15</b> Buchungen bis zum nächsten Punkt · noch 1 Tropfen</span></div>
+            </div>
+            <div class="r4-stack">
+              <div class="r4-fc">
+                <div class="r4-muted">Mi 28.10. · Girokonto Ben · Lastschrift</div>
+                <div class="r4-amt">REWE · 64,12 €</div>
+                <div class="r4-q">Kategorie?</div>
+                <div class="r4-big"><button class="r4-sug" data-screen-link="r4-s6">Lebensmittel<small>Vorschlag</small></button><button data-screen-link="r4-s6">Drogerie &amp; Haushalt</button><button data-screen-link="r4-s6">Ausgehen</button><button>Andere …</button></div>
+                <div class="r4-q">Für wen?</div>
+                <div class="r4-big"><button data-screen-link="r4-s6">Nur ich</button><button class="r4-sug" data-screen-link="r4-s6">Für uns<small>Vorschlag</small></button></div>
+                <div class="r4-reach"><i></i><span>Künftig alle REWE-Buchungen so einordnen</span></div>
+                <div class="r4-swipe"><span>‹ überspringen</span><span>wischen für die nächste Karte</span><span>später ›</span></div>
+              </div>
+            </div>
+            <div class="r4-muted" style="text-align:center">Bis du antwortest, steht die Buchung als „unkategorisiert“ auf der Startseite.</div>
+          </div>
+          <div>
+            <div class="r4-card r4-dsk">
+              <div class="r4-h"><span>Diese Woche offen</span><span class="r4-muted">höchstens 10, größter Betrag zuerst</span></div>
+              <div class="r4-q3"><span>REWE · Mi 28.10.</span><span>64,12 €</span></div>
+              <div class="r4-q3"><span>Etsy · Di 27.10.</span><span>38,00 €</span></div>
+              <div class="r4-q3"><span>dm · Mo 26.10.</span><span>30,80 €</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r4-s5-a1" data-anno-side="bottom" data-anno-target=".r4-drops" style="--anno-x:40%;--anno-y:14%">
+        <button class="anno-pin" type="button" data-anno-pin="r4-s5-a1" aria-expanded="false" aria-controls="anno-bubble-r4-s5-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r4-s5-a1" data-anno-bubble="r4-s5-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r4-s5-a1" aria-expanded="false" aria-controls="anno-bubble-r4-s5-a1"><span class="anno-bubble-question">Der Zähler füllt Tropfen, passend zur Tank-Sprache: 15 Buchungen = 1 Punkt. Thematisch so, oder lieber neutral (z. B. ein Balken 14 / 15)?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r4-s5-a1" data-annotation="r4-s5-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r4-s5-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- s6 · Punkt erreicht -->
+  <section id="r4-s6" data-nav-label="Punkt erreicht" data-screen hidden>
+    <div class="r4-app">
+      <div class="r4-sub"><button class="r4-back" data-screen-link="r4-s1">‹ Startseite</button><b>Fragen an dich</b><span class="r4-muted">noch 2 offen</span></div>
+      <div class="r4-wrap">
+        <div class="r4-party">
+          <span class="r4-cf" style="left:8%;top:0;background:#4fc3f7"></span>
+          <span class="r4-cf r4-round" style="left:18%;top:0;background:#ffca28;animation-delay:.6s"></span>
+          <span class="r4-cf" style="left:29%;top:0;background:#7e57c2;animation-delay:1.3s"></span>
+          <span class="r4-cf r4-round" style="left:41%;top:0;background:#00897b;animation-delay:.3s"></span>
+          <span class="r4-cf" style="left:57%;top:0;background:#e8a33b;animation-delay:1.8s"></span>
+          <span class="r4-cf r4-round" style="left:68%;top:0;background:#03a9f4;animation-delay:.9s"></span>
+          <span class="r4-cf" style="left:79%;top:0;background:#ffca28;animation-delay:2.2s"></span>
+          <span class="r4-cf r4-round" style="left:90%;top:0;background:#7e57c2;animation-delay:.45s"></span>
+          <div class="r4-star">★</div>
+          <b>Punkt erreicht!</b>
+          <div class="r4-drops" aria-label="15 von 15 Tropfen"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <span>15 Buchungen eingeordnet, der Tank ist voll.</span>
+          <span class="r4-muted">Der Punkt geht an dich (Ben) und landet in eurem Punkte-System. Der nächste Tank startet bei 0 / 15.</span>
+          <div class="r4-btns"><button class="r4-btn" data-screen-link="r4-s5">Weiter · 2 Karten offen</button><button class="r4-btn r4-ghost" data-screen-link="r4-s1">Zur Startseite</button></div>
+          <span class="r4-muted">Ohne offene Karten geht es nach 3 Sekunden von selbst zur Startseite.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- s7 · Datenstand -->
+  <section id="r4-s7" data-nav-label="Datenstand" data-screen hidden>
+    <div class="r4-app">
+      <div class="r4-sub"><button class="r4-back" data-screen-link="r4-s1">‹ Startseite</button><b>Datenstand</b></div>
+      <div class="r4-wrap">
+        <div class="r4-split">
+          <div>
+            <div class="r4-card">
+              <div class="r4-hero"><i>✓</i><div><b>Aktuell</b><span class="r4-muted">Stand heute 06:30 · nächster geplanter Abruf morgen 06:30</span></div></div>
+              <div class="r4-btns"><button class="r4-btn r4-ghost">Jetzt aktualisieren</button></div>
+            </div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Banken</span><span class="r4-muted">Abrufe ohne dich: max. 4 pro Tag und Bank</span></div>
+              <div class="r4-bank"><div><b style="font-weight:500">Sparkasse</b><span class="r4-ok">✓ 06:30 geplant</span></div><div><span class="r4-muted">Giro Ben · Gemeinschaftskonto</span><span class="r4-muted"><span class="r4-quota"><i class="r4-used"></i><i></i><i></i><i></i></span> 1 von 4</span></div><div><span class="r4-muted">Zugang gültig bis 18.01.2027</span></div></div>
+              <div class="r4-bank"><div><b style="font-weight:500">DKB</b><span class="r4-ok">✓ 06:30 geplant</span></div><div><span class="r4-muted">Giro Anna · Tagesgeld</span><span class="r4-muted"><span class="r4-quota"><i class="r4-used"></i><i></i><i></i><i></i></span> 1 von 4</span></div><div><span class="r4-warnc">Zugang läuft in 7 Tagen ab</span><button class="r4-btn r4-ghost" style="padding:3px 10px;font-size:12px">Erneuern</button></div></div>
+            </div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Historie · 14 Tage</span><span class="r4-muted">ein Kästchen pro Tag</span></div>
+              <div class="r4-days"><span>15</span><span>16</span><span>17</span><span>18</span><span>19</span><span>20</span><span>21</span><span>22</span><span class="r4-late">23</span><span>24</span><span>25</span><span>26</span><span>27</span><span>28</span></div>
+              <div class="r4-muted" style="margin-top:6px">23.10.: DKB hat um 06:30 abgelehnt (zu viele Abrufe), um 12:30 nachgeholt.</div>
+            </div>
+          </div>
+          <div>
+            <div class="r4-card r4-valid">
+              <div class="r4-h"><span>Monats-Validität · Testergebnis</span></div>
+              <div class="r4-score"><b class="r4-ok">23 / 24</b><span class="r4-muted">Monate stimmen auf den Cent</span></div>
+              <div class="r4-eq">Oktober: Kontostände 6.840,00 € = Töpfe 4.420,00 € + Plan-Rücklagen 1.380,00 € + frei 1.040,00 € → Differenz 0,00 € ✓</div>
+              <div class="r4-vm r4-vh"><span>Monat</span><span>Salden lückenlos</span><span>Umbuchungen gleichen sich aus</span><span>Jeder Euro zugeordnet</span></div>
+              <div class="r4-vm"><span>Okt 2026</span><span class="r4-ok">✓</span><span class="r4-ok">✓</span><span class="r4-ok">✓</span></div>
+              <div class="r4-vm"><span>Sep 2026</span><span class="r4-ok">✓</span><span class="r4-ok">✓</span><span class="r4-ok">✓</span></div>
+              <div class="r4-vm"><span>Aug 2026</span><span class="r4-ok">✓</span><span><span class="r4-bad">12,40 €</span></span><span><span class="r4-bad">12,40 €</span></span></div>
+              <div class="r4-vm"><span>Jul 2026</span><span class="r4-ok">✓</span><span class="r4-ok">✓</span><span class="r4-ok">✓</span></div>
+              <div class="r4-muted" style="margin-top:4px">Aug: Umbuchung aufs Tagesgeld ohne Gegenbuchung gefunden. <button class="r4-btn r4-ghost" style="padding:2px 9px;font-size:11.5px">Ansehen</button></div>
+              <button class="r4-more">mehr anzeigen (20 Monate)</button>
+            </div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Import-Log</span><span class="r4-muted">Rohdaten und Aufbereitung</span></div>
+              <div class="r4-lg"><span>heute 06:31</span><span><span class="r4-kind r4-proc">Aufbereitung</span> Verarbeitung v3</span><span>automatisch</span><em>6 Buchungen eingeordnet, 3 offen</em></div>
+              <div class="r4-lg"><span>heute 06:30</span><span><span class="r4-kind">Rohdaten</span> Sparkasse, DKB</span><span>geplant</span><em>+6 Buchungen</em></div>
+              <div class="r4-lg"><span>27.10. 19:42</span><span><span class="r4-kind">Rohdaten</span> Sparkasse</span><span>Panel geöffnet (Ben)</span><em>+1 Buchung</em></div>
+              <div class="r4-lg"><span>24.10. 11:05</span><span><span class="r4-kind r4-proc">Aufbereitung</span> Neuaufbau v2 → v3</span><span>Update</span><em>alle 1.284 Buchungen neu aufbereitet, eure 57 Korrekturen bleiben</em></div>
+              <div class="r4-lg"><span>23.10. 12:30</span><span><span class="r4-kind">Rohdaten</span> DKB</span><span>manuell (Anna)</span><em>+3 Buchungen, Nachholung nach der Ablehnung</em></div>
+              <button class="r4-more">mehr anzeigen</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r4-s7-a1" data-anno-side="left" data-anno-target=".r4-valid" style="--anno-x:70%;--anno-y:25%">
+        <button class="anno-pin" type="button" data-anno-pin="r4-s7-a1" aria-expanded="false" aria-controls="anno-bubble-r4-s7-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r4-s7-a1" data-anno-bubble="r4-s7-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r4-s7-a1" aria-expanded="false" aria-controls="anno-bubble-r4-s7-a1"><span class="anno-bubble-question">Drei Prüfungen pro Monat als Testergebnis: Salden lückenlos, Umbuchungen gleichen sich aus, jeder Euro zugeordnet. Welche Infos fehlen dir beim Datenstand noch?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r4-s7-a1" data-annotation="r4-s7-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r4-s7-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- s8 · Desktop-Startseite -->
+  <section id="r4-s8" data-nav-label="Desktop-Startseite (breit)" data-screen hidden>
+    <div class="r4-app">
+      <div class="r4-top"><button class="r4-fresh" data-screen-link="r4-s7"><i></i>aktuell · 06:30</button><button class="r4-pill" data-screen-link="r4-s4"><i></i>2 Eilmeldungen</button><button class="r4-ask" data-screen-link="r4-s5" aria-label="3 Fragen an dich"><span>★</span><b>3</b></button></div>
+      <div class="r4-wrap">
+        <div class="r4-zoom"><button class="r4-z r4-on">Heute<span>Mi 28.10.</span></button><button class="r4-z" data-screen-link="r4-s3">Woche<span>KW 44 · 26.10.–01.11.</span></button><button class="r4-z">Monat<span>Oktober · noch 4 Tage</span></button><button class="r4-z">Jahr<span>Kalenderjahr 2026</span></button></div>
+        <div class="r4-who"><span class="r4-sw">‹</span><button class="r4-wl r4-on">Ben</button><button class="r4-dot r4-on" aria-label="Ben"></button><button class="r4-dot" data-screen-link="r4-s2" aria-label="Haushalt"></button><button class="r4-wl" data-screen-link="r4-s2">Haushalt</button><span class="r4-sw">›</span></div>
+        <div class="r4-split">
+          <div>
+            <div class="r4-card">
+              <div class="r4-verdict"><span class="r4-badge">✓ Im Plan</span><span>75 € vor der Soll-Linie · Oktober noch 4 Tage</span></div>
+              <div class="r4-tank">
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><rect x="0" y="72" width="100" height="28" fill="#4fc3f7"/><rect x="87" y="0" width="13" height="100" fill="#ffffff" fill-opacity=".28"/><line x1="87" y1="0" x2="87" y2="100" stroke="#ffffff" stroke-width="1.5" vector-effect="non-scaling-stroke"/><line x1="0" y1="0" x2="100" y2="100" stroke="#01579b" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/><polyline points="0,0 3,9 10,12 16,15 23,22 30,26 39,33 45,41 52,43 58,49 65,55 71,58 77,63 84,70 87,72" fill="none" stroke="#0277bd" stroke-width="2" vector-effect="non-scaling-stroke"/><line x1="87" y1="72" x2="87" y2="87" stroke="#2e7d32" stroke-width="5" vector-effect="non-scaling-stroke"/></svg>
+                <span class="r4-tl">Oktober · dein Spielraum</span>
+                <span class="r4-now" style="left:87%">heute</span>
+                <span class="r4-ta" style="bottom:31%">140 €<small>noch frei bis 31.10.</small></span>
+                <span class="r4-mk r4-lead" style="left:85%;top:62%">+75 € Vorsprung</span>
+                <span class="r4-mk" style="left:85%;top:88%">Soll-Linie heute 65 €</span>
+              </div>
+              <div class="r4-legend"><span><i></i>Soll-Linie</span><span><i style="border-top:2px solid #0277bd"></i>dein Verlauf im Oktober</span><span><i class="r4-lw"></i>noch frei</span></div>
+              <div class="r4-tiles"><div class="r4-tile"><span>Heute frei</span><b>35 €</b></div><div class="r4-tile"><span>Bis So 01.11. frei</span><b>156 €</b></div></div>
+            </div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Deine Töpfe</span><span class="r4-muted">heute · bis So</span></div>
+              <div class="r4-potgrid">
+                <div class="r4-pot"><div><span>Mobilität</span><em><b>25 €</b> · 107 €</em></div><span class="r4-pb"><i style="width:45%"></i><b style="left:13%"></b></span></div>
+                <div class="r4-pot"><div><span>Freizeit <span class="r4-flag">hinter Soll</span></span><em><b>3 €</b> · 17 €</em></div><span class="r4-pb r4-low"><i style="width:8%"></i><b style="left:13%"></b></span></div>
+                <div class="r4-pot"><div><span>Persönliches</span><em><b>7 €</b> · 32 €</em></div><span class="r4-pb"><i style="width:23%"></i><b style="left:13%"></b></span></div>
+                <div class="r4-pot"><div><span>Neues Fahrrad <span class="r4-tag r4-own">persönlich · Giro Ben</span></span><em>340 / 600 €</em></div><span class="r4-goal"><i style="width:57%"></i></span></div>
+              </div>
+            </div>
+            <div class="r4-hint"><span>3 Buchungen (132,92 €) sind noch unkategorisiert. Sie zählen im Tank schon mit.</span><button data-screen-link="r4-s5">Beantworten</button></div>
+          </div>
+          <div class="r4-rail">
+            <div class="r4-card">
+              <div class="r4-h"><span>Als Nächstes</span><span class="r4-muted">alle bis 15.11.</span></div>
+              <div class="r4-row"><span>Fr 30.10. · Fitness</span><span>36,00 €</span></div>
+              <div class="r4-row"><span>Sa 31.10. · Spotify</span><span>10,99 €</span></div>
+              <div class="r4-row"><span>So 01.11. · Netflix</span><span>17,99 €</span></div>
+              <div class="r4-row"><span>So 01.11. · Dauerauftrag Gemeinschaftskonto</span><span>950,00 €</span></div>
+              <div class="r4-row"><span>Mo 02.11. · Handy</span><span>19,99 €</span></div>
+              <div class="r4-row"><span>Do 05.11. · Haftpflicht (jährlich)</span><span>89,00 €</span></div>
+              <div class="r4-pend"><span>vorgemerkt · Aral</span><span>52,40 €</span></div>
+            </div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Woche voraus</span><button class="r4-more" style="width:auto;margin:0;padding:0;border:0" data-screen-link="r4-s3">Woche öffnen ›</button></div>
+              <div class="r4-days7" style="margin-top:0"><span class="r4-past">Mo<b>21 €</b></span><span class="r4-past">Di<b>15 €</b></span><span class="r4-today">Mi<b>heute</b></span><span>Do<b>–</b></span><span>Fr<b><i class="r4-due"></i></b></span><span>Sa<b><i class="r4-due"></i></b></span><span class="r4-nov">So<b>Nov</b></span></div>
+              <div class="r4-muted" style="margin-top:6px">Diese Woche knapp über Soll (+4 €), der Monats-Vorsprung deckt das.</div>
+            </div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Monat kurz · Oktober</span></div>
+              <div class="r4-row"><span>Plan</span><span>2.153 €</span></div>
+              <div class="r4-row"><span>Ist bisher</span><span>1.981 €</span></div>
+              <div class="r4-row"><span>Voraussichtlicher Abschluss</span><span class="r4-ok">86 € unter Plan</span></div>
+              <div class="r4-btns r4-dsk"><button class="r4-btn">Monatsanalyse öffnen ›</button></div>
+              <div class="r4-mobnote">Die ausführliche Monatsanalyse gibt es nur am Desktop. Am Handy bleibt es bei dieser Kurzfassung.</div>
+            </div>
+            <div class="r4-card">
+              <div class="r4-h"><span>Verträge fällig</span><span class="r4-muted">nächste 60 Tage</span></div>
+              <div class="r4-row"><span>Kfz-Versicherung<br><span class="r4-muted">kündbar bis 30.11.</span></span><span>412 €/Jahr</span></div>
+              <div class="r4-row"><span>Fitness Ben<br><span class="r4-muted">kündbar bis 30.11.</span></span><span>432 €/Jahr</span></div>
+              <div class="r4-row"><span>Strom<br><span class="r4-muted">Preis +8 % ab 01.11.</span></span><span>94 €/Monat</span></div>
+              <div class="r4-btns"><button class="r4-btn r4-ghost">Alle Verträge ›</button><button class="r4-stat">▥ Statistik</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</section>
+
+<!-- ============ Mapping-Ansicht · Startseite: was wohin? ============ -->
+<section data-view="r4-home-uses" data-view-kind="mapping" data-view-for="r4home" data-nav-label="Startseite: was wohin?" hidden>
+  <div class="view-frame view-mapping">
+    <h2>Was gehört auf die Startseite, und wie sichtbar?</h2>
+    <p>Mein Vorschlag ist vorausgefüllt, je Gerät ein Tab (Handy · Desktop). Jede Funktion bekommt pro Gerät genau einen Platz. Korrigiere, was nicht passt. Fehlt eine Funktion, füge sie über „+“ hinzu. Desktop kann alles, was das Handy kann, und zieht zusätzlich Inhalte aus den Unterseiten nach vorn. Nur die ausführliche Monatsanalyse gibt es ausschließlich am Desktop.</p>
+    <p>Die Spalten: <b>Sofort sichtbar</b> (immer da) · <b>Nur wenn relevant</b> (erscheint nur, wenn etwas anliegt) · <b>Per Umschalten / Wischen</b> (Zoomstufe oder Person ⇄ Haushalt) · <b>Hinter Icon / Unterseite</b> (ein Tipp entfernt) · <b>Nicht auf der Startseite</b>. Deine Anmerkung zur ganzen Zuordnung gehört ins Notizfeld dieser Ansicht, eine Notiz pro Spalte über ✎.</p>
+    <section data-mapping="r4_home_uses" id="r4_home_uses" data-nav-label="Startseite: was wohin?">
+      <script type="application/json" data-mapping-spec>{"items":[{"id":"im_plan_status","label":"Im Plan? – ein klares Urteil","group":"Status","hint":"„Im Plan“ / „knapp“ plus ein Satz, warum"},{"id":"zeit_vs_linear","label":"Soll-Linie im Tank","group":"Status","hint":"Stand gegenüber gleichmäßigem Ausgeben: Vorsprung oder Rückstand"},{"id":"aktualitaet","label":"Aktualität / Datenstand","group":"Status","hint":"Icon „aktuell“ oben links; dahinter Historie, Import-Log und Monats-Validität"},{"id":"frei_heute","label":"Heute noch frei","group":"Budget"},{"id":"frei_woche","label":"Bis Sonntag noch frei","group":"Budget"},{"id":"topf_budgets","label":"Töpfe kompakt (heute · bis So je Topf)","group":"Budget"},{"id":"persoenliche_toepfe","label":"Persönliche Töpfe (aus eigenem Konto)","group":"Budget"},{"id":"notgroschen","label":"Notgroschen und Rücklagen","group":"Budget"},{"id":"eilmeldung","label":"Eilmeldung (Pill oben mittig)","group":"Hinweise und Aufgaben"},{"id":"fragen_offen","label":"Offene Fragen (Karteikarten)","group":"Hinweise und Aufgaben","hint":"Icon oben rechts mit Zahl; Fortschrittsring bis zum nächsten Punkt"},{"id":"unkategorisiert_hinweis","label":"Hinweis „x Buchungen unkategorisiert“","group":"Hinweise und Aufgaben"},{"id":"punkte_fortschritt","label":"Fortschritt bis zum nächsten Punkt","group":"Hinweise und Aufgaben"},{"id":"wusstest_du_schon","label":"„Wusstest du schon?“ (Hauptabweichung)","group":"Hinweise und Aufgaben","hint":"Nur das eine Hauptthema, neutral formuliert"},{"id":"als_naechstes_top3","label":"Als Nächstes: Top 3 Abbuchungen","group":"Vorschau und Rückblick","hint":"Rest über „mehr anzeigen“"},{"id":"woche_voraus","label":"Was kommt diese Woche auf mich zu","group":"Vorschau und Rückblick"},{"id":"monat_kurzfazit","label":"Monat kurz (einfache Zusammenfassung)","group":"Vorschau und Rückblick"},{"id":"monatsanalyse","label":"Monatsanalyse (ausführlich)","group":"Vorschau und Rückblick","hint":"Laut deiner Vorgabe nur am Desktop"},{"id":"vertraege_faellig","label":"Verträge: Fristen und Fälligkeiten","group":"Vorschau und Rückblick"},{"id":"statistik_einstieg","label":"Einstieg Statistik","group":"Vorschau und Rückblick"},{"id":"zoom_heute_woche_monat_jahr","label":"Zoom Heute · Woche · Monat · Jahr","group":"Navigation"},{"id":"haushalt_person_wechsel","label":"Wechsel Person ⇄ Haushalt","group":"Navigation"}],"axes":[{"id":"platz","label":"Platz auf der Startseite","itemTargets":"one","columns":[{"id":"top","label":"Sofort sichtbar"},{"id":"kontext","label":"Nur wenn relevant"},{"id":"umschalten","label":"Per Umschalten / Wischen"},{"id":"hinter_icon","label":"Hinter Icon / Unterseite"},{"id":"nicht_start","label":"Nicht auf der Startseite"}]}],"context":{"id":"geraet","label":"Gerät","values":[{"id":"handy","label":"Handy"},{"id":"desktop","label":"Desktop"}]},"proposal":[["im_plan_status","platz.top","handy"],["zeit_vs_linear","platz.top","handy"],["frei_heute","platz.top","handy"],["frei_woche","platz.top","handy"],["topf_budgets","platz.top","handy"],["persoenliche_toepfe","platz.top","handy"],["als_naechstes_top3","platz.top","handy"],["eilmeldung","platz.kontext","handy"],["unkategorisiert_hinweis","platz.kontext","handy"],["wusstest_du_schon","platz.kontext","handy"],["zoom_heute_woche_monat_jahr","platz.umschalten","handy"],["haushalt_person_wechsel","platz.umschalten","handy"],["notgroschen","platz.umschalten","handy"],["woche_voraus","platz.umschalten","handy"],["monat_kurzfazit","platz.umschalten","handy"],["aktualitaet","platz.hinter_icon","handy"],["fragen_offen","platz.hinter_icon","handy"],["punkte_fortschritt","platz.hinter_icon","handy"],["statistik_einstieg","platz.hinter_icon","handy"],["vertraege_faellig","platz.hinter_icon","handy"],["monatsanalyse","platz.nicht_start","handy"],["im_plan_status","platz.top","desktop"],["zeit_vs_linear","platz.top","desktop"],["frei_heute","platz.top","desktop"],["frei_woche","platz.top","desktop"],["topf_budgets","platz.top","desktop"],["persoenliche_toepfe","platz.top","desktop"],["als_naechstes_top3","platz.top","desktop"],["woche_voraus","platz.top","desktop"],["monat_kurzfazit","platz.top","desktop"],["vertraege_faellig","platz.top","desktop"],["eilmeldung","platz.kontext","desktop"],["unkategorisiert_hinweis","platz.kontext","desktop"],["wusstest_du_schon","platz.kontext","desktop"],["zoom_heute_woche_monat_jahr","platz.umschalten","desktop"],["haushalt_person_wechsel","platz.umschalten","desktop"],["notgroschen","platz.umschalten","desktop"],["aktualitaet","platz.hinter_icon","desktop"],["fragen_offen","platz.hinter_icon","desktop"],["punkte_fortschritt","platz.hinter_icon","desktop"],["statistik_einstieg","platz.hinter_icon","desktop"],["monatsanalyse","platz.hinter_icon","desktop"]],"slotNotes":true,"adhocItems":true,"submitted":{"cells":{"platz@handy":[["im_plan_status","platz.top"],["zeit_vs_linear","platz.top"],["frei_heute","platz.top"],["frei_woche","platz.top"],["topf_budgets","platz.top"],["persoenliche_toepfe","platz.top"],["als_naechstes_top3","platz.top"],["eilmeldung","platz.kontext"],["unkategorisiert_hinweis","platz.kontext"],["wusstest_du_schon","platz.kontext"],["zoom_heute_woche_monat_jahr","platz.umschalten"],["haushalt_person_wechsel","platz.umschalten"],["notgroschen","platz.umschalten"],["woche_voraus","platz.umschalten"],["monat_kurzfazit","platz.umschalten"],["aktualitaet","platz.hinter_icon"],["fragen_offen","platz.hinter_icon"],["punkte_fortschritt","platz.hinter_icon"],["statistik_einstieg","platz.hinter_icon"],["vertraege_faellig","platz.hinter_icon"],["monatsanalyse","platz.nicht_start"]],"platz@desktop":[["im_plan_status","platz.top"],["zeit_vs_linear","platz.top"],["frei_heute","platz.top"],["frei_woche","platz.top"],["topf_budgets","platz.top"],["persoenliche_toepfe","platz.top"],["als_naechstes_top3","platz.top"],["woche_voraus","platz.top"],["monat_kurzfazit","platz.top"],["vertraege_faellig","platz.top"],["eilmeldung","platz.kontext"],["unkategorisiert_hinweis","platz.kontext"],["wusstest_du_schon","platz.kontext"],["zoom_heute_woche_monat_jahr","platz.umschalten"],["haushalt_person_wechsel","platz.umschalten"],["notgroschen","platz.umschalten"],["aktualitaet","platz.hinter_icon"],["fragen_offen","platz.hinter_icon"],["punkte_fortschritt","platz.hinter_icon"],["statistik_einstieg","platz.hinter_icon"],["monatsanalyse","platz.hinter_icon"]]},"order":{},"adhoc":[],"slotNotes":{}}}</script>
+    </section>
+  </div>
+</section>
+</section>

@@ -658,38 +658,12 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
             # Expose the daily rate-limit cap so the frontend can render
             # the "4/day" label dynamically instead of hardcoding it.
             "rate_limit_per_day": ENABLEBANKING_RATE_LIMIT_DAILY,
-            # Attended-refresh-on-open policy, so the panel does not need to
-            # know the option keys or defaults.
-            "auto_refresh_on_open": self._auto_refresh_on_open,
-            "auto_refresh_max_age_seconds": self._auto_refresh_max_age_seconds,
+            # Retired compatibility fields: opening the panel never fetches
+            # (only the explicit import, setup and the daily schedule do).
+            # Kept as constants so an older frontend simply skips auto-refresh.
+            "auto_refresh_on_open": False,
+            "auto_refresh_max_age_seconds": 0,
         }
-
-    @property
-    def _auto_refresh_on_open(self) -> bool:
-        """Whether opening the panel may trigger one attended live fetch."""
-        from ..const import DEFAULT_AUTO_REFRESH_ON_OPEN, OPT_AUTO_REFRESH_ON_OPEN
-
-        options = getattr(self._entry, "options", {}) or {}
-        return bool(options.get(OPT_AUTO_REFRESH_ON_OPEN, DEFAULT_AUTO_REFRESH_ON_OPEN))
-
-    @property
-    def _auto_refresh_max_age_seconds(self) -> int:
-        """Cache age above which opening the panel refreshes live data."""
-        from ..const import (
-            DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES,
-            OPT_AUTO_REFRESH_MAX_AGE_MINUTES,
-        )
-
-        options = getattr(self._entry, "options", {}) or {}
-        minutes = options.get(
-            OPT_AUTO_REFRESH_MAX_AGE_MINUTES, DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES
-        )
-        try:
-            minutes = int(minutes)
-        except (TypeError, ValueError):
-            minutes = DEFAULT_AUTO_REFRESH_MAX_AGE_MINUTES
-        # A zero/negative threshold would refresh on every single open.
-        return max(minutes, 1) * 60
 
     # ------------------------------------------------------------------
     # Budget plan — the migrated spreadsheet model
@@ -798,6 +772,7 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
         persons = [
             {
                 "name": str(p.get("name") or ""),
+                "display_name": str(p.get("display_name") or "") or str(p.get("name") or ""),
                 "ha_users": [str(i) for i in p.get("ha_users") or []],
             }
             for p in self.persons
@@ -888,6 +863,14 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
                 seen_users.add(uid)
                 clean.append(uid)
             record: dict[str, Any] = {"name": name, "ha_users": clean}
+            # ``name`` is the stable key everywhere; the nickname is display only.
+            kept_nick = next((p for p in self.persons if p.get("name") == name), {})
+            nick = item.get("display_name", kept_nick.get("display_name"))
+            nick = str(nick or "").strip()
+            if len(nick) > 40:
+                raise AssignmentError("invalid_display_name", "Nickname must be at most 40 characters")
+            if nick and nick != name:
+                record["display_name"] = nick
             # The wizard's confirmed payday belongs to the person; keep it.
             kept = next((p for p in self.persons if p.get("name") == name and p.get("payday")), None)
             if kept:
@@ -936,6 +919,18 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
         pot = Pot.from_dict({**data, "id": data.get("id") if replace else ""})
         saved = await self._pot_store.async_upsert(pot, replace_existing=replace)
         return saved.to_dict()
+
+    async def async_set_pot_carry(self, pot_id: str, action: str) -> dict[str, Any] | None:
+        """Accept or drop the current week's carry-over of a pot (idempotent per week).
+
+        Returns the decision (``week_start``, ``action``) or ``None`` for an unknown pot.
+        """
+        from ..pots import week_bounds
+
+        week_start = week_bounds(dt_util.now().date())[0]
+        if not await self._pot_store.async_set_carry_decision(pot_id, week_start, action):
+            return None
+        return {"pot_id": pot_id, "week_start": week_start.isoformat(), "action": action}
 
     async def async_delete_pot(self, pot_id: str) -> bool:
         """Delete a pot by id."""

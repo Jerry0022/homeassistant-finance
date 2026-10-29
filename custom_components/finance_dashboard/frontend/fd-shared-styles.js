@@ -223,6 +223,10 @@ a:focus:not(:focus-visible),
   box-shadow: var(--fd-sh2); opacity: 0; visibility: hidden;
   transition: opacity .12s;
 }
+/* A hidden tooltip still counts as scrollable overflow: near a right edge it
+   made the whole page scroll sideways on phones. Collapse it while hidden. */
+[data-tip]:not(:hover):not(:focus-visible)::after,
+[data-tip-info]:not(:hover):not(:focus-visible)::after { transform: scale(0); }
 @media (hover: hover) {
   [data-tip]:hover::after { opacity: 1; visibility: visible; transition-delay: .5s; }
   [data-tip-info]:hover::after { opacity: 1; visibility: visible; transition-delay: 1.5s; }

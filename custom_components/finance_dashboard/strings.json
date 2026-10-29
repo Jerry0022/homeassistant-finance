@@ -44,8 +44,6 @@
           "transfer_amount_tolerance": "Amount tolerance (EUR)",
           "transfer_time_window": "Time window (days)",
           "demo_mode": "Demo mode (synthetic data)",
-          "auto_refresh_on_open": "Refresh when the panel is opened",
-          "auto_refresh_max_age_minutes": "Panel refresh only if data is older than (minutes)",
           "raw_retention_days": "Keep raw bank responses for (days, 0 = forever)",
           "show_household": "Show household budget in the panel"
         },

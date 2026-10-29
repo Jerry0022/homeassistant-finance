@@ -3,6 +3,7 @@
 Provides:
 - HomeView  — the home-screen payload (cache read, never a bank call)
 - PotsView  — create / update / delete pots
+- PotCarryView — accept / drop a pot's carry-over into the current week (admin)
 
 PRIVACY: the person view is bound to the logged-in HA user (mapped to a person
 through the accounts' ``ha_users``); there is no parameter to look at another
@@ -21,6 +22,7 @@ from homeassistant.components.http import HomeAssistantView
 
 from ..const import DOMAIN
 from ..home import HORIZONS, VIEWS
+from ..pots import CARRY_ACTIONS
 from ._helpers import _get_manager
 
 _LOGGER = logging.getLogger(__name__)
@@ -136,3 +138,36 @@ class FinanceDashboardPotsView(HomeAssistantView):
             return self.json({"error": "Not allowed"}, status_code=403)
         await manager.async_delete_pot(pot_id)
         return self.json({"ok": True})
+
+
+class FinanceDashboardPotCarryView(HomeAssistantView):
+    """``POST /pots/carry`` ``{"id", "action": "accept"|"drop"}`` (admin only).
+
+    Decides what happens with the balance a pot carries into the *current* week
+    ("Übertrag übernehmen / verwerfen"). Idempotent: repeating the same action
+    changes nothing; the last action for the week wins. No bank call.
+    """
+
+    url = f"/api/{DOMAIN}/pots/carry"
+    name = f"api:{DOMAIN}:pots:carry"
+    requires_auth = True
+
+    async def post(self, request: web.Request) -> web.Response:
+        manager = _get_manager(request.app["hass"])
+        if not manager:
+            return self.json({"error": "Not configured"}, status_code=404)
+        if not _is_admin(request):
+            return self.json({"error": "Admin only"}, status_code=403)
+        try:
+            data = await request.json()
+        except ValueError:
+            data = None
+        if not isinstance(data, dict):
+            return self.json({"error": "Invalid JSON"}, status_code=400)
+        pot_id, action = str(data.get("id") or ""), str(data.get("action") or "")
+        if not pot_id or action not in CARRY_ACTIONS:
+            return self.json({"error": "Need id and action accept|drop"}, status_code=400)
+        result = await manager.async_set_pot_carry(pot_id, action)
+        if result is None:
+            return self.json({"error": "Unknown pot"}, status_code=404)
+        return self.json({"ok": True, **result})

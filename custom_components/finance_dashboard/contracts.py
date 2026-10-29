@@ -323,7 +323,7 @@ def build_contracts(
     for s in series_list:
         if s["direction"] != "out":
             continue
-        if _is_own_name(s["creditor"], own_names):
+        if is_own_name(s["creditor"], own_names):
             continue
         out.append(_contract_view(s, store.get(s["id"]), today))
     out.sort(key=lambda c: (c["next_deadline"] is None, c["next_deadline"] or ""))
@@ -492,7 +492,7 @@ async def async_fire_notice_due(
 # ---------------------------------------------------------------------------
 
 
-def _is_own_name(creditor: str, own_names: set[str] | frozenset[str]) -> bool:
+def is_own_name(creditor: str, own_names: set[str] | frozenset[str]) -> bool:
     """Every word of an own name appears in the creditor ("Jeremy Tim Treder")."""
     words = set(creditor.replace(",", " ").split())
     return any(name and set(name.split()) <= words for name in own_names)

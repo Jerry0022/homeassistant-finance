@@ -162,6 +162,25 @@ def test_home_counts_open_merchant_questions_not_chain_not_pending() -> None:
     assert full["questions"][0]["count"] == 2 and full["questions"][0]["total"] == 50.0
 
 
+def test_question_card_carries_bookings_and_history_masked() -> None:
+    old = {**_tx("Treder", remit="Miete Garage", amount=-50, lid="o"), "bookingDate": "2026-03-20",
+           "category": "food"}
+    txs = [old] + [
+        {**_tx("Treder", remit=f"Ueberweisung {d}", amount=-(400 + d), lid=f"t{d}", day=d),
+         "_account_name": "Girokonto", "creditorAccount": {"iban": "DE89 3704 0044 0532 0130 00"},
+         "category": "other"}
+        for d in (1, 2)
+    ]
+    q = _home(txs, include_questions=True)["questions"][0]
+    first = q["bookings"][0]
+    assert first == {"date": "2026-10-02", "amount": -402.0, "account": "Girokonto",
+                     "counterparty": "Treder", "iban_last4": "3000", "text": "Ueberweisung 2"}
+    assert len(q["bookings"]) == 2
+    assert "DE89" not in str(q)  # IBAN never leaves beyond the last four digits
+    # History spans every expense of the merchant, also already categorised ones.
+    assert q["history"] == {"count": 3, "first": "2026-03-20", "last": "2026-10-02", "months": 2}
+
+
 def test_home_questions_capped_at_ten_but_total_shows_backlog() -> None:
     txs = [{**_tx(f"Shop {chr(97 + i)}x", amount=-(i + 1), lid=str(i)), "category": "other"}
            for i in range(14)]
@@ -231,7 +250,8 @@ async def test_answer_booking_reach_is_one_off_and_30th_fires_point() -> None:
             question_id="unknown kiosk", category="leisure", reach="booking", user_id="u1")
     assert out["point_awarded"] is True
     m._hass.bus.async_fire.assert_called_once_with(
-        "finance_dashboard_points", {"user_id": "u1", "points": 1})
+        "finance_dashboard_points_awarded",
+        {"user_id": "u1", "person": None, "points": 1, "answered_total": 30})
     assert m._memory.known_merchants() == {}  # no merchant rule
     assert m._transactions[2]["category"] == "leisure"
 

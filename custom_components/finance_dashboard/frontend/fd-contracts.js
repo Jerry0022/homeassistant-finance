@@ -196,6 +196,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 h3 { margin: 0 0 4px; font-size: 15px; font-weight: 500; }
 .card { margin: 0 0 12px; padding: 12px 14px; border-radius: var(--fd-r-card); background: var(--fd-card); box-shadow: var(--fd-sh1); }
 .muted { color: var(--fd-t2); font-size: 11.5px; }
+.root, .cols > div { min-width: 0; }
+.ct .l3 > * { min-width: 0; }
+.rw > span:first-child, .cov .l1 > * { overflow-wrap: anywhere; }
 .msg { padding: 28px 12px; text-align: center; color: var(--fd-t2); }
 .msg .btn { margin-top: 12px; }
 .tot { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
@@ -348,7 +351,8 @@ class FdContracts extends HTMLElement {
     if (this._err) body = `<div class="msg">${e(tr("ct.error"))}<br><button class="btn" data-act="retry">${e(tr("ct.retry"))}</button></div>`;
     else if (!this._items) body = `<div class="msg">${e(tr("ct.loading"))}</div>`;
     else body = this._main();
-    sh.innerHTML = `<style>${window._fd.SHARED_CSS}${CSS}</style><div class="root"><div class="cols">${body}</div><div id="sheet"></div></div>`;
+    const head = this.hasAttribute("embedded") ? "" : `<fd-subpage-header title="${e(tr("ct.title"))}"></fd-subpage-header>`;
+    sh.innerHTML = `<style>${window._fd.SHARED_CSS}${CSS}</style><div class="root">${head}<div class="cols">${body}</div><div id="sheet"></div></div>`;
     if (this._sheet) this._paintSheet();
     if (!this._wired) { this._wired = true; this._wire(); }
   }
@@ -364,12 +368,12 @@ class FdContracts extends HTMLElement {
       ? sorted.map((c) => this._row(c)).join("")
       : `<p class="muted">${e(tr("ct.empty"))}</p>`;
     return `<div>
-  <section class="card"><h3>${e(tr("ct.title"))}</h3>
+  ${live.length || !this._isAdmin ? `<section class="card">
     ${live.length ? `<div class="tot"><div><span>${e(tr("ct.total_month"))}</span><b>${e(this._m(month))}</b></div>
       <div><span>${e(tr("ct.total_year"))}</span><b>${e(this._m(year))}</b></div></div>
       <p class="muted" style="margin:8px 0 0">${e(tr("ct.total_note", { n: live.length }))}</p>` : ""}
     ${this._isAdmin ? "" : `<p class="muted" style="margin:8px 0 0">${e(tr("ct.member_note"))}</p>`}
-  </section>
+  </section>` : ""}
   <section class="card" aria-label="${e(tr("ct.title"))}">${list}</section>
 </div>
 <div>${this._reservesHtml()}</div>`;

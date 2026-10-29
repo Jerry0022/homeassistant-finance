@@ -219,7 +219,9 @@ class FdBudgetPlan extends HTMLElement {
     if (!SHARED_CSS) return;
 
     const LOCAL_CSS = `
-:host { display: block; margin-bottom: 14px; }
+:host { display: block; margin-bottom: 14px; min-width: 0; }
+.root, .cols > * { min-width: 0; }
+.root { overflow-wrap: anywhere; }
 .root { container: bp / inline-size; color: var(--fd-t1); font-size: 13px; line-height: 1.4; }
 .card { margin: 0 0 12px; padding: 12px 14px; border: 0; border-radius: var(--fd-r-card); background: var(--fd-card); box-shadow: var(--fd-sh1); }
 .h { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; margin: 0 0 8px; font-size: 14px; font-weight: 500; }
@@ -231,7 +233,7 @@ class FdBudgetPlan extends HTMLElement {
 .chip { display: inline-flex; align-items: center; gap: 4px; padding: 1px 9px; border-radius: var(--fd-r-pill); font-size: 11.5px; font-weight: 500; white-space: nowrap; background: var(--cbg); color: var(--cfg); }
 .tag { display: inline-block; margin-left: 6px; padding: 0 7px; border: 1px dashed var(--fd-t3); border-radius: var(--fd-r-pill); font-size: 10.5px; color: var(--fd-t2); white-space: nowrap; }
 .tag.fix { border-style: solid; border-color: var(--fd-line); background: var(--fd-sunk); }
-.dtag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: var(--fd-r-pill); font-size: 10.5px; font-weight: 500; background: var(--fd-desktop-bg); color: var(--fd-desktop); }
+.dtag { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: var(--fd-r-pill); font-size: 10.5px; font-weight: 500; background: var(--fd-desktop-bg); color: var(--fd-desktop); white-space: nowrap; }
 .dtag::before { content: "\\25C6"; font-size: 8px; }
 .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
 .big { font-size: 34px; font-weight: 500; line-height: 1.05; color: var(--cfg, var(--fd-t1)); }
@@ -303,29 +305,30 @@ tbody tr + tr td { border-top: 1px solid var(--fd-line); }
   .dsk { display: block; }
   .mob { display: none; }
   .big { font-size: 40px; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
   .cols > .card { margin-bottom: 0; }
   .cols { margin-bottom: 12px; }
 }
 `;
 
-    const wrap = (inner) => {
-      this.shadowRoot.innerHTML = `<style>${SHARED_CSS}${LOCAL_CSS}</style><div class="root">${inner}</div>`;
-    };
     const title = T("hh.plan.title", "Haushaltsplan", "Household plan");
+    const head = this.hasAttribute("embedded") ? "" : `<fd-subpage-header title="${escHtml(title)}"></fd-subpage-header>`;
+    const wrap = (inner) => {
+      this.shadowRoot.innerHTML = `<style>${SHARED_CSS}${LOCAL_CSS}</style><div class="root">${head}${inner}</div>`;
+    };
 
     if (this._error) {
-      wrap(`<div class="card"><div class="h">${title}</div><div class="empty">${escHtml(this._error)}</div></div>`);
+      wrap(`<div class="card"><div class="empty">${escHtml(this._error)}</div></div>`);
       return;
     }
     if (!this._loaded) {
-      wrap(`<div class="card"><div class="h">${title}</div><div class="empty">${T("hh.plan.loading", "Wird geladen …", "Loading …")}</div></div>`);
+      wrap(`<div class="card"><div class="empty">${T("hh.plan.loading", "Wird geladen …", "Loading …")}</div></div>`);
       return;
     }
 
     const plan = this._plan || {};
     if (plan.is_empty) {
-      wrap(`<div class="card"><div class="h">${title}</div>
+      wrap(`<div class="card">
   <div class="empty">
     ${T("hh.plan.empty", "Noch kein Plan vorhanden. Der Einrichtungsassistent legt Einkommen und Kostenpositionen mit Zuordnung an – oder übernimmt sie aus deiner Tabelle.", "No plan yet. The setup wizard creates income and cost positions with owners – or takes them over from your spreadsheet.")}
     <div style="margin-top:12px"><button type="button" data-act="setup" style="min-height:var(--fd-touch);padding:0 16px;border:0;border-radius:var(--fd-r-pill);background:var(--fd-a700);color:#fff;font:inherit;font-weight:500;cursor:pointer">${T("hh.plan.cta", "Plan einrichten", "Set up the plan")}</button></div>

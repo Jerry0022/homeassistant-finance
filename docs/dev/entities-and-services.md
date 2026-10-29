@@ -42,6 +42,18 @@ Home screen (`api/home.py`, `home.py`, `pots.py`, `cycle.py`):
   parameter; without a mapping `view=person` degrades to `household`. Household view shows shared
   pots in full and every person only as totals (`persons[]`). Contract: see
   `docs/concepts/20261027-2210-finance-visual-round/briefs/home-api-contract.md`.
+  Identity fields, present on every view: `person` = `{id, name, display_name}` | null (`id`/`name`
+  is the stable key, `display_name` the nickname from the persons config, falling back to `name`);
+  `viewer_person` = the calling HA user's person key or null, **also in the household view** (and
+  when `view=person` degraded to household), so the UI can always offer the person/household toggle.
+  Person view only: `person_budget {budget, spent, remaining, source}` = the person's own Spielraum
+  for the current cycle, plan sign, own items only. `source: "plan"` when the plan has income or
+  positions for the person: `budget` = own net plan income - own fixed costs, `spent` = own booked
+  expenses in the cycle except categories an own fixed position already covers. `source: "history"`
+  otherwise: `budget` = own income booked in the cycle (previous cycle if none yet), `spent` = all
+  own booked expenses. `remaining = budget - spent`; transfers, chain bookings and pending items
+  are excluded. The key is absent in the household view. (Demo payloads do not carry the new
+  fields yet.)
 - `POST|PUT|DELETE /pots` - pot CRUD. Admins manage every pot; other users only their own
   personal pots (also checked against the existing owner on update/delete, so a pot cannot be
   taken over). Ids are server-generated on create. Pots are stored in `.storage/finance_dashboard_pots`.

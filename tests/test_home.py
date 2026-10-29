@@ -94,6 +94,26 @@ def test_personal_pot_is_fed_only_from_personal_accounts() -> None:
     assert out["pots"][0]["spent"] == 60.0
 
 
+def _question_merchants(creditor: str, holder: str) -> list[str]:
+    accounts = [{**ACCOUNTS[2], "name": holder}]
+    txs = [_tx("a3", -250.0, "other", 10, creditor)]
+    out = build_home(accounts=accounts, transactions=txs, plan=None, pots=[], recurring=[],
+                     banks=[], as_of=NOW, now=NOW, person=None, view="household",
+                     horizon="cycle", include_questions=True)
+    return [q["merchant"] for q in out["questions"]]
+
+
+def test_payment_to_own_name_is_never_a_question() -> None:
+    # Middle name tolerated, same rule as contracts since 0.20.2.
+    assert _question_merchants("Jeremy Tim Treder", "Jeremy Treder") == []
+    assert _question_merchants("Treder, Jeremy", "Jeremy Treder und Anna Muster") == []
+
+
+def test_look_alike_business_name_stays_a_question() -> None:
+    assert _question_merchants("Treder Gartenbau GmbH", "Jeremy Treder") != []
+    assert _question_merchants("Jeremy Handels GmbH", "Jeremy Treder") != []
+
+
 def test_person_without_mapping_degrades_to_household() -> None:
     out = _home("person", None)
     assert out["view"] == "household" and out["person"] is None
@@ -242,6 +262,61 @@ async def test_pot_update_and_delete_check_existing_owner() -> None:
         assert resp._status == 404
         resp = await view.delete(_request(anna, {"id": "food"}))  # shared pot
         assert resp._status == 403
+
+
+def _plan() -> BudgetPlan:
+    from custom_components.finance_dashboard.budget_plan import CostPosition, IncomeEntry
+
+    plan = BudgetPlan(persons=["Anna", "Max"])
+    plan.set_income(IncomeEntry(person="Anna", deposit=3000.0))
+    plan.upsert_position(
+        CostPosition(id="rent", name="Rent", owner="Anna", amount=1000.0, category="housing")
+    )
+    plan.upsert_position(
+        CostPosition(id="maxcar", name="Max Car", owner="Max", amount=400.0, category="transport")
+    )
+    return plan
+
+
+def test_person_display_name_falls_back_to_name() -> None:
+    out = build_home(
+        accounts=ACCOUNTS, transactions=TXS, plan=BudgetPlan(), pots=POTS, recurring=[],
+        banks=[], as_of=NOW, now=NOW, person="Anna", view="person", horizon="cycle",
+        persons=[{"name": "Anna", "display_name": "Annie"}, {"name": "Max"}],
+    )
+    assert out["person"] == {"id": "Anna", "name": "Anna", "display_name": "Annie"}
+    assert _home("person", "Anna")["person"]["display_name"] == "Anna"
+
+
+def test_person_budget_from_history() -> None:
+    pb = _home("person", "Anna")["person_budget"]
+    assert pb == {"budget": 3100.0, "spent": 60.0, "remaining": 3040.0, "source": "history"}
+
+
+def test_person_budget_from_plan_uses_own_items_only() -> None:
+    out = build_home(
+        accounts=ACCOUNTS, transactions=TXS, plan=_plan(), pots=POTS, recurring=[],
+        banks=[], as_of=NOW, now=NOW, person="Anna", view="person", horizon="cycle",
+    )
+    pb = out["person_budget"]
+    assert pb["source"] == "plan"
+    assert pb["budget"] == 2000.0  # 3000 income - 1000 own fixed (Max's 400 ignored)
+    assert pb["spent"] == 60.0 and pb["remaining"] == 1940.0
+    assert "Max" not in str(pb)
+
+
+def test_person_budget_absent_in_household_view() -> None:
+    assert "person_budget" not in _home("household", None)
+    assert "person_budget" not in _home("household", "Anna")
+
+
+def test_viewer_person_present_on_every_view() -> None:
+    assert _home("person", "Anna")["viewer_person"] == "Anna"
+    household = _home("household", "Anna")
+    assert household["view"] == "household" and household["person"] is None
+    assert household["viewer_person"] == "Anna"  # UI keeps the person <-> household toggle
+    assert _home("household", None)["viewer_person"] is None
+    assert _home("person", None)["viewer_person"] is None
 
 
 def test_today_is_a_date() -> None:

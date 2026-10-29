@@ -1,0 +1,658 @@
+<section data-iteration="2" data-iteration-template="design" data-design-set="topics" data-viewports="phone tablet desktop" data-viewport-default="phone" data-baked>
+  <script type="application/json" data-frozen-feedback>{"general":{"text":"DEVOPS LEARN warum ich nicht strg + klick auf dem handy machen kann.\n\nmir wirkt das sehr wie ganz viele seiten. inhaltlich schon ganz gut, aber irgendwie ist die navigation 0 smart und was will ich auf der homepage not so clear... \nAußerdem überlege dir, was mache ich am handy, was am desktop!? je nachdem können wir am handy einen anderen fokus setzen, es sollte zwar immer alles sichtbar sien, aber worauf optimiert!?","attachments":[]},"designs":{},"screens":{},"views":{},"userPins":[{"id":"up-mvr9kjydq3nd","design":"d1","screen":"d1-s1","x":72.8,"y":47.7,"target":"div.mk-app \"HaushaltAnnaBen Gemeinsam · frei bis 31.\"","text":"Zu viel Platz verlust auf deksotp!","attachments":[]},{"id":"up-mvrb0rlt24j9","design":"d3","screen":"d3-s3","x":48.3,"y":72.3,"target":"div.mk-muted \"Hinweis: Lebensmittel liegen 12 % über d\"","text":"Das benötigt es nichht, das gern in die grafik miteinbringen!","attachments":[]},{"id":"up-mvrb2nwkwx0s","design":"d3","screen":"d3-s4","x":60.6,"y":15.9,"target":"div.mk-clock \"07:12\"","text":"dieeses ganze ereignis gern als eilmeldung auf der startseite und dann wenn es nix neues gibt (alles shcon zumindest angesehen), dann gern","attachments":[]}]}</script>
+<style>
+.mk-app{box-sizing:border-box;font-family:Roboto,"Segoe UI",sans-serif;background:#f4f5f7;color:#1c1c1e;padding:14px;min-height:100%}
+.mk-col{max-width:560px;margin:0 auto}
+.mk-card{background:#fff;border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.mk-muted{color:#6b6f76;font-size:12px}
+.mk-h{font-size:13px;font-weight:500;color:#3c4043;margin:0 0 8px}
+.mk-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;font-size:14px}
+.mk-row + .mk-row{border-top:1px solid #eceef1}
+.mk-btn{display:inline-block;border:0;border-radius:18px;padding:9px 14px;font-size:13px;background:#03a9f4;color:#fff;cursor:pointer;font-family:inherit}
+.mk-btn.mk-ghost{background:transparent;color:#0277bd;border:1px solid #b3e0f7}
+.mk-btn.mk-sel{background:#e1f5fe;color:#01579b;border:1px solid #03a9f4;font-weight:500}
+.mk-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.mk-switch{display:flex;gap:4px;background:#e8eaed;border-radius:18px;padding:3px;margin-bottom:12px}
+.mk-switch > *{flex:1;text-align:center;border:0;background:transparent;border-radius:15px;padding:8px 6px;font-size:13px;color:#3c4043;cursor:pointer;font-family:inherit}
+.mk-switch > .mk-on{background:#fff;color:#01579b;font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.mk-back{border:0;background:transparent;color:#0277bd;font-size:14px;padding:4px 0 10px;cursor:pointer;font-family:inherit}
+.mk-tank{position:relative;height:150px;border-radius:14px;background:#e3f2fd;overflow:hidden}
+.mk-tank.mk-sm{height:92px}
+.mk-tank.mk-xl{height:230px}
+.mk-fill{position:absolute;left:0;right:0;bottom:0;background:#4fc3f7}
+.mk-plan{position:absolute;left:0;right:0;border-top:2px dashed #01579b;opacity:.6}
+.mk-tlabel{position:absolute;left:12px;right:12px;top:10px;font-size:12px;color:#01579b}
+.mk-tamt{position:absolute;left:12px;bottom:10px;font-size:30px;font-weight:500;color:#fff}
+.mk-sm .mk-tamt{font-size:20px}
+.mk-sm .mk-tlabel{font-size:11px}
+.mk-xl .mk-tamt{font-size:44px}
+.mk-two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mk-who{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;color:#fff;background:#0288d1;white-space:nowrap}
+.mk-who.mk-anna{background:#7e57c2}
+.mk-who.mk-ben{background:#00897b}
+.mk-sumonly{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;border:1px dashed #9aa0a6;color:#5f6368;white-space:nowrap}
+.mk-acct{display:flex;flex-direction:column;gap:2px}
+.mk-chain{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.mk-step{display:flex;gap:8px;align-items:center;font-size:13px;padding:7px 9px;border-radius:8px;background:#f1f3f4}
+.mk-step > i{font-style:normal;flex:none;width:18px;height:18px;border-radius:50%;background:#9aa0a6;color:#fff;font-size:11px;text-align:center;line-height:18px}
+.mk-step.mk-win{background:#e1f5fe;border:1px solid #81d4fa}
+.mk-step.mk-win > i{background:#0288d1}
+.mk-step.mk-off > span{text-decoration:line-through;color:#80868b}
+.mk-pots{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.mk-pot{background:#fff;border-radius:12px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,.08);font-size:12px}
+.mk-pot b{display:block;font-size:18px;color:#01579b;margin:2px 0 6px}
+.mk-bar{height:8px;border-radius:4px;background:#e8eaed;overflow:hidden;margin:4px 0}
+.mk-bar > span{display:block;height:100%;background:#03a9f4}
+.mk-bar > span.mk-over{background:#e8a33b}
+.mk-cover{height:24px;border-radius:6px;display:flex;overflow:hidden;background:#e8eaed;margin:8px 0}
+.mk-cover > span{display:block;height:100%;font-size:10px;color:#fff;line-height:24px;text-align:center;overflow:hidden;white-space:nowrap}
+.mk-c1{background:#0288d1}
+.mk-c2{background:#4fc3f7}
+.mk-c3{background:#01579b}
+.mk-c4{background:#81d4fa}
+.mk-cover > .mk-gap{background:repeating-linear-gradient(45deg,#ffe0b2 0 6px,#fff3e0 6px 12px);color:#8a5a00}
+.mk-legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#6b6f76}
+.mk-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.mk-note{background:#fff8e1;border-left:4px solid #e8a33b;border-radius:8px;padding:10px 12px;font-size:14px;margin-bottom:12px}
+.mk-pend{color:#8a6d00;font-size:12px}
+.mk-big{font-size:24px;font-weight:500;margin:2px 0}
+.mk-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.mk-tbl th{text-align:left;font-weight:500;color:#6b6f76;font-size:11px;padding:4px;border-bottom:1px solid #e3e6ea}
+.mk-tbl td{padding:6px 4px;border-bottom:1px solid #f1f3f4}
+.mk-tbl .mk-n{text-align:right;white-space:nowrap}
+.mk-tbl .mk-more{color:#8a5a00}
+.mk-tbl .mk-less{color:#2e7d32}
+.mk-yr{position:relative}
+.mk-months{display:grid;grid-template-columns:92px repeat(12,1fr) 52px;font-size:10px;color:#6b6f76;text-align:center;padding-bottom:4px}
+.mk-yrow{display:grid;grid-template-columns:92px 1fr 52px;align-items:center;font-size:12px;padding:5px 0;border-top:1px solid #f1f3f4}
+.mk-yrow > span:last-child{text-align:right;color:#3c4043}
+.mk-track{position:relative;height:16px;background:#f8f9fa;border-radius:4px}
+.mk-ev{position:absolute;top:3px;width:10px;height:10px;border-radius:50%;background:#0288d1;transform:translateX(-50%)}
+.mk-ev.mk-dl{border-radius:1px;background:#e8a33b;transform:translateX(-50%) rotate(45deg)}
+.mk-ev.mk-px{background:#8e24aa}
+.mk-line{position:absolute;top:7px;height:2px;background:#81d4fa}
+.mk-today{position:absolute;top:0;bottom:0;width:2px;background:#03a9f4;left:calc(92px + (100% - 144px) * .83)}
+.mk-bench{position:relative;height:26px;margin:22px 0 26px;background:linear-gradient(90deg,#f1f8e9,#e3f2fd);border-radius:6px}
+.mk-mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:#5f6368}
+.mk-mark > span{position:absolute;top:-17px;left:0;transform:translateX(-50%);font-size:10px;white-space:nowrap;color:#3c4043}
+.mk-mark > span.mk-below{top:auto;bottom:-17px}
+.mk-mark.mk-floor{background:#6d4c41}
+.mk-mark.mk-you{background:#0288d1;width:4px}
+.mk-lock{background:linear-gradient(160deg,#263238,#455a64);border-radius:18px;padding:16px 12px 18px;color:#fff;margin-bottom:12px}
+.mk-clock{font-size:44px;font-weight:300;text-align:center;margin:4px 0 2px}
+.mk-date{font-size:13px;text-align:center;opacity:.8;margin-bottom:16px}
+.mk-notif{background:rgba(255,255,255,.95);color:#1c1c1e;border-radius:14px;padding:12px}
+.mk-ha{background:#fafafa;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.12);max-width:1100px;margin:0 auto}
+.mk-habar{background:#03a9f4;color:#fff;padding:12px 16px;font-size:18px}
+.mk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;padding:16px}
+.mk-hacard{background:#fff;border-radius:12px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,.1);font-size:14px}
+.mk-hacard.mk-tall{grid-row:span 2}
+.mk-code{font-family:Consolas,monospace;font-size:12px;background:#263238;color:#e0f7fa;border-radius:8px;padding:10px 12px;white-space:pre;margin:0;overflow-x:auto}
+.mk-surface{max-width:1100px;margin:0 auto 14px}
+.mk-bezel{background:#1c1c1e;border-radius:26px;padding:16px;max-width:980px;margin:0 auto}
+.mk-tabscreen{background:#f4f5f7;border-radius:12px;padding:18px;display:grid;grid-template-columns:1.3fr 1fr;gap:16px;box-sizing:border-box}
+.mk-touch{min-height:56px;font-size:16px;border-radius:14px;flex:1}
+.mk-panel{display:grid;grid-template-columns:190px 1fr;background:#fafafa;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.12);max-width:1200px;margin:0 auto}
+.mk-side{background:#fff;border-right:1px solid #e3e6ea;padding:10px 0;font-size:14px}
+.mk-side > div{padding:10px 18px;color:#3c4043}
+.mk-side > .mk-on{background:#e1f5fe;color:#01579b;font-weight:500}
+.mk-main{padding:16px 20px}
+.mk-cols{display:grid;grid-template-columns:1fr 1.4fr;gap:16px}
+.mk-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.mk-title{font-size:20px;font-weight:500}
+</style>
+<header class="iteration-intro">
+  <h2>{{iteration.tab}} 2 · Sichtweisen im Budget-Tank</h2>
+  <p>Der Budget-Tank aus Runde 1 ist jetzt die gemeinsame Bildsprache. Die vier Entwürfe sind keine Alternativen, sondern je eine Sichtweise aus dem Produktkonzept: <b>Wer schaut</b> (mein / dein / unser), <b>Topf oder Konto</b>, <b>Wann schaust du</b> (Woche, Zyklus, Jahr, Ereignis) und <b>Wo schaust du</b> (HA-Karte, Wand-Tablet, Desktop-Panel). Die Umschalter in den Mockups sind klickbar.</p>
+  <p>Dazu eine Frage: Wer bestimmt, welche Personen-Sicht gezeigt wird? Alle Zahlen und Namen (Anna, Ben) sind erfunden.</p>
+</header>
+
+<!-- ============ d1 · Person ============ -->
+<section data-design="d1" data-nav-label="Wer schaut?" data-design-active="true"
+  data-design-motto="Mein, dein, unser"
+  data-design-traits="Sicht je Person umschaltbar|Privatkonten der anderen nur als Summe|Zuordnung mit sichtbarer Begründungskette"
+  data-design-icon="user" data-design-color="#7e57c2" data-design-overlay="br">
+
+  <section id="d1-s1" data-nav-label="Haushalt" data-screen data-screen-active="true">
+    <div class="mk-app"><div class="mk-col">
+      <div class="mk-switch"><span class="mk-on">Haushalt</span><button data-screen-link="d1-s2">Anna</button><button data-screen-link="d1-s3">Ben</button></div>
+      <div class="mk-card">
+        <div class="mk-tank"><div class="mk-fill" style="height:58%"></div><div class="mk-plan" style="bottom:42%"></div><span class="mk-tlabel">Gemeinsam · frei bis 31.10. · Stand 06:30</span><span class="mk-tamt">412 €</span></div>
+        <div class="mk-muted" style="margin-top:6px">Gestrichelt: so voll sollte der Tank heute laut Plan sein</div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Persönlicher Spielraum laut Plan</div>
+        <div class="mk-two">
+          <div class="mk-tank mk-sm"><div class="mk-fill" style="height:46%;background:#b39ddb"></div><div class="mk-plan" style="bottom:50%"></div><span class="mk-tlabel">Anna · frei</span><span class="mk-tamt">186 €</span></div>
+          <div class="mk-tank mk-sm"><div class="mk-fill" style="height:62%;background:#80cbc4"></div><div class="mk-plan" style="bottom:48%"></div><span class="mk-tlabel">Ben · frei</span><span class="mk-tamt">240 €</span></div>
+        </div>
+        <div class="mk-muted" style="margin-top:6px">Aus Kontosummen berechnet. Einzelbuchungen sieht nur die Person selbst.</div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Konten und wem sie gehören</div>
+        <div class="mk-row"><span class="mk-acct">Gemeinsames Girokonto <span class="mk-who">Uns</span></span><span>3.412 €</span></div>
+        <div class="mk-row"><span class="mk-acct">Tagesgeld · 4 Töpfe <span class="mk-who">Uns</span></span><span>4.120 €</span></div>
+        <div class="mk-row"><span class="mk-acct">Girokonto Anna <span class="mk-who mk-anna">Anna</span></span><span><span class="mk-sumonly">nur Summe</span> 1.284 €</span></div>
+        <div class="mk-row"><span class="mk-acct">Girokonto Ben <span class="mk-who mk-ben">Ben</span></span><span><span class="mk-sumonly">nur Summe</span> 2.050 €</span></div>
+      </div>
+      <div class="mk-card"><div class="mk-row"><span>3 Buchungen: wem gehören sie?</span><button class="mk-btn" data-screen-link="d1-s4">Klären</button></div></div>
+    </div></div>
+  </section>
+
+  <section id="d1-s2" data-nav-label="Annas Sicht" data-screen hidden>
+    <div class="mk-app"><div class="mk-col">
+      <div class="mk-switch"><button data-screen-link="d1-s1">Haushalt</button><span class="mk-on">Anna</span><button data-screen-link="d1-s3">Ben</button></div>
+      <div class="mk-muted" style="margin-bottom:8px">Angemeldet als Anna</div>
+      <div class="mk-card mk-own-tank">
+        <div class="mk-tank"><div class="mk-fill" style="height:46%;background:#b39ddb"></div><div class="mk-plan" style="bottom:50%"></div><span class="mk-tlabel">Dein Spielraum bis 31.10. · Stand 06:30</span><span class="mk-tamt">186 €</span></div>
+        <div class="mk-row" style="margin-top:8px"><span>Gemeinsam noch frei</span><b>412 €</b></div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Deins <span class="mk-who mk-anna">Anna</span></div>
+        <div class="mk-row"><span>Girokonto Anna</span><b>1.284 €</b></div>
+        <div class="mk-row"><span class="mk-muted">Spotify · über Plan „Streaming“ <span class="mk-who">Uns</span></span><span>−10,99 €</span></div>
+        <div class="mk-row"><span class="mk-muted">Bäckerei Kraus</span><span>−6,40 €</span></div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Unsers <span class="mk-who">Uns</span></div>
+        <div class="mk-row"><span>Gemeinsames Girokonto</span><span>3.412 €</span></div>
+        <div class="mk-row"><span>Tagesgeld · 4 Töpfe</span><span>4.120 €</span></div>
+        <div class="mk-muted">Alle Buchungen und der Plan sind für alle sichtbar.</div>
+      </div>
+      <div class="mk-card mk-ben-acct">
+        <div class="mk-h">Seins <span class="mk-who mk-ben">Ben</span></div>
+        <div class="mk-row"><span>Girokonto Ben</span><span><span class="mk-sumonly">nur Summe</span> 2.050 €</span></div>
+        <div class="mk-muted">Einzelbuchungen sieht nur Ben.</div>
+      </div>
+    </div></div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r2-d1-s2-a1" data-anno-side="left" data-anno-target=".mk-ben-acct .mk-sumonly" style="--anno-x:85%;--anno-y:80%">
+        <button class="anno-pin" type="button" data-anno-pin="r2-d1-s2-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d1-s2-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r2-d1-s2-a1" data-anno-bubble="r2-d1-s2-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r2-d1-s2-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d1-s2-a1"><span class="anno-bubble-question">Reicht „nur Summe“, oder Bens Konto ganz ausblenden?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r2-d1-s2-a1" data-annotation="r2-d1-s2-a1" data-attachable placeholder="{{anno.answer_placeholder}}">sieht man schon in haushalt, bentöigt man hier nicht!</textarea><div class="attach-slot" data-attach-slot="anno-r2-d1-s2-a1"></div></div>
+        </div>
+      </div>
+      <div class="anno" data-anno="r2-d1-s2-a2" data-anno-side="left" data-anno-target=".mk-own-tank .mk-tank" style="--anno-x:85%;--anno-y:25%">
+        <button class="anno-pin" type="button" data-anno-pin="r2-d1-s2-a2" aria-expanded="false" aria-controls="anno-bubble-r2-d1-s2-a2" aria-label="Anmerkung 2">2</button>
+        <div class="anno-bubble" id="anno-bubble-r2-d1-s2-a2" data-anno-bubble="r2-d1-s2-a2" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r2-d1-s2-a2" aria-expanded="false" aria-controls="anno-bubble-r2-d1-s2-a2"><span class="anno-bubble-question">Eigener Spielraum groß vorn, Gemeinsam klein, oder umgekehrt?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r2-d1-s2-a2" data-annotation="r2-d1-s2-a2" data-attachable placeholder="{{anno.answer_placeholder}}">warum solll das noch überhaupt interessieren was gemeinsamer spielraum ist wenn man doch schon zu der person gewechselt ist... gemeinsam kann ja jeder sehen. </textarea><div class="attach-slot" data-attach-slot="anno-r2-d1-s2-a2"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="d1-s3" data-nav-label="Bens Sicht" data-screen hidden>
+    <div class="mk-app"><div class="mk-col">
+      <div class="mk-switch"><button data-screen-link="d1-s1">Haushalt</button><button data-screen-link="d1-s2">Anna</button><span class="mk-on">Ben</span></div>
+      <div class="mk-muted" style="margin-bottom:8px">Angemeldet als Ben</div>
+      <div class="mk-card">
+        <div class="mk-tank"><div class="mk-fill" style="height:62%;background:#80cbc4"></div><div class="mk-plan" style="bottom:48%"></div><span class="mk-tlabel">Dein Spielraum bis 31.10. · Stand 06:30</span><span class="mk-tamt">240 €</span></div>
+        <div class="mk-row" style="margin-top:8px"><span>Gemeinsam noch frei</span><b>412 €</b></div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Deins <span class="mk-who mk-ben">Ben</span></div>
+        <div class="mk-row"><span>Girokonto Ben</span><b>2.050 €</b></div>
+        <div class="mk-row"><span class="mk-muted">Netflix</span><span>−17,99 €</span></div>
+        <div class="mk-row"><span class="mk-muted">Tankstelle Aral</span><span>−71,00 €</span></div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Unsers <span class="mk-who">Uns</span></div>
+        <div class="mk-row"><span>Gemeinsames Girokonto</span><span>3.412 €</span></div>
+        <div class="mk-row"><span>Tagesgeld · 4 Töpfe</span><span>4.120 €</span></div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Ihrs <span class="mk-who mk-anna">Anna</span></div>
+        <div class="mk-row"><span>Girokonto Anna</span><span><span class="mk-sumonly">nur Summe</span> 1.284 €</span></div>
+      </div>
+    </div></div>
+  </section>
+
+  <section id="d1-s4" data-nav-label="Korrektur" data-screen hidden>
+    <div class="mk-app"><div class="mk-col">
+      <button class="mk-back" data-screen-link="d1-s1">‹ Haushalt</button>
+      <div class="mk-card">
+        <div class="mk-row"><b>AMZN Mktp DE</b><b>52,99 €</b></div>
+        <div class="mk-muted">22.10. · Gemeinsames Girokonto · Kategorie Haushalt</div>
+        <div class="mk-h" style="margin-top:12px">Wem gehört die Buchung?</div>
+        <div class="mk-chain">
+          <div class="mk-step"><i>1</i><span>Konto: Gemeinsames Girokonto → <span class="mk-who">Uns</span></span></div>
+          <div class="mk-step"><i>2</i><span>Plan-Position: kein Treffer</span></div>
+          <div class="mk-step mk-win"><i>3</i><span>Deine Entscheidung: <b>nur ich</b></span></div>
+        </div>
+        <div class="mk-btns"><button class="mk-btn mk-ghost">Für uns</button><button class="mk-btn mk-sel">Nur ich</button><button class="mk-btn mk-sel">Immer so ✓</button></div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">„Immer so“ gilt für</div>
+        <div class="mk-switch"><button>Nur diese Buchung</button><span class="mk-on">Händler AMZN Mktp</span><button>Muster im Text</button></div>
+        <div class="mk-muted">Toleranz ±20 % Betrag · ±5 Tage · pro Regel änderbar</div>
+        <div class="mk-btns"><button class="mk-btn" data-screen-link="d1-s2">Speichern</button></div>
+        <div class="mk-muted" style="margin-top:6px">Zählt für deine Punkte: 19 von 30 Antworten</div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Zum Vergleich: Stufe 2 greift</div>
+        <div class="mk-row"><span>Spotify · Girokonto Anna</span><span>10,99 €</span></div>
+        <div class="mk-chain">
+          <div class="mk-step mk-off"><i>1</i><span>Konto: Girokonto Anna → Anna</span></div>
+          <div class="mk-step mk-win"><i>2</i><span>Plan-Position „Streaming“ → <span class="mk-who">Uns</span></span></div>
+        </div>
+        <div class="mk-muted">Die Plan-Position überschreibt den Kontobesitzer. Eine Entscheidung von dir überschreibt beides.</div>
+      </div>
+    </div></div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r2-d1-s4-a1" data-anno-side="left" data-anno-target=".mk-chain" style="--anno-x:85%;--anno-y:25%">
+        <button class="anno-pin" type="button" data-anno-pin="r2-d1-s4-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d1-s4-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r2-d1-s4-a1" data-anno-bubble="r2-d1-s4-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r2-d1-s4-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d1-s4-a1"><span class="anno-bubble-question">Begründungskette immer zeigen, oder erst auf „Warum?“ tippen?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r2-d1-s4-a1" data-annotation="r2-d1-s4-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r2-d1-s4-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</section>
+
+<!-- ============ d2 · Töpfe ============ -->
+<section data-design="d2" data-nav-label="Topf oder Konto" hidden
+  data-design-motto="Töpfe wie eigene Konten"
+  data-design-traits="Ein Konto, mehrere Töpfe|Umschalter zum echten Konto|Deckungsbalken mit Auffüllbetrag"
+  data-design-icon="layers" data-design-color="#00897b" data-design-overlay="bl">
+
+  <section id="d2-s1" data-nav-label="Töpfe-Sicht" data-screen data-screen-active="true">
+    <div class="mk-app"><div class="mk-col">
+      <div class="mk-switch"><span class="mk-on">Töpfe</span><button data-screen-link="d2-s2">Echtes Konto</button></div>
+      <div class="mk-muted" style="margin-bottom:8px">Tagesgeld Gemeinsam · 4 Töpfe · Stand 06:30</div>
+      <div class="mk-pots">
+        <div class="mk-pot">Urlaub<b>1.240 €</b><div class="mk-bar"><span style="width:62%"></span></div><span class="mk-muted">Ziel 2.000 € bis 06/2027 · +150 €/Monat</span></div>
+        <div class="mk-pot">Auto &amp; Versicherung<b>760 €</b><div class="mk-bar"><span style="width:100%"></span></div><span class="mk-muted">Rücklage für Jahreskosten · +63 €/Monat</span></div>
+        <div class="mk-pot">Notgroschen<b>1.800 €</b><div class="mk-bar"><span style="width:60%"></span></div><span class="mk-muted">Ziel 3.000 € · +77 €/Monat</span></div>
+        <div class="mk-pot">Geschenke<b>320 €</b><div class="mk-bar"><span style="width:80%"></span></div><span class="mk-muted">Ziel 400 € bis 12/2026 · +40 €/Monat</span></div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Topf Urlaub · Buchungen</div>
+        <div class="mk-row"><span>01.10. Sparrate</span><span>+150,00 €</span></div>
+        <div class="mk-row"><span>12.10. Anzahlung Ferienwohnung<br><span class="mk-muted">aus dem Topf bezahlt</span></span><span>−300,00 €</span></div>
+      </div>
+      <div class="mk-card"><div class="mk-row"><span>Deckung: Töpfe = Konto ✓</span><button class="mk-btn mk-ghost" data-screen-link="d2-s2">Echtes Konto</button></div></div>
+    </div></div>
+  </section>
+
+  <section id="d2-s2" data-nav-label="Echtes Konto" data-screen hidden>
+    <div class="mk-app"><div class="mk-col">
+      <div class="mk-switch"><button data-screen-link="d2-s1">Töpfe</button><span class="mk-on">Echtes Konto</span></div>
+      <div class="mk-card">
+        <div class="mk-muted">Tagesgeld Gemeinsam · ••4821 · Stand 06:30</div>
+        <div class="mk-big">4.120 €</div>
+        <div class="mk-h" style="margin-top:10px">Deckung</div>
+        <div class="mk-cover"><span class="mk-c1" style="width:30%">Urlaub</span><span class="mk-c2" style="width:18.5%">Auto</span><span class="mk-c3" style="width:43.7%">Notgroschen</span><span class="mk-c4" style="width:7.8%">G.</span></div>
+        <div class="mk-legend"><span><i class="mk-c1"></i>Urlaub 1.240</span><span><i class="mk-c2"></i>Auto 760</span><span><i class="mk-c3"></i>Notgroschen 1.800</span><span><i class="mk-c4"></i>Geschenke 320</span></div>
+        <div class="mk-row" style="margin-top:8px"><span>Töpfe zusammen</span><span>4.120 €</span></div>
+        <div class="mk-row"><span>Nicht verteilt · fehlt</span><span>0 € · 0 €</span></div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Buchungen des Kontos</div>
+        <div class="mk-row"><span>01.10. Dauerauftrag<br><span class="mk-muted">verteilt auf 4 Töpfe</span></span><span>+330,00 €</span></div>
+        <div class="mk-row"><span>12.10. Anzahlung Ferienwohnung<br><span class="mk-muted">Topf Urlaub</span></span><span>−300,00 €</span></div>
+        <div class="mk-row"><span class="mk-pend">vorgemerkt: Zahnarztrechnung · noch kein Topf</span><span class="mk-pend">−412,00 €</span></div>
+      </div>
+      <button class="mk-btn" data-screen-link="d2-s3">Was passiert nach der Abbuchung?</button>
+    </div></div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r2-d2-s2-a1" data-anno-side="left" data-anno-target=".mk-cover" style="--anno-x:85%;--anno-y:30%">
+        <button class="anno-pin" type="button" data-anno-pin="r2-d2-s2-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d2-s2-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r2-d2-s2-a1" data-anno-bubble="r2-d2-s2-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r2-d2-s2-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d2-s2-a1"><span class="anno-bubble-question">Ist der Deckungsbalken verständlich?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r2-d2-s2-a1" data-annotation="r2-d2-s2-a1" data-attachable placeholder="{{anno.answer_placeholder}}">ja schon verständlich, aber lieber kreisdiagramm? mit segmenten sortiert und gern sophisticated!</textarea><div class="attach-slot" data-attach-slot="anno-r2-d2-s2-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="d2-s3" data-nav-label="Unterdeckung" data-screen hidden>
+    <div class="mk-app"><div class="mk-col">
+      <div class="mk-switch"><button data-screen-link="d2-s1">Töpfe</button><span class="mk-on">Echtes Konto</span></div>
+      <div class="mk-note mk-short">Die Töpfe sind <b>412 €</b> größer als das Konto.<div class="mk-muted" style="margin-top:4px">Töpfe 4.120 € · Konto 3.708 € nach der Zahnarztrechnung</div></div>
+      <div class="mk-card">
+        <div class="mk-h">Deckung</div>
+        <div class="mk-cover"><span class="mk-c1" style="width:27%">Urlaub</span><span class="mk-c2" style="width:16.6%">Auto</span><span class="mk-c3" style="width:39.3%">Notgroschen</span><span class="mk-c4" style="width:7%">G.</span><span class="mk-gap" style="width:10.1%">fehlt</span></div>
+        <div class="mk-row"><span>Auffüllbetrag</span><b>412 €</b></div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">So lässt es sich ausgleichen</div>
+        <div class="mk-row"><span>412 € aufs Tagesgeld überweisen<br><span class="mk-muted">in eurer Banking-App, Finance zahlt nicht selbst</span></span></div>
+        <div class="mk-row"><span>Topf „Notgroschen“ trägt die Rechnung</span><button class="mk-btn mk-ghost">Zuordnen</button></div>
+        <div class="mk-row"><span>Auf mehrere Töpfe verteilen</span><button class="mk-btn mk-ghost">Verteilen</button></div>
+        <div class="mk-muted" style="margin-top:6px">Kein Topf wird gekürzt, bevor ihr entscheidet. Liegt umgekehrt mehr auf dem Konto als in den Töpfen, schlägt Finance vor, den Rest zu verteilen.</div>
+      </div>
+      <button class="mk-btn mk-ghost" data-screen-link="d2-s1">Zurück zu den Töpfen</button>
+    </div></div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r2-d2-s3-a1" data-anno-side="left" data-anno-target=".mk-short" style="--anno-x:85%;--anno-y:15%">
+        <button class="anno-pin" type="button" data-anno-pin="r2-d2-s3-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d2-s3-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r2-d2-s3-a1" data-anno-bubble="r2-d2-s3-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r2-d2-s3-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d2-s3-a1"><span class="anno-bubble-question">Alle Auswege gleichrangig, oder einen empfohlenen Weg vorn?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r2-d2-s3-a1" data-annotation="r2-d2-s3-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r2-d2-s3-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</section>
+
+<!-- ============ d3 · Rhythmus ============ -->
+<section data-design="d3" data-nav-label="Wann schaust du?" hidden
+  data-design-motto="Jeder Rhythmus, eine Frage"
+  data-design-traits="Woche: Digest und höchstens 10 Fragen|Zyklus: Plan gegen Ist je Person|Jahr und Ereignis: Verträge, Vergleich, Ausnahmen"
+  data-design-icon="sun" data-design-color="#ef6c00" data-design-overlay="br">
+
+  <section id="d3-s1" data-nav-label="Woche" data-screen data-screen-active="true">
+    <div class="mk-app"><div class="mk-col">
+      <div class="mk-switch"><span class="mk-on">Woche</span><button data-screen-link="d3-s2">Zyklus</button><button data-screen-link="d3-s3">Jahr</button><button data-screen-link="d3-s4">Ereignis</button></div>
+      <div class="mk-card">
+        <div class="mk-muted">Wochen-Digest · KW 43 · 19.–25.10.</div>
+        <div class="mk-row"><span>Lebensmittel</span><span>140 / 100 €</span></div><div class="mk-bar"><span class="mk-over" style="width:100%"></span></div>
+        <div class="mk-row"><span>Freizeit</span><span>35 / 60 €</span></div><div class="mk-bar"><span style="width:58%"></span></div>
+        <div class="mk-muted" style="margin-top:6px">KW 44 kreuzt den Zahltag (01.11.): 6 Tage zählen zum Oktober-Zyklus, 1 Tag zum November.</div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-row" style="padding-top:0"><span class="mk-h" style="margin:0">Zu klären · 1 von 10</span><span class="mk-muted">erst „wem?“, dann Kategorie</span></div>
+        <div class="mk-note" style="background:#f1f8fe;border-left-color:#03a9f4">AMZN Mktp 52,99 € · Gemeinsames Girokonto: für wen?
+          <div class="mk-btns"><button class="mk-btn mk-ghost">Für uns</button><button class="mk-btn mk-ghost">Nur Anna</button><button class="mk-btn mk-ghost">Nur Ben</button></div></div>
+        <div class="mk-row"><span class="mk-muted">2 · Tankstelle 71 € · wem?</span></div>
+        <div class="mk-row"><span class="mk-muted">3 · dm 23,80 € · wem?</span></div>
+        <div class="mk-row"><span class="mk-muted">4 · Etsy 38 € · Kategorie?</span></div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-row" style="padding-top:0"><span>Deine Antworten bis zum nächsten Punkt</span><span>18 / 30</span></div>
+        <div class="mk-bar"><span style="width:60%"></span></div>
+        <div class="mk-muted">Der Punkt wird automatisch in eurem Punktesystem gebucht.</div>
+      </div>
+      <button class="mk-btn" data-screen-link="d3-s2">Weiter zum Zyklus</button>
+    </div></div>
+  </section>
+
+  <section id="d3-s2" data-nav-label="Zyklus-Abschluss" data-screen hidden>
+    <div class="mk-app"><div class="mk-col">
+      <div class="mk-switch"><button data-screen-link="d3-s1">Woche</button><span class="mk-on">Zyklus</span><button data-screen-link="d3-s3">Jahr</button><button data-screen-link="d3-s4">Ereignis</button></div>
+      <div class="mk-card">
+        <div class="mk-muted">Zyklus Oktober · 01.–31.10. · Abschluss</div>
+        <div class="mk-big">86 € unter Plan</div>
+        <div class="mk-muted">Plan 2.153 € · Ist 2.067 € (Ausgaben positiv)</div>
+      </div>
+      <div class="mk-card">
+        <table class="mk-tbl">
+          <tr><th>Position</th><th>Wer</th><th class="mk-n">Plan</th><th class="mk-n">Ist</th></tr>
+          <tr><td>Miete</td><td><span class="mk-who">Uns</span></td><td class="mk-n">1.150</td><td class="mk-n">1.150</td></tr>
+          <tr><td>Lebensmittel</td><td><span class="mk-who">Uns</span></td><td class="mk-n">600</td><td class="mk-n mk-more">662</td></tr>
+          <tr><td>Strom</td><td><span class="mk-who">Uns</span></td><td class="mk-n">90</td><td class="mk-n mk-more">94</td></tr>
+          <tr><td>Streaming</td><td><span class="mk-who">Uns</span></td><td class="mk-n">28</td><td class="mk-n">28</td></tr>
+          <tr><td>Mobilität</td><td><span class="mk-who mk-ben">Ben</span></td><td class="mk-n">220</td><td class="mk-n mk-less">72</td></tr>
+          <tr><td>Handy</td><td><span class="mk-who mk-anna">Anna</span></td><td class="mk-n">25</td><td class="mk-n">25</td></tr>
+          <tr><td>Sport</td><td><span class="mk-who mk-ben">Ben</span></td><td class="mk-n">40</td><td class="mk-n">36</td></tr>
+        </table>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Je Person</div>
+        <div class="mk-row"><span><span class="mk-who mk-anna">Anna</span> trug</span><span>1.096 € · Anteil 52 %</span></div>
+        <div class="mk-row"><span><span class="mk-who mk-ben">Ben</span> trug</span><span>971 € · Anteil 48 %</span></div>
+        <div class="mk-row"><b>Ausgleich: Anna → Ben</b><b>124 €</b></div>
+        <div class="mk-btns"><button class="mk-btn mk-ghost">Als erledigt markieren</button></div>
+      </div>
+      <div class="mk-note">Lebensmittel lag 3 Zyklen in Folge über Plan. Plan auf 650 € anheben?
+        <div class="mk-btns"><button class="mk-btn mk-ghost">Anheben</button><button class="mk-btn mk-ghost">So lassen</button></div></div>
+      <button class="mk-btn" data-screen-link="d3-s3">Weiter zum Jahr</button>
+    </div></div>
+  </section>
+
+  <section id="d3-s3" data-nav-label="Jahr" data-screen hidden>
+    <div class="mk-app"><div class="mk-col">
+      <div class="mk-switch"><button data-screen-link="d3-s1">Woche</button><button data-screen-link="d3-s2">Zyklus</button><span class="mk-on">Jahr</span><button data-screen-link="d3-s4">Ereignis</button></div>
+      <div class="mk-card">
+        <div class="mk-h">Verträge und Jahreskosten 2026</div>
+        <div class="mk-yr">
+          <div class="mk-months"><span></span><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span><span>€/Jahr</span></div>
+          <div class="mk-yrow"><span>Kfz-Versich.</span><div class="mk-track"><i class="mk-ev" style="left:4%"></i><i class="mk-ev mk-dl" style="left:91%"></i></div><span>412</span></div>
+          <div class="mk-yrow"><span>Strom</span><div class="mk-track"><span class="mk-line" style="left:2%;right:2%"></span><i class="mk-ev mk-px" style="left:92%"></i></div><span>1.128</span></div>
+          <div class="mk-yrow"><span>Handy Anna</span><div class="mk-track"><span class="mk-line" style="left:2%;right:2%"></span><i class="mk-ev mk-dl" style="left:99%"></i></div><span>300</span></div>
+          <div class="mk-yrow"><span>Haftpflicht</span><div class="mk-track"><i class="mk-ev" style="left:21%"></i></div><span>89</span></div>
+          <div class="mk-yrow"><span>Rundfunk</span><div class="mk-track"><i class="mk-ev" style="left:4%"></i><i class="mk-ev" style="left:29%"></i><i class="mk-ev" style="left:54%"></i><i class="mk-ev" style="left:79%"></i></div><span>220</span></div>
+          <div class="mk-yrow"><span>Streaming</span><div class="mk-track"><span class="mk-line" style="left:2%;right:2%"></span></div><span>336</span></div>
+          <span class="mk-today"></span>
+        </div>
+        <div class="mk-legend" style="margin-top:8px"><span><i style="background:#0288d1;border-radius:50%"></i>Zahlung</span><span><i style="background:#e8a33b;transform:rotate(45deg)"></i>Kündigungsfrist</span><span><i style="background:#8e24aa;border-radius:50%"></i>Preisänderung</span><span><i style="background:#03a9f4"></i>heute</span></div>
+        <div class="mk-row" style="margin-top:6px"><span>Kfz: kündbar bis 30.11. · Handy Anna: bis 31.12.</span></div>
+        <div class="mk-row"><span>Fixkosten im Jahr</span><b>17.840 € · 1.487 €/Monat Rücklage</b></div>
+      </div>
+      <div class="mk-card mk-bench-card">
+        <div class="mk-h">Vergleich: Lebensmittel pro Monat, 2 Erwachsene</div>
+        <div class="mk-bench">
+          <div class="mk-mark mk-floor" style="left:13%"><span class="mk-below">Regelbedarf 360 €</span></div>
+          <div class="mk-mark" style="left:64%"><span>Median 590 €</span></div>
+          <div class="mk-mark mk-you" style="left:80%"><span class="mk-below">Ihr 662 €</span></div>
+        </div>
+        <div class="mk-muted">Median · Destatis EVS · 2023 &nbsp;|&nbsp; Untergrenze: Bürgergeld-Regelbedarf, Anteil Ernährung · BMAS · 2026</div>
+        <div class="mk-muted" style="margin-top:6px">Hinweis: Lebensmittel liegen 12 % über dem Median vergleichbarer Haushalte.</div>
+      </div>
+      <button class="mk-btn" data-screen-link="d3-s4">Weiter zu Ereignissen</button>
+    </div></div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r2-d3-s3-a1" data-anno-side="left" data-anno-target=".mk-yr" style="--anno-x:85%;--anno-y:25%">
+        <button class="anno-pin" type="button" data-anno-pin="r2-d3-s3-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d3-s3-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r2-d3-s3-a1" data-anno-bubble="r2-d3-s3-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r2-d3-s3-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d3-s3-a1"><span class="anno-bubble-question">Zeitachse Januar bis Dezember, oder 12 Monate rollierend ab heute?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r2-d3-s3-a1" data-annotation="r2-d3-s3-a1" data-attachable placeholder="{{anno.answer_placeholder}}">kalenderjahr ist schon gut</textarea><div class="attach-slot" data-attach-slot="anno-r2-d3-s3-a1"></div></div>
+        </div>
+      </div>
+      <div class="anno" data-anno="r2-d3-s3-a2" data-anno-side="left" data-anno-target=".mk-bench-card .mk-bench" style="--anno-x:85%;--anno-y:70%">
+        <button class="anno-pin" type="button" data-anno-pin="r2-d3-s3-a2" aria-expanded="false" aria-controls="anno-bubble-r2-d3-s3-a2" aria-label="Anmerkung 2">2</button>
+        <div class="anno-bubble" id="anno-bubble-r2-d3-s3-a2" data-anno-bubble="r2-d3-s3-a2" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r2-d3-s3-a2" aria-expanded="false" aria-controls="anno-bubble-r2-d3-s3-a2"><span class="anno-bubble-question">Vergleich als Skala mit drei Marken verständlich, Quelle klein darunter genug?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r2-d3-s3-a2" data-annotation="r2-d3-s3-a2" data-attachable placeholder="{{anno.answer_placeholder}}">sehrverständlich, super!</textarea><div class="attach-slot" data-attach-slot="anno-r2-d3-s3-a2"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="d3-s4" data-nav-label="Ereignis" data-screen hidden>
+    <div class="mk-app"><div class="mk-col">
+      <div class="mk-switch"><button data-screen-link="d3-s1">Woche</button><button data-screen-link="d3-s2">Zyklus</button><button data-screen-link="d3-s3">Jahr</button><span class="mk-on">Ereignis</span></div>
+      <div class="mk-lock">
+        <div class="mk-clock">07:12</div>
+        <div class="mk-date">Dienstag, 27. Oktober · Bens Handy</div>
+        <div class="mk-notif">
+          <div class="mk-muted">Home Assistant · Finance · jetzt</div>
+          <div style="font-weight:500;margin:4px 0">Doppelte Abbuchung Netflix</div>
+          <div style="font-size:14px">17,99 € wurde am 26.10. zweimal von deinem Girokonto abgebucht.</div>
+          <div class="mk-btns"><button class="mk-btn">Ansehen</button><button class="mk-btn mk-ghost">Ist in Ordnung</button></div>
+        </div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Geht nur an Ben</div>
+        <div class="mk-muted">Es ist sein Konto, nur er kann es mit der Bank klären. Anna bekommt keine Meldung.</div>
+      </div>
+      <div class="mk-card">
+        <div class="mk-h">Nur Ausnahmen melden sich, und zwar bei</div>
+        <div class="mk-row"><span>Bankzugang läuft in 7 Tagen ab</span><span class="mk-who mk-anna">wer verknüpft hat</span></div>
+        <div class="mk-row"><span>Ungewöhnliche oder doppelte Abbuchung</span><span class="mk-who mk-ben">Kontoinhaber</span></div>
+        <div class="mk-row"><span>Gehalt ist nicht eingegangen</span><span class="mk-who mk-anna">die Person</span></div>
+        <div class="mk-row"><span>Engpass im Plan absehbar</span><span class="mk-who">beide</span></div>
+        <div class="mk-muted" style="margin-top:6px">Alles andere wartet auf den Wochen-Check.</div>
+      </div>
+      <button class="mk-btn mk-ghost" data-screen-link="d3-s1">Zurück zur Woche</button>
+    </div></div>
+  </section>
+</section>
+
+<!-- ============ d4 · Oberfläche ============ -->
+<section data-design="d4" data-nav-label="Wo schaust du?" hidden data-viewports="desktop"
+  data-design-motto="Ein Tank, jede Oberfläche"
+  data-design-traits="Kompakte Karte im HA-Dashboard|Wand-Tablet mit großen Touch-Flächen|Desktop-Panel auch für Nicht-Admins"
+  data-design-icon="grid" data-design-color="#546e7a" data-design-overlay="br">
+
+  <section id="d4-s1" data-nav-label="HA-Dashboard-Karte" data-screen data-screen-active="true">
+    <div class="mk-app">
+      <div class="mk-surface"><div class="mk-switch" style="max-width:520px"><span class="mk-on">HA-Karte</span><button data-screen-link="d4-s2">Wand-Tablet</button><button data-screen-link="d4-s3">Desktop-Panel</button></div></div>
+      <div class="mk-ha">
+        <div class="mk-habar">☰ &nbsp;Übersicht</div>
+        <div class="mk-grid">
+          <div class="mk-hacard mk-tall mk-fincard">
+            <div class="mk-row" style="padding-top:0"><b>Finance · Haushalt</b><span class="mk-muted">06:30</span></div>
+            <div class="mk-tank mk-sm"><div class="mk-fill" style="height:58%"></div><div class="mk-plan" style="bottom:42%"></div><span class="mk-tlabel">frei bis 31.10.</span><span class="mk-tamt">412 €</span></div>
+            <div class="mk-row"><span>Miete · 29.10.</span><span>1.150 €</span></div>
+            <div class="mk-row"><span class="mk-pend">2 vorgemerkt</span><span class="mk-pend">38 €</span></div>
+            <div class="mk-row"><span>3 zu klären</span><button class="mk-btn mk-ghost">Öffnen</button></div>
+          </div>
+          <div class="mk-hacard"><b>Wohnzimmer</b><div class="mk-muted">Licht · 3 von 5 an</div></div>
+          <div class="mk-hacard"><b>Außen 9,8 °C</b><div class="mk-muted">Regen ab 15 Uhr</div></div>
+          <div class="mk-hacard"><b>Müll</b><div class="mk-muted">Morgen: Papier</div></div>
+          <div class="mk-hacard"><b>Energie heute</b><div class="mk-muted">7,4 kWh</div></div>
+          <div class="mk-hacard"><b>Kartenoptionen</b><pre class="mk-code">type: custom:finance-card
+person: haushalt   # anna | ben
+ansicht: tank</pre></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r2-d4-s1-a1" data-anno-side="right" data-anno-target=".mk-fincard" style="--anno-x:30%;--anno-y:30%">
+        <button class="anno-pin" type="button" data-anno-pin="r2-d4-s1-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d4-s1-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r2-d4-s1-a1" data-anno-bubble="r2-d4-s1-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r2-d4-s1-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d4-s1-a1"><span class="anno-bubble-question">Was muss mindestens auf die Karte: Tank, nächste Abbuchung, offene Fragen?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r2-d4-s1-a1" data-annotation="r2-d4-s1-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r2-d4-s1-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="d4-s2" data-nav-label="Wand-Tablet" data-screen hidden>
+    <div class="mk-app">
+      <div class="mk-surface"><div class="mk-switch" style="max-width:520px"><button data-screen-link="d4-s1">HA-Karte</button><span class="mk-on">Wand-Tablet</span><button data-screen-link="d4-s3">Desktop-Panel</button></div></div>
+      <div class="mk-bezel">
+        <div class="mk-tabscreen">
+          <div>
+            <div class="mk-tank mk-xl"><div class="mk-fill" style="height:58%"></div><div class="mk-plan" style="bottom:42%"></div><span class="mk-tlabel" style="font-size:15px">Haushalt · frei bis 31.10. · Stand 06:30</span><span class="mk-tamt">412 €</span></div>
+            <div class="mk-btns" style="margin-top:12px"><button class="mk-btn mk-touch">Woche · 3 zu klären</button><button class="mk-btn mk-ghost mk-touch">Töpfe</button></div>
+          </div>
+          <div>
+            <div class="mk-two mk-persons">
+              <div class="mk-tank mk-sm" style="height:120px"><div class="mk-fill" style="height:46%;background:#b39ddb"></div><div class="mk-plan" style="bottom:50%"></div><span class="mk-tlabel">Anna · frei</span><span class="mk-tamt">186 €</span></div>
+              <div class="mk-tank mk-sm" style="height:120px"><div class="mk-fill" style="height:62%;background:#80cbc4"></div><div class="mk-plan" style="bottom:48%"></div><span class="mk-tlabel">Ben · frei</span><span class="mk-tamt">240 €</span></div>
+            </div>
+            <div class="mk-card" style="margin-top:12px">
+              <div class="mk-h">Als Nächstes</div>
+              <div class="mk-row" style="font-size:16px"><span>Miete · Mi 29.10.</span><span>1.150 €</span></div>
+              <div class="mk-row" style="font-size:16px"><span>Strom · Do 30.10.</span><span>94 €</span></div>
+              <div class="mk-row"><span class="mk-pend">2 vorgemerkt</span><span class="mk-pend">38 €</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="mk-muted" style="text-align:center;margin-top:10px">Gemeinsames Gerät · HA-Benutzer „Wandtablet“, keiner Person zugeordnet → nur Haushalt und Summen</div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r2-d4-s2-a1" data-anno-side="left" data-anno-target=".mk-persons" style="--anno-x:85%;--anno-y:35%">
+        <button class="anno-pin" type="button" data-anno-pin="r2-d4-s2-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d4-s2-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r2-d4-s2-a1" data-anno-bubble="r2-d4-s2-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r2-d4-s2-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d4-s2-a1"><span class="anno-bubble-question">Personen nebeneinander, oder abwechselnd eingeblendet?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r2-d4-s2-a1" data-annotation="r2-d4-s2-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r2-d4-s2-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="d4-s3" data-nav-label="Desktop-Panel" data-screen hidden>
+    <div class="mk-app">
+      <div class="mk-surface"><div class="mk-switch" style="max-width:520px"><button data-screen-link="d4-s1">HA-Karte</button><button data-screen-link="d4-s2">Wand-Tablet</button><span class="mk-on">Desktop-Panel</span></div></div>
+      <div class="mk-panel">
+        <div class="mk-side"><div>Übersicht</div><div>Energie</div><div>Karte</div><div class="mk-on">Finance</div><div>Verlauf</div><div>Einstellungen</div></div>
+        <div class="mk-main">
+          <div class="mk-head"><span class="mk-title">Finance</span><span class="mk-muted">Angemeldet als Ben · Haushaltsansicht</span></div>
+          <div class="mk-switch" style="max-width:620px"><span class="mk-on">Heute</span><button>Woche</button><button>Zyklus</button><button>Jahr</button><button>Töpfe</button><button>Regeln</button></div>
+          <div class="mk-cols">
+            <div>
+              <div class="mk-card"><div class="mk-tank"><div class="mk-fill" style="height:58%"></div><div class="mk-plan" style="bottom:42%"></div><span class="mk-tlabel">Gemeinsam · frei bis 31.10. · Stand 06:30</span><span class="mk-tamt">412 €</span></div></div>
+              <div class="mk-two">
+                <div class="mk-tank mk-sm"><div class="mk-fill" style="height:62%;background:#80cbc4"></div><div class="mk-plan" style="bottom:48%"></div><span class="mk-tlabel">Du · frei</span><span class="mk-tamt">240 €</span></div>
+                <div class="mk-tank mk-sm"><div class="mk-fill" style="height:46%;background:#b39ddb"></div><div class="mk-plan" style="bottom:50%"></div><span class="mk-tlabel">Anna · frei</span><span class="mk-tamt">186 €</span></div>
+              </div>
+            </div>
+            <div>
+              <div class="mk-card">
+                <div class="mk-h">Plan gegen Ist · Oktober bis heute</div>
+                <table class="mk-tbl">
+                  <tr><th>Position</th><th>Wer</th><th class="mk-n">Plan</th><th class="mk-n">Ist</th></tr>
+                  <tr><td>Lebensmittel</td><td><span class="mk-who">Uns</span></td><td class="mk-n">600</td><td class="mk-n mk-more">612</td></tr>
+                  <tr><td>Mobilität</td><td><span class="mk-who mk-ben">Ben</span></td><td class="mk-n">220</td><td class="mk-n">72</td></tr>
+                  <tr><td>Freizeit</td><td><span class="mk-who">Uns</span></td><td class="mk-n">240</td><td class="mk-n">151</td></tr>
+                </table>
+              </div>
+              <div class="mk-card">
+                <div class="mk-h">Konten</div>
+                <div class="mk-row"><span>Gemeinsames Girokonto <span class="mk-who">Uns</span></span><span>3.412 €</span></div>
+                <div class="mk-row"><span>Girokonto Ben <span class="mk-who mk-ben">Du</span></span><span>2.050 € ›</span></div>
+                <div class="mk-row"><span>Girokonto Anna <span class="mk-who mk-anna">Anna</span></span><span><span class="mk-sumonly">nur Summe</span> 1.284 €</span></div>
+              </div>
+              <div class="mk-muted mk-admin">Bankverbindungen verwalten: nur für Admins. Diese Ansicht: jedes Haushaltsmitglied.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r2-d4-s3-a1" data-anno-side="left" data-anno-target=".mk-admin" style="--anno-x:85%;--anno-y:85%">
+        <button class="anno-pin" type="button" data-anno-pin="r2-d4-s3-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d4-s3-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r2-d4-s3-a1" data-anno-bubble="r2-d4-s3-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r2-d4-s3-a1" aria-expanded="false" aria-controls="anno-bubble-r2-d4-s3-a1"><span class="anno-bubble-question">Soll ein Nicht-Admin seine eigene Bank selbst verknüpfen dürfen?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r2-d4-s3-a1" data-annotation="r2-d4-s3-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r2-d4-s3-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</section>
+
+<!-- ============ Frage · Wer bestimmt die Sicht? ============ -->
+<section data-view="r2-sicht-quelle" data-view-kind="decision" data-nav-label="Wer bestimmt die Sicht?" hidden>
+  <div class="view-frame">
+    <h2>Wer bestimmt, welche Personen-Sicht Finance zeigt?</h2>
+    <p>Vorweg, unabhängig von der Antwort: Was jemand sehen <em>darf</em>, entscheidet immer die Datenseite. Fremde Privatkonten kommen bei Nicht-Inhabern nur als Summe an, egal welche Sicht gewählt ist. Heute ist das Panel nur für Admins sichtbar. Für jedes Haushaltsmitglied braucht es deshalb eine eigene Haushaltsansicht, und die Sensoren liefern weiter nur Summen. Die Frage hier betrifft also nur, welcher Blickwinkel <em>vorne</em> steht: Haushalt, Anna oder Ben.</p>
+    <p>Eine Kombination aus (a) und (c) ist kein eigener Punkt. Behaltet ihr beide, gilt im Panel der angemeldete Benutzer und auf gemeinsamen Geräten die Konfiguration der Karte.</p>
+
+    <div class="variant-evaluation" data-decision="r2-quelle-login" data-label="Automatisch aus dem HA-Benutzer">
+      <h3>(a) Automatisch aus dem angemeldeten HA-Benutzer · empfohlen</h3>
+      <p>Im Einrichtungsassistenten wird jedem HA-Benutzer eine Person zugeordnet (HA-Benutzer „anna“ → Anna). Wer sich anmeldet, sieht seine Sicht, ohne etwas umzuschalten. Ein HA-Benutzer ohne Person sieht den Haushalt. Das ist die einzige Variante, bei der Sicht und Datenrecht nie auseinanderlaufen.</p>
+      <div class="eval-group">
+        <label class="eval-option"><input type="radio" name="eval-r2-quelle-login" value="discard"><span class="eval-label">Verwerfen</span></label>
+        <label class="eval-option"><input type="radio" name="eval-r2-quelle-login" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+      </div>
+      <div class="field-row decision-comment-row">
+        <label for="r2-quelle-login-note">{{decision.comment_label}}</label>
+        <textarea id="r2-quelle-login-note" data-comment="r2-quelle-login-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+      </div>
+    </div>
+
+    <div class="variant-evaluation" data-decision="r2-quelle-umschalter" data-label="Freier Umschalter im Panel">
+      <h3>(b) Umschalter im Panel, jeder wählt jede Sicht</h3>
+      <p>Ein Schalter „Haushalt · Anna · Ben“ für alle. Die Privatsphäre bleibt gewahrt, weil die Daten gefiltert sind. Wählt Ben aber „Anna“, sieht er kaum mehr als den Haushalt mit einem anderen Namen darüber. Das wirkt wie eine Sicht, die es nicht wirklich gibt.</p>
+      <div class="eval-group">
+        <label class="eval-option"><input type="radio" name="eval-r2-quelle-umschalter" value="discard" checked><span class="eval-label">Verwerfen</span></label>
+        <label class="eval-option"><input type="radio" name="eval-r2-quelle-umschalter" value="include"><span class="eval-label">Miteinbeziehen</span></label>
+      </div>
+      <div class="field-row decision-comment-row">
+        <label for="r2-quelle-umschalter-note">{{decision.comment_label}}</label>
+        <textarea id="r2-quelle-umschalter-note" data-comment="r2-quelle-umschalter-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+      </div>
+    </div>
+
+    <div class="variant-evaluation" data-decision="r2-quelle-karte" data-label="Fest pro Dashboard-Karte">
+      <h3>(c) Pro Dashboard-Karte fest eingestellt</h3>
+      <p>Die Karte bekommt eine Option <code>person: haushalt | anna | ben</code>. Das ist für Geräte ohne persönliche Anmeldung gedacht, etwa das Wand-Tablet im Flur. Die Option wählt nur den Blickwinkel und schaltet nichts frei. Ist das Tablet als „Wandtablet“ angemeldet, bleibt Annas Privatkonto auch mit <code>person: anna</code> eine Summe.</p>
+      <div class="eval-group">
+        <label class="eval-option"><input type="radio" name="eval-r2-quelle-karte" value="discard"><span class="eval-label">Verwerfen</span></label>
+        <label class="eval-option"><input type="radio" name="eval-r2-quelle-karte" value="include" checked><span class="eval-label">Miteinbeziehen</span></label>
+      </div>
+      <div class="field-row decision-comment-row">
+        <label for="r2-quelle-karte-note">{{decision.comment_label}}</label>
+        <textarea id="r2-quelle-karte-note" data-comment="r2-quelle-karte-note" data-attachable placeholder="{{decision.comment_placeholder}}" rows="2"></textarea>
+      </div>
+    </div>
+  </div>
+</section>
+</section>

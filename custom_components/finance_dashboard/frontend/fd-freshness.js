@@ -1,19 +1,23 @@
 /**
- * fd-freshness — "Aktualität" subpage: how current the data is and why to trust it.
+ * fd-freshness — "Datenstand" subpage: how current the data is, the bank
+ * connections, and the only two data actions of the panel.
  *
- *   GET finance_dashboard/freshness   (cache read; contract: docs/dev/contracts/reprocess.md)
+ *   GET finance_dashboard/freshness    (cache read; contract: docs/dev/contracts/reprocess.md)
  *     non-admin: {as_of, last_import}
  *     admin:     + last_reprocess, processing_version, log[], validity[], derivation
+ *   GET finance_dashboard/bank_status  (cache read) bank connections: consent,
+ *                                      per-bank budget, last fetch, block, error
  *
- * Reached from the Start tab's freshness icon (fd-home) and the Overview bank
- * card; both dispatch the bubbling `fd-navigate` event with {target:"freshness"},
- * which the panel turns into showing this component.
+ * Reached from the freshness icon in the Start top bar (fd-navigate
+ * {target:"freshness"}). The shell frames it with <fd-subpage-header>.
  *
- * Properties: hass (required), reload().
+ * Properties: hass (required), importing / reprocessing (busy state, set by
+ * the shell), reload().
  * Events (bubbling, composed):
- *   fd-freshness-back    — Zurück pressed (panel shows the previous tab again)
- *   fd-refresh-requested — "Neu importieren" (admin)
- *   fd-reprocess-requested — "Aktualisieren" (admin)
+ *   fd-refresh-requested    — "Neu importieren" (admin): the shell POSTs
+ *                             /refresh {"trigger":"user_import"} (attended bank fetch)
+ *   fd-reprocess-requested  — "Aktualisieren" (admin): the shell POSTs /reprocess (no bank)
+ *   fd-navigate {target:"transactions"} — desktop-only link to the transaction list
  */
 
 const DOMAIN = "finance_dashboard";
@@ -65,6 +69,14 @@ const FB = {
     "fr.deriv.ok": "Nein. Alle $n Buchungen sind vollständig in Kategorien und Umbuchungen eingeflossen.",
     "fr.deriv.bad": "Ja: $diff weichen ab ($ledger Buchungen im Bestand, $derived ausgewertet). „Aktualisieren“ baut alles aus den gespeicherten Rohdaten neu auf.",
     "fr.nonadmin": "Details zu Import und Prüfung sieht nur ein Administrator.",
+    "fr.import_busy": "Importiert …",
+    "fr.reprocess_busy": "Wird aktualisiert …",
+    "fr.import_tip": "Holt neue Umsätze von der Bank",
+    "fr.reprocess_tip": "Wertet die gespeicherten Daten neu aus, ohne die Bank zu fragen",
+    "fr.banks.title": "Bankverbindungen",
+    "fr.banks.manage": "Bank hinzufügen / verwalten",
+    "fr.banks.empty": "Noch keine Bank verbunden.",
+    "fr.tx.link": "Alle Transaktionen",
   },
   en: {
     "fr.back": "Back",
@@ -111,6 +123,14 @@ const FB = {
     "fr.deriv.ok": "No. All $n bookings flowed completely into categories and transfers.",
     "fr.deriv.bad": "Yes: $diff differ ($ledger bookings stored, $derived evaluated). \"Refresh\" rebuilds everything from the stored raw data.",
     "fr.nonadmin": "Only an administrator sees import and check details.",
+    "fr.import_busy": "Importing …",
+    "fr.reprocess_busy": "Refreshing …",
+    "fr.import_tip": "Fetches new transactions from the bank",
+    "fr.reprocess_tip": "Re-evaluates the stored data without asking the bank",
+    "fr.banks.title": "Bank connections",
+    "fr.banks.manage": "Add / manage bank",
+    "fr.banks.empty": "No bank connected yet.",
+    "fr.tx.link": "All transactions",
   },
 };
 /*FB-END*/
@@ -128,10 +148,16 @@ const CSS = `
 :host { display: block; }
 .root { color: var(--fd-t1); font-size: 13px; line-height: 1.4; }
 button { font: inherit; color: inherit; cursor: pointer; }
-.top { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.top h2 { margin: 0; font-size: 18px; font-weight: 500; }
-.back { display: inline-flex; align-items: center; gap: 4px; min-height: var(--fd-touch); padding: 0 14px 0 8px; border: 0; border-radius: var(--fd-r-pill); background: transparent; color: var(--fd-a700); font-weight: 500; }
-.back:hover { background: var(--fd-a50); }
+h3.hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.bk { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; }
+.bk + .bk { border-top: 1px solid var(--fd-line); }
+.bk .nm { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-weight: 500; overflow-wrap: anywhere; }
+.bk .bf { display: flex; flex-wrap: wrap; gap: 2px 12px; margin-top: 4px; color: var(--fd-t2); font-size: 11.5px; }
+.bk .bf .warn { color: var(--fd-over); }
+.btn.sm { min-height: 36px; padding: 0 12px; font-size: 12px; }
+.btn:disabled { opacity: .55; cursor: progress; }
+.dsk-only { display: none; }
+@media (hover: hover) and (pointer: fine) and (min-width: 900px) { .dsk-only { display: inline-flex; align-items: center; } }
 .card { padding: 14px 16px; border-radius: var(--fd-r-card); background: var(--fd-card); box-shadow: var(--fd-sh1); margin-bottom: 12px; }
 h3 { margin: 0 0 2px; font-size: 14px; font-weight: 500; }
 .say { margin: 4px 0 8px; color: var(--fd-t2); font-size: 12.5px; }
@@ -143,7 +169,7 @@ h3 { margin: 0 0 2px; font-size: 14px; font-weight: 500; }
 .btn.ghost { background: transparent; color: var(--fd-a700); border-color: var(--fd-a100); }
 .row { display: flex; justify-content: space-between; gap: 4px 12px; flex-wrap: wrap; padding: 8px 0; }
 .row + .row { border-top: 1px solid var(--fd-line); }
-.row .l { flex: 1 1 200px; min-width: 0; }
+.row .l { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
 .row .l b { font-weight: 500; display: block; }
 .row .l span, .row .r span { color: var(--fd-t2); font-size: 11.5px; }
 .row .r { text-align: right; }
@@ -152,7 +178,7 @@ h3 { margin: 0 0 2px; font-size: 14px; font-weight: 500; }
 .chip.near { background: var(--fd-near-bg); color: var(--fd-near); }
 .chip.over { background: var(--fd-over-bg); color: var(--fd-over); }
 .chip.unk { background: var(--fd-sunk); color: var(--fd-t2); }
-.acc { margin-top: 10px; font-weight: 500; }
+.acc { margin-top: 10px; font-weight: 500; overflow-wrap: anywhere; }
 details { margin-top: 4px; }
 summary { min-height: var(--fd-touch); display: flex; align-items: center; color: var(--fd-t2); cursor: pointer; }
 .empty { color: var(--fd-t2); line-height: 1.6; }
@@ -171,6 +197,21 @@ class FdFreshness extends HTMLElement {
     this._state = "loading"; // loading | ok | error
     this._seq = 0;
     this._built = false;
+    this._banks = null;
+    this._importing = false;
+    this._reprocessing = false;
+  }
+
+  set importing(v) { this._importing = !!v; this._syncBusy(); }
+  set reprocessing(v) { this._reprocessing = !!v; this._syncBusy(); }
+
+  _syncBusy() {
+    const sh = this.shadowRoot;
+    const busy = this._importing || this._reprocessing;
+    const imp = sh.querySelector('[data-act="import"]');
+    const rep = sh.querySelector('[data-act="reprocess"]');
+    if (imp) { imp.disabled = busy; imp.textContent = tr(this._importing ? "fr.import_busy" : "fr.import"); imp.setAttribute("aria-busy", String(this._importing)); }
+    if (rep) { rep.disabled = busy; rep.textContent = tr(this._reprocessing ? "fr.reprocess_busy" : "fr.reprocess"); rep.setAttribute("aria-busy", String(this._reprocessing)); }
   }
 
   set hass(h) {
@@ -188,9 +229,13 @@ class FdFreshness extends HTMLElement {
     if (!this._built) { this._built = true; this._bind(); }
     if (!this._d) { this._state = "loading"; this._render(); }
     try {
-      const r = await this._hass.callApi("GET", `${DOMAIN}/freshness`);
+      const [r, b] = await Promise.all([
+        this._hass.callApi("GET", `${DOMAIN}/freshness`),
+        this._hass.callApi("GET", `${DOMAIN}/bank_status`).catch(() => null),
+      ]);
       if (seq !== this._seq) return;
       this._d = r || {};
+      this._banks = (b && b.banks) || [];
       this._state = "ok";
     } catch (e) {
       if (seq !== this._seq) return;
@@ -206,14 +251,14 @@ class FdFreshness extends HTMLElement {
       if (!t) return;
       const fire = (n) => this.dispatchEvent(new CustomEvent(n, { bubbles: true, composed: true }));
       switch (t.dataset.act) {
-        case "back": fire("fd-freshness-back"); break;
         case "import": fire("fd-refresh-requested"); break;
+        case "manage": window._fd.navigate(window._fd.INTEGRATION_PATH, ev); break;
+        case "tx": this.dispatchEvent(new CustomEvent("fd-navigate", { bubbles: true, composed: true, detail: { target: "transactions" } })); break;
         case "reprocess": fire("fd-reprocess-requested"); break;
         case "retry": this.reload(); break;
         default: break;
       }
     });
-    sh.addEventListener("keydown", (ev) => { if (ev.key === "Escape") this.dispatchEvent(new CustomEvent("fd-freshness-back", { bubbles: true, composed: true })); });
   }
 
   _render() {
@@ -224,9 +269,44 @@ class FdFreshness extends HTMLElement {
     else if (this._state === "error") {
       body = `<div class="card"><div class="empty"><b>${tr("fr.error")}</b><button class="btn ghost" data-act="retry">${tr("fr.retry")}</button></div></div>`;
     } else body = this._body(this._d || {});
-    this.shadowRoot.innerHTML = `<style>${SHARED_CSS}${CSS}</style><div class="root">
-  <div class="top"><button class="back" data-act="back" aria-label="${tr("fr.back")}"><span aria-hidden="true">←</span>${tr("fr.back")}</button><h2>${tr("fr.title")}</h2></div>
-  ${body}</div>`;
+    this.shadowRoot.innerHTML = `<style>${SHARED_CSS}${CSS}</style><div class="root">${body}</div>`;
+    this._syncBusy();
+  }
+
+  /** Bank connections: consent, today's background budget, last fetch, block, error. */
+  _banksCard() {
+    const { escHtml } = window._fd;
+    const banks = this._banks || [];
+    const manage = this._isAdmin ? `<button class="btn ghost sm" data-act="manage">${escHtml(tr("fr.banks.manage"))}</button>` : "";
+    return `<div class="card"><h3 class="hd"><span>${tr("fr.banks.title")}</span>${manage}</h3>
+  ${banks.length ? banks.map((b) => this._bankRow(b)).join("") : `<div class="empty">${tr("fr.banks.empty")}</div>`}</div>`;
+  }
+
+  _bankRow(b) {
+    const { escHtml, fmtDate } = window._fd;
+    const state = b.consent_state || "ok";
+    const until = fmtDate(b.consent_valid_until);
+    let consent;
+    if (state === "expired") consent = tr("fr.bank.consent_expired", { date: until });
+    else if (state === "expiring") consent = tr("fr.bank.consent_expiring", { date: until });
+    else if (until) consent = tr("fr.bank.consent_ok", { date: until });
+    else consent = tr("fr.bank.consent_unknown");
+    const badge = tr(`fr.bank.badge_${state === "expired" || state === "expiring" ? state : "ok"}`);
+    const cls = state === "expired" ? "over" : state === "expiring" ? "near" : "ok";
+    const blocked = b.blocked_until && new Date(b.blocked_until) > new Date();
+    const facts = [
+      `<span>${escHtml(consent)}</span>`,
+      `<span>${escHtml(tr("fr.bank.budget", { used: b.budget_used_today ?? 0, limit: b.budget_limit ?? 4 }))}</span>`,
+    ];
+    // Manual fetches are uncapped, so the background budget never counts them.
+    if (b.last_attended_at) facts.push(`<span>${escHtml(tr("fr.bank.last_manual", { date: fmtDate(b.last_attended_at, true) }))}</span>`);
+    if (blocked) facts.push(`<span class="warn">${escHtml(tr("fr.bank.blocked", { date: fmtDate(b.blocked_until, true) }))}</span>`);
+    if (b.last_success) facts.push(`<span>${escHtml(tr("fr.bank.last_success", { date: fmtDate(b.last_success, true) }))}</span>`);
+    if (b.last_error) facts.push(`<span class="warn">${escHtml(tr("fr.bank.last_error", { error: b.last_error }))}</span>`);
+    const renew = state === "ok" || !this._isAdmin ? "" : `<button class="btn sm" data-act="manage">${escHtml(tr("fr.bank.renew"))}</button>`;
+    return `<div class="bk"><div style="min-width:0;flex:1">
+    <div class="nm">${escHtml(b.title || "Bank")} <span class="chip ${cls}">${escHtml(badge)}</span></div>
+    <div class="bf">${facts.join("")}</div></div>${renew}</div>`;
   }
 
   _body(d) {
@@ -244,7 +324,9 @@ class FdFreshness extends HTMLElement {
     }
     let h = `<div class="card"><h3>${tr("fr.as_of")}</h3><p class="say">${escHtml(say)}</p>
   <div class="facts">${facts.map(([l, v]) => `<div><div class="lab">${escHtml(l)}</div><div class="v">${escHtml(v)}</div></div>`).join("")}</div>
-  ${admin ? `<div class="acts"><button class="btn" data-act="import">${tr("fr.import")}</button><button class="btn ghost" data-act="reprocess">${tr("fr.reprocess")}</button></div>` : ""}</div>`;
+  ${admin ? `<div class="acts"><button class="btn" data-act="import" data-tip="${escHtml(tr("fr.import_tip"))}">${tr("fr.import")}</button><button class="btn ghost" data-act="reprocess" data-tip="${escHtml(tr("fr.reprocess_tip"))}">${tr("fr.reprocess")}</button>
+    <button class="btn ghost dsk-only" data-act="tx">${tr("fr.tx.link")}</button></div>` : ""}</div>`;
+    h += this._banksCard();
     if (!admin) return h + `<div class="card"><div class="empty">${tr("fr.nonadmin")}</div></div>`;
 
     // Log

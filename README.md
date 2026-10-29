@@ -98,17 +98,10 @@ max_transactions: 5
 #### Keeping the data current
 
 Banks cap PSD2 account access at four fetches per 24h — but only for requests
-made while you are *not* in session. Anything you trigger yourself (the refresh
-button, opening the dashboard) carries PSU headers, counts as attended, and is
-not capped.
-
-The dashboard therefore fetches live data when you open it and the cache has
-aged out. Two options control this:
-
-| Option | Default | Effect |
-|---|---|---|
-| `auto_refresh_on_open` | on | Fetch once on panel open when the cache is stale |
-| `auto_refresh_max_age_minutes` | 60 | How old the cache must be before that happens |
+made while you are *not* in session. Anything you trigger yourself (the
+"Neu importieren" button) carries PSU headers, counts as attended, and is not
+capped. Opening the dashboard or pressing "Aktualisieren" never calls the bank;
+they only read or re-process stored data.
 
 The scheduled daily refresh (`daily_refresh_hour`, default 06:30) runs without
 a user session and does spend one of the four background fetches — as does a

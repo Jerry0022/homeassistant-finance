@@ -67,6 +67,9 @@ class Pot:
     category_keys: list[str] = field(default_factory=list)
     kind: str = POT_KIND_SPEND
     account_key: str = ""  # account the virtual pot sits on (coverage check)
+    # week start (ISO Monday) -> "accept" | "drop": what the user decided about the
+    # carry-over into that week. No entry = default (carry stays in the balance).
+    carry_decisions: dict[str, str] = field(default_factory=dict)
 
     @property
     def is_shared(self) -> bool:
@@ -81,6 +84,7 @@ class Pot:
             "category_keys": list(self.category_keys),
             "kind": self.kind,
             "account_key": self.account_key,
+            "carry_decisions": dict(self.carry_decisions),
         }
 
     @classmethod
@@ -114,7 +118,29 @@ class Pot:
             category_keys=keys,
             kind=kind,
             account_key=str(data.get("account_key") or "").strip()[:80],
+            carry_decisions=_clean_decisions(data.get("carry_decisions")),
         )
+
+
+CARRY_ACCEPT = "accept"
+CARRY_DROP = "drop"
+CARRY_ACTIONS = (CARRY_ACCEPT, CARRY_DROP)
+_MAX_DECISIONS = 8  # only recent weeks matter; older ones are pruned
+
+
+def _clean_decisions(raw: Any) -> dict[str, str]:
+    """Keep well-formed ``{iso monday: accept|drop}`` entries, newest few only."""
+    if not isinstance(raw, dict):
+        return {}
+    out: dict[str, str] = {}
+    for k, v in raw.items():
+        try:
+            day = date.fromisoformat(str(k))
+        except ValueError:
+            continue
+        if v in CARRY_ACTIONS and day.weekday() == 0:
+            out[day.isoformat()] = v
+    return dict(sorted(out.items())[-_MAX_DECISIONS:])
 
 
 def slugify_pot(name: str, owner: str) -> str:
@@ -161,6 +187,8 @@ class PotStore:
         if replace_existing:
             if existing is None:
                 raise KeyError(pot.id)
+            if not pot.carry_decisions:  # PUT /pots from the sheet never carries them
+                pot.carry_decisions = dict(existing.carry_decisions)
             self._pots[self._pots.index(existing)] = pot
         else:
             base, n = pot.id, 2
@@ -170,6 +198,20 @@ class PotStore:
             self._pots.append(pot)
         await self.async_save()
         return pot
+
+    async def async_set_carry_decision(self, pot_id: str, week_start: date, action: str) -> bool:
+        """Persist accept/drop of the carry into ``week_start`` (idempotent). False: unknown pot."""
+        pot = self.get(pot_id)
+        if pot is None:
+            return False
+        if action not in CARRY_ACTIONS:
+            raise ValueError("Unknown carry action")
+        key = week_start.isoformat()
+        if pot.carry_decisions.get(key) != action:
+            pot.carry_decisions[key] = action
+            pot.carry_decisions = _clean_decisions(pot.carry_decisions)
+            await self.async_save()
+        return True
 
     async def async_delete(self, pot_id: str) -> bool:
         existing = self.get(pot_id)
@@ -227,7 +269,10 @@ def pot_status(
     Returns ``balance`` (available now, unspent days carried forward inside the
     cycle), ``per_day_typical`` (the pot's daily allowance), ``spent``,
     ``linear_to_date``, ``status`` and ``carry_in_week`` (balance carried into
-    the current week from earlier weeks of the same cycle - 0 in the first week).
+    the current week from earlier weeks of the same cycle - 0 in the first week)
+    and ``carry_decision``. A ``drop`` decision for the current week removes the
+    carry from the balance (the week starts fresh); ``carry_in_week`` still shows
+    the raw amount so the UI can say what was dropped.
     """
     total_days = cycle_days(cycle)
     daily = pot.cycle_budget / total_days
@@ -244,15 +289,43 @@ def pot_status(
         carry = daily * days_before - sum(
             b["amount"] for b in _matching(pot, bookings_in_cycle, cycle, before_week)
         )
+    decision = pot.carry_decisions.get(week_start.isoformat())
+    dropped = decision == CARRY_DROP
     return {
-        "balance": round(linear - spent, 2),
+        "balance": round(linear - spent - (carry if dropped else 0.0), 2),
         "per_day_typical": round(daily, 2),
         "spent": round(spent, 2),
         "linear_to_date": round(linear, 2),
         "status": status_for(spent, linear),
         "carry_in_week": round(carry, 2),
+        "carry_decision": decision,
         "cycle_budget": round(pot.cycle_budget, 2),
     }
+
+
+def pot_cycle_history(
+    pot: Pot,
+    bookings: list[dict[str, Any]],
+    cycles: list[tuple[date, date]],
+) -> list[dict[str, Any]]:
+    """Per finished cycle: budget, spent and what was left (``carry``).
+
+    Nothing crosses a cycle boundary, so ``carry`` is the pot's closing balance
+    (``budget - spent``; negative = overspent). ``cycles`` ascending.
+    """
+    out = []
+    for cyc in cycles:
+        spent = sum(b["amount"] for b in _matching(pot, bookings, cyc, cyc[1]))
+        out.append(
+            {
+                "start": cyc[0].isoformat(),
+                "end": cyc[1].isoformat(),
+                "budget": round(pot.cycle_budget, 2),
+                "spent": round(spent, 2),
+                "carry": round(pot.cycle_budget - spent, 2),
+            }
+        )
+    return out
 
 
 def _upcoming_items(
@@ -327,6 +400,19 @@ def week_status(
         while d < week_start:
             carry += daily - _spent_on(d)
             d += timedelta(days=1)
+
+    if week_start > cycle[0]:
+        for pot in spend:
+            if pot.carry_decisions.get(week_start.isoformat()) != CARRY_DROP:
+                continue
+            pdaily = pot.cycle_budget / total_days
+            pkeys = set(pot.category_keys)
+            d = cycle[0]
+            while d < week_start:
+                carry -= pdaily - sum(
+                    b["amount"] for b in real if b["category"] in pkeys and b["date"] == d
+                )
+                d += timedelta(days=1)
 
     week_budget = max(0.0, carry + daily * in_cycle_days)
     n = max(1, in_cycle_days)

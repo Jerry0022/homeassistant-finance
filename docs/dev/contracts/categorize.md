@@ -60,10 +60,14 @@ Body: `{"id": "the studio", "category": "leisure", "reach": "merchant"|"booking"
 
 200: `{"answered_total": 31, "week_answered": 5, "point_awarded": false}`.
 Every 30th answered question sets `point_awarded: true` and fires the HA event
-`finance_dashboard_points` with `{"user_id": "<answering HA user>", "points": 1}`
+`finance_dashboard_points_awarded` with `{"user_id", "person", "points": 1, "answered_total"}` and, if a helper is configured (`/setup/points`), increments it (see setup-wizard.md)
 (a merchant-wide rule counts once).
 
 400 `{"error": code, "detail"}`: `invalid_body`, `invalid_id`, `invalid_category`,
 `invalid_reach`, `invalid_owner` (not `shared` / a known person),
 `unknown_question` (booking reach with no open booking), `unavailable`
 (demo mode / memory not loaded).
+
+## AI pass (opt-in)
+
+After a reprocess/derive or a successful import, `QuestionsMixin.schedule_ai_categorization()` starts one background task (never from a GET). If `ai_opt_in` is set and a provider is usable (HA AI Task / configured conversation agent, or an own key), booked expenses still in `other` (outside transfer chains, not own-name) whose merchant is neither in the AI cache nor in merchant memory are sent highest euro impact first as merchant + remittance only (sanitised, never amount/IBAN/date), until the monthly cap (`ai_provider.spend_call`) is reached. A valid category is learned as a merchant-memory entry with `source: "ai"`; a user answer replaces it, the AI never replaces a user rule. A failed or unparseable answer is not retried in the same session. One re-derive follows.
