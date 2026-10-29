@@ -44,6 +44,7 @@ from .pots import (
     POT_OWNER_SHARED,
     Pot,
     cycle_days,
+    pot_cycle_history,
     pot_status,
     status_for,
     week_bounds,
@@ -462,6 +463,32 @@ def _person_budget(
     return _result(budget, _own_spent(set()), "history")
 
 
+HISTORY_CYCLES = 6
+
+
+def _past_cycles(
+    cycle_at: Any, current: tuple[date, date], booking_dates: list[date]
+) -> list[tuple[date, date]]:
+    """Up to ``HISTORY_CYCLES`` finished cycles before ``current``, ascending.
+
+    Walks back with the same rule as the current cycle and stops where the rule
+    stops being contiguous or where the cached bookings begin.
+    """
+    if not booking_dates:
+        return []
+    earliest = min(booking_dates)
+    out: list[tuple[date, date]] = []
+    nxt_start = current[0]
+    for _ in range(HISTORY_CYCLES):
+        s, e = cycle_at(nxt_start - timedelta(days=1))
+        if e != nxt_start - timedelta(days=1) or s >= nxt_start or e < earliest:
+            break
+        out.append((s, e))
+        nxt_start = s
+    out.reverse()
+    return out
+
+
 def build_home(  # noqa: PLR0912, PLR0915
     *,
     accounts: list[dict[str, Any]],
@@ -496,36 +523,51 @@ def build_home(  # noqa: PLR0912, PLR0915
     scope = [b for b in all_bookings if scope_owner is None or b["owner"] == scope_owner]
 
     # --- cycle ---------------------------------------------------------
+    # One rule for the current cycle and for the history: ``cycle_at(day)`` is
+    # the cycle containing ``day``.
     anchor: str | None
+    by_person: dict[str, list] = defaultdict(list)
     if view == "person":
         incomes = _incomes(all_bookings, person)
-        start, end = person_cycle(incomes, today)
         starts = salary_starts(incomes)
         anchor = person if starts else None
         rule = "person_highest_income" if starts else "calendar_fallback"
     else:
-        by_person: dict[str, list] = defaultdict(list)
         for b in all_bookings:
             if b["owner"] != POT_OWNER_SHARED:
                 by_person[b["owner"]].extend(_incomes([b], b["owner"]))
-        start, end, anchor = household_cycle(dict(by_person), today)
+        _s, _e, anchor = household_cycle(dict(by_person), today)
         starts = [s for s, _ in household_starts(dict(by_person))]
         rule = "household_7_day" if starts else "calendar_fallback"
+
+    payday_days: list[date] = []
     if not starts:
-        start, end = calendar_cycle(today)
         # No salary seen in the bookings yet: a payday the user confirmed in
         # the setup wizard is the next best anchor (the person's own, or the
         # earliest confirmed one for the household).
-        from .setup_wizard import payday_cycle, person_payday
+        from .setup_wizard import person_payday
 
-        days = [
+        payday_days = [
             d
             for p in persons or []
             if (view != "person" or p.get("name") == person) and (d := person_payday(p))
         ]
-        if days:
-            start, end = payday_cycle(min(days), today)
+        if payday_days:
             rule = "payday_confirmed"
+
+    def cycle_at(day: date) -> tuple[date, date]:
+        if starts:
+            if view == "person":
+                return person_cycle(incomes, day)
+            s, e, _a = household_cycle(dict(by_person), day)
+            return s, e
+        if payday_days:
+            from .setup_wizard import payday_cycle
+
+            return payday_cycle(min(payday_days), day)
+        return calendar_cycle(day)
+
+    start, end = cycle_at(today)
     cycle = (start, end)
 
     # --- pots ----------------------------------------------------------
@@ -533,6 +575,7 @@ def build_home(  # noqa: PLR0912, PLR0915
         visible = [p for p in pots if p.owner == person]
     else:
         visible = [p for p in pots if p.is_shared]
+    past_cycles = _past_cycles(cycle_at, cycle, [b["date"] for b in scope])
     status_by_id = {p.id: pot_status(p, _pot_bookings(p, scope), cycle, today) for p in pots}
     pot_rows = [
         {
@@ -546,6 +589,9 @@ def build_home(  # noqa: PLR0912, PLR0915
             "cycle_budget": status_by_id[p.id]["cycle_budget"],
             "spent": status_by_id[p.id]["spent"],
             "carry_in_week": status_by_id[p.id]["carry_in_week"],
+            "carry_decision": status_by_id[p.id]["carry_decision"],
+            "week_start": week_bounds(today)[0].isoformat(),
+            "history": pot_cycle_history(p, _pot_bookings(p, scope), past_cycles),
             "category_keys": list(p.category_keys),
         }
         for p in visible

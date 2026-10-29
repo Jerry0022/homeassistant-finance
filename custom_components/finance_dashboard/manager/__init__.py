@@ -920,6 +920,18 @@ class FinanceDashboardManager(RefreshMixin, BankMixin, PersistenceMixin, Questio
         saved = await self._pot_store.async_upsert(pot, replace_existing=replace)
         return saved.to_dict()
 
+    async def async_set_pot_carry(self, pot_id: str, action: str) -> dict[str, Any] | None:
+        """Accept or drop the current week's carry-over of a pot (idempotent per week).
+
+        Returns the decision (``week_start``, ``action``) or ``None`` for an unknown pot.
+        """
+        from ..pots import week_bounds
+
+        week_start = week_bounds(dt_util.now().date())[0]
+        if not await self._pot_store.async_set_carry_decision(pot_id, week_start, action):
+            return None
+        return {"pot_id": pot_id, "week_start": week_start.isoformat(), "action": action}
+
     async def async_delete_pot(self, pot_id: str) -> bool:
         """Delete a pot by id."""
         return await self._pot_store.async_delete(pot_id)
