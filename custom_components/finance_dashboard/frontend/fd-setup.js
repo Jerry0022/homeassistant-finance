@@ -807,8 +807,6 @@ class FdSetup extends HTMLElement {
         } else if (step === "goals" || step === "points") {
           const s = this._settingsEl;
           if (s && !(await s.save())) return this._unbusy();
-          this._busy = false;
-          return this._go(this._idx + 1);
         }
       }
       this._st = await this._put(body);

@@ -31,8 +31,10 @@ from .recurring import detect_recurring
 STORAGE_KEY = f"{DOMAIN}.setup_wizard"
 STORAGE_VERSION = 1
 
-STEPS = ("persons", "accounts", "payday", "pots", "plan", "notifications", "ai", "done")
-SKIPPABLE = {"plan", "ai", "notifications", "pots", "payday"}
+STEPS = (
+    "persons", "accounts", "payday", "pots", "plan", "goals", "points", "notifications", "ai", "done",
+)
+SKIPPABLE = {"plan", "goals", "points", "ai", "notifications", "pots", "payday"}
 STATUSES = ("pending", "done", "skipped")
 
 DEFAULT_NOTIFICATIONS: dict[str, Any] = {
