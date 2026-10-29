@@ -25,27 +25,18 @@ const _query = new URL(import.meta.url).search;
 const _load = (file) => import(new URL(file + _query, import.meta.url).href);
 
 const COMPONENTS = [
-  "fd-data-provider.js",
-  "fd-stat-card.js",
-  "fd-person-card.js",
-  "fd-donut-chart.js",
-  "fd-header.js",
-  "fd-stats-row.js",
-  "fd-household-section.js",
-  "fd-household-cycle.js",
+  "fd-subpage-header.js",
+  "fd-home.js",
   "fd-freshness.js",
+  "fd-cycle-detail.js",
+  "fd-transactions.js",
   "fd-budget-plan.js",
-  "fd-category-section.js",
-  "fd-cost-distribution.js",
-  "fd-recurring-list.js",
-  "fd-transactions-log.js",
   "fd-settings.js",
   "fd-setup.js",
-  "fd-overview.js",
-  "fd-home.js",
   "fd-questions.js",
   "fd-contracts.js",
   "fd-benchmark.js",
+  "fd-transactions-log.js",
 ];
 
 const CARDS = [
@@ -58,7 +49,12 @@ const CARDS = [
 if (!window.__fdKitReady) {
   window.__fdKitReady = (async () => {
     await _load("fd-shared-styles.js");
-    await Promise.all([...COMPONENTS, ...CARDS].map(_load));
+    // allSettled: one broken or missing module must not take the whole kit
+    // (and with it the panel) down; the failing element just stays undefined.
+    const results = await Promise.allSettled([...COMPONENTS, ...CARDS].map(_load));
+    results.forEach((r, i) => {
+      if (r.status === "rejected") console.error(`finance kit: ${[...COMPONENTS, ...CARDS][i]} failed to load`, r.reason);
+    });
   })();
 }
 
