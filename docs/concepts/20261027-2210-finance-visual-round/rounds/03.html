@@ -1,0 +1,831 @@
+<section data-iteration="3" data-iteration-template="design" data-design-set="alternatives" data-viewports="phone desktop tablet" data-viewport-default="phone" data-baked>
+  <script type="application/json" data-frozen-feedback>{"general":{"text":"Generell kennzeichne in der readme das projekt als alpha und nicht empfohlen zu nutzen. \n\nMir ist das konzept aktuell zu horizontal und vertikal inhaltlich, lass uns horizontal step by step einen durchstich machen, sprich erst die Startseite, welche use cases sind der startseite zugeordnet, welche ist top und muss ich direkt serhen, welche kontextabhängig, welche durch umschalten.\nDann jedes element für sich komplett tief refinen.\nMobile first, aber desktop sollte immer den raum nutzen sich informationen aus den untermenüs zu ziehen und alles was eher komnplexe analyse ist sollte nur dort stehen, desktop kann aber alles was mobile kann, mobile auch alles was desktop kann außer die komplexe monatsanalyse (einfache zusammenfassung ok). \nLass uns so step by step eher durchconcepten dafür dann mehr auf das einzelner wert legen. \n\nBtw, gerade für desktop auch eine schulden ansicht, einnkommensansicht und saldo ansicht die speziell auf das jeweilige eingeht. Vllt. in dem fall auch statsitik infos und was man wie verbessern kann nicht irgendwo global sondenr in der jeweiligen ansicht! Ggf. irgendwie visualisiert auch wo handlungsbedarf und wo nicht und nicht nur verschiedene seiten / btabellenblätter sondern eher geguided diese gesamten drei themen... Die intention istg ja generell dahinter eher ich muss meine finanzen nun mal durchschauen oder verbessern, das macht man selten und reicht als erstmal eine triggeraktion.","attachments":[]},"designs":{"r3b":"Das ist mir nicht durchdacht gengug. Also wenn ich heute schaue will habe ich zwei intentionen, bin ich im plan ok, dann wie viel budget habe ich heute bzw. für die woche in den verschiedenen töpfen was ich noch ausgeben kann. \nWenn ich auf woche gucke will ich wissen was kommt auf mich zu nebst wie stehe ich in der woche."},"screens":{"r3a-s1":"warum nicht in den wassertank den zeitaspekt reinbringen, wo stehe ich ggü. einem linearen ausgeben!\nfragen and dich sollte irgendwo vllt. rechts oben ein motivierendes icon sein, aber dann auf eine unterseite führen und dort ala karteikarten modus abgearbeitet! inkl. motivierenden thematischen hochzähler bis man einen punkt erreicht, dieser sollte dadnn gefeiert werden animativ und danach entweder auf der gleichen seite wenn es mehr gibt, sonst wieder auf die startseite.\nStand 6:30 Uhr sollte ein aktualitätsicon sein, dass anzeiigt wir sind aktuell. Klickt man drauf, gerät man auf eine untersieite wo man den stand sieht, historie, mehrere infos (refine du die selber) und auch einen log von allen imports (ob manuell oder automaisch getrgiggert) von rohdaten und aufbereitungen inkl. version. Dort sollte auch ein validitätscheck stehen bzw. status zu jedem Kalendermonat, im Sinne von am ende macht mathematisch alles wieder sinn - ich habe angst, dass wir so viel in virutellen töpfen etc. packen, dass am ende euros vergessen wurden.... Sozusagen ein test ergebnis.\n\nals nächstes finde ich super, da mach aber top 3 immer, den rest nur mti mehr anzeigen!\n\nSolange sind die buchungen als unkategorisiert erfasst. \n\ndevosps learn  warum ich auf dieser seetie das mobile handy nicht mit strg+click taggen kann. Außerdem ein feature request, dass wenn ich strg drücke und unten der Hinweis kommt (der übrigens 0 so gestyled ist wie alle anderen hotkey tipps) dieser nur für 3s  odoer so erscheint, sprich halte ich 5s lang strg erscheint der nur am anfang. weil ist ja immer noch ein tipp, origientiere dich gern an den tipps mitte unten visuell und zeitlich! wobei dieser natürlich ein trigger tipp ist basierend auf dem strg klick. Überlege auch ob der nur die ersten 3 mal während ich in diesem konzept strg drücke angezeigt wird, danach sollte der nutzer es verstanden / erinnert haben oder bis der nutzer einen custom noitz erfolgreich nmacht (also inkl. text dort drin, nicht nur den klick irgendwo)","r3a-s3":"Töpfe sollte es auchz persönliche geben können, natürlich nur aus persönlichen konten dann feeded. \ndie statistiken und vergleichswerte sind für mich nur interessant auf dieser haushalt startseite im Sinne von top info wusstest du schon, die aktuell checkt was das hauptthema ist, wo derjenige z. B. abweicht. ANsonsten sollte das hinter einem statistik link / ikonografie versteckt werden, auf der unterseite dann die infos! \n\nDie Verträge und ihre zahlungen, also die grafik dazu sollte hinter einen Punkt Verträge gebracht werden. Wobei ich utnermenüs nicht so gerne mag... ggf. was smarteres dafür einfallen lassen. Wobei gerade verträge und statistiken eher etwas sind für desktop und mobile zwar zugänglich aber ruhig z. B. im untermenü verstekct werden können.","r3b-s1":"können  wir die eilmelddung nicht oben in die mitte von finance reinbringen als meldung wie bei android oder so und dann kann man draufklicken und abarbeiten? Und das Thema ob es Haushalt oder person gern mit swipen links /rechts?","r3b-s3":"zyklus ist monat!\n\nUnd ja wir brauchen diese verschiedenen sichten oben","r3b-s5":"sehr gute idee mit den notgroschen"},"views":{},"favorite":"r3b"}</script>
+<style>
+div.r3-app{box-sizing:border-box;container:r3w / inline-size;display:flex;flex-direction:column;min-height:100%;font-family:Roboto,"Segoe UI",sans-serif;font-size:14px;line-height:1.35;background:#f4f5f7;color:#1c1c1e}
+.r3-app *,.r3-app *::before,.r3-app *::after{box-sizing:border-box}
+.r3-app button{font:inherit;cursor:pointer}
+.r3-app .r3-top{display:flex;align-items:center;flex-wrap:wrap;gap:8px 10px;padding:10px 14px;background:#fff;border-bottom:1px solid #e3e6ea}
+.r3-app .r3-brand{margin-right:auto;font-size:17px;font-weight:500}
+.r3-app .r3-stamp{font-size:11px;color:#6b6f76}
+.r3-app .r3-pt{display:inline-flex;gap:2px;padding:3px;border-radius:16px;background:#e8eaed}
+.r3-app .r3-pt > *{border:0;background:transparent;border-radius:13px;padding:5px 11px;font-size:12px;color:#3c4043}
+.r3-app .r3-pt > .r3-on{background:#fff;color:#01579b;font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.r3-app .r3-wrap{flex:1;padding:12px}
+.r3-app .r3-card{background:#fff;border-radius:12px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.r3-app .r3-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 8px;font-size:13px;font-weight:500;color:#3c4043}
+.r3-app .r3-muted{font-size:12px;color:#6b6f76}
+.r3-app .r3-q{font-weight:500;margin:2px 0 0}
+.r3-app .r3-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0}
+.r3-app .r3-row + .r3-row{border-top:1px solid #eceef1}
+.r3-app .r3-pend{font-size:12px;color:#8a6d00}
+.r3-app .r3-btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.r3-app .r3-btn{border:0;border-radius:16px;padding:7px 13px;font-size:13px;background:#03a9f4;color:#fff}
+.r3-app .r3-btn.r3-ghost{background:transparent;color:#0277bd;border:1px solid #b3e0f7}
+.r3-app .r3-chip{min-height:38px;border:1px solid #81d4fa;border-radius:19px;padding:8px 14px;font-size:13px;background:#f1f9fe;color:#01579b}
+.r3-app .r3-tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;color:#fff;background:#0288d1;white-space:nowrap}
+.r3-app .r3-tag.r3-ben{background:#00897b}
+.r3-app .r3-tag.r3-anna{background:#7e57c2}
+.r3-app .r3-count{display:inline-block;min-width:20px;padding:0 6px;border-radius:10px;background:#03a9f4;color:#fff;font-size:11px;line-height:18px;text-align:center}
+.r3-app .r3-news{background:#fff;border-radius:12px;border-left:5px solid #e8a33b;padding:11px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.r3-app .r3-kick{font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#a15c00}
+.r3-app .r3-news b{display:block;margin:3px 0 2px;font-size:15px}
+.r3-app .r3-tank{position:relative;height:140px;border-radius:14px;background:#e3f2fd;overflow:hidden}
+.r3-app .r3-tank.r3-sm{height:96px}
+.r3-app .r3-tank.r3-lg{height:200px}
+.r3-app .r3-fill{position:absolute;left:0;right:0;bottom:0;background:#4fc3f7}
+.r3-app .r3-plan{position:absolute;left:0;right:0;border-top:2px dashed #01579b;opacity:.6}
+.r3-app .r3-tl{position:absolute;left:12px;right:12px;top:9px;display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px;color:#01579b}
+.r3-app .r3-ta{position:absolute;left:12px;bottom:9px;font-size:30px;font-weight:500;color:#fff}
+.r3-app .r3-sm .r3-ta{font-size:22px}
+.r3-app .r3-lg .r3-ta{font-size:44px}
+.r3-app .r3-ok{border-radius:10px;padding:0 8px;font-size:11px;line-height:18px;white-space:nowrap;background:#fff;color:#2e7d32}
+.r3-app .r3-ok.r3-low{color:#8a5a00}
+.r3-app .r3-pos{padding:6px 0;font-size:13px}
+.r3-app .r3-pos + .r3-pos{border-top:1px solid #f1f3f4}
+.r3-app .r3-pos > div{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.r3-app .r3-pb{position:relative;display:block;height:6px;margin-top:4px;border-radius:3px;background:#e8eaed}
+.r3-app .r3-pb > i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:#4fc3f7}
+.r3-app .r3-pb.r3-over > i{background:#e8a33b}
+.r3-app .r3-pb > b{position:absolute;top:-3px;bottom:-3px;width:2px;background:#01579b}
+.r3-app .r3-flag{border:0;border-radius:8px;padding:1px 7px;font-size:11px;background:#fff3e0;color:#8a5a00}
+.r3-app .r3-week{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin:6px 0 2px}
+.r3-app .r3-week > span{display:flex;align-items:center;justify-content:center;height:22px;border-radius:4px;font-size:10px;background:#b3e5fc;color:#01579b}
+.r3-app .r3-week > span.r3-now{background:#03a9f4;color:#fff}
+.r3-app .r3-week > span.r3-nov{background:#fff;border:1px dashed #0288d1}
+.r3-app .r3-legend{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px;font-size:11px;color:#6b6f76}
+.r3-app .r3-legend i{display:inline-block;width:9px;height:9px;margin-right:4px;border-radius:2px;vertical-align:middle}
+.r3-app .r3-yr{position:relative}
+.r3-app .r3-months{display:grid;grid-template-columns:84px repeat(12,1fr) 46px;padding-bottom:4px;font-size:10px;text-align:center;color:#6b6f76}
+.r3-app .r3-yrow{display:grid;grid-template-columns:84px 1fr 46px;align-items:center;padding:4px 0;font-size:12px;border-top:1px solid #f1f3f4}
+.r3-app .r3-yrow > span:last-child{text-align:right;color:#3c4043}
+.r3-app .r3-track{position:relative;height:16px;border-radius:4px;background:#f8f9fa}
+.r3-app .r3-ev{position:absolute;top:3px;width:10px;height:10px;border-radius:50%;background:#0288d1;transform:translateX(-50%)}
+.r3-app .r3-ev.r3-dl{border-radius:1px;background:#e8a33b;transform:translateX(-50%) rotate(45deg)}
+.r3-app .r3-ev.r3-px{background:#8e24aa}
+.r3-app .r3-line{position:absolute;top:7px;height:2px;background:#81d4fa}
+.r3-app .r3-today{position:absolute;top:0;bottom:0;width:2px;background:#03a9f4;left:calc(84px + (100% - 130px) * .82)}
+.r3-app .r3-bench{position:relative;height:26px;margin:22px 0 26px;border-radius:6px;background:linear-gradient(90deg,#f1f8e9,#e3f2fd)}
+.r3-app .r3-band{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:600;color:#8a5a00;background:rgba(232,163,59,.3)}
+.r3-app .r3-mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:#5f6368}
+.r3-app .r3-mark > span{position:absolute;top:-17px;left:0;transform:translateX(-50%);font-size:10px;white-space:nowrap;color:#3c4043}
+.r3-app .r3-mark > span.r3-below{top:auto;bottom:-17px}
+.r3-app .r3-mark.r3-floor{background:#6d4c41}
+.r3-app .r3-mark.r3-you{width:4px;background:#e8a33b}
+.r3-app .r3-pots{display:flex;flex-wrap:wrap;align-items:center;gap:14px 18px}
+.r3-app .r3-donut{position:relative;flex:none;width:168px;height:168px;border-radius:50%}
+.r3-app .r3-dhole{position:absolute;inset:15px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border-radius:50%;background:#fff;text-align:center}
+.r3-app .r3-dhole b{font-size:22px;font-weight:500;color:#01579b}
+.r3-app .r3-dhole span{font-size:11px;color:#6b6f76}
+.r3-app .r3-dleg{flex:1;min-width:190px}
+.r3-app .r3-dl{display:grid;grid-template-columns:12px 1fr auto 34px;align-items:center;gap:8px;padding:5px 0;font-size:13px}
+.r3-app .r3-dl + .r3-dl{border-top:1px solid #f1f3f4}
+.r3-app .r3-dl > i{width:12px;height:12px;border-radius:3px}
+.r3-app .r3-dl > em{font-style:normal;font-size:11px;text-align:right;color:#6b6f76}
+.r3-app .r3-dl.r3-gap{color:#5f6368}
+.r3-app .r3-gapsw{background:repeating-linear-gradient(45deg,#cfd8dc 0 3px,#eceff1 3px 6px)}
+.r3-app .r3-goal{display:block;height:4px;margin-top:3px;border-radius:2px;background:#e8eaed;overflow:hidden}
+.r3-app .r3-goal > i{display:block;height:100%;background:#0288d1}
+/* r3a · Ein Feed */
+.r3-app .r3-feed{columns:290px 3;column-gap:12px}
+.r3-app .r3-feed > *{break-inside:avoid}
+.r3-app .r3-feed > .r3-news{column-span:all}
+.r3-app .r3-fh{display:flex;align-items:center;gap:8px;width:100%;padding:0;border:0;background:transparent;text-align:left;font-size:13px;font-weight:500;color:#3c4043}
+.r3-app .r3-fh > .r3-sum{margin-left:auto;font-weight:400;color:#1c1c1e}
+.r3-app .r3-chev{font-size:12px;color:#9aa0a6}
+.r3-app .r3-fold .r3-body{display:none;margin-top:8px}
+.r3-app .r3-fold.r3-open .r3-body{display:block}
+/* r3b · Zoom */
+.r3-app .r3-zoom{display:flex;gap:2px;padding:3px;margin-bottom:10px;border-radius:18px;background:#e8eaed}
+.r3-app .r3-z{flex:1;border:0;border-radius:15px;padding:7px 4px;font-size:13px;text-align:center;background:transparent;color:#3c4043}
+.r3-app .r3-z.r3-on{background:#fff;color:#01579b;font-weight:500;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.r3-app .r3-z > span{display:none}
+.r3-app .r3-swipe{display:flex;justify-content:center;align-items:center;gap:10px;margin:8px 0 2px;font-size:11px;color:#6b6f76}
+.r3-app .r3-dot{width:8px;height:8px;padding:0;border:0;border-radius:50%;background:#c5ccd3}
+.r3-app .r3-dot.r3-on{width:20px;border-radius:4px;background:#03a9f4}
+/* r3c · Aufgaben */
+.r3-app .r3-c{display:flex;flex-direction:column;flex:1}
+.r3-app .r3-nav{display:none}
+.r3-app .r3-nav > *{display:block;width:100%;border:0;background:transparent;padding:9px 18px;text-align:left;font-size:14px;color:#3c4043}
+.r3-app .r3-nav > .r3-on{background:#e1f5fe;color:#01579b;font-weight:500}
+.r3-app .r3-nav > .r3-ng{padding:14px 18px 4px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#9aa0a6}
+.r3-app .r3-mid{padding:12px}
+.r3-app .r3-aside{padding:0 12px 12px}
+.r3-app .r3-bar{display:flex;margin-top:auto;background:#fff;border-top:1px solid #e3e6ea}
+.r3-app .r3-bar > button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;border:0;background:transparent;padding:9px 0 12px;font-size:12px;color:#5f6368}
+.r3-app .r3-bar > button > i{font-style:normal;font-size:18px;line-height:1}
+.r3-app .r3-bar > .r3-on{color:#0277bd;font-weight:500}
+.r3-app .r3-more{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto}
+.r3-app .r3-more > *{flex:none;border:1px solid #d6dbe0;border-radius:16px;padding:6px 12px;font-size:12px;background:#fff;color:#3c4043}
+.r3-app .r3-more > .r3-on{border-color:#03a9f4;background:#e1f5fe;color:#01579b;font-weight:500}
+.r3-app .r3-task{display:flex;align-items:flex-start;gap:10px}
+.r3-app .r3-task > .r3-ico{flex:none;display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;font-size:14px;font-weight:600;background:#e1f5fe;color:#0277bd}
+.r3-app .r3-task > .r3-ico.r3-warn{background:#fff3e0;color:#a15c00}
+.r3-app .r3-task > div{flex:1;min-width:0}
+.r3-app .r3-done{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;padding:7px 10px;border-radius:8px;font-size:13px;background:#f1f8e9;color:#2e7d32}
+.r3-app .r3-calm{display:flex;align-items:center;gap:10px;font-size:15px;color:#2e7d32}
+.r3-app .r3-cols2{display:block}
+@container r3w (min-width: 760px){
+  .r3-app .r3-wrap{padding:16px 20px}
+  .r3-app .r3-fold .r3-body{display:block}
+  .r3-app .r3-chev{display:none}
+  .r3-app .r3-zoom{gap:0;padding:0;margin-bottom:16px;border-radius:0;background:transparent;border-bottom:2px solid #d6dbe0}
+  .r3-app .r3-z{border-radius:0;padding:8px 12px 10px;margin-bottom:-2px;text-align:left;border-bottom:3px solid transparent}
+  .r3-app .r3-z:nth-child(2){flex:1.4}
+  .r3-app .r3-z:nth-child(3){flex:2}
+  .r3-app .r3-z:nth-child(4){flex:3}
+  .r3-app .r3-z.r3-on{background:#e1f5fe;box-shadow:none;border-bottom-color:#03a9f4}
+  .r3-app .r3-z > span{display:block;margin-top:2px;font-size:11px;font-weight:400;color:#6b6f76}
+  .r3-app .r3-swipe{display:none}
+  .r3-app .r3-split{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:16px;align-items:start}
+  .r3-app .r3-c{display:grid;grid-template-columns:190px minmax(0,1fr) 300px;align-items:start}
+  .r3-app .r3-nav{display:block;align-self:stretch;padding:10px 0;background:#fff;border-right:1px solid #e3e6ea}
+  .r3-app .r3-mid{padding:16px}
+  .r3-app .r3-aside{padding:16px 16px 16px 0}
+  .r3-app .r3-bar{display:none}
+  .r3-app .r3-more{display:none}
+  .r3-app .r3-cols2{display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start}
+}
+</style>
+<header class="iteration-intro">
+  <h2>{{iteration.tab}} 3 · Eine Startseite, kluge Navigation</h2>
+  <p>Die Inhalte aus Runde 2 bleiben. Diese Runde fragt, wie sie zusammenpassen: drei Navigations-Ideen, jede als kleine App mit einer Startseite, die eine Frage beantwortet: „Liegen wir im Plan, und muss ich etwas tun?“ Am Handy heißt das schnell schauen und antworten, am Desktop prüfen und planen über die volle Breite. Mit dem Geräte-Umschalter siehst du jede Idee als Handy, Desktop und Tablet.</p>
+  <p>Aus eurem Feedback übernommen und in allen drei gleich: Töpfe als Kreisdiagramm, Verträge im Kalenderjahr, Hinweise direkt in der Grafik statt als Text, Ereignisse als Eilmeldung oben auf der Startseite (gesehen, dann weg) und eine Personensicht ohne Gemeinsames. Finance öffnet in der Sicht des angemeldeten Benutzers (hier Ben). „Haushalt“ ist der einzige Umschalter. Zyklus-Abschluss, Jahr und Töpfe sind gemeinsame Themen und stehen deshalb in der Haushalt-Sicht. Alle Zahlen sind erfunden.</p>
+</header>
+
+<!-- ============ r3a · Ein Feed ============ -->
+<section data-design="r3a" data-nav-label="Ein Feed" data-design-active="true"
+  data-design-motto="Eine Seite, alles drauf"
+  data-design-traits="Alles ist eine Karte in fester Reihenfolge|Karten klappen an Ort und Stelle auf|Desktop: dieselben Karten im Spaltenraster"
+  data-design-icon="layers" data-design-color="#7e57c2" data-design-overlay="br">
+
+  <section id="r3a-s1" data-nav-label="Start mit Eilmeldung" data-screen data-screen-active="true">
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><span class="r3-on">Ben</span><button data-screen-link="r3a-s3">Haushalt</button></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-wrap">
+        <div class="r3-feed r3-tgt-order">
+          <div class="r3-news"><span class="r3-kick">Eilmeldung · nur für dich</span><b>Netflix doppelt abgebucht</b><span class="r3-muted">17,99 € gingen am 26.10. zweimal von deinem Girokonto ab.</span>
+            <div class="r3-btns"><button class="r3-btn">Ansehen</button><button class="r3-btn r3-ghost" data-screen-link="r3a-s2">Ist in Ordnung</button></div></div>
+          <div class="r3-card">
+            <div class="r3-tank"><div class="r3-fill" style="height:62%"></div><div class="r3-plan" style="bottom:48%"></div><div class="r3-tl"><span>Dein Spielraum bis 31.10.</span><span class="r3-ok">✓ im Plan</span></div><span class="r3-ta">240 €</span></div>
+            <div class="r3-muted" style="margin-top:6px">Gestrichelt: so voll sollte der Tank heute laut Plan sein</div>
+          </div>
+          <div class="r3-card">
+            <div class="r3-h"><span>Fragen an dich <span class="r3-count">3</span></span><span class="r3-muted">18 / 30 bis zum Punkt</span></div>
+            <div class="r3-muted">Aral · 71,00 € · Girokonto Ben</div>
+            <div class="r3-q">Wem gehört die Buchung?</div>
+            <div class="r3-btns"><button class="r3-chip">Nur ich</button><button class="r3-chip">Für uns</button></div>
+            <div class="r3-row" style="margin-top:6px"><span class="r3-muted">dm · 23,80 € · Kategorie?</span><span class="r3-chev">›</span></div>
+            <div class="r3-row"><span class="r3-muted">Etsy · 38,00 € · Kategorie?</span><span class="r3-chev">›</span></div>
+          </div>
+          <div class="r3-card">
+            <div class="r3-h"><span>Als Nächstes</span><span class="r3-muted">Girokonto Ben</span></div>
+            <div class="r3-row"><span>Fr 30.10. · Fitness</span><span>36,00 €</span></div>
+            <div class="r3-row"><span>So 01.11. · Netflix</span><span>17,99 €</span></div>
+            <div class="r3-row"><span>Mo 02.11. · Handy</span><span>19,99 €</span></div>
+            <div class="r3-row"><span class="r3-pend">vorgemerkt · Aral</span><span class="r3-pend">52,40 €</span></div>
+          </div>
+          <div class="r3-card r3-fold">
+            <button class="r3-fh"><span>Woche</span><span class="r3-sum">KW 44 · 64 € frei</span><span class="r3-chev">▾</span></button>
+            <div class="r3-body">
+              <div class="r3-week"><span>Mo</span><span>Di</span><span class="r3-now">Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span class="r3-nov">So</span></div>
+              <div class="r3-legend"><span><i style="background:#b3e5fc"></i>Oktober-Zyklus</span><span><i style="background:#fff;border:1px dashed #0288d1"></i>November, Zahltag 01.11.</span></div>
+              <div class="r3-pos"><div><span>Mobilität</span><span>71 / 55 €</span></div><span class="r3-pb r3-over"><i style="width:100%"></i><b style="left:77%"></b></span></div>
+              <div class="r3-pos"><div><span>Persönliches</span><span>23 / 40 €</span></div><span class="r3-pb"><i style="width:57%"></i></span></div>
+            </div>
+          </div>
+          <div class="r3-card r3-fold">
+            <button class="r3-fh" data-screen-link="r3a-s2"><span>Zyklus</span><span class="r3-sum">Oktober · noch 3 Tage</span><span class="r3-chev">▾</span></button>
+            <div class="r3-body">
+              <div class="r3-pos"><div><span>Mobilität</span><span>72 / 220 €</span></div><span class="r3-pb"><i style="width:33%"></i></span></div>
+              <div class="r3-pos"><div><span>Sport</span><span>36 / 40 €</span></div><span class="r3-pb"><i style="width:90%"></i></span></div>
+              <div class="r3-pos"><div><span>Handy</span><span>20 / 20 €</span></div><span class="r3-pb"><i style="width:100%"></i></span></div>
+              <div class="r3-row" style="margin-top:4px"><span>Ausgleich am 31.10.<br><span class="r3-muted">Anna → dich</span></span><b>124 €</b></div>
+            </div>
+          </div>
+          <div class="r3-card r3-fold">
+            <button class="r3-fh"><span>Jahr</span><span class="r3-sum">2 Fristen im November</span><span class="r3-chev">▾</span></button>
+            <div class="r3-body">
+              <div class="r3-yr">
+                <div class="r3-months"><span></span><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span><span>€/J</span></div>
+                <div class="r3-yrow"><span>Kfz-Versich.</span><div class="r3-track"><i class="r3-ev" style="left:4%"></i><i class="r3-ev r3-dl" style="left:91%"></i></div><span>412</span></div>
+                <div class="r3-yrow"><span>Fitness</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span><i class="r3-ev r3-dl" style="left:91%"></i></div><span>432</span></div>
+                <div class="r3-yrow"><span>Handy</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span></div><span>240</span></div>
+                <span class="r3-today"></span>
+              </div>
+              <div class="r3-row" style="margin-top:4px"><span>Fitness · kündbar bis 30.11.</span><button class="r3-btn r3-ghost">Erinnern</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r3-a-s1-a1" data-anno-side="left" data-anno-target=".r3-tgt-order" style="--anno-x:85%;--anno-y:35%">
+        <button class="anno-pin" type="button" data-anno-pin="r3-a-s1-a1" aria-expanded="false" aria-controls="anno-bubble-r3-a-s1-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r3-a-s1-a1" data-anno-bubble="r3-a-s1-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r3-a-s1-a1" aria-expanded="false" aria-controls="anno-bubble-r3-a-s1-a1"><span class="anno-bubble-question">Karten immer in dieser festen Reihenfolge, oder sortiert Finance sie nach Dringlichkeit um (z. B. Jahr nach oben, wenn eine Frist naht)?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r3-a-s1-a1" data-annotation="r3-a-s1-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r3-a-s1-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="r3a-s2" data-nav-label="Start ruhig · Zyklus offen" data-screen hidden>
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><span class="r3-on">Ben</span><button data-screen-link="r3a-s3">Haushalt</button></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-wrap">
+        <div class="r3-feed">
+          <div class="r3-card">
+            <div class="r3-tank"><div class="r3-fill" style="height:62%"></div><div class="r3-plan" style="bottom:48%"></div><div class="r3-tl"><span>Dein Spielraum bis 31.10.</span><span class="r3-ok">✓ im Plan</span></div><span class="r3-ta">240 €</span></div>
+            <div class="r3-muted" style="margin-top:6px">Gestrichelt: so voll sollte der Tank heute laut Plan sein</div>
+          </div>
+          <div class="r3-card">
+            <div class="r3-h"><span>Fragen an dich <span class="r3-count">3</span></span><span class="r3-muted">18 / 30 bis zum Punkt</span></div>
+            <div class="r3-muted">Aral · 71,00 € · Girokonto Ben</div>
+            <div class="r3-q">Wem gehört die Buchung?</div>
+            <div class="r3-btns"><button class="r3-chip">Nur ich</button><button class="r3-chip">Für uns</button></div>
+            <div class="r3-row" style="margin-top:6px"><span class="r3-muted">dm · 23,80 € · Kategorie?</span><span class="r3-chev">›</span></div>
+            <div class="r3-row"><span class="r3-muted">Etsy · 38,00 € · Kategorie?</span><span class="r3-chev">›</span></div>
+          </div>
+          <div class="r3-card">
+            <div class="r3-h"><span>Als Nächstes</span><span class="r3-muted">Girokonto Ben</span></div>
+            <div class="r3-row"><span>Fr 30.10. · Fitness</span><span>36,00 €</span></div>
+            <div class="r3-row"><span>So 01.11. · Netflix</span><span>17,99 €</span></div>
+            <div class="r3-row"><span>Mo 02.11. · Handy</span><span>19,99 €</span></div>
+            <div class="r3-row"><span class="r3-pend">vorgemerkt · Aral</span><span class="r3-pend">52,40 €</span></div>
+          </div>
+          <div class="r3-card r3-fold">
+            <button class="r3-fh"><span>Woche</span><span class="r3-sum">KW 44 · 64 € frei</span><span class="r3-chev">▾</span></button>
+            <div class="r3-body">
+              <div class="r3-week"><span>Mo</span><span>Di</span><span class="r3-now">Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span class="r3-nov">So</span></div>
+              <div class="r3-legend"><span><i style="background:#b3e5fc"></i>Oktober-Zyklus</span><span><i style="background:#fff;border:1px dashed #0288d1"></i>November, Zahltag 01.11.</span></div>
+              <div class="r3-pos"><div><span>Mobilität</span><span>71 / 55 €</span></div><span class="r3-pb r3-over"><i style="width:100%"></i><b style="left:77%"></b></span></div>
+              <div class="r3-pos"><div><span>Persönliches</span><span>23 / 40 €</span></div><span class="r3-pb"><i style="width:57%"></i></span></div>
+            </div>
+          </div>
+          <div class="r3-card r3-fold r3-open">
+            <button class="r3-fh" data-screen-link="r3a-s1"><span>Zyklus</span><span class="r3-sum">Oktober · noch 3 Tage</span><span class="r3-chev">▴</span></button>
+            <div class="r3-body">
+              <div class="r3-muted">Deine Positionen · Balken = Ist, Strich = Plan</div>
+              <div class="r3-pos"><div><span>Mobilität</span><span>72 / 220 €</span></div><span class="r3-pb"><i style="width:33%"></i></span></div>
+              <div class="r3-pos"><div><span>Sport</span><span>36 / 40 €</span></div><span class="r3-pb"><i style="width:90%"></i></span></div>
+              <div class="r3-pos"><div><span>Handy</span><span>20 / 20 €</span></div><span class="r3-pb"><i style="width:100%"></i></span></div>
+              <div class="r3-row" style="margin-top:4px"><span>Ausgleich am 31.10.<br><span class="r3-muted">Anna → dich</span></span><b>124 €</b></div>
+              <div class="r3-btns"><button class="r3-btn r3-ghost">Als erledigt markieren</button></div>
+            </div>
+          </div>
+          <div class="r3-card r3-fold">
+            <button class="r3-fh"><span>Jahr</span><span class="r3-sum">2 Fristen im November</span><span class="r3-chev">▾</span></button>
+            <div class="r3-body">
+              <div class="r3-yr">
+                <div class="r3-months"><span></span><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span><span>€/J</span></div>
+                <div class="r3-yrow"><span>Kfz-Versich.</span><div class="r3-track"><i class="r3-ev" style="left:4%"></i><i class="r3-ev r3-dl" style="left:91%"></i></div><span>412</span></div>
+                <div class="r3-yrow"><span>Fitness</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span><i class="r3-ev r3-dl" style="left:91%"></i></div><span>432</span></div>
+                <div class="r3-yrow"><span>Handy</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span></div><span>240</span></div>
+                <span class="r3-today"></span>
+              </div>
+              <div class="r3-row" style="margin-top:4px"><span>Fitness · kündbar bis 30.11.</span><button class="r3-btn r3-ghost">Erinnern</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="r3a-s3" data-nav-label="Haushalt · Töpfe offen" data-screen hidden>
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><button data-screen-link="r3a-s2">Ben</button><span class="r3-on">Haushalt</span></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-wrap">
+        <div class="r3-feed">
+          <div class="r3-card">
+            <div class="r3-tank"><div class="r3-fill" style="height:58%"></div><div class="r3-plan" style="bottom:42%"></div><div class="r3-tl"><span>Gemeinsam frei bis 31.10.</span><span class="r3-ok">✓ im Plan</span></div><span class="r3-ta">412 €</span></div>
+          </div>
+          <div class="r3-card">
+            <div class="r3-h"><span>Gemeinsame Frage <span class="r3-count">1</span></span></div>
+            <div class="r3-muted">AMZN Mktp · 52,99 € · Gemeinsames Girokonto</div>
+            <div class="r3-q">Für wen war das?</div>
+            <div class="r3-btns"><button class="r3-chip">Für uns</button><button class="r3-chip">Nur Anna</button><button class="r3-chip">Nur Ben</button></div>
+          </div>
+          <div class="r3-card">
+            <div class="r3-h"><span>Als Nächstes</span><span class="r3-muted">Gemeinsames Girokonto</span></div>
+            <div class="r3-row"><span>Do 29.10. · Miete</span><span>1.150,00 €</span></div>
+            <div class="r3-row"><span>Fr 30.10. · Strom</span><span>94,00 €</span></div>
+            <div class="r3-row"><span class="r3-pend">2 vorgemerkt</span><span class="r3-pend">38,00 €</span></div>
+          </div>
+          <div class="r3-card r3-fold">
+            <button class="r3-fh"><span>Woche</span><span class="r3-sum">KW 44</span><span class="r3-chev">▾</span></button>
+            <div class="r3-body">
+              <div class="r3-pos"><div><span>Lebensmittel</span><span>140 / 100 €</span></div><span class="r3-pb r3-over"><i style="width:100%"></i><b style="left:71%"></b></span></div>
+              <div class="r3-pos"><div><span>Freizeit</span><span>35 / 60 €</span></div><span class="r3-pb"><i style="width:58%"></i></span></div>
+            </div>
+          </div>
+          <div class="r3-card r3-fold">
+            <button class="r3-fh"><span>Zyklus</span><span class="r3-sum">86 € unter Plan</span><span class="r3-chev">▾</span></button>
+            <div class="r3-body">
+              <div class="r3-muted">Ist / Plan · Balken = Ist, Strich = Plan</div>
+              <div class="r3-pos"><div><span>Miete <span class="r3-tag">Uns</span></span><span>1.150 / 1.150</span></div><span class="r3-pb"><i style="width:100%"></i></span></div>
+              <div class="r3-pos"><div><span>Lebensmittel <span class="r3-tag">Uns</span></span><span><button class="r3-flag">3× drüber · Plan 650?</button> 662 / 600</span></div><span class="r3-pb r3-over"><i style="width:100%"></i><b style="left:90.6%"></b></span></div>
+              <div class="r3-pos"><div><span>Mobilität <span class="r3-tag r3-ben">Ben</span></span><span>72 / 220</span></div><span class="r3-pb"><i style="width:33%"></i></span></div>
+              <div class="r3-row" style="margin-top:4px"><span>Ausgleich <span class="r3-tag r3-anna">Anna</span> → <span class="r3-tag r3-ben">Ben</span></span><b>124 €</b></div>
+            </div>
+          </div>
+          <div class="r3-card r3-fold">
+            <button class="r3-fh"><span>Jahr</span><span class="r3-sum">Kalenderjahr 2026</span><span class="r3-chev">▾</span></button>
+            <div class="r3-body">
+              <div class="r3-yr">
+                <div class="r3-months"><span></span><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span><span>€/J</span></div>
+                <div class="r3-yrow"><span>Kfz-Versich.</span><div class="r3-track"><i class="r3-ev" style="left:4%"></i><i class="r3-ev r3-dl" style="left:91%"></i></div><span>412</span></div>
+                <div class="r3-yrow"><span>Strom</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span><i class="r3-ev r3-px" style="left:84%"></i></div><span>1.128</span></div>
+                <div class="r3-yrow"><span>Handy Anna</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span><i class="r3-ev r3-dl" style="left:99%"></i></div><span>300</span></div>
+                <div class="r3-yrow"><span>Rundfunk</span><div class="r3-track"><i class="r3-ev" style="left:4%"></i><i class="r3-ev" style="left:29%"></i><i class="r3-ev" style="left:54%"></i><i class="r3-ev" style="left:79%"></i></div><span>220</span></div>
+                <span class="r3-today"></span>
+              </div>
+              <div class="r3-legend"><span><i style="background:#0288d1;border-radius:50%"></i>Zahlung</span><span><i style="background:#e8a33b;transform:rotate(45deg)"></i>Kündigungsfrist</span><span><i style="background:#8e24aa;border-radius:50%"></i>Preisänderung</span><span><i style="background:#03a9f4"></i>heute</span></div>
+              <div class="r3-h" style="margin-top:12px"><span>Lebensmittel pro Monat · 2 Erwachsene</span></div>
+              <div class="r3-bench"><div class="r3-band" style="left:64%;width:16%">+12 %</div><div class="r3-mark r3-floor" style="left:13%"><span class="r3-below">Regelbedarf 360 €</span></div><div class="r3-mark" style="left:64%"><span>Median 590 €</span></div><div class="r3-mark r3-you" style="left:80%"><span class="r3-below">Ihr 662 €</span></div></div>
+              <div class="r3-muted">Median · Destatis EVS · 2023 | Untergrenze: Bürgergeld-Regelbedarf, Anteil Ernährung · BMAS · 2026</div>
+            </div>
+          </div>
+          <div class="r3-card r3-fold r3-open">
+            <button class="r3-fh"><span>Töpfe</span><span class="r3-sum">Tagesgeld ••4821</span><span class="r3-chev">▴</span></button>
+            <div class="r3-body">
+              <div class="r3-pots">
+                <div class="r3-donut" style="background:conic-gradient(#01579b 0 40.2%,#fff 0 40.7%,#0288d1 0 68.3%,#fff 0 68.8%,#4fc3f7 0 85.5%,#fff 0 86%,#81d4fa 0 92.7%,#fff 0 93.2%,#cfd8dc 0 99.5%,#fff 0)"><div class="r3-dhole"><span>Tagesgeld</span><b>4.420 €</b><span>93 % in Töpfen</span></div></div>
+                <div class="r3-dleg">
+                  <div class="r3-dl"><i style="background:#01579b"></i><span>Notgroschen</span><span>1.800 €</span><em>41 %</em></div>
+                  <div class="r3-dl"><i style="background:#0288d1"></i><span>Urlaub</span><span>1.240 €</span><em>28 %</em></div>
+                  <div class="r3-dl"><i style="background:#4fc3f7"></i><span>Auto &amp; Versich.</span><span>760 €</span><em>17 %</em></div>
+                  <div class="r3-dl"><i style="background:#81d4fa"></i><span>Geschenke</span><span>320 €</span><em>7 %</em></div>
+                  <div class="r3-dl r3-gap"><i class="r3-gapsw"></i><span>ohne Topf</span><span>300 €</span><em>7 %</em></div>
+                </div>
+              </div>
+              <div class="r3-btns"><button class="r3-btn">300 € verteilen</button><button class="r3-btn r3-ghost">Als Puffer lassen</button></div>
+              <div class="r3-legend"><span><i class="r3-gapsw"></i>graue Lücke: Geld ohne Topf</span><span><i style="background:#e8a33b"></i>orange Lücke: Töpfe größer als Konto, „fehlt“</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r3-a-s3-a1" data-anno-side="left" data-anno-target=".r3-donut" style="--anno-x:80%;--anno-y:70%">
+        <button class="anno-pin" type="button" data-anno-pin="r3-a-s3-a1" aria-expanded="false" aria-controls="anno-bubble-r3-a-s3-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r3-a-s3-a1" data-anno-bubble="r3-a-s3-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r3-a-s3-a1" aria-expanded="false" aria-controls="anno-bubble-r3-a-s3-a1"><span class="anno-bubble-question">Die graue Lücke im Ring ist Geld ohne Topf (300 €). Fehlt Geld, würde sie orange und hieße „fehlt“. So lesbar?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r3-a-s3-a1" data-annotation="r3-a-s3-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r3-a-s3-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</section>
+
+<!-- ============ r3b · Zoom durch die Zeit ============ -->
+<section data-design="r3b" data-nav-label="Zoom durch die Zeit" hidden
+  data-design-motto="Eine Ansicht, jede Zeitspanne"
+  data-design-traits="Zeit-Zoom statt Seiten: Heute, Woche, Zyklus, Jahr|Tank und Liste verwandeln sich je Zoomstufe|Töpfe als Kippschalter am Tank"
+  data-design-icon="compass" data-design-color="#ef6c00" data-design-overlay="br">
+
+  <section id="r3b-s1" data-nav-label="Heute mit Eilmeldung" data-screen data-screen-active="true">
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><span class="r3-on">Ben</span><button data-screen-link="r3b-s3">Haushalt</button></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-wrap">
+        <div class="r3-zoom"><button class="r3-z r3-on">Heute<span>Mi 28.10.</span></button><button class="r3-z" data-screen-link="r3b-s2">Woche<span>KW 44 · 26.10.–01.11.</span></button><button class="r3-z" data-screen-link="r3b-s3">Zyklus<span>Oktober · 01.–31.10.</span></button><button class="r3-z" data-screen-link="r3b-s4">Jahr<span>Kalenderjahr 2026</span></button></div>
+        <div class="r3-news"><span class="r3-kick">Eilmeldung · nur für dich</span><b>Netflix doppelt abgebucht</b><span class="r3-muted">17,99 € gingen am 26.10. zweimal von deinem Girokonto ab.</span>
+          <div class="r3-btns"><button class="r3-btn">Ansehen</button><button class="r3-btn r3-ghost" data-screen-link="r3b-s2">Ist in Ordnung</button></div></div>
+        <div class="r3-split">
+          <div>
+            <div class="r3-card">
+              <div class="r3-tank"><div class="r3-fill" style="height:62%"></div><div class="r3-plan" style="bottom:48%"></div><div class="r3-tl"><span>Heute · dein Spielraum bis 31.10.</span><span class="r3-ok">✓ im Plan</span></div><span class="r3-ta">240 €</span></div>
+              <div class="r3-swipe"><span>‹ wischen</span><button class="r3-dot r3-on" aria-label="Heute"></button><button class="r3-dot" data-screen-link="r3b-s2" aria-label="Woche"></button><button class="r3-dot" data-screen-link="r3b-s3" aria-label="Zyklus"></button><button class="r3-dot" data-screen-link="r3b-s4" aria-label="Jahr"></button><span>wischen ›</span></div>
+            </div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Heute und als Nächstes</span><span class="r3-muted">Girokonto Ben</span></div>
+              <div class="r3-row"><span>Fr 30.10. · Fitness</span><span>36,00 €</span></div>
+              <div class="r3-row"><span>So 01.11. · Netflix</span><span>17,99 €</span></div>
+              <div class="r3-row"><span>Mo 02.11. · Handy</span><span>19,99 €</span></div>
+              <div class="r3-row"><span class="r3-pend">vorgemerkt · Aral</span><span class="r3-pend">52,40 €</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Fragen an dich <span class="r3-count">3</span></span><span class="r3-muted">18 / 30 bis zum Punkt</span></div>
+              <div class="r3-muted">Aral · 71,00 € · Girokonto Ben</div>
+              <div class="r3-q">Wem gehört die Buchung?</div>
+              <div class="r3-btns"><button class="r3-chip">Nur ich</button><button class="r3-chip">Für uns</button></div>
+              <div class="r3-row" style="margin-top:6px"><span class="r3-muted">dm · 23,80 € · Kategorie?</span></div>
+              <div class="r3-row"><span class="r3-muted">Etsy · 38,00 € · Kategorie?</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r3-b-s1-a1" data-anno-side="bottom" data-anno-target=".r3-zoom" style="--anno-x:60%;--anno-y:12%">
+        <button class="anno-pin" type="button" data-anno-pin="r3-b-s1-a1" aria-expanded="false" aria-controls="anno-bubble-r3-b-s1-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r3-b-s1-a1" data-anno-bubble="r3-b-s1-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r3-b-s1-a1" aria-expanded="false" aria-controls="anno-bubble-r3-b-s1-a1"><span class="anno-bubble-question">Am Handy wechselst du die Zoomstufe per Wischen über den Tank (oder Tipp oben auf Heute · Woche · Zyklus · Jahr). Intuitiv genug?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r3-b-s1-a1" data-annotation="r3-b-s1-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r3-b-s1-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="r3b-s2" data-nav-label="Woche · ohne Eilmeldung" data-screen hidden>
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><span class="r3-on">Ben</span><button data-screen-link="r3b-s3">Haushalt</button></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-wrap">
+        <div class="r3-zoom"><button class="r3-z" data-screen-link="r3b-s1">Heute<span>Mi 28.10.</span></button><button class="r3-z r3-on">Woche<span>KW 44 · 26.10.–01.11.</span></button><button class="r3-z" data-screen-link="r3b-s3">Zyklus<span>Oktober · 01.–31.10.</span></button><button class="r3-z" data-screen-link="r3b-s4">Jahr<span>Kalenderjahr 2026</span></button></div>
+        <div class="r3-split">
+          <div>
+            <div class="r3-card">
+              <div class="r3-tank"><div class="r3-fill" style="height:46%"></div><div class="r3-plan" style="bottom:57%"></div><div class="r3-tl"><span>KW 44 · dein Wochenbudget</span><span class="r3-ok r3-low">etwas unter Plan</span></div><span class="r3-ta">64 €</span></div>
+              <div class="r3-swipe"><span>‹ wischen</span><button class="r3-dot" data-screen-link="r3b-s1" aria-label="Heute"></button><button class="r3-dot r3-on" aria-label="Woche"></button><button class="r3-dot" data-screen-link="r3b-s3" aria-label="Zyklus"></button><button class="r3-dot" data-screen-link="r3b-s4" aria-label="Jahr"></button><span>wischen ›</span></div>
+            </div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Wochen-Digest</span><span class="r3-muted">Ist / Plan</span></div>
+              <div class="r3-week"><span>Mo</span><span>Di</span><span class="r3-now">Mi</span><span>Do</span><span>Fr</span><span>Sa</span><span class="r3-nov">So</span></div>
+              <div class="r3-legend"><span><i style="background:#b3e5fc"></i>Oktober-Zyklus</span><span><i style="background:#fff;border:1px dashed #0288d1"></i>November, Zahltag 01.11.</span></div>
+              <div class="r3-pos"><div><span>Mobilität</span><span>71 / 55 €</span></div><span class="r3-pb r3-over"><i style="width:100%"></i><b style="left:77%"></b></span></div>
+              <div class="r3-pos"><div><span>Persönliches</span><span>23 / 40 €</span></div><span class="r3-pb"><i style="width:57%"></i></span></div>
+            </div>
+          </div>
+          <div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Zu klären diese Woche <span class="r3-count">3</span></span><span class="r3-muted">höchstens 10</span></div>
+              <div class="r3-muted">Aral · 71,00 € · Girokonto Ben</div>
+              <div class="r3-q">Wem gehört die Buchung?</div>
+              <div class="r3-btns"><button class="r3-chip">Nur ich</button><button class="r3-chip">Für uns</button></div>
+              <div class="r3-row" style="margin-top:6px"><span class="r3-muted">dm · 23,80 € · Kategorie?</span></div>
+              <div class="r3-row"><span class="r3-muted">Etsy · 38,00 € · Kategorie?</span></div>
+            </div>
+            <div class="r3-card">
+              <div class="r3-row" style="padding-top:0"><span>Deine Antworten bis zum nächsten Punkt</span><span>18 / 30</span></div>
+              <span class="r3-pb"><i style="width:60%"></i></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="r3b-s3" data-nav-label="Zyklus" data-screen hidden>
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><button data-screen-link="r3b-s1">Ben</button><span class="r3-on">Haushalt</span></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-wrap">
+        <div class="r3-zoom"><button class="r3-z" data-screen-link="r3b-s1">Heute<span>Mi 28.10.</span></button><button class="r3-z" data-screen-link="r3b-s2">Woche<span>KW 44 · 26.10.–01.11.</span></button><button class="r3-z r3-on">Zyklus<span>Oktober · 01.–31.10.</span></button><button class="r3-z" data-screen-link="r3b-s4">Jahr<span>Kalenderjahr 2026</span></button></div>
+        <div class="r3-split">
+          <div>
+            <div class="r3-card">
+              <span class="r3-pt" style="margin-bottom:8px"><span class="r3-on">Konto</span><button data-screen-link="r3b-s5">Töpfe</button></span>
+              <div class="r3-tank"><div class="r3-fill" style="height:58%"></div><div class="r3-plan" style="bottom:42%"></div><div class="r3-tl"><span>Zyklus Oktober · gemeinsam frei</span><span class="r3-ok">✓ im Plan</span></div><span class="r3-ta">412 €</span></div>
+              <div class="r3-swipe"><span>‹ wischen</span><button class="r3-dot" data-screen-link="r3b-s1" aria-label="Heute"></button><button class="r3-dot" data-screen-link="r3b-s2" aria-label="Woche"></button><button class="r3-dot r3-on" aria-label="Zyklus"></button><button class="r3-dot" data-screen-link="r3b-s4" aria-label="Jahr"></button><span>wischen ›</span></div>
+            </div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Plan gegen Ist · noch 3 Tage</span><span class="r3-muted">Balken = Ist, Strich = Plan</span></div>
+              <div class="r3-pos"><div><span>Miete <span class="r3-tag">Uns</span></span><span>1.150 / 1.150</span></div><span class="r3-pb"><i style="width:100%"></i></span></div>
+              <div class="r3-pos"><div><span>Lebensmittel <span class="r3-tag">Uns</span></span><span><button class="r3-flag">3× drüber · Plan 650?</button> 662 / 600</span></div><span class="r3-pb r3-over"><i style="width:100%"></i><b style="left:90.6%"></b></span></div>
+              <div class="r3-pos"><div><span>Strom <span class="r3-tag">Uns</span></span><span>94 / 90</span></div><span class="r3-pb r3-over"><i style="width:100%"></i><b style="left:95.7%"></b></span></div>
+              <div class="r3-pos"><div><span>Streaming <span class="r3-tag">Uns</span></span><span>28 / 28</span></div><span class="r3-pb"><i style="width:100%"></i></span></div>
+              <div class="r3-pos"><div><span>Mobilität <span class="r3-tag r3-ben">Ben</span></span><span>72 / 220</span></div><span class="r3-pb"><i style="width:33%"></i></span></div>
+              <div class="r3-pos"><div><span>Handy <span class="r3-tag r3-anna">Anna</span></span><span>25 / 25</span></div><span class="r3-pb"><i style="width:100%"></i></span></div>
+              <div class="r3-pos"><div><span>Sport <span class="r3-tag r3-ben">Ben</span></span><span>36 / 40</span></div><span class="r3-pb"><i style="width:90%"></i></span></div>
+            </div>
+          </div>
+          <div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Abschluss am 31.10.</span></div>
+              <div style="font-size:22px;font-weight:500">86 € unter Plan</div>
+              <div class="r3-muted">Plan 2.153 € · Ist 2.067 €</div>
+            </div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Je Person</span></div>
+              <div class="r3-row"><span><span class="r3-tag r3-anna">Anna</span> trug</span><span>1.096 € · 52 %</span></div>
+              <div class="r3-row"><span><span class="r3-tag r3-ben">Ben</span> trug</span><span>971 € · 48 %</span></div>
+              <div class="r3-row"><b>Ausgleich Anna → Ben</b><b>124 €</b></div>
+              <div class="r3-btns"><button class="r3-btn r3-ghost">Als erledigt markieren</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="r3b-s4" data-nav-label="Jahr" data-screen hidden>
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><button data-screen-link="r3b-s1">Ben</button><span class="r3-on">Haushalt</span></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-wrap">
+        <div class="r3-zoom"><button class="r3-z" data-screen-link="r3b-s1">Heute<span>Mi 28.10.</span></button><button class="r3-z" data-screen-link="r3b-s2">Woche<span>KW 44 · 26.10.–01.11.</span></button><button class="r3-z" data-screen-link="r3b-s3">Zyklus<span>Oktober · 01.–31.10.</span></button><button class="r3-z r3-on">Jahr<span>Kalenderjahr 2026</span></button></div>
+        <div class="r3-split">
+          <div>
+            <div class="r3-card">
+              <span class="r3-pt" style="margin-bottom:8px"><span class="r3-on">Konto</span><button data-screen-link="r3b-s5">Töpfe</button></span>
+              <div class="r3-tank r3-sm"><div class="r3-fill" style="height:21%"></div><div class="r3-plan" style="bottom:18%"></div><div class="r3-tl"><span>2026 · Spielraum im Jahresplan</span><span class="r3-ok">✓ im Plan</span></div><span class="r3-ta">3.180 €</span></div>
+              <div class="r3-swipe"><span>‹ wischen</span><button class="r3-dot" data-screen-link="r3b-s1" aria-label="Heute"></button><button class="r3-dot" data-screen-link="r3b-s2" aria-label="Woche"></button><button class="r3-dot" data-screen-link="r3b-s3" aria-label="Zyklus"></button><button class="r3-dot r3-on" aria-label="Jahr"></button><span>wischen ›</span></div>
+            </div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Verträge im Kalenderjahr 2026 · Jan–Dez</span></div>
+              <div class="r3-yr">
+                <div class="r3-months"><span></span><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span><span>€/J</span></div>
+                <div class="r3-yrow"><span>Kfz-Versich.</span><div class="r3-track"><i class="r3-ev" style="left:4%"></i><i class="r3-ev r3-dl" style="left:91%"></i></div><span>412</span></div>
+                <div class="r3-yrow"><span>Strom</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span><i class="r3-ev r3-px" style="left:84%"></i></div><span>1.128</span></div>
+                <div class="r3-yrow"><span>Fitness Ben</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span><i class="r3-ev r3-dl" style="left:91%"></i></div><span>432</span></div>
+                <div class="r3-yrow"><span>Handy Anna</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span><i class="r3-ev r3-dl" style="left:99%"></i></div><span>300</span></div>
+                <div class="r3-yrow"><span>Haftpflicht</span><div class="r3-track"><i class="r3-ev" style="left:21%"></i></div><span>89</span></div>
+                <div class="r3-yrow"><span>Rundfunk</span><div class="r3-track"><i class="r3-ev" style="left:4%"></i><i class="r3-ev" style="left:29%"></i><i class="r3-ev" style="left:54%"></i><i class="r3-ev" style="left:79%"></i></div><span>220</span></div>
+                <div class="r3-yrow"><span>Streaming</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span></div><span>336</span></div>
+                <span class="r3-today"></span>
+              </div>
+              <div class="r3-legend"><span><i style="background:#0288d1;border-radius:50%"></i>Zahlung</span><span><i style="background:#e8a33b;transform:rotate(45deg)"></i>Kündigungsfrist</span><span><i style="background:#8e24aa;border-radius:50%"></i>Preisänderung</span><span><i style="background:#03a9f4"></i>heute</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Fristen demnächst</span></div>
+              <div class="r3-row"><span>Kfz-Versicherung<br><span class="r3-muted">kündbar bis 30.11.</span></span><button class="r3-btn r3-ghost">Erinnern</button></div>
+              <div class="r3-row"><span>Fitness Ben<br><span class="r3-muted">kündbar bis 30.11.</span></span><button class="r3-btn r3-ghost">Erinnern</button></div>
+              <div class="r3-row"><span>Handy Anna<br><span class="r3-muted">kündbar bis 31.12.</span></span><button class="r3-btn r3-ghost">Erinnern</button></div>
+            </div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Lebensmittel pro Monat · 2 Erwachsene</span></div>
+              <div class="r3-bench"><div class="r3-band" style="left:64%;width:16%">+12 %</div><div class="r3-mark r3-floor" style="left:13%"><span class="r3-below">Regelbedarf 360 €</span></div><div class="r3-mark" style="left:64%"><span>Median 590 €</span></div><div class="r3-mark r3-you" style="left:80%"><span class="r3-below">Ihr 662 €</span></div></div>
+              <div class="r3-muted">Median · Destatis EVS · 2023 | Untergrenze: Bürgergeld-Regelbedarf, Anteil Ernährung · BMAS · 2026</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="r3b-s5" data-nav-label="Töpfe-Donut" data-screen hidden>
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><button data-screen-link="r3b-s1">Ben</button><span class="r3-on">Haushalt</span></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-wrap">
+        <div class="r3-zoom"><button class="r3-z" data-screen-link="r3b-s1">Heute<span>Mi 28.10.</span></button><button class="r3-z" data-screen-link="r3b-s2">Woche<span>KW 44 · 26.10.–01.11.</span></button><button class="r3-z r3-on">Zyklus<span>Oktober · 01.–31.10.</span></button><button class="r3-z" data-screen-link="r3b-s4">Jahr<span>Kalenderjahr 2026</span></button></div>
+        <div class="r3-split">
+          <div>
+            <div class="r3-card">
+              <span class="r3-pt" style="margin-bottom:10px"><button data-screen-link="r3b-s3">Konto</button><span class="r3-on">Töpfe</span></span>
+              <div class="r3-pots">
+                <div class="r3-donut" style="background:conic-gradient(#01579b 0 40.2%,#fff 0 40.7%,#0288d1 0 68.3%,#fff 0 68.8%,#4fc3f7 0 85.5%,#fff 0 86%,#81d4fa 0 92.7%,#fff 0 93.2%,#cfd8dc 0 99.5%,#fff 0)"><div class="r3-dhole"><span>Tagesgeld</span><b>4.420 €</b><span>93 % in Töpfen</span></div></div>
+                <div class="r3-dleg">
+                  <div class="r3-dl"><i style="background:#01579b"></i><span>Notgroschen</span><span>1.800 €</span><em>41 %</em></div>
+                  <div class="r3-dl"><i style="background:#0288d1"></i><span>Urlaub</span><span>1.240 €</span><em>28 %</em></div>
+                  <div class="r3-dl"><i style="background:#4fc3f7"></i><span>Auto &amp; Versich.</span><span>760 €</span><em>17 %</em></div>
+                  <div class="r3-dl"><i style="background:#81d4fa"></i><span>Geschenke</span><span>320 €</span><em>7 %</em></div>
+                  <div class="r3-dl r3-gap"><i class="r3-gapsw"></i><span>ohne Topf</span><span>300 €</span><em>7 %</em></div>
+                </div>
+              </div>
+              <div class="r3-legend"><span><i class="r3-gapsw"></i>graue Lücke: Geld ohne Topf</span><span><i style="background:#e8a33b"></i>orange Lücke: Töpfe größer als Konto, „fehlt“</span></div>
+            </div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Topf-Buchungen im Zyklus</span></div>
+              <div class="r3-row"><span>01.10. Sparrate<br><span class="r3-muted">verteilt auf 4 Töpfe</span></span><span>+330,00 €</span></div>
+              <div class="r3-row"><span>12.10. Anzahlung Ferienwohnung<br><span class="r3-muted">Topf Urlaub</span></span><span>−300,00 €</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="r3-card">
+              <div class="r3-h"><span>300 € ohne Topf</span></div>
+              <div class="r3-btns" style="margin-top:0"><button class="r3-btn">Auf Töpfe verteilen</button><button class="r3-btn r3-ghost">Als Puffer lassen</button></div>
+            </div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Ziele</span></div>
+              <div class="r3-row"><span style="flex:1">Urlaub · 2.000 € bis 06/2027<span class="r3-goal"><i style="width:62%"></i></span></span><span class="r3-muted">+150 €/M.</span></div>
+              <div class="r3-row"><span style="flex:1">Notgroschen · 3.000 €<span class="r3-goal"><i style="width:60%"></i></span></span><span class="r3-muted">+77 €/M.</span></div>
+              <div class="r3-row"><span style="flex:1">Geschenke · 400 € bis 12/2026<span class="r3-goal"><i style="width:80%"></i></span></span><span class="r3-muted">+40 €/M.</span></div>
+              <div class="r3-row"><span style="flex:1">Auto &amp; Versich. · Jahreskosten<span class="r3-goal"><i style="width:100%"></i></span></span><span class="r3-muted">+63 €/M.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</section>
+
+<!-- ============ r3c · Aufgaben zuerst ============ -->
+<section data-design="r3c" data-nav-label="Aufgaben zuerst" hidden
+  data-design-motto="Erst erledigen, dann schauen"
+  data-design-traits="Startseite ist eine kurze Aufgabenliste|Antwort direkt in der Liste, ein Tipp|Alles andere unter „Mehr“ mit vier Einträgen"
+  data-design-icon="list" data-design-color="#00897b" data-design-overlay="bl">
+
+  <section id="r3c-s1" data-nav-label="Heute" data-screen data-screen-active="true">
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><span class="r3-on">Ben</span><button data-screen-link="r3c-s4">Haushalt</button></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-c">
+        <div class="r3-nav r3-tgt-nav"><button class="r3-on">Heute</button><div class="r3-ng">Mehr</div><button>Woche</button><button data-screen-link="r3c-s4">Plan &amp; Jahr</button><button data-screen-link="r3c-s5">Töpfe</button><button>Regeln</button></div>
+        <div class="r3-mid">
+          <div class="r3-h" style="font-size:15px;color:#1c1c1e"><span>Für dich heute · 3 Dinge</span></div>
+          <div class="r3-news"><span class="r3-kick">Eilmeldung · nur für dich</span><b>Netflix doppelt abgebucht</b><span class="r3-muted">17,99 € gingen am 26.10. zweimal von deinem Girokonto ab.</span>
+            <div class="r3-btns"><button class="r3-btn">Ansehen</button><button class="r3-btn r3-ghost">Ist in Ordnung</button></div></div>
+          <div class="r3-card r3-task"><span class="r3-ico">?</span><div>
+            <div class="r3-h" style="margin-bottom:4px"><span>3 Fragen</span><span class="r3-muted">18 / 30 bis zum Punkt</span></div>
+            <div class="r3-muted">Aral · 71,00 € · Girokonto Ben</div>
+            <div class="r3-q">Wem gehört die Buchung?</div>
+            <div class="r3-btns"><button class="r3-chip" data-screen-link="r3c-s2">Nur ich</button><button class="r3-chip" data-screen-link="r3c-s2">Für uns</button></div>
+          </div></div>
+          <div class="r3-card r3-task"><span class="r3-ico r3-warn">!</span><div>
+            <div class="r3-q" style="margin:0">Vertrag Fitness kündbar bis 30.11.</div>
+            <div class="r3-muted">36 € im Monat · seit 2024 · verlängert sich sonst um 12 Monate</div>
+            <div class="r3-btns"><button class="r3-chip">Behalten</button><button class="r3-chip">Am 23.11. erinnern</button></div>
+          </div></div>
+        </div>
+        <div class="r3-aside">
+          <div class="r3-card">
+            <div class="r3-tank r3-sm"><div class="r3-fill" style="height:62%"></div><div class="r3-plan" style="bottom:48%"></div><div class="r3-tl"><span>Dein Spielraum bis 31.10.</span><span class="r3-ok">✓ im Plan</span></div><span class="r3-ta">240 €</span></div>
+            <div class="r3-row" style="margin-top:6px"><span>Fr 30.10. · Fitness</span><span>36,00 €</span></div>
+            <div class="r3-row"><span>So 01.11. · Netflix</span><span>17,99 €</span></div>
+            <div class="r3-row"><span class="r3-pend">vorgemerkt · Aral</span><span class="r3-pend">52,40 €</span></div>
+          </div>
+        </div>
+        <div class="r3-bar"><button class="r3-on"><i>☀</i>Heute</button><button data-screen-link="r3c-s4"><i>☰</i>Mehr</button></div>
+      </div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r3-c-s1-a1" data-anno-side="right" data-anno-target=".r3-tgt-nav" style="--anno-x:12%;--anno-y:40%">
+        <button class="anno-pin" type="button" data-anno-pin="r3-c-s1-a1" aria-expanded="false" aria-controls="anno-bubble-r3-c-s1-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r3-c-s1-a1" data-anno-bubble="r3-c-s1-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r3-c-s1-a1" aria-expanded="false" aria-controls="anno-bubble-r3-c-s1-a1"><span class="anno-bubble-question">Am Handy stehen unten nur „Heute“ und „Mehr“. Hinter „Mehr“ liegen die vier Einträge, die hier links stehen. Reicht „Mehr“ als zweiter Eintrag?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r3-c-s1-a1" data-annotation="r3-c-s1-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r3-c-s1-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="r3c-s2" data-nav-label="Frage beantwortet" data-screen hidden>
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><span class="r3-on">Ben</span><button data-screen-link="r3c-s4">Haushalt</button></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-c">
+        <div class="r3-nav"><button class="r3-on" data-screen-link="r3c-s1">Heute</button><div class="r3-ng">Mehr</div><button>Woche</button><button data-screen-link="r3c-s4">Plan &amp; Jahr</button><button data-screen-link="r3c-s5">Töpfe</button><button>Regeln</button></div>
+        <div class="r3-mid">
+          <div class="r3-h" style="font-size:15px;color:#1c1c1e"><span>Für dich heute · 3 Dinge</span></div>
+          <div class="r3-news"><span class="r3-kick">Eilmeldung · nur für dich</span><b>Netflix doppelt abgebucht</b><span class="r3-muted">17,99 € gingen am 26.10. zweimal von deinem Girokonto ab.</span>
+            <div class="r3-btns"><button class="r3-btn">Ansehen</button><button class="r3-btn r3-ghost" data-screen-link="r3c-s3">Ist in Ordnung</button></div></div>
+          <div class="r3-card r3-task"><span class="r3-ico">?</span><div>
+            <div class="r3-done"><span>✓ Aral 71,00 € → Für uns</span><button class="r3-btn r3-ghost" style="padding:3px 10px;font-size:12px" data-screen-link="r3c-s1">Rückgängig</button></div>
+            <div class="r3-h" style="margin-bottom:4px"><span>Noch 2 Fragen</span><span class="r3-muted">19 / 30 bis zum Punkt</span></div>
+            <div class="r3-muted">dm · 23,80 € · Girokonto Ben</div>
+            <div class="r3-q">Welche Kategorie?</div>
+            <div class="r3-btns"><button class="r3-chip" data-screen-link="r3c-s3">Drogerie</button><button class="r3-chip" data-screen-link="r3c-s3">Haushalt</button><button class="r3-chip" data-screen-link="r3c-s3">Geschenk</button></div>
+          </div></div>
+          <div class="r3-card r3-task"><span class="r3-ico r3-warn">!</span><div>
+            <div class="r3-q" style="margin:0">Vertrag Fitness kündbar bis 30.11.</div>
+            <div class="r3-muted">36 € im Monat · seit 2024 · verlängert sich sonst um 12 Monate</div>
+            <div class="r3-btns"><button class="r3-chip">Behalten</button><button class="r3-chip">Am 23.11. erinnern</button></div>
+          </div></div>
+        </div>
+        <div class="r3-aside">
+          <div class="r3-card">
+            <div class="r3-tank r3-sm"><div class="r3-fill" style="height:62%"></div><div class="r3-plan" style="bottom:48%"></div><div class="r3-tl"><span>Dein Spielraum bis 31.10.</span><span class="r3-ok">✓ im Plan</span></div><span class="r3-ta">240 €</span></div>
+            <div class="r3-row" style="margin-top:6px"><span>Fr 30.10. · Fitness</span><span>36,00 €</span></div>
+            <div class="r3-row"><span>So 01.11. · Netflix</span><span>17,99 €</span></div>
+            <div class="r3-row"><span class="r3-pend">vorgemerkt · Aral</span><span class="r3-pend">52,40 €</span></div>
+          </div>
+        </div>
+        <div class="r3-bar"><button class="r3-on" data-screen-link="r3c-s1"><i>☀</i>Heute</button><button data-screen-link="r3c-s4"><i>☰</i>Mehr</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="r3c-s3" data-nav-label="Alles erledigt" data-screen hidden>
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><span class="r3-on">Ben</span><button data-screen-link="r3c-s4">Haushalt</button></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-c">
+        <div class="r3-nav"><button class="r3-on" data-screen-link="r3c-s1">Heute</button><div class="r3-ng">Mehr</div><button>Woche</button><button data-screen-link="r3c-s4">Plan &amp; Jahr</button><button data-screen-link="r3c-s5">Töpfe</button><button>Regeln</button></div>
+        <div class="r3-mid">
+          <div class="r3-card r3-calm r3-tgt-calm"><span class="r3-ico" style="flex:none;display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:#e8f5e9">✓</span><span>Nichts zu tun. Nächste Fragen kommen mit dem Wochen-Check am Montag.</span></div>
+          <div class="r3-card">
+            <div class="r3-tank r3-lg"><div class="r3-fill" style="height:62%"></div><div class="r3-plan" style="bottom:48%"></div><div class="r3-tl"><span>Dein Spielraum bis 31.10.</span><span class="r3-ok">✓ im Plan</span></div><span class="r3-ta">240 €</span></div>
+            <div class="r3-muted" style="margin-top:6px">Gestrichelt: so voll sollte der Tank heute laut Plan sein</div>
+          </div>
+          <div class="r3-card">
+            <div class="r3-h"><span>Diese Woche</span><span class="r3-muted">Ist / Plan</span></div>
+            <div class="r3-pos"><div><span>Mobilität</span><span>71 / 55 €</span></div><span class="r3-pb r3-over"><i style="width:100%"></i><b style="left:77%"></b></span></div>
+            <div class="r3-pos"><div><span>Persönliches</span><span>23 / 40 €</span></div><span class="r3-pb"><i style="width:57%"></i></span></div>
+          </div>
+        </div>
+        <div class="r3-aside">
+          <div class="r3-card">
+            <div class="r3-h"><span>Als Nächstes</span><span class="r3-muted">Girokonto Ben</span></div>
+            <div class="r3-row"><span>Fr 30.10. · Fitness</span><span>36,00 €</span></div>
+            <div class="r3-row"><span>So 01.11. · Netflix</span><span>17,99 €</span></div>
+            <div class="r3-row"><span>Mo 02.11. · Handy</span><span>19,99 €</span></div>
+            <div class="r3-row"><span class="r3-pend">vorgemerkt · Aral</span><span class="r3-pend">52,40 €</span></div>
+          </div>
+          <div class="r3-card">
+            <div class="r3-row" style="padding-top:0"><span>Bis zum nächsten Punkt</span><span>21 / 30</span></div>
+            <span class="r3-pb"><i style="width:70%"></i></span>
+          </div>
+        </div>
+        <div class="r3-bar"><button class="r3-on" data-screen-link="r3c-s1"><i>☀</i>Heute</button><button data-screen-link="r3c-s4"><i>☰</i>Mehr</button></div>
+      </div>
+    </div>
+    <div class="anno-layer" data-anno-layer>
+      <div class="anno" data-anno="r3-c-s3-a1" data-anno-side="bottom" data-anno-target=".r3-tgt-calm" style="--anno-x:50%;--anno-y:18%">
+        <button class="anno-pin" type="button" data-anno-pin="r3-c-s3-a1" aria-expanded="false" aria-controls="anno-bubble-r3-c-s3-a1" aria-label="Anmerkung 1">1</button>
+        <div class="anno-bubble" id="anno-bubble-r3-c-s3-a1" data-anno-bubble="r3-c-s3-a1" data-open="false">
+          <button type="button" class="anno-bubble-summary" data-anno-summary="r3-c-s3-a1" aria-expanded="false" aria-controls="anno-bubble-r3-c-s3-a1"><span class="anno-bubble-question">Ist alles erledigt, schrumpft die Liste auf diese eine Zeile und der Tank wird groß. Zeile behalten, oder ganz weglassen?</span></button>
+          <div class="anno-bubble-body"><textarea class="anno-answer" data-comment="anno-r3-c-s3-a1" data-annotation="r3-c-s3-a1" data-attachable placeholder="{{anno.answer_placeholder}}"></textarea><div class="attach-slot" data-attach-slot="anno-r3-c-s3-a1"></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="r3c-s4" data-nav-label="Plan &amp; Jahr" data-screen hidden>
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><button data-screen-link="r3c-s1">Ben</button><span class="r3-on">Haushalt</span></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-c">
+        <div class="r3-nav"><button data-screen-link="r3c-s1">Heute</button><div class="r3-ng">Mehr</div><button>Woche</button><button class="r3-on">Plan &amp; Jahr</button><button data-screen-link="r3c-s5">Töpfe</button><button>Regeln</button></div>
+        <div class="r3-mid">
+          <div class="r3-more"><button>Woche</button><span class="r3-on">Plan &amp; Jahr</span><button data-screen-link="r3c-s5">Töpfe</button><button>Regeln</button></div>
+          <div class="r3-cols2">
+            <div class="r3-card">
+              <div class="r3-h"><span>Zyklus Oktober · noch 3 Tage</span><span class="r3-muted">Balken = Ist, Strich = Plan</span></div>
+              <div class="r3-pos"><div><span>Miete <span class="r3-tag">Uns</span></span><span>1.150 / 1.150</span></div><span class="r3-pb"><i style="width:100%"></i></span></div>
+              <div class="r3-pos"><div><span>Lebensmittel <span class="r3-tag">Uns</span></span><span><button class="r3-flag">3× drüber · Plan 650?</button> 662 / 600</span></div><span class="r3-pb r3-over"><i style="width:100%"></i><b style="left:90.6%"></b></span></div>
+              <div class="r3-pos"><div><span>Strom <span class="r3-tag">Uns</span></span><span>94 / 90</span></div><span class="r3-pb r3-over"><i style="width:100%"></i><b style="left:95.7%"></b></span></div>
+              <div class="r3-pos"><div><span>Streaming <span class="r3-tag">Uns</span></span><span>28 / 28</span></div><span class="r3-pb"><i style="width:100%"></i></span></div>
+              <div class="r3-pos"><div><span>Mobilität <span class="r3-tag r3-ben">Ben</span></span><span>72 / 220</span></div><span class="r3-pb"><i style="width:33%"></i></span></div>
+              <div class="r3-pos"><div><span>Handy <span class="r3-tag r3-anna">Anna</span></span><span>25 / 25</span></div><span class="r3-pb"><i style="width:100%"></i></span></div>
+              <div class="r3-pos"><div><span>Sport <span class="r3-tag r3-ben">Ben</span></span><span>36 / 40</span></div><span class="r3-pb"><i style="width:90%"></i></span></div>
+              <div class="r3-row" style="margin-top:6px"><span><span class="r3-tag r3-anna">Anna</span> 1.096 € · 52 % &nbsp; <span class="r3-tag r3-ben">Ben</span> 971 € · 48 %</span></div>
+              <div class="r3-row"><b>Ausgleich Anna → Ben</b><b>124 €</b></div>
+            </div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Kalenderjahr 2026 · Jan–Dez</span><span class="r3-muted">17.840 € Fixkosten</span></div>
+              <div class="r3-yr">
+                <div class="r3-months"><span></span><span>J</span><span>F</span><span>M</span><span>A</span><span>M</span><span>J</span><span>J</span><span>A</span><span>S</span><span>O</span><span>N</span><span>D</span><span>€/J</span></div>
+                <div class="r3-yrow"><span>Kfz-Versich.</span><div class="r3-track"><i class="r3-ev" style="left:4%"></i><i class="r3-ev r3-dl" style="left:91%"></i></div><span>412</span></div>
+                <div class="r3-yrow"><span>Strom</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span><i class="r3-ev r3-px" style="left:84%"></i></div><span>1.128</span></div>
+                <div class="r3-yrow"><span>Fitness Ben</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span><i class="r3-ev r3-dl" style="left:91%"></i></div><span>432</span></div>
+                <div class="r3-yrow"><span>Handy Anna</span><div class="r3-track"><span class="r3-line" style="left:2%;right:2%"></span><i class="r3-ev r3-dl" style="left:99%"></i></div><span>300</span></div>
+                <div class="r3-yrow"><span>Haftpflicht</span><div class="r3-track"><i class="r3-ev" style="left:21%"></i></div><span>89</span></div>
+                <div class="r3-yrow"><span>Rundfunk</span><div class="r3-track"><i class="r3-ev" style="left:4%"></i><i class="r3-ev" style="left:29%"></i><i class="r3-ev" style="left:54%"></i><i class="r3-ev" style="left:79%"></i></div><span>220</span></div>
+                <span class="r3-today"></span>
+              </div>
+              <div class="r3-legend"><span><i style="background:#0288d1;border-radius:50%"></i>Zahlung</span><span><i style="background:#e8a33b;transform:rotate(45deg)"></i>Kündigungsfrist</span><span><i style="background:#8e24aa;border-radius:50%"></i>Preisänderung</span><span><i style="background:#03a9f4"></i>heute</span></div>
+              <div class="r3-h" style="margin-top:12px"><span>Lebensmittel pro Monat · 2 Erwachsene</span></div>
+              <div class="r3-bench"><div class="r3-band" style="left:64%;width:16%">+12 %</div><div class="r3-mark r3-floor" style="left:13%"><span class="r3-below">Regelbedarf 360 €</span></div><div class="r3-mark" style="left:64%"><span>Median 590 €</span></div><div class="r3-mark r3-you" style="left:80%"><span class="r3-below">Ihr 662 €</span></div></div>
+              <div class="r3-muted">Median · Destatis EVS · 2023 | Untergrenze: Bürgergeld-Regelbedarf, Anteil Ernährung · BMAS · 2026</div>
+            </div>
+          </div>
+        </div>
+        <div class="r3-aside">
+          <div class="r3-card">
+            <div class="r3-tank r3-sm"><div class="r3-fill" style="height:58%"></div><div class="r3-plan" style="bottom:42%"></div><div class="r3-tl"><span>Gemeinsam frei bis 31.10.</span><span class="r3-ok">✓ im Plan</span></div><span class="r3-ta">412 €</span></div>
+            <div class="r3-row" style="margin-top:6px"><span>Do 29.10. · Miete</span><span>1.150,00 €</span></div>
+            <div class="r3-row"><span>Fr 30.10. · Strom</span><span>94,00 €</span></div>
+            <div class="r3-row"><span class="r3-pend">2 vorgemerkt</span><span class="r3-pend">38,00 €</span></div>
+          </div>
+        </div>
+        <div class="r3-bar"><button data-screen-link="r3c-s1"><i>☀</i>Heute</button><button class="r3-on"><i>☰</i>Mehr</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="r3c-s5" data-nav-label="Töpfe-Donut" data-screen hidden>
+    <div class="r3-app">
+      <div class="r3-top"><span class="r3-brand">Finance</span><span class="r3-pt"><button data-screen-link="r3c-s1">Ben</button><span class="r3-on">Haushalt</span></span><span class="r3-stamp">Stand 06:30</span></div>
+      <div class="r3-c">
+        <div class="r3-nav"><button data-screen-link="r3c-s1">Heute</button><div class="r3-ng">Mehr</div><button>Woche</button><button data-screen-link="r3c-s4">Plan &amp; Jahr</button><button class="r3-on">Töpfe</button><button>Regeln</button></div>
+        <div class="r3-mid">
+          <div class="r3-more"><button>Woche</button><button data-screen-link="r3c-s4">Plan &amp; Jahr</button><span class="r3-on">Töpfe</span><button>Regeln</button></div>
+          <div class="r3-cols2">
+            <div class="r3-card">
+              <div class="r3-h"><span>Tagesgeld Gemeinsam · ••4821</span></div>
+              <div class="r3-pots">
+                <div class="r3-donut" style="background:conic-gradient(#01579b 0 40.2%,#fff 0 40.7%,#0288d1 0 68.3%,#fff 0 68.8%,#4fc3f7 0 85.5%,#fff 0 86%,#81d4fa 0 92.7%,#fff 0 93.2%,#cfd8dc 0 99.5%,#fff 0)"><div class="r3-dhole"><span>Tagesgeld</span><b>4.420 €</b><span>93 % in Töpfen</span></div></div>
+                <div class="r3-dleg">
+                  <div class="r3-dl"><i style="background:#01579b"></i><span>Notgroschen</span><span>1.800 €</span><em>41 %</em></div>
+                  <div class="r3-dl"><i style="background:#0288d1"></i><span>Urlaub</span><span>1.240 €</span><em>28 %</em></div>
+                  <div class="r3-dl"><i style="background:#4fc3f7"></i><span>Auto &amp; Versich.</span><span>760 €</span><em>17 %</em></div>
+                  <div class="r3-dl"><i style="background:#81d4fa"></i><span>Geschenke</span><span>320 €</span><em>7 %</em></div>
+                  <div class="r3-dl r3-gap"><i class="r3-gapsw"></i><span>ohne Topf</span><span>300 €</span><em>7 %</em></div>
+                </div>
+              </div>
+              <div class="r3-btns"><button class="r3-btn">300 € verteilen</button><button class="r3-btn r3-ghost">Als Puffer lassen</button></div>
+              <div class="r3-legend"><span><i class="r3-gapsw"></i>graue Lücke: Geld ohne Topf</span><span><i style="background:#e8a33b"></i>orange Lücke: Töpfe größer als Konto, „fehlt“</span></div>
+            </div>
+            <div class="r3-card">
+              <div class="r3-h"><span>Ziele</span></div>
+              <div class="r3-row"><span style="flex:1">Urlaub · 2.000 € bis 06/2027<span class="r3-goal"><i style="width:62%"></i></span></span><span class="r3-muted">+150 €/M.</span></div>
+              <div class="r3-row"><span style="flex:1">Notgroschen · 3.000 €<span class="r3-goal"><i style="width:60%"></i></span></span><span class="r3-muted">+77 €/M.</span></div>
+              <div class="r3-row"><span style="flex:1">Geschenke · 400 € bis 12/2026<span class="r3-goal"><i style="width:80%"></i></span></span><span class="r3-muted">+40 €/M.</span></div>
+              <div class="r3-row"><span style="flex:1">Auto &amp; Versich. · Jahreskosten<span class="r3-goal"><i style="width:100%"></i></span></span><span class="r3-muted">+63 €/M.</span></div>
+              <div class="r3-h" style="margin-top:12px"><span>Topf-Buchungen im Zyklus</span></div>
+              <div class="r3-row"><span>01.10. Sparrate<br><span class="r3-muted">verteilt auf 4 Töpfe</span></span><span>+330,00 €</span></div>
+              <div class="r3-row"><span>12.10. Anzahlung Ferienwohnung<br><span class="r3-muted">Topf Urlaub</span></span><span>−300,00 €</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="r3-aside">
+          <div class="r3-card">
+            <div class="r3-tank r3-sm"><div class="r3-fill" style="height:58%"></div><div class="r3-plan" style="bottom:42%"></div><div class="r3-tl"><span>Gemeinsam frei bis 31.10.</span><span class="r3-ok">✓ im Plan</span></div><span class="r3-ta">412 €</span></div>
+            <div class="r3-row" style="margin-top:6px"><span>Do 29.10. · Miete</span><span>1.150,00 €</span></div>
+            <div class="r3-row"><span>Fr 30.10. · Strom</span><span>94,00 €</span></div>
+            <div class="r3-row"><span class="r3-pend">2 vorgemerkt</span><span class="r3-pend">38,00 €</span></div>
+          </div>
+        </div>
+        <div class="r3-bar"><button data-screen-link="r3c-s1"><i>☀</i>Heute</button><button class="r3-on"><i>☰</i>Mehr</button></div>
+      </div>
+    </div>
+  </section>
+</section>
+</section>
